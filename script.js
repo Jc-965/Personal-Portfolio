@@ -59,6 +59,10 @@ const updateCursor = () => {
   const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
   const pressFactor = isPressing ? 0.82 : 1;
   const haloPressFactor = isPressing ? 1.06 : 1;
+  const progressX = pointer.x / Math.max(window.innerWidth, 1);
+  const progressY = pointer.y / Math.max(window.innerHeight, 1);
+  const hue = 200 + progressX * 80;
+  const lightness = 40 + progressY * 12 + Math.min(velocity / 22, 6);
 
   const ringScale = (1 + clamp(velocity / 120, 0, 0.6)) * pressFactor;
   const haloScale = (1 + clamp(velocity / 250, 0, 0.8)) * haloPressFactor;
@@ -85,6 +89,8 @@ const updateCursor = () => {
     root.style.setProperty("--cursor-y", `${pointer.y}px`);
     root.style.setProperty("--cursor-v", velocity.toFixed(2));
     root.style.setProperty("--cursor-angle", `${angleDeg}deg`);
+    root.style.setProperty("--bg-hue", hue.toFixed(2));
+    root.style.setProperty("--bg-lightness", lightness.toFixed(2));
   }
 
   if (background) {
@@ -92,6 +98,8 @@ const updateCursor = () => {
     background.style.setProperty("--cursor-y", `${pointer.y}px`);
     background.style.setProperty("--cursor-v", velocity.toFixed(2));
     background.style.setProperty("--cursor-angle", `${angleDeg}deg`);
+    background.style.setProperty("--bg-hue", hue.toFixed(2));
+    background.style.setProperty("--bg-lightness", lightness.toFixed(2));
   }
 
   backgroundLayers.forEach((layer, index) => {
