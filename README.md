@@ -1,73 +1,47 @@
-# Personal Portfolio
+# Jesse (Zexi) Chen
 
-A single-page interactive portfolio crafted to showcase a Carnegie Mellon School of Computer Science first-year’s story, technical range, and impact. The experience features animated gradient orbs, a responsive glassmorphism layout, a custom magnetic cursor, and scroll-triggered reveals across sections covering coursework, research, projects, and contact details.
+First-year in Carnegie Mellon University’s School of Computer Science building systems where rigor meets empathy. I plan to con
+centrate in Machine Learning while balancing proofs from 15-122, 15-151, and 21-241 with the shipped products that keep me groun
+ded.
 
-## Getting Started
+## Snapshot
+- **Toolbox:** Python, C, C++, Dart, Java, JavaScript/TypeScript, Flutter, React, Vite, Tailwind, Firebase, NumPy, Pandas, sciki
+t-learn, Framer Motion, Git, Typst, LaTeX, Notion.
+- **Mindset:** Design with sharp interfaces and invariants, validate with telemetry, and keep privacy a default not an afterthou
+ght.
+- **Habits:** Document obsessively, prototype quickly, and teach what I learn so teams can iterate with clarity.
 
-Serve the static files with any local web server from the project root.
+## Projects that Define My Work
+- **Levio (Flutter, Firebase, on-device ML):** Patent-pending Parkinson’s companion with symptom journaling, medication logic,
+ guided therapy modules, and privacy-first movement analytics. Reached both app stores, won Game Gala, and advanced to the Diamo
+nd Challenge semi-finals.
+- **CMUMaps (Python, geometry tooling):** Data backbone for ScottyLabs’ campus navigation—parsing OpenStreetMap exports, resolv
+ing multipolygons, computing convex-hull hitboxes, and generating label anchors that feel natural on touch.
+- **MyCommunity (Android/Java):** Mobile app that routes Scouts to nearby service with Google Maps overlays, New York Times con
+text, and offline-aware caching. Earned IgniteCS 3rd place and a NASA JPL participation award.
+- **Tarocchi (React + TypeScript):** Interactive tarot-inspired narrative with layered parallax, ambient audio, and branching s
+cenes that explore how storytelling and systems thinking intertwine.
 
-### Option 1: Python (built in on macOS/Linux and available on Windows 10+)
+## Research, Teaching, and Service
+- **SoftCom Lab @ Cal Poly Pomona:** Co-authored peer-reviewed work on AI and mobile health after building Python pipelines for
+ time-series cleaning, feature engineering, and validation splits that mirror real usage.
+- **Coding Minds & IgniteCS:** Design debugging walkthroughs, recursion exercises, and algorithmic challenges that help K-12 st
+udents think in abstractions instead of memorizing recipes.
+- **Scouting & Community:** Pending Eagle Scout with a service portfolio ranging from custom signage installations to coaching
+younger scouts through programming basics.
 
-```bash
-cd /path/to/Personal-Portfolio
-python3 -m http.server 8000
-```
+## Leadership, Recognition, and Creative Fuel
+- Diamond Challenge Semi-Finalist · Game Gala Winner · NASA JPL Participation · IgniteCS Expo 3rd Place · Kibo RPC Top 9 U.S. ·
+ USACO Bronze perfect score.
+- Clarinetist and section leader with Pasadena ensembles, international tours, and marching band commitments that shaped my sen
+se of discipline and listening.
+- Apple ecosystem tinkerer and long-distance hiker who keeps perspective by understanding the hardware stack and exploring outsi
+de.
 
-> **Tip:** On Windows you may need to run `py -m http.server 8000` instead. If you see a "No module named http.server" error, ensure you are using Python 3.
+## Vision
+Build systems that raise the floor for reliability and lift the ceiling for what people can do next—especially in health, educat
+ion, and infrastructure. Precision matters, but dignity matters more; the best code feels like care.
 
-### Option 2: Node.js
-
-If you have Node.js installed, you can use one of the lightweight static servers:
-
-```bash
-npx serve . --listen 8000
-# or
-npx http-server -p 8000
-```
-
-### Option 3: VS Code Live Server extension
-
-1. Open the folder in VS Code.
-2. Install the "Live Server" extension if you do not already have it.
-3. Right-click `index.html` and choose **Open with Live Server**.
-
-After starting any of the servers above, visit <http://localhost:8000> (or the port Live Server reports) to explore the portfolio.
-
-## Deploying to the Web (jc-965.com)
-
-You can host the static site anywhere you control and then connect your Wix-managed domain (`jc-965.com`). Two common options are below.
-
-### Option A: GitHub Pages
-
-1. Create a new public repository on GitHub and push this project to it.
-2. In the repository settings, enable **Pages** with the `main` branch and `/ (root)` as the source.
-3. Add a `CNAME` file at the project root containing `jc-965.com` so GitHub knows the custom domain.
-4. In Wix, open **Domains → Advanced → DNS** and edit the records:
-   - Add/Update four `A` records for `@` pointing to `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, and `185.199.111.153`.
-   - Add a `CNAME` record for `www` pointing to `<your-github-username>.github.io`.
-5. Back in GitHub Pages, set the custom domain to `jc-965.com` and enforce HTTPS. DNS changes can take a few hours to propagate.
-
-### Option B: Vercel (or Netlify, Render, etc.)
-
-1. Import the repository into Vercel and deploy using the default static site settings.
-2. In Vercel, add `jc-965.com` and `www.jc-965.com` under **Domains**.
-3. Wix DNS setup:
-   - Point an `A` record for `@` to the Vercel-provided IPv4 address (if given) or use the Vercel `ALIAS`/`ANAME` target.
-   - Create a `CNAME` for `www` pointing to the Vercel domain shown (usually `cname.vercel-dns.com`).
-4. Wait for DNS propagation and verify HTTPS is active from your hosting provider.
-
-> **Tip:** Wix does not currently allow uploading arbitrary HTML as the main Wix site, so connecting the domain via DNS ensures your custom portfolio is served from the platform you control while still using your Wix-purchased domain.
-
-## Customization
-
-- Update `index.html` copy to reflect your own biography, achievements, and contact information.
-- Adjust styling tokens, gradients, and layout within `styles.css`.
-- Extend interactivity or analytics in `script.js`.
-
-## Features
-
-- Responsive navigation with mobile menu toggle
-- Animated hero cards highlighting specialties and interests
-- Tech-focused sections for skills, experience, and projects grounded in CMU SCS work
-- Scroll-triggered reveal animations
-- Custom cursor with hover states and animated tech background with hover/click ripples
+## Connect
+The site highlights current projects and contact details. For collaborations, research opportunities, or just a thoughtful conv
+ersation, reach out through the contact panel.
