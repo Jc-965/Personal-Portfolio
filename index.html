@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CMU SCS Portfolio | Human-Centered Systems</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="cursor"></div>
+    <div class="cursor-outline"></div>
+
+    <div class="background">
+      <div class="orb orb-one"></div>
+      <div class="orb orb-two"></div>
+      <div class="orb orb-three"></div>
+      <div class="grid"></div>
+    </div>
+
+    <header class="nav" id="top">
+      <div class="nav__brand">CMU SCS · Builder</div>
+      <nav class="nav__menu">
+        <a href="#about">About</a>
+        <a href="#skills">Skills</a>
+        <a href="#experience">Experience</a>
+        <a href="#projects">Projects</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button class="nav__toggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__content">
+          <p class="hero__eyebrow">First-year · Carnegie Mellon School of Computer Science</p>
+          <h1 id="hero-title">Building systems where rigor meets care.</h1>
+          <p>
+            I design and ship products that make life steadier for real people,
+            then tighten the math and engineering behind them until they are
+            reliable, explainable, and fast. My center of gravity is human
+            health, maps, and social-good tooling informed by both theory and
+            relentless iteration.
+          </p>
+          <div class="hero__cta">
+            <a class="btn" href="#projects">View Projects</a>
+            <a class="btn btn--ghost" href="#contact">Let's Collaborate</a>
+          </div>
+          <div class="hero__stats">
+            <div>
+              <span class="number">Focus</span>
+              <span class="label">Machine learning &amp; product systems</span>
+            </div>
+            <div>
+              <span class="number">Superpower</span>
+              <span class="label">Shipping polished tools from first prototype</span>
+            </div>
+            <div>
+              <span class="number">Mindset</span>
+              <span class="label">Proofs, invariants &amp; empathy-driven design</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero__visual" role="presentation">
+          <div class="hero__card">
+            <p class="hero__card-title">Current Coursework</p>
+            <ul>
+              <li>15-122: Principles of Imperative Computation</li>
+              <li>15-151: Mathematical Foundations for CS</li>
+              <li>21-241: Matrices and Linear Transformations</li>
+              <li>Electives in creative tech &amp; product strategy</li>
+            </ul>
+          </div>
+          <div class="hero__card">
+            <p class="hero__card-title">Working Stack</p>
+            <ul>
+              <li>Git-driven collaboration across research &amp; product</li>
+              <li>Documentation in LaTeX &amp; Typst</li>
+              <li>Project orchestration inside Notion</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="about" aria-labelledby="about-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">About</span>
+          <h2 id="about-title">Engineer dedicated to resilient, human-centered technology.</h2>
+        </div>
+        <div class="panel__grid">
+          <p>
+            My story as an engineer began in my grandmother’s kitchen and
+            solidified the night I realized code could be care. I build real
+            products that help people—then prove their correctness with
+            invariants, abstractions, and instrumentation. I organize work the
+            way I write programs, with clear interfaces, testable pieces, and a
+            bias toward momentum grounded in empathy.
+          </p>
+          <div class="panel__card">
+            <h3>Core Principles</h3>
+            <ul>
+              <li>Start with people, then harden the math and infrastructure.</li>
+              <li>Design systems that are explainable, observable, and private by default.</li>
+              <li>Let theory inform implementation without slowing delivery.</li>
+              <li>Teach, document, and mentor to elevate everyone on the team.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="skills" aria-labelledby="skills-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Toolkit</span>
+          <h2 id="skills-title">Technical proficiencies spanning product and research.</h2>
+        </div>
+        <div class="skills">
+          <div class="skills__group">
+            <h3>Languages</h3>
+            <ul>
+              <li>Python · C · C++</li>
+              <li>Dart · Java</li>
+              <li>JavaScript · TypeScript</li>
+              <li>SQL · shell scripting</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Frameworks &amp; Libraries</h3>
+            <ul>
+              <li>Flutter · Firebase · Android SDK</li>
+              <li>React · Vite · Framer Motion</li>
+              <li>Tailwind CSS · bespoke CSS systems</li>
+              <li>Unreal Engine · Google Maps SDK</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Data &amp; Intelligence</h3>
+            <ul>
+              <li>NumPy · Pandas · scikit-learn</li>
+              <li>On-device signal processing &amp; feature extraction</li>
+              <li>Telemetry design for adherence &amp; behavior analytics</li>
+              <li>Experimentation &amp; error analysis workflows</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Product Craft</h3>
+            <ul>
+              <li>Git-native development &amp; code review</li>
+              <li>Documentation in LaTeX &amp; Typst</li>
+              <li>Systems thinking with Notion roadmaps</li>
+              <li>Test design for edge cases &amp; background processes</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="experience" aria-labelledby="experience-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Experience</span>
+          <h2 id="experience-title">Ways I translate ideas into dependable systems.</h2>
+        </div>
+        <div class="timeline">
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Levio · Founder &amp; Lead Engineer</h3>
+              <p class="timeline__meta">Flutter · Firebase · ML prototyping</p>
+              <ul>
+                <li>Built a Parkinson’s support app with medication schedules, symptom journaling, and guided speech &amp; movement modules.</li>
+                <li>Designed reminder logic that handles missed doses, tapers, and timezone edge cases with automated testing.</li>
+                <li>Prototyped privacy-preserving movement analysis using on-device feature extraction and lightweight models.</li>
+                <li>Launched on iOS and Android, reaching Diamond Challenge semi-finals, winning Game Gala, and filing a provisional patent.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>ScottyLabs · CMUMaps Data Backbone</h3>
+              <p class="timeline__meta">Python · geometry · data orchestration</p>
+              <ul>
+                <li>Parse OpenStreetMap exports into building, entrance, and level datasets with resilient XML tooling.</li>
+                <li>Transform ways and multipolygons into closed shapes, computing convex hulls and visual-center labels.</li>
+                <li>Infer floor counts from mixed metadata while preserving schema parity through stringly typed IDs.</li>
+                <li>Hardened pipelines against non-simple polygons, duplicated nodes, and numerical instability.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>SoftCom Lab · AI &amp; Mobile Health Researcher</h3>
+              <p class="timeline__meta">Python · NumPy · scikit-learn</p>
+              <ul>
+                <li>Engineered pipelines for sensor-derived datasets with careful cleaning, validation splits, and error analysis.</li>
+                <li>Focused on feature extraction that respects real-world usage patterns over random shuffles.</li>
+                <li>Co-authored peer-reviewed work with faculty mentors, defending metrics and acknowledging dataset limits.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Teaching, Scouting &amp; Music Leadership</h3>
+              <p class="timeline__meta">Coding Minds · Scouts · Performing Arts</p>
+              <ul>
+                <li>Design debugging walkthroughs, recursion exercises, and assessments that meet students where they are.</li>
+                <li>Led service initiatives as a pending Eagle Scout with 70 merit badges and a community-focused capstone build.</li>
+                <li>Section leader and soloist on clarinet, performing with Pasadena ensembles and national parade showcases.</li>
+                <li>Competed in Kibo RPC (top nine U.S.) and USACO (perfect Bronze score), keeping systems instincts sharp.</li>
+                <li>Translate rehearsal discipline into engineering rituals that keep teams coordinated and prepared.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="projects" aria-labelledby="projects-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Selected Work</span>
+          <h2 id="projects-title">Projects that braid theory, craft, and impact.</h2>
+        </div>
+        <div class="projects">
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>Levio</h3>
+              <span class="tag">Mobile Health · Product System</span>
+            </div>
+            <p>
+              A cross-platform Parkinson’s companion with medication tracking,
+              symptom journaling, guided exercises, and early-stage movement
+              analysis built to bring families into the care loop.
+            </p>
+            <ul class="project-card__tech">
+              <li>Flutter</li>
+              <li>Firebase</li>
+              <li>On-device analytics</li>
+              <li>Patent research</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for Levio">Case Study</a>
+              <a href="#" aria-label="View Levio source code">Source</a>
+            </div>
+          </article>
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>CMUMaps Data Backbone</h3>
+              <span class="tag">Infrastructure · Data Visualization</span>
+            </div>
+            <p>
+              Data pipelines that keep campus maps intuitive by reconciling
+              OpenStreetMap structures with interaction-ready geometry and
+              labeling for ScottyLabs.
+            </p>
+            <ul class="project-card__tech">
+              <li>Python</li>
+              <li>xml.etree</li>
+              <li>Computational geometry</li>
+              <li>Data validation tooling</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for CMUMaps Data Backbone">Case Study</a>
+              <a href="#" aria-label="View CMUMaps Data Backbone source code">Source</a>
+            </div>
+          </article>
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>MyCommunity</h3>
+              <span class="tag">Android · Social Impact</span>
+            </div>
+            <p>
+              Android app that helps Scouts find local service projects,
+              integrating Google Maps and New York Times APIs to surface
+              relevant context while staying resilient offline.
+            </p>
+            <ul class="project-card__tech">
+              <li>Java</li>
+              <li>Google Maps SDK</li>
+              <li>REST APIs</li>
+              <li>Offline caching</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for MyCommunity">Case Study</a>
+              <a href="#" aria-label="View MyCommunity source code">Source</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel--contact" id="contact" aria-labelledby="contact-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Contact</span>
+          <h2 id="contact-title">Let’s build systems that raise the floor for people.</h2>
+        </div>
+        <div class="contact">
+          <div class="contact__details">
+            <p>
+              I’m exploring internships, research, and collaborations that balance
+              pace with precision. If you’re building tools that respect privacy,
+              bring clarity to messy data, or help people push past hard moments,
+              I’d love to talk.
+            </p>
+            <ul>
+              <li><strong>Email:</strong> hello@jc-965.com (update to your preferred inbox)</li>
+              <li><strong>Location:</strong> Pittsburgh, PA · Open to remote collaboration</li>
+              <li><strong>Availability:</strong> Always ready to iterate with thoughtful teams</li>
+            </ul>
+          </div>
+          <form class="contact__form">
+            <label>
+              Name
+              <input type="text" name="name" placeholder="Jane Doe" required />
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" placeholder="you@example.com" required />
+            </label>
+            <label>
+              How can I help?
+              <textarea name="message" rows="4" placeholder="Project details or topics" required></textarea>
+            </label>
+            <button type="submit" class="btn">Send Message</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>© <span id="year"></span> CMU SCS Builder. Crafted with rigor, rhythm, and care.</p>
+      <a href="#top" class="back-to-top" aria-label="Back to top">Back to top ↑</a>
+    </footer>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>
