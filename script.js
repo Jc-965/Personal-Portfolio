@@ -3,14 +3,12 @@ const body = document.body;
 const canvas = document.querySelector('.background__canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
 
-const glyph = document.querySelector('.cursor--glyph');
-const halo = document.querySelector('.cursor--halo');
-const trail = Array.from(document.querySelectorAll('.cursor--trail span'));
+const cursorNode = document.querySelector('.cursor--pointer');
+const cursorRing = cursorNode?.querySelector('.cursor__ring');
+const cursorTail = cursorNode?.querySelector('.cursor__tail');
 
 let pointerTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let pointer = { x: pointerTarget.x, y: pointerTarget.y };
-let haloState = { x: pointerTarget.x, y: pointerTarget.y };
-const trailState = trail.map(() => ({ x: pointerTarget.x, y: pointerTarget.y }));
 let pointerDown = false;
 let rotation = 0;
 let rotationTarget = 0;
@@ -122,31 +120,23 @@ let currentSectionAccentValue = defaultAccentValue;
 setAccentPalette(defaultAccentValue);
 
 function setCursorPosition() {
+  if (!cursorNode) return;
   const scale = pointerDown ? 0.94 : 1;
-  glyph.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) rotate(${rotation}rad) scale(${scale})`;
-  const haloScale = pointerDown ? 0.9 : 1.05;
-  halo.style.transform = `translate3d(${haloState.x}px, ${haloState.y}px, 0) scale(${haloScale})`;
-  trail.forEach((dot, index) => {
-    const state = trailState[index];
-    dot.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
-  });
+  cursorNode.style.setProperty('--cursor-x', pointer.x);
+  cursorNode.style.setProperty('--cursor-y', pointer.y);
+  cursorNode.style.setProperty('--cursor-scale', scale.toFixed(3));
+  cursorNode.style.setProperty('--cursor-rotation', `${rotation}rad`);
 }
 
 function animateCursor() {
-  const follow = pointerDown ? 0.38 : 0.28;
+  if (!cursorNode) {
+    requestAnimationFrame(animateCursor);
+    return;
+  }
+
+  const follow = pointerDown ? 0.48 : 0.34;
   pointer.x += (pointerTarget.x - pointer.x) * follow;
   pointer.y += (pointerTarget.y - pointer.y) * follow;
-
-  const haloFollow = pointerDown ? 0.2 : 0.16;
-  haloState.x += (pointerTarget.x - haloState.x) * haloFollow;
-  haloState.y += (pointerTarget.y - haloState.y) * haloFollow;
-
-  trailState.forEach((state, index) => {
-    const lag = Math.max(0.18, 0.38 - index * 0.04);
-    const factor = pointerDown ? lag + 0.08 : lag;
-    state.x += (pointerTarget.x - state.x) * factor;
-    state.y += (pointerTarget.y - state.y) * factor;
-  });
 
   const vx = pointer.x - lastPointer.x;
   const vy = pointer.y - lastPointer.y;
@@ -154,16 +144,24 @@ function animateCursor() {
   if (speed > 0.001) {
     rotationTarget = Math.atan2(vy, vx);
   }
-  rotation += normalizeAngle(rotationTarget - rotation) * 0.2;
-  const skew = Math.max(Math.min(vx * 0.12, 14), -14);
-  glyph.style.setProperty('--cursor-skew', `${skew}deg`);
-  halo.style.opacity = Math.min(1, 0.78 + speed * 0.025).toFixed(3);
+  rotation += normalizeAngle(rotationTarget - rotation) * 0.26;
+  const lean = Math.max(Math.min(vx * 0.18, 18), -18);
+  const stretch = Math.min(1.18, 0.72 + speed * 0.045);
+  cursorNode.style.setProperty('--cursor-lean', lean.toFixed(2));
+  cursorNode.style.setProperty('--cursor-stretch', stretch.toFixed(3));
+  if (cursorRing) {
+    cursorRing.style.opacity = Math.min(1, 0.65 + speed * 0.018).toFixed(3);
+  }
+  if (cursorTail) {
+    cursorTail.style.opacity = Math.min(1, 0.4 + speed * 0.022).toFixed(3);
+  }
   lastPointer = { x: pointer.x, y: pointer.y };
 
   setCursorPosition();
   requestAnimationFrame(animateCursor);
 }
 
+setCursorPosition();
 animateCursor();
 
 window.addEventListener('pointermove', (event) => {
@@ -175,6 +173,7 @@ window.addEventListener('pointerdown', (event) => {
   pointerDown = true;
   body.classList.add('is-pointer-down');
   impulses.push({ x: event.clientX, y: event.clientY, radius: 0, power: 1 });
+  spawnPulse(event.clientX, event.clientY);
 });
 
 window.addEventListener('pointerup', () => {
@@ -286,6 +285,30 @@ tiltTargets.forEach((element) => {
 
 const INFLUENCE_RADIUS = 240;
 const LINK_DISTANCE = 170;
+
+const backgroundNode = document.querySelector('.background');
+
+function spawnPulse(x, y) {
+  if (!backgroundNode) return;
+  const pulse = document.createElement('span');
+  pulse.className = 'background__pulse';
+  pulse.style.left = `${x}px`;
+  pulse.style.top = `${y}px`;
+  backgroundNode.appendChild(pulse);
+  requestAnimationFrame(() => {
+    pulse.classList.add('is-active');
+  });
+  pulse.addEventListener(
+    'transitionend',
+    () => {
+      pulse.remove();
+    },
+    { once: true }
+  );
+  setTimeout(() => {
+    pulse.remove();
+  }, 900);
+}
 
 class Particle {
   constructor() {
