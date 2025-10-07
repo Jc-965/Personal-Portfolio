@@ -20,6 +20,7 @@ navMenu?.querySelectorAll("a").forEach((link) => {
 
 const cursor = document.querySelector(".cursor");
 const cursorOutline = document.querySelector(".cursor-outline");
+const background = document.querySelector(".background");
 
 const setCursorPosition = (event) => {
   const { clientX, clientY } = event;
@@ -42,7 +43,35 @@ document.addEventListener("mousemove", (event) => {
 document.addEventListener("mouseleave", () => {
   cursor?.classList.add("is-hidden");
   cursorOutline?.classList.add("is-hidden");
+  background?.classList.remove("is-hovered");
 });
+
+if (background) {
+  const updateBackgroundPosition = (event) => {
+    background.style.setProperty("--cursor-x", `${event.clientX}px`);
+    background.style.setProperty("--cursor-y", `${event.clientY}px`);
+    background.classList.add("is-hovered");
+  };
+
+  document.addEventListener("pointermove", updateBackgroundPosition);
+
+  document.addEventListener("pointerout", (event) => {
+    if (!event.relatedTarget) {
+      background.classList.remove("is-hovered");
+    }
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    const ripple = document.createElement("span");
+    ripple.className = "background__ripple";
+    ripple.style.left = `${event.clientX}px`;
+    ripple.style.top = `${event.clientY}px`;
+    background.appendChild(ripple);
+    ripple.addEventListener("animationend", () => {
+      ripple.remove();
+    });
+  });
+}
 
 const focusableElements = document.querySelectorAll(
   "a, button, input, textarea"
