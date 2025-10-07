@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tech Portfolio | Innovative Engineer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="cursor"></div>
+    <div class="cursor-outline"></div>
+
+    <div class="background">
+      <div class="orb orb-one"></div>
+      <div class="orb orb-two"></div>
+      <div class="orb orb-three"></div>
+      <div class="grid"></div>
+    </div>
+
+    <header class="nav" id="top">
+      <div class="nav__brand">Innovative Engineer</div>
+      <nav class="nav__menu">
+        <a href="#about">About</a>
+        <a href="#skills">Skills</a>
+        <a href="#experience">Experience</a>
+        <a href="#projects">Projects</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button class="nav__toggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__content">
+          <p class="hero__eyebrow">Software Engineer · Technologist · Problem Solver</p>
+          <h1 id="hero-title">Crafting dependable, human-centric technology.</h1>
+          <p>
+            I transform complex technical challenges into elegant solutions across
+            full-stack web, data engineering, and intelligent automation. I
+            thrive in collaborative environments where innovation, rigor, and
+            empathy intersect.
+          </p>
+          <div class="hero__cta">
+            <a class="btn" href="#projects">View Projects</a>
+            <a class="btn btn--ghost" href="#contact">Let's Collaborate</a>
+          </div>
+          <div class="hero__stats">
+            <div>
+              <span class="number">7+</span>
+              <span class="label">Years in Tech</span>
+            </div>
+            <div>
+              <span class="number">25</span>
+              <span class="label">Products Delivered</span>
+            </div>
+            <div>
+              <span class="number">5x</span>
+              <span class="label">System Uptime Improvement</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero__visual" role="presentation">
+          <div class="hero__card">
+            <p class="hero__card-title">Specialties</p>
+            <ul>
+              <li>Full-stack TypeScript (React · Next.js · Node.js)</li>
+              <li>Cloud-native architecture (AWS · Terraform · Kubernetes)</li>
+              <li>Data platforms & ML (Python · Pandas · MLOps)</li>
+              <li>Developer experience & automation</li>
+            </ul>
+          </div>
+          <div class="hero__card">
+            <p class="hero__card-title">Currently Exploring</p>
+            <ul>
+              <li>Edge computing with WebAssembly</li>
+              <li>LLM-integrated developer tooling</li>
+              <li>Generative design for immersive UIs</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="about" aria-labelledby="about-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">About</span>
+          <h2 id="about-title">Engineer dedicated to resilient, inclusive technology.</h2>
+        </div>
+        <div class="panel__grid">
+          <p>
+            I partner with product and research teams to accelerate ideas from
+            sketch to launch. My approach blends systems thinking with rapid
+            experimentation, ensuring solutions are both scalable and people-first.
+            I am equally comfortable architecting distributed systems as I am
+            refining design details that elevate the user experience.
+          </p>
+          <div class="panel__card">
+            <h3>Core Principles</h3>
+            <ul>
+              <li>Lead with empathy and curiosity.</li>
+              <li>Build observability into every layer.</li>
+              <li>Automate responsibly and document relentlessly.</li>
+              <li>Invest in mentorship and inclusive engineering culture.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="skills" aria-labelledby="skills-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Toolkit</span>
+          <h2 id="skills-title">Technical proficiencies powering end-to-end delivery.</h2>
+        </div>
+        <div class="skills">
+          <div class="skills__group">
+            <h3>Languages</h3>
+            <ul>
+              <li>TypeScript · JavaScript</li>
+              <li>Python · Go</li>
+              <li>SQL (PostgreSQL, Snowflake)</li>
+              <li>Rust (tooling & systems)</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Frameworks & Libraries</h3>
+            <ul>
+              <li>React · Next.js · Astro</li>
+              <li>Express · FastAPI · GraphQL</li>
+              <li>Tailwind · Chakra UI · D3</li>
+              <li>LangChain · PyTorch · scikit-learn</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Platforms & Ops</h3>
+            <ul>
+              <li>AWS · GCP · Azure</li>
+              <li>Docker · Kubernetes · Helm</li>
+              <li>Terraform · Pulumi · CDK</li>
+              <li>GitHub Actions · CircleCI · Argo</li>
+            </ul>
+          </div>
+          <div class="skills__group">
+            <h3>Data & Intelligence</h3>
+            <ul>
+              <li>dbt · Airflow · Kafka</li>
+              <li>Snowflake · BigQuery · Redshift</li>
+              <li>Feature stores · MLflow</li>
+              <li>Observability: Grafana · Prometheus · OpenTelemetry</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="experience" aria-labelledby="experience-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Experience</span>
+          <h2 id="experience-title">Impact across startups and enterprise platforms.</h2>
+        </div>
+        <div class="timeline">
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Principal Software Engineer · Skyline Labs</h3>
+              <p class="timeline__meta">2021 — Present</p>
+              <ul>
+                <li>
+                  Architected a multi-tenant analytics platform handling 4B events/day
+                  using serverless pipelines and real-time insights dashboards.
+                </li>
+                <li>
+                  Led adoption of automated testing and observability, reducing critical
+                  incidents by 63% while accelerating release cadence to weekly.
+                </li>
+                <li>
+                  Mentored cross-functional squads, launching an internal developer
+                  portal that cut onboarding time from 4 weeks to 5 days.
+                </li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Senior Software Engineer · Nova Systems</h3>
+              <p class="timeline__meta">2017 — 2021</p>
+              <ul>
+                <li>
+                  Delivered a unified payments platform across web and mobile,
+                  increasing transaction throughput by 5x while keeping latency < 200ms.
+                </li>
+                <li>
+                  Spearheaded migration to containerized microservices with GitOps,
+                  improving deployment reliability and compliance reporting.
+                </li>
+                <li>
+                  Collaborated with UX to design accessible experiences, earning a Webby
+                  Award honorable mention for inclusive design.
+                </li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item">
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Software Engineer · Quantum Forge</h3>
+              <p class="timeline__meta">2014 — 2017</p>
+              <ul>
+                <li>
+                  Built internal tooling for ML teams, automating experiment tracking and
+                  model deployment pipelines across hybrid cloud infrastructure.
+                </li>
+                <li>
+                  Implemented resilience strategies that improved system uptime by 5x and
+                  cut operational costs by 22%.
+                </li>
+                <li>
+                  Presented technical deep dives at industry conferences on distributed
+                  stream processing and responsible AI practices.
+                </li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="projects" aria-labelledby="projects-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Selected Work</span>
+          <h2 id="projects-title">Interactive experiments and production-scale systems.</h2>
+        </div>
+        <div class="projects">
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>Helios Intelligence Fabric</h3>
+              <span class="tag">AI Platform</span>
+            </div>
+            <p>
+              An LLM-driven knowledge engine fusing documentation, telemetry, and
+              human insight to supercharge operational intelligence. Delivered
+              conversational runbooks, automated incident summaries, and proactive
+              alerts with human-in-the-loop safeguards.
+            </p>
+            <ul class="project-card__tech">
+              <li>Next.js</li>
+              <li>LangChain</li>
+              <li>Neo4j</li>
+              <li>OpenTelemetry</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for Helios">Case Study</a>
+              <a href="#" aria-label="View Helios source code">Source</a>
+            </div>
+          </article>
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>Aurora Experience Cloud</h3>
+              <span class="tag">Platform Engineering</span>
+            </div>
+            <p>
+              A modular experience platform enabling marketing teams to launch
+              localized campaigns with dynamic personalization. Integrated analytics,
+              feature flagging, and A/B testing into a cohesive developer-first DX.
+            </p>
+            <ul class="project-card__tech">
+              <li>React</li>
+              <li>GraphQL</li>
+              <li>Kubernetes</li>
+              <li>Terraform</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for Aurora">Case Study</a>
+              <a href="#" aria-label="View Aurora source code">Source</a>
+            </div>
+          </article>
+          <article class="project-card">
+            <div class="project-card__header">
+              <h3>PulseSense Analytics</h3>
+              <span class="tag">Data Visualization</span>
+            </div>
+            <p>
+              A real-time analytics suite for IoT health devices featuring adaptive
+              dashboards, anomaly detection, and predictive maintenance insights across
+              millions of events per minute.
+            </p>
+            <ul class="project-card__tech">
+              <li>SvelteKit</li>
+              <li>D3.js</li>
+              <li>Snowflake</li>
+              <li>Airflow</li>
+            </ul>
+            <div class="project-card__links">
+              <a href="#" aria-label="View case study for PulseSense">Case Study</a>
+              <a href="#" aria-label="View PulseSense source code">Source</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel--contact" id="contact" aria-labelledby="contact-title">
+        <div class="panel__header">
+          <span class="panel__eyebrow">Contact</span>
+          <h2 id="contact-title">Let's build the next breakthrough together.</h2>
+        </div>
+        <div class="contact">
+          <div class="contact__details">
+            <p>
+              Whether it's scaling a platform, crafting an interactive prototype, or
+              mentoring engineering teams, I'm excited to collaborate on impactful
+              work. Reach out for consulting, product leadership, or speaking
+              engagements.
+            </p>
+            <ul>
+              <li><strong>Email:</strong> hello@innovativeengineer.dev</li>
+              <li><strong>Location:</strong> Remote · Open to travel</li>
+              <li><strong>Availability:</strong> Limited Q3 consulting slots</li>
+            </ul>
+          </div>
+          <form class="contact__form">
+            <label>
+              Name
+              <input type="text" name="name" placeholder="Jane Doe" required />
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" placeholder="you@example.com" required />
+            </label>
+            <label>
+              How can I help?
+              <textarea name="message" rows="4" placeholder="Project details or topics" required></textarea>
+            </label>
+            <button type="submit" class="btn">Send Message</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>© <span id="year"></span> Innovative Engineer. Crafted with curiosity and care.</p>
+      <a href="#top" class="back-to-top" aria-label="Back to top">Back to top ↑</a>
+    </footer>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>
