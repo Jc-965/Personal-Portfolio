@@ -32,7 +32,6 @@
         <a href="#journey">Journey</a>
         <a href="#projects">Projects</a>
         <a href="#skills">Skills</a>
-        <a href="#contact">Contact</a>
       </nav>
       <button class="nav__toggle" aria-label="Toggle navigation" data-cursor="focus">
         <span></span>
@@ -51,43 +50,16 @@
             product sprints, and I’m happiest when the two reinforce each other: careful invariants, measurable results,
             and tools that earn trust.
           </p>
+          <ul class="hero__principles">
+            <li>Architect work like code: explicit interfaces, testable loops, and observability from the start.</li>
+            <li>Pair empathy with math—design from lived stories, validate with proofs, telemetry, and iteration.</li>
+            <li>Document and teach so future collaborators inherit clarity instead of guesswork.</li>
+          </ul>
           <div class="hero__cta">
             <a class="btn" href="#projects" data-cursor="accent">Browse selected work</a>
-            <a class="btn btn--ghost" href="#contact" data-cursor="accent">Start a conversation</a>
+            <a class="btn btn--ghost" href="#journey" data-cursor="accent">See the journey</a>
           </div>
-          <dl class="hero__stats">
-            <div>
-              <dt>Current focus</dt>
-              <dd>15-122 · 15-151 · 21-241 · Machine Learning concentration</dd>
-            </div>
-            <div>
-              <dt>How I work</dt>
-              <dd>Git for everything · Typst and LaTeX documentation · Notion roadmaps</dd>
-            </div>
-            <div>
-              <dt>Why I build</dt>
-              <dd>Code can be care. Levio proved it in my grandmother’s hands.</dd>
-            </div>
-          </dl>
         </div>
-        <aside class="hero__aside" data-cursor="soft">
-          <article class="hero__card">
-            <h2>What guides me</h2>
-            <ul>
-              <li>Design like a systems engineer: small interfaces, honest telemetry, privacy baked in.</li>
-              <li>Let empathy set the direction, then defend every decision with data or proof.</li>
-              <li>Teach, document, and mentor so teams move faster without cutting corners.</li>
-            </ul>
-          </article>
-          <article class="hero__card">
-            <h2>Beyond the keyboard</h2>
-            <ul>
-              <li>Clarinetist and section leader with Pasadena ensembles and international tours.</li>
-              <li>Pending Eagle Scout with seventy merit badges and a community-first mindset.</li>
-              <li>Apple hardware tinkerer and long-distance hiker who thinks best in motion.</li>
-            </ul>
-          </article>
-        </aside>
       </section>
 
       <section class="panel" id="about" data-accent="amber">
@@ -124,50 +96,51 @@
             <div class="timeline__marker"></div>
             <div class="timeline__content">
               <h3>Levio · Founder &amp; Lead Engineer</h3>
-              <p class="timeline__meta">Flutter · Firebase · On-device analysis</p>
+              <p class="timeline__meta">Flutter · Firebase · Applied ML</p>
               <ul>
-                <li>Built a Parkinson’s companion with symptom journaling, medication logic, and guided therapy modules.</li>
-                <li>Handled tricky edges—missed doses, time zones, taper schedules—with tests that guard the silent failures.</li>
-                <li>Prototyped privacy-first movement analysis with lightweight signal processing and ML on device.</li>
-                <li>Launched on iOS and Android, reached Diamond Challenge semi-finals, won Game Gala, and filed a patent.</li>
+                <li>Built a cross-platform Parkinson’s companion with symptom tracking, medication logic, and guided therapy modules.</li>
+                <li>Engineered structured state management and secure cloud sync so data stays consistent across devices.</li>
+                <li>Designed dashboards that surface long-term trends families can understand at a glance.</li>
+                <li>Prototyped on-device signal processing and lightweight models to keep feedback private and immediate.</li>
               </ul>
             </div>
           </article>
           <article class="timeline__item" data-animate>
             <div class="timeline__marker"></div>
             <div class="timeline__content">
-              <h3>ScottyLabs · CMUMaps Data Backbone</h3>
-              <p class="timeline__meta">Python · Computational geometry</p>
-              <ul>
-                <li>Turn OpenStreetMap exports into GeoJSON that our map frontends can trust.</li>
-                <li>Resolve multipolygons, compute convex hull hitboxes, and pick interior labels that feel natural.</li>
-                <li>Infer floor counts from messy metadata while keeping schema parity and graceful fallbacks.</li>
-                <li>Debugged edge cases—self-intersections, duplicated nodes, unstable coordinates—until the map felt obvious.</li>
-              </ul>
-            </div>
-          </article>
-          <article class="timeline__item" data-animate>
-            <div class="timeline__marker"></div>
-            <div class="timeline__content">
-              <h3>SoftCom Lab · AI &amp; Mobile Health Research</h3>
+              <h3>SoftCom Lab · Research Intern</h3>
               <p class="timeline__meta">NumPy · Pandas · scikit-learn</p>
               <ul>
-                <li>Cleaned and featurized sensor datasets with validation splits that mirror real usage.</li>
-                <li>Connected usability signals to ML accuracy and co-authored a peer-reviewed paper on the findings.</li>
-                <li>Learned to defend metrics, document methodology, and live with the limits of a dataset.</li>
+                <li>Curated interdisciplinary datasets of speech and movement signals focused on Parkinson’s progression.</li>
+                <li>Authored reproducible Python pipelines for feature extraction, normalization, and experiment tracking.</li>
+                <li>Ran validation splits that reflected real-world usage so models held up outside the lab.</li>
+                <li>Co-authored a peer-reviewed CCSIT paper translating raw logs into insights for digital therapeutics.</li>
               </ul>
             </div>
           </article>
           <article class="timeline__item" data-animate>
             <div class="timeline__marker"></div>
             <div class="timeline__content">
-              <h3>Teaching, Scouting &amp; Music Leadership</h3>
-              <p class="timeline__meta">Coding Minds · Scouts · Performing Arts</p>
+              <h3>Game Creation Society · Core Developer</h3>
+              <p class="timeline__meta">Unreal Engine 5 · Multiplayer systems</p>
               <ul>
-                <li>Design debugging walkthroughs and recursion labs that meet students exactly where they are.</li>
-                <li>Pending Eagle Scout who led an elementary school signage build from budgeting to installation.</li>
-                <li>Clarinet section leader and soloist with Pasadena ensembles, from the Rose Parade to international tours.</li>
-                <li>Competitive habits stay sharp through Kibo RPC (Top 9 U.S.) and USACO Bronze (perfect score).</li>
+                <li>Implemented tether and grappling mechanics that give Aerial Blitz its midair control vocabulary.</li>
+                <li>Built replicated physics logic so collisions, impulses, and scoring stay in sync across players.</li>
+                <li>Shaped elimination and trailing systems that balance arcade energy with readable outcomes.</li>
+                <li>Optimized Blueprints for frame consistency while keeping the creative loop quick for designers.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="timeline__item" data-animate>
+            <div class="timeline__marker"></div>
+            <div class="timeline__content">
+              <h3>Coding Minds Academy · Instructor</h3>
+              <p class="timeline__meta">Python · C++ · JavaScript pedagogy</p>
+              <ul>
+                <li>Taught loops, recursion, and competitive programming strategies tailored to K-12 learning stages.</li>
+                <li>Designed project briefs and assessments that make students reason about invariants and edge cases.</li>
+                <li>Debugged student code in real time while modeling clear problem decomposition and communication.</li>
+                <li>Strengthened my own algorithmic intuition by translating complex ideas into approachable explanations.</li>
               </ul>
             </div>
           </article>
@@ -185,10 +158,11 @@
               <h3>Levio</h3>
               <span class="tag">Mobile health · Patent-pending</span>
             </header>
-            <p>
-              Cross-platform Parkinson’s companion that keeps families aligned through medication reminders, symptom
-              journaling, therapy guidance, and privacy-first movement analytics.
-            </p>
+            <ul class="project-card__summary">
+              <li>Built in Flutter with Firebase Auth and Firestore so families stay synced across iOS and Android.</li>
+              <li>Structured state management to keep symptom logs, reminders, and therapy modules resilient across sessions.</li>
+              <li>Added on-device analytics that translate accelerometer signals into actionable coaching without leaving the phone.</li>
+            </ul>
             <ul class="project-card__tech">
               <li>Flutter &amp; Dart</li>
               <li>Firebase Cloud</li>
@@ -201,10 +175,11 @@
               <h3>CMUMaps Data Backbone</h3>
               <span class="tag">Infrastructure · Open data</span>
             </header>
-            <p>
-              Data pipelines that translate OpenStreetMap into touch-friendly campus maps with geometry-aware labeling and
-              resilient fallbacks.
-            </p>
+            <ul class="project-card__summary">
+              <li>Parsed OpenStreetMap exports into normalized GeoJSON ready for the ScottyLabs frontends.</li>
+              <li>Generated convex-hull hitboxes and polylabel-inspired anchors so campus search feels natural on touch.</li>
+              <li>Automated dataset versioning and fallbacks to keep routing services stable during refreshes.</li>
+            </ul>
             <ul class="project-card__tech">
               <li>Python</li>
               <li>xml.etree</li>
@@ -217,10 +192,11 @@
               <h3>MyCommunity</h3>
               <span class="tag">Android · Social impact</span>
             </header>
-            <p>
-              Native app for Scouts to discover service projects, blending Google Maps overlays, New York Times context,
-              and offline caching tuned for real-world connectivity.
-            </p>
+            <ul class="project-card__summary">
+              <li>Developed in Java with Firebase to connect youth volunteers with nearby service opportunities and community teams.</li>
+              <li>Combined Google Maps overlays with New York Times context to surface location-aware recommendations.</li>
+              <li>Implemented authentication and offline caching so the app stays usable when connectivity drops.</li>
+            </ul>
             <ul class="project-card__tech">
               <li>Java</li>
               <li>Google Maps SDK</li>
@@ -233,10 +209,11 @@
               <h3>Tarocchi</h3>
               <span class="tag">Interactive web · Creative systems</span>
             </header>
-            <p>
-              React storytelling world with pixel-art scenes, layered parallax, ambient audio, and branching narratives
-              that balance logic with emotion.
-            </p>
+            <ul class="project-card__summary">
+              <li>Co-built a HackCMU experience in React, TypeScript, and Tailwind with modular tarot-inspired components.</li>
+              <li>Integrated Claude API prompts and minigame outcomes to drive branching narrative logic.</li>
+              <li>Layered parallax art, ambient audio, and Framer Motion timelines for an immersive web feel.</li>
+            </ul>
             <ul class="project-card__tech">
               <li>React &amp; Vite</li>
               <li>TypeScript</li>
@@ -254,42 +231,45 @@
         </header>
         <div class="mosaic">
           <article class="mosaic__card" data-animate>
-            <h3>Teaching &amp; mentorship</h3>
-            <p>
-              Instructor at Coding Minds and volunteer with IgniteCS, designing exercises so students practice reasoning,
-              not memorization.
-            </p>
-            <p class="mosaic__meta">Python · C++ · JavaScript · K-12 learners</p>
+            <h3>Data &amp; Software Engineer · CMUMaps</h3>
+            <ul>
+              <li>Transform OpenStreetMap exports into geometry-safe JSON that powers campus routing.</li>
+              <li>Validated building outlines, interior IDs, and metadata consistency before publishing to AWS S3.</li>
+              <li>Collaborated with the Rust pathfinding team so data refreshes never compromise latency.</li>
+            </ul>
+            <p class="mosaic__meta">Python · Geo data pipelines · Distributed systems</p>
           </article>
           <article class="mosaic__card" data-animate>
-            <h3>Community systems</h3>
-            <p>
-              Pending Eagle Scout who built signage for an elementary school and created MyCommunity so Scouts can see
-              where they’re needed next.
-            </p>
-            <p class="mosaic__meta">70 merit badges · Logistics &amp; accessibility</p>
+            <h3>Developer &amp; Treasurer · Arcadia App Dev</h3>
+            <ul>
+              <li>Shipped NFC student IDs backed by Firebase, streamlining check-ins for thousands of students.</li>
+              <li>Coordinated feature requests with administrators to keep the roadmap grounded in real needs.</li>
+              <li>Managed budgets and outreach so the team could scale adoption alongside releases.</li>
+            </ul>
+            <p class="mosaic__meta">Firebase · Android · Product operations</p>
           </article>
           <article class="mosaic__card" data-animate>
-            <h3>Music &amp; performance</h3>
-            <p>
-              Clarinetist studying with Lynne Snyder, performing with Pasadena Symphony &amp; Pops and PYSO from Pasadena
-              to Italy.
-            </p>
-            <p class="mosaic__meta">Section leader · Soloist · Rose Parade veteran</p>
+            <h3>Eagle Scout · Boy Scouts of America</h3>
+            <ul>
+              <li>Led the design and construction of large-format signage and a courtyard banner for a local school.</li>
+              <li>Coordinated volunteers, materials, and safety to turn plans into tangible community upgrades.</li>
+              <li>Mentored younger Scouts through advancement, emphasizing careful planning and accountability.</li>
+            </ul>
+            <p class="mosaic__meta">Logistics · Mentorship · Community impact</p>
           </article>
           <article class="mosaic__card" data-animate>
-            <h3>Other engineering</h3>
-            <p>
-              Kibo RPC robotics finalist, USACO Bronze perfect score, Arcadia HS App Dev treasurer shipping digital IDs,
-              Coding Minds summer intern building C++ assessments, and Arcadia Performing Arts Foundation intern
-              automating outreach.
-            </p>
-            <p class="mosaic__meta">C · C++ · Python · Firebase · Automation tooling</p>
+            <h3>Clarinet Section Leader &amp; Soloist</h3>
+            <ul>
+              <li>Committed 200+ hours yearly to rehearsals, performances, and precise ensemble coordination.</li>
+              <li>Led sectionals, trained new members, and kept music libraries organized for marching and concert seasons.</li>
+              <li>Performed with Pasadena ensembles and national parades, learning calm leadership under pressure.</li>
+            </ul>
+            <p class="mosaic__meta">Discipline · Collaboration · Live performance</p>
           </article>
         </div>
       </section>
 
-      <section class="panel panel--recognition" id="recognition" data-accent="coral">
+      <!-- <section class="panel panel--recognition" id="recognition" data-accent="coral">
         <header class="panel__header">
           <p class="panel__eyebrow">Recognition</p>
           <h2>Milestones that mark the path so far.</h2>
@@ -304,7 +284,7 @@
             <li>USACO Bronze Division · Perfect 1000 score (Feb 2024)</li>
           </ul>
         </div>
-      </section>
+      </section> -->
 
       <section class="panel" id="skills" data-accent="blue">
         <header class="panel__header">
@@ -375,41 +355,6 @@
         </div>
       </section>
 
-      <section class="panel panel--contact" id="contact" data-accent="navy">
-        <header class="panel__header">
-          <p class="panel__eyebrow">Contact</p>
-          <h2>Let’s build systems that respect people and perform under pressure.</h2>
-        </header>
-        <div class="contact">
-          <div class="contact__details" data-animate>
-            <p>
-              I’m exploring internships, research, and collaborations that balance pace with precision. If you’re working
-              on products that keep humans at the center—healthcare, civic tech, data infrastructure, or creative
-              systems—let’s talk.
-            </p>
-            <ul>
-              <li><strong>Email:</strong> hello@jc-965.com</li>
-              <li><strong>Location:</strong> Pittsburgh, PA · Open to remote collaboration</li>
-              <li><strong>Availability:</strong> Ready to prototype, test, and iterate with thoughtful teams</li>
-            </ul>
-          </div>
-          <form class="contact__form" data-animate>
-            <label>
-              Name
-              <input type="text" name="name" placeholder="Jane Doe" required />
-            </label>
-            <label>
-              Email
-              <input type="email" name="email" placeholder="you@example.com" required />
-            </label>
-            <label>
-              How can I help?
-              <textarea name="message" rows="4" placeholder="Project details or topics" required></textarea>
-            </label>
-            <button type="submit" class="btn" data-cursor="accent">Send message</button>
-          </form>
-        </div>
-      </section>
     </main>
 
     <footer class="footer">

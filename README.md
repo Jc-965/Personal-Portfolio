@@ -1,47 +1,80 @@
 # Jesse (Zexi) Chen
 
-First-year in Carnegie Mellon University’s School of Computer Science building systems where rigor meets empathy. I plan to con
-centrate in Machine Learning while balancing proofs from 15-122, 15-151, and 21-241 with the shipped products that keep me groun
-ded.
+First-year in Carnegie Mellon University’s School of Computer Science, concentrating in Machine Learning and building systems where rigor meets empathy.
 
-## Snapshot
-- **Toolbox:** Python, C, C++, Dart, Java, JavaScript/TypeScript, Flutter, React, Vite, Tailwind, Firebase, NumPy, Pandas, sciki
-t-learn, Framer Motion, Git, Typst, LaTeX, Notion.
-- **Mindset:** Design with sharp interfaces and invariants, validate with telemetry, and keep privacy a default not an afterthou
-ght.
-- **Habits:** Document obsessively, prototype quickly, and teach what I learn so teams can iterate with clarity.
+## What Drives My Engineering
+- Pair theory and practice every week—proofs in 15-122, 15-151, and 21-241 feed directly into the products I ship.
+- Structure work like code: explicit interfaces, sharp invariants, purposeful documentation, and telemetry from the first commit.
+- Keep people at the center: measure outcomes, protect privacy by design, and teach what I learn so teams move faster with confidence.
 
-## Projects that Define My Work
-- **Levio (Flutter, Firebase, on-device ML):** Patent-pending Parkinson’s companion with symptom journaling, medication logic,
- guided therapy modules, and privacy-first movement analytics. Reached both app stores, won Game Gala, and advanced to the Diamo
-nd Challenge semi-finals.
-- **CMUMaps (Python, geometry tooling):** Data backbone for ScottyLabs’ campus navigation—parsing OpenStreetMap exports, resolv
-ing multipolygons, computing convex-hull hitboxes, and generating label anchors that feel natural on touch.
-- **MyCommunity (Android/Java):** Mobile app that routes Scouts to nearby service with Google Maps overlays, New York Times con
-text, and offline-aware caching. Earned IgniteCS 3rd place and a NASA JPL participation award.
-- **Tarocchi (React + TypeScript):** Interactive tarot-inspired narrative with layered parallax, ambient audio, and branching s
-cenes that explore how storytelling and systems thinking intertwine.
+## Work Experience
+### Levio · Founder & Lead Engineer
+- Built a cross-platform Parkinson’s companion in Flutter with Firebase auth and NoSQL data models.
+- Structured app-level state to keep symptom logs, reminders, and therapy modules consistent across devices.
+- Added on-device signal processing and lightweight models so movement coaching stays private and responsive.
 
-## Research, Teaching, and Service
-- **SoftCom Lab @ Cal Poly Pomona:** Co-authored peer-reviewed work on AI and mobile health after building Python pipelines for
- time-series cleaning, feature engineering, and validation splits that mirror real usage.
-- **Coding Minds & IgniteCS:** Design debugging walkthroughs, recursion exercises, and algorithmic challenges that help K-12 st
-udents think in abstractions instead of memorizing recipes.
-- **Scouting & Community:** Pending Eagle Scout with a service portfolio ranging from custom signage installations to coaching
-younger scouts through programming basics.
+### SoftCom Lab · Research Intern
+- Curated datasets of speech and movement patterns related to Parkinson’s disease under faculty mentorship.
+- Authored reproducible Python pipelines using NumPy, Pandas, and scikit-learn for feature extraction and validation.
+- Co-wrote a peer-reviewed CCSIT paper translating raw sensor data into insights for digital therapeutics.
 
-## Leadership, Recognition, and Creative Fuel
-- Diamond Challenge Semi-Finalist · Game Gala Winner · NASA JPL Participation · IgniteCS Expo 3rd Place · Kibo RPC Top 9 U.S. ·
- USACO Bronze perfect score.
-- Clarinetist and section leader with Pasadena ensembles, international tours, and marching band commitments that shaped my sen
-se of discipline and listening.
-- Apple ecosystem tinkerer and long-distance hiker who keeps perspective by understanding the hardware stack and exploring outsi
-de.
+### Game Creation Society · Core Developer
+- Designed and implemented tether and grappling mechanics in Unreal Engine 5 for the aerial racing game Aerial Blitz.
+- Developed multiplayer networking logic that synchronizes physics states, collisions, and elimination flow in real time.
+- Balanced creative iteration with optimization to keep gameplay responsive while supporting rapid design tweaks.
+
+### Coding Minds Academy · Coding Instructor
+- Taught Python, C++, and JavaScript fundamentals tailored to K-12 learners, from loops and recursion to competition prep.
+- Created assessments and debugging walkthroughs that train students to reason about invariants and edge cases.
+- Adapted explanations to individual learning styles, strengthening my own communication and algorithmic intuition.
+
+## Projects
+### Levio
+- Publishes symptom tracking, medication scheduling, therapy modules, and trend dashboards for families supporting Parkinson’s care.
+- Uses Firebase Cloud sync and structured state management to remain reliable across iOS and Android deployments.
+- Keeps guidance local with on-device analytics that translate sensor signals into actionable coaching without exporting data.
+
+### CMUMaps Data Backbone
+- Parses OpenStreetMap exports into normalized GeoJSON powering ScottyLabs’ campus navigation tools.
+- Generates convex-hull hitboxes and polylabel-inspired anchors so search and labeling feel natural on touch devices.
+- Automates dataset versioning and fallbacks to maintain routing stability as new data ships.
+
+### MyCommunity
+- Android app that matches volunteers with nearby service opportunities using a Firebase-backed Java stack.
+- Layers Google Maps overlays with New York Times context to surface location-aware recommendations.
+- Implements authentication and offline caching so field use stays reliable even when connectivity drops.
+
+### Tarocchi
+- HackCMU web experience blending React, TypeScript, and Tailwind into a modular tarot-inspired adventure.
+- Integrates Claude API prompts and minigame outcomes to generate dynamic narrative branches.
+- Uses layered parallax art, ambient audio, and Framer Motion sequences to create an immersive feel.
+
+## Leadership, Community, and Habits
+### Data & Software Engineer · ScottyLabs CMUMaps
+- Transforms OpenStreetMap exports into geometry-safe JSON artifacts published to AWS S3.
+- Validates building outlines, floor metadata, and identifiers before they reach the routing stack.
+- Collaborates with the Rust pathfinding service to ensure data refreshes preserve latency budgets.
+
+### Developer & Treasurer · Arcadia HS App Development Team
+- Shipped NFC digital student IDs connected to Firebase, streamlining daily check-ins for over 2,500 students.
+- Coordinated feature requests with administrators to keep the roadmap aligned with community needs.
+- Managed team finances and outreach to scale adoption alongside new releases.
+
+### Eagle Scout · Boy Scouts of America
+- Led the design and construction of large outdoor signage and an 8×11 ft banner for an elementary school.
+- Coordinated volunteers, materials, and safety workflows to deliver durable, community-centered infrastructure.
+- Mentored younger scouts through advancement, emphasizing planning discipline and accountability.
+
+### Clarinet Section Leader & Soloist · Arcadia High School
+- Invested 200+ hours annually into rehearsals, performances, and precise ensemble coordination.
+- Organized sectionals, trained new musicians, and managed sheet music logistics for marching and concert seasons.
+- Performed with Pasadena ensembles, national parades, and international tours, learning calm leadership under pressure.
+
+## Skills Snapshot
+- **Languages:** Python, C, C++, Dart, Java, JavaScript, TypeScript, HTML/CSS, SQL, Markdown, LaTeX, Typst
+- **Frameworks & Platforms:** Flutter, Firebase, React, Vite, Tailwind CSS, Unreal Engine 5, Android SDK, Claude API
+- **Data & Intelligence:** NumPy, Pandas, scikit-learn, signal processing, experiment design, telemetry strategy
+- **Tools & Workflow:** Git, GitHub Actions, VS Code, Android Studio, Xcode, Notion, Figma, Typst/LaTeX documentation
 
 ## Vision
-Build systems that raise the floor for reliability and lift the ceiling for what people can do next—especially in health, educat
-ion, and infrastructure. Precision matters, but dignity matters more; the best code feels like care.
-
-## Connect
-The site highlights current projects and contact details. For collaborations, research opportunities, or just a thoughtful conv
-ersation, reach out through the contact panel.
+Build systems that raise the floor for reliability and lift the ceiling for what people can do next. I want technology that feels like care—explainable, resilient, and grounded in the people it serves.
