@@ -1,441 +1,285 @@
-const yearEl = document.getElementById("year");
-if (yearEl) {
-  yearEl.textContent = new Date().getFullYear();
-}
+const body = document.body;
+const canvas = document.querySelector('.background__canvas');
+const ctx = canvas.getContext('2d', { alpha: true });
 
-const navToggle = document.querySelector(".nav__toggle");
-const navMenu = document.querySelector(".nav__menu");
+const core = document.querySelector('.cursor--core');
+const ring = document.querySelector('.cursor--ring');
+const trail = Array.from(document.querySelectorAll('.cursor--trail span'));
 
-navToggle?.addEventListener("click", () => {
-  navMenu?.classList.toggle("is-open");
-  navToggle.classList.toggle("is-active");
-});
+let pointerTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+let pointer = { x: pointerTarget.x, y: pointerTarget.y };
+let ringState = { x: pointer.x, y: pointer.y };
+const trailState = trail.map(() => ({ x: pointer.x, y: pointer.y }));
+let pointerDown = false;
 
-navMenu?.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", () => {
-    navMenu.classList.remove("is-open");
-    navToggle?.classList.remove("is-active");
-  });
-});
-
-document.addEventListener("scroll", () => {
-  if (!navMenu || window.innerWidth > 960) return;
-  navMenu.classList.remove("is-open");
-  navToggle?.classList.remove("is-active");
-});
-
-const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const root = document.documentElement;
-const cursorReticle = document.querySelector(".cursor--reticle");
-const cursorFrame = document.querySelector(".cursor--frame");
-const cursorTrail = document.querySelector(".cursor--trail");
-const trailDots = cursorTrail ? Array.from(cursorTrail.children) : [];
-const background = document.querySelector(".background");
-const backgroundLayers = document.querySelectorAll(".background__layer");
-
-const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-const framePosition = { ...pointer };
-const reticlePosition = { ...pointer };
-const trailPositions = trailDots.map(() => ({ ...pointer }));
-let lastPointer = { ...pointer };
-let velocity = 0;
-let animationFrame;
-let isPressing = false;
-let pointerInViewport = false;
-
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-const randomBetween = (min, max) => Math.random() * (max - min) + min;
-
-const updateCursor = () => {
-  const dx = pointer.x - lastPointer.x;
-  const dy = pointer.y - lastPointer.y;
-  const distance = Math.hypot(dx, dy);
-  velocity = 0.12 * distance + 0.88 * velocity;
-  lastPointer = { ...pointer };
-
-  framePosition.x += (pointer.x - framePosition.x) * 0.18;
-  framePosition.y += (pointer.y - framePosition.y) * 0.18;
-
-  reticlePosition.x += (pointer.x - reticlePosition.x) * 0.4;
-  reticlePosition.y += (pointer.y - reticlePosition.y) * 0.4;
-
-  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const pressFactor = isPressing ? 0.9 : 1;
-  const progressX = pointer.x / Math.max(window.innerWidth, 1);
-  const progressY = pointer.y / Math.max(window.innerHeight, 1);
-  const hue = 208 + progressX * 52;
-  const lightness = 38 + progressY * 10 + Math.min(velocity / 26, 5);
-
-  const frameScale = (1 + clamp(velocity / 180, 0, 0.45)) * pressFactor;
-  const reticleScale = 0.92 + clamp(velocity / 280, 0, 0.25);
-  const reticleRotation = angleDeg * 0.35 + Math.sin(performance.now() * 0.003) * 10;
-
-  cursorReticle?.style.setProperty(
-    "transform",
-    `translate3d(${reticlePosition.x}px, ${reticlePosition.y}px, 0) rotate(${reticleRotation}deg) scale(${reticleScale})`
-  );
-
-  cursorFrame?.style.setProperty(
-    "transform",
-    `translate3d(${framePosition.x}px, ${framePosition.y}px, 0) rotate(${angleDeg * 0.08}deg) scale(${frameScale})`
-  );
-
-  trailDots.forEach((dot, index) => {
-    const pos = trailPositions[index];
-    const lerp = 0.18 - index * 0.02;
-    pos.x += (pointer.x - pos.x) * clamp(lerp, 0.08, 0.18);
-    pos.y += (pointer.y - pos.y) * clamp(lerp, 0.08, 0.18);
-    const fade = clamp(0.78 - index * 0.12 + velocity / 360, 0.1, 0.82);
-    const scale = 0.9 - index * 0.08 + clamp(velocity / 420, 0, 0.12);
-    dot.style.setProperty("transform", `translate3d(${pos.x}px, ${pos.y}px, 0) scale(${scale})`);
-    dot.style.setProperty("opacity", fade.toFixed(2));
-  });
-
-  if (root) {
-    root.style.setProperty("--cursor-x", `${pointer.x}px`);
-    root.style.setProperty("--cursor-y", `${pointer.y}px`);
-    root.style.setProperty("--cursor-v", velocity.toFixed(2));
-    root.style.setProperty("--cursor-angle", `${angleDeg}deg`);
-    root.style.setProperty("--bg-hue", hue.toFixed(2));
-    root.style.setProperty("--bg-lightness", lightness.toFixed(2));
-    root.style.setProperty("--cursor-hue", hue.toFixed(2));
-  }
-
-  if (background) {
-    background.style.setProperty("--cursor-x", `${pointer.x}px`);
-    background.style.setProperty("--cursor-y", `${pointer.y}px`);
-    background.style.setProperty("--cursor-v", velocity.toFixed(2));
-    background.style.setProperty("--cursor-angle", `${angleDeg}deg`);
-    background.style.setProperty("--bg-hue", hue.toFixed(2));
-    background.style.setProperty("--bg-lightness", lightness.toFixed(2));
-  }
-
-  backgroundLayers.forEach((layer, index) => {
-    const depth = parseFloat(layer.dataset.depth || "0.05");
-    const offsetX = (pointer.x - window.innerWidth / 2) * depth;
-    const offsetY = (pointer.y - window.innerHeight / 2) * depth;
-    layer.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
-    layer.style.opacity = String(clamp(0.35 + velocity / 500 - index * 0.05, 0.15, 0.8));
-  });
-
-  animationFrame = requestAnimationFrame(updateCursor);
-};
-
-const enableCursor = () => {
-  if (prefersReducedMotion) return;
-  cursorReticle?.classList.remove("is-hidden");
-  cursorFrame?.classList.remove("is-hidden");
-  cursorTrail?.classList.remove("is-hidden");
-  cancelAnimationFrame(animationFrame);
-  animationFrame = requestAnimationFrame(updateCursor);
-};
-
-document.addEventListener("pointermove", (event) => {
-  pointer.x = event.clientX;
-  pointer.y = event.clientY;
-  pointerInViewport = true;
-  enableCursor();
-});
-
-document.addEventListener("pointerleave", () => {
-  cursorReticle?.classList.add("is-hidden");
-  cursorFrame?.classList.add("is-hidden");
-  cursorTrail?.classList.add("is-hidden");
-  isPressing = false;
-  document.body.classList.remove("is-pressing");
-  if (background) {
-    background.classList.remove("is-hovered");
-  }
-  pointerInViewport = false;
-  cancelAnimationFrame(animationFrame);
-});
-
-if (background && !prefersReducedMotion) {
-  background.classList.add("is-ready");
-
-  const backgroundCanvas = background.querySelector(".background__canvas");
-  const ctx = backgroundCanvas?.getContext("2d");
-  const scene = { width: window.innerWidth, height: window.innerHeight, dpr: Math.min(window.devicePixelRatio || 1, 2.2) };
-  const particles = [];
-  const ripples = [];
-  const palette = [
-    { hue: 208, saturation: 78, lightness: 58 },
-    { hue: 238, saturation: 72, lightness: 60 },
-    { hue: 196, saturation: 74, lightness: 56 },
-    { hue: 174, saturation: 68, lightness: 54 },
-  ];
-  let canvasFrame;
-
-  const particleCount = () => Math.round(clamp((scene.width * scene.height) / 5200, 180, 420));
-
-  const setCanvasSize = () => {
-    if (!backgroundCanvas || !ctx) return;
-    scene.width = window.innerWidth;
-    scene.height = window.innerHeight;
-    scene.dpr = Math.min(window.devicePixelRatio || 1, 2.2);
-    backgroundCanvas.width = scene.width * scene.dpr;
-    backgroundCanvas.height = scene.height * scene.dpr;
-    backgroundCanvas.style.width = `${scene.width}px`;
-    backgroundCanvas.style.height = `${scene.height}px`;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(scene.dpr, scene.dpr);
-  };
-
-  const createParticle = () => {
-    const swatch = palette[Math.floor(Math.random() * palette.length)];
-    return {
-      x: Math.random() * scene.width,
-      y: Math.random() * scene.height,
-      vx: randomBetween(-0.45, 0.45),
-      vy: randomBetween(-0.45, 0.45),
-      baseVX: randomBetween(-0.16, 0.16),
-      baseVY: randomBetween(-0.16, 0.16),
-      radius: randomBetween(1, 2.4),
-      hue: swatch.hue + randomBetween(-6, 6),
-      saturation: swatch.saturation,
-      lightness: swatch.lightness + randomBetween(-6, 6),
-      noise: Math.random() * Math.PI * 2,
-    };
-  };
-
-  const initParticles = () => {
-    particles.length = 0;
-    const count = particleCount();
-    for (let i = 0; i < count; i += 1) {
-      particles.push(createParticle());
-    }
-  };
-
-  const spawnSpark = (x, y) => {
-    const spark = document.createElement("span");
-    spark.className = "background__spark";
-    spark.style.left = `${x}px`;
-    spark.style.top = `${y}px`;
-    background.appendChild(spark);
-    spark.addEventListener("animationend", () => {
-      spark.remove();
-    });
-  };
-
-  const spawnPulse = (x, y) => {
-    const pulse = document.createElement("span");
-    pulse.className = "background__pulse";
-    pulse.style.left = `${x}px`;
-    pulse.style.top = `${y}px`;
-    background.appendChild(pulse);
-    pulse.addEventListener("animationend", () => {
-      pulse.remove();
-    });
-  };
-
-  const spawnRipple = (x, y) => {
-    ripples.push({ x, y, radius: 0, alpha: 0.55, hue: 220 + Math.random() * 80 });
-    if (ripples.length > 6) {
-      ripples.shift();
-    }
-  };
-
-  const animateBackground = (now) => {
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, scene.width, scene.height);
-
-    const gradient = ctx.createLinearGradient(0, 0, scene.width, scene.height);
-    gradient.addColorStop(0, "rgba(6, 4, 24, 0.95)");
-    gradient.addColorStop(0.5, "rgba(10, 6, 32, 0.92)");
-    gradient.addColorStop(1, "rgba(8, 7, 26, 0.93)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, scene.width, scene.height);
-
-    const time = now * 0.0012;
-    const ambientStrength = 0.2 + Math.sin(time * 0.6) * 0.06 + Math.cos(time * 0.35) * 0.04;
-    const pointerStrength = pointerInViewport
-      ? clamp(0.22 + velocity / 180, 0.22, 1.45)
-      : ambientStrength;
-    const pointerRadius = pointerInViewport ? 220 : 180;
-
-    particles.forEach((particle) => {
-      particle.vx += (particle.baseVX - particle.vx) * 0.018;
-      particle.vy += (particle.baseVY - particle.vy) * 0.018;
-
-      const swirl = Math.sin(time + particle.noise) * 0.32;
-      const drift = Math.cos(time * 0.6 + particle.noise * 1.4) * 0.24;
-
-      particle.x += particle.vx + swirl + pointerStrength * 0.2;
-      particle.y += particle.vy + drift;
-
-      if (pointerInViewport) {
-        const dx = particle.x - pointer.x;
-        const dy = particle.y - pointer.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance < pointerRadius) {
-          const norm = distance === 0 ? 1 : distance;
-          const force = (pointerRadius - distance) / pointerRadius;
-          particle.vx += (dx / norm) * force * (0.6 + pointerStrength * 0.6);
-          particle.vy += (dy / norm) * force * (0.6 + pointerStrength * 0.6);
-        }
-      }
-
-      if (particle.x < -120) particle.x = scene.width + 120;
-      if (particle.x > scene.width + 120) particle.x = -120;
-      if (particle.y < -120) particle.y = scene.height + 120;
-      if (particle.y > scene.height + 120) particle.y = -120;
-    });
-
-    for (let i = ripples.length - 1; i >= 0; i -= 1) {
-      const ripple = ripples[i];
-      ripple.radius += 7 + ripple.radius * 0.035;
-      ripple.alpha *= 0.965;
-      if (ripple.alpha <= 0.02) {
-        ripples.splice(i, 1);
-        continue;
-      }
-
-      ctx.beginPath();
-      ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${(ripple.hue + ripple.radius * 0.14) % 360}, 92%, 68%, ${ripple.alpha})`;
-      ctx.lineWidth = 1.2 + Math.min(ripple.radius / 160, 5);
-      ctx.stroke();
-
-      particles.forEach((particle) => {
-        const dx = particle.x - ripple.x;
-        const dy = particle.y - ripple.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance === 0) return;
-        const band = Math.abs(distance - ripple.radius);
-        if (band < 120) {
-          const influence = (120 - band) / 120;
-          const wave = Math.cos((distance - ripple.radius) / 28) * influence * 0.68;
-          particle.vx += (dx / distance) * wave;
-          particle.vy += (dy / distance) * wave;
-        }
-      });
-    }
-
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    particles.forEach((particle) => {
-      const size = particle.radius * (1 + pointerStrength * 0.45);
-      const glow = ctx.createRadialGradient(
-        particle.x,
-        particle.y,
-        0,
-        particle.x,
-        particle.y,
-        size * 4.5
-      );
-      glow.addColorStop(0, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0.9)`);
-      glow.addColorStop(1, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0)`);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, size * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.restore();
-
-    canvasFrame = requestAnimationFrame(animateBackground);
-  };
-
-  if (backgroundCanvas && ctx) {
-    setCanvasSize();
-    initParticles();
-    canvasFrame = requestAnimationFrame(animateBackground);
-    window.addEventListener("resize", () => {
-      setCanvasSize();
-      initParticles();
-    });
-  }
-
-  document.addEventListener("pointermove", (event) => {
-    background.classList.add("is-hovered");
-    if (event.movementX || event.movementY) {
-      if (Math.random() > 0.92) {
-        spawnSpark(event.clientX, event.clientY);
-      }
-    }
-  });
-
-  document.addEventListener("pointerdown", (event) => {
-    background.classList.add("is-active");
-    spawnPulse(event.clientX, event.clientY);
-    spawnRipple(event.clientX, event.clientY);
-    for (let i = 0; i < 4; i += 1) {
-      const angle = (Math.PI / 2) * i;
-      const x = event.clientX + Math.cos(angle) * 12;
-      const y = event.clientY + Math.sin(angle) * 12;
-      spawnSpark(x, y);
-    }
-  });
-
-  document.addEventListener("pointerup", () => {
-    background.classList.remove("is-active");
-  });
-
-  document.addEventListener("pointerleave", () => {
-    background.classList.remove("is-active");
+function setCursorPosition() {
+  core.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0)`;
+  const scale = pointerDown ? 0.82 : 1;
+  ring.style.transform = `translate3d(${ringState.x}px, ${ringState.y}px, 0) scale(${scale})`;
+  trail.forEach((dot, index) => {
+    const state = trailState[index];
+    dot.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
   });
 }
 
-document.addEventListener("pointerdown", () => {
-  isPressing = true;
-  document.body.classList.add("is-pressing");
-  pointerInViewport = true;
+function animateCursor() {
+  const smoothing = pointerDown ? 0.35 : 0.28;
+  pointer.x += (pointerTarget.x - pointer.x) * (pointerDown ? 0.45 : 0.35);
+  pointer.y += (pointerTarget.y - pointer.y) * (pointerDown ? 0.45 : 0.35);
+
+  ringState.x += (pointerTarget.x - ringState.x) * smoothing;
+  ringState.y += (pointerTarget.y - ringState.y) * smoothing;
+
+  trailState.forEach((state, index) => {
+    const lag = 0.22 + index * 0.04;
+    state.x += (pointerTarget.x - state.x) * (pointerDown ? lag + 0.08 : lag + 0.04);
+    state.y += (pointerTarget.y - state.y) * (pointerDown ? lag + 0.08 : lag + 0.04);
+  });
+
+  setCursorPosition();
+  requestAnimationFrame(animateCursor);
+}
+
+animateCursor();
+
+window.addEventListener('pointermove', (event) => {
+  pointerTarget = { x: event.clientX, y: event.clientY };
+  body.classList.add('is-pointer-active');
 });
 
-["pointerup", "pointercancel"].forEach((type) =>
-  document.addEventListener(type, () => {
-    isPressing = false;
-    document.body.classList.remove("is-pressing");
-  })
+window.addEventListener('pointerdown', () => {
+  pointerDown = true;
+});
+
+window.addEventListener('pointerup', () => {
+  pointerDown = false;
+});
+
+window.addEventListener('pointerleave', () => {
+  body.classList.remove('is-pointer-active');
+  pointerDown = false;
+});
+
+// Accent-aware cursor states
+const cursorTargets = document.querySelectorAll('[data-cursor]');
+
+cursorTargets.forEach((target) => {
+  target.addEventListener('pointerenter', () => {
+    const type = target.getAttribute('data-cursor');
+    if (type === 'accent') {
+      const accentRoot = target.closest('[data-accent]');
+      if (accentRoot) {
+        const accent = getComputedStyle(accentRoot).getPropertyValue('--cursor-accent');
+        if (accent) {
+          body.style.setProperty('--cursor-accent', accent);
+        }
+      }
+      body.dataset.cursor = 'accent';
+    } else if (type === 'link' || type === 'interactive' || type === 'focus') {
+      body.dataset.cursor = 'accent';
+      const accentRoot = target.closest('[data-accent]');
+      if (accentRoot) {
+        const accent = getComputedStyle(accentRoot).getPropertyValue('--cursor-accent');
+        body.style.setProperty('--cursor-accent', accent);
+      } else {
+        body.style.setProperty('--cursor-accent', getComputedStyle(document.documentElement).getPropertyValue('--accent-neutral'));
+      }
+    } else {
+      body.dataset.cursor = '';
+    }
+  });
+
+  target.addEventListener('pointerleave', () => {
+    body.dataset.cursor = '';
+    body.style.removeProperty('--cursor-accent');
+  });
+});
+
+// Navigation highlighting
+const navLinks = Array.from(document.querySelectorAll('.masthead__nav a'));
+const sections = navLinks
+  .map((link) => document.querySelector(link.getAttribute('href')))
+  .filter(Boolean);
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      const index = sections.indexOf(entry.target);
+      if (index !== -1 && entry.isIntersecting) {
+        navLinks.forEach((link) => link.classList.remove('is-active'));
+        navLinks[index].classList.add('is-active');
+      }
+    });
+  },
+  { threshold: 0.4 }
 );
 
-const focusableElements = document.querySelectorAll("a, button, input, textarea, [data-cursor]");
+sections.forEach((section) => observer.observe(section));
 
-focusableElements.forEach((element) => {
-  element.addEventListener("mouseenter", () => {
-    const state = element.getAttribute("data-cursor") || "interactive";
-    document.body.dataset.cursor = state;
+// Navigation toggle for mobile
+const toggle = document.querySelector('.masthead__toggle');
+
+if (toggle) {
+  toggle.addEventListener('click', () => {
+    document.querySelector('.masthead__nav').classList.toggle('is-open');
   });
-  element.addEventListener("mouseleave", () => {
-    delete document.body.dataset.cursor;
+}
+
+navLinks.forEach((link) => {
+  link.addEventListener('click', () => {
+    document.querySelector('.masthead__nav').classList.remove('is-open');
   });
 });
 
-if ("IntersectionObserver" in window) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.18 }
-  );
-
-  document
-    .querySelectorAll(".panel, .project-card, .timeline__item, [data-animate]")
-    .forEach((el) => observer.observe(el));
+// Footer year
+const yearNode = document.querySelector('[data-year]');
+if (yearNode) {
+  yearNode.textContent = new Date().getFullYear();
 }
 
-const accentSections = document.querySelectorAll("section[data-accent]");
+// Background particle network
+let width = 0;
+let height = 0;
+let dpr = window.devicePixelRatio || 1;
+const particles = [];
+const impulses = [];
+const MAX_PARTICLES = 120;
+const INFLUENCE_RADIUS = 220;
 
-if ("IntersectionObserver" in window && accentSections.length) {
-  const accentObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          document.body.style.setProperty(
-            "--accent-active",
-            `var(--accent-${entry.target.dataset.accent})`
-          );
-        }
-      });
-    },
-    { threshold: 0.51 }
-  );
+class Particle {
+  constructor() {
+    this.reset();
+  }
 
-  accentSections.forEach((section) => accentObserver.observe(section));
+  reset() {
+    this.x = Math.random() * width;
+    this.y = Math.random() * height;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.2 + Math.random() * 0.4;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.size = 1.2 + Math.random() * 1.6;
+  }
+
+  update(delta) {
+    this.x += this.vx * delta;
+    this.y += this.vy * delta;
+
+    if (this.x < -40 || this.x > width + 40 || this.y < -40 || this.y > height + 40) {
+      this.reset();
+    }
+
+    // Pointer interaction
+    const dx = this.x - pointerTarget.x;
+    const dy = this.y - pointerTarget.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < INFLUENCE_RADIUS) {
+      const force = (1 - dist / INFLUENCE_RADIUS) * 0.35;
+      const normX = dx / (dist || 1);
+      const normY = dy / (dist || 1);
+      this.vx += normX * force;
+      this.vy += normY * force;
+    }
+
+    // Impulses from clicks
+    impulses.forEach((impulse) => {
+      const idX = this.x - impulse.x;
+      const idY = this.y - impulse.y;
+      const iDist = Math.hypot(idX, idY);
+      if (iDist < impulse.radius) {
+        const intensity = (1 - iDist / impulse.radius) * impulse.power;
+        this.vx += (idX / (iDist || 1)) * intensity * 0.8;
+        this.vy += (idY / (iDist || 1)) * intensity * 0.8;
+      }
+    });
+
+    this.vx *= 0.985;
+    this.vy *= 0.985;
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(159, 140, 255, 0.85)';
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
+
+function resize() {
+  width = canvas.clientWidth;
+  height = canvas.clientHeight;
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function initParticles() {
+  particles.length = 0;
+  for (let i = 0; i < MAX_PARTICLES; i += 1) {
+    particles.push(new Particle());
+  }
+}
+
+let lastTime = performance.now();
+
+function render(time) {
+  const delta = Math.min((time - lastTime) / 16.7, 3);
+  lastTime = time;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Draw connections first for layering
+  for (let i = 0; i < particles.length; i += 1) {
+    const p1 = particles[i];
+    for (let j = i + 1; j < particles.length; j += 1) {
+      const p2 = particles[j];
+      const dx = p1.x - p2.x;
+      const dy = p1.y - p2.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 160) {
+        const opacity = 1 - dist / 160;
+        ctx.strokeStyle = `rgba(79, 125, 255, ${opacity * 0.35})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  particles.forEach((particle) => {
+    particle.update(delta);
+    particle.draw();
+  });
+
+  for (let i = impulses.length - 1; i >= 0; i -= 1) {
+    const impulse = impulses[i];
+    impulse.power *= 0.92;
+    impulse.radius += 4;
+    if (impulse.power < 0.05) {
+      impulses.splice(i, 1);
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+function setupBackground() {
+  resize();
+  initParticles();
+  lastTime = performance.now();
+  requestAnimationFrame(render);
+}
+
+setupBackground();
+
+window.addEventListener('resize', () => {
+  resize();
+  initParticles();
+});
+
+window.addEventListener('pointerdown', (event) => {
+  impulses.push({ x: event.clientX, y: event.clientY, radius: 0, power: 1 });
+});
