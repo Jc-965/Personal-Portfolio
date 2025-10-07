@@ -22,9 +22,15 @@
       <div class="background__noise"></div>
     </div>
 
-    <div class="cursor cursor--core" aria-hidden="true"></div>
-    <div class="cursor cursor--ring" aria-hidden="true"></div>
+    <div class="cursor cursor--glyph" aria-hidden="true">
+      <span class="cursor__frame"></span>
+      <span class="cursor__flare"></span>
+      <span class="cursor__indicator"></span>
+    </div>
+    <div class="cursor cursor--halo" aria-hidden="true"></div>
     <div class="cursor cursor--trail" aria-hidden="true">
+      <span></span>
+      <span></span>
       <span></span>
       <span></span>
       <span></span>
@@ -65,7 +71,7 @@
             </div>
           </div>
           <div class="hero__meta">
-            <article class="meta-card" data-cursor="interactive">
+            <article class="meta-card" data-cursor="interactive" data-tilt>
               <h3>Current cadence</h3>
               <ul>
                 <li>Coursework: 15-122 · 15-151 · 21-241</li>
@@ -73,7 +79,7 @@
                 <li>Stacks in play: Flutter · Python · Unreal · React</li>
               </ul>
             </article>
-            <article class="meta-card" data-cursor="interactive">
+            <article class="meta-card" data-cursor="interactive" data-tilt>
               <h3>Operating principles</h3>
               <ul>
                 <li>Model the problem, then code to the invariants.</li>
@@ -96,21 +102,21 @@
           </p>
         </header>
         <div class="focus__grid">
-          <article class="focus-card" data-cursor="interactive">
+          <article class="focus-card" data-cursor="interactive" data-tilt>
             <h3>Systems thinking</h3>
             <p>
               Design architectures that separate domain logic, presentation, and data contracts so features evolve
               without regressions.
             </p>
           </article>
-          <article class="focus-card" data-cursor="interactive">
+          <article class="focus-card" data-cursor="interactive" data-tilt>
             <h3>Observability &amp; privacy</h3>
             <p>
               Build telemetry, analytics, and privacy controls into the first release, closing the feedback loop without
               compromising trust.
             </p>
           </article>
-          <article class="focus-card" data-cursor="interactive">
+          <article class="focus-card" data-cursor="interactive" data-tilt>
             <h3>Iterative rigor</h3>
             <p>
               Pair quick prototypes with proofs, tests, and documentation so decisions stay defensible as the system
@@ -124,7 +130,7 @@
         <div class="section__tag">Journey</div>
         <h2>Milestones that shaped my engineering discipline.</h2>
         <div class="timeline">
-          <article class="timeline__item" data-animate>
+          <article class="timeline__item" data-animate data-tilt>
             <header>
               <h3>Levio · Founder &amp; Lead Engineer</h3>
               <p class="timeline__meta">Flutter · Firebase · Applied ML</p>
@@ -136,7 +142,7 @@
               <li>Prototyped on-device movement analysis using signal processing and lightweight inference.</li>
             </ul>
           </article>
-          <article class="timeline__item" data-animate>
+          <article class="timeline__item" data-animate data-tilt>
             <header>
               <h3>SoftCom Lab · Research Intern</h3>
               <p class="timeline__meta">NumPy · Pandas · scikit-learn</p>
@@ -148,7 +154,7 @@
               <li>Co-authored a CCSIT publication converting sensor data into therapeutic insights.</li>
             </ul>
           </article>
-          <article class="timeline__item" data-animate>
+          <article class="timeline__item" data-animate data-tilt>
             <header>
               <h3>Game Creation Society · Core Developer</h3>
               <p class="timeline__meta">Unreal Engine 5 · Multiplayer systems</p>
@@ -179,7 +185,7 @@
         <div class="section__tag">Projects</div>
         <h2>Selected builds where impact and infrastructure meet.</h2>
         <div class="projects__grid">
-          <article class="project-card" data-animate data-cursor="interactive">
+          <article class="project-card" data-animate data-cursor="interactive" data-tilt>
             <header>
               <div class="project-card__stack">Flutter · Dart · Firebase</div>
               <h3>Levio</h3>
@@ -191,7 +197,7 @@
               <li>Maintained privacy by keeping sensitive processing on-device while syncing necessary context securely.</li>
             </ul>
           </article>
-          <article class="project-card" data-animate data-cursor="interactive">
+          <article class="project-card" data-animate data-cursor="interactive" data-tilt>
             <header>
               <div class="project-card__stack">Java · Firebase · Google Maps SDK</div>
               <h3>MyCommunity</h3>
@@ -203,7 +209,7 @@
               <li>Implemented real-time authentication and syncing to support a growing community footprint.</li>
             </ul>
           </article>
-          <article class="project-card" data-animate data-cursor="interactive">
+          <article class="project-card" data-animate data-cursor="interactive" data-tilt>
             <header>
               <div class="project-card__stack">React · TypeScript · Tailwind</div>
               <h3>Tarocchi</h3>
@@ -222,15 +228,15 @@
         <div class="section__tag">Skills</div>
         <h2>Technical range that keeps products accountable.</h2>
         <div class="skills__grid">
-          <article class="skills-card" data-cursor="interactive">
+          <article class="skills-card" data-cursor="interactive" data-tilt>
             <h3>Languages</h3>
             <p>Python · C · C++ · Dart · Java · TypeScript · JavaScript · HTML/CSS · SQL · LaTeX · Typst</p>
           </article>
-          <article class="skills-card" data-cursor="interactive">
+          <article class="skills-card" data-cursor="interactive" data-tilt>
             <h3>Frameworks &amp; tools</h3>
             <p>Flutter · React · Vite · Tailwind · Firebase · NumPy · Pandas · scikit-learn · Unreal Engine · Git · GitHub Actions</p>
           </article>
-          <article class="skills-card" data-cursor="interactive">
+          <article class="skills-card" data-cursor="interactive" data-tilt>
             <h3>Practices</h3>
             <p>Systems design · Machine learning pipelines · Data modelling · Telemetry design · Accessibility · Technical writing</p>
           </article>
@@ -240,7 +246,7 @@
       <section class="section section--beyond" id="beyond" data-accent="rose">
         <div class="section__tag">Beyond the build</div>
         <div class="beyond__grid">
-          <article class="beyond-card" data-cursor="interactive">
+          <article class="beyond-card" data-cursor="interactive" data-tilt>
             <h3>Data &amp; infrastructure · ScottyLabs CMUMaps</h3>
             <ul>
               <li>Transform OpenStreetMap exports into normalized GeoJSON ready for frontend and routing services.</li>
@@ -248,7 +254,7 @@
               <li>Collaborate with the Rust routing service to ensure new datasets maintain performance guarantees.</li>
             </ul>
           </article>
-          <article class="beyond-card" data-cursor="interactive">
+          <article class="beyond-card" data-cursor="interactive" data-tilt>
             <h3>Product delivery · Arcadia HS App Team</h3>
             <ul>
               <li>Implemented NFC-enabled student IDs backed by Firebase for thousands of daily scans.</li>
@@ -256,7 +262,7 @@
               <li>Managed team finances and adoption strategy alongside engineering execution.</li>
             </ul>
           </article>
-          <article class="beyond-card" data-cursor="interactive">
+          <article class="beyond-card" data-cursor="interactive" data-tilt>
             <h3>Leadership &amp; discipline</h3>
             <ul>
               <li>Eagle Scout journey grounded me in methodical planning, safety, and community-centered delivery.</li>
