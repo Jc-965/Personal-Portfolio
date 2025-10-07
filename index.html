@@ -8,17 +8,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="cursor cursor--dot" aria-hidden="true"></div>
-    <div class="cursor cursor--ring" aria-hidden="true"></div>
-    <div class="cursor cursor--halo" aria-hidden="true"></div>
+    <div class="cursor cursor--glyph is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--dot is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--ring is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--halo is-hidden" aria-hidden="true"></div>
 
     <div class="background" aria-hidden="true">
+      <canvas class="background__canvas" role="presentation"></canvas>
       <div class="background__layer background__layer--gradient" data-depth="0.08"></div>
       <div class="background__layer background__layer--orb" data-depth="0.04"></div>
       <div class="background__layer background__layer--grid" data-depth="0.02"></div>
@@ -44,11 +46,11 @@
       <section class="hero" id="top" data-accent="iris">
         <div class="hero__content">
           <p class="hero__eyebrow">Jesse (Zexi) Chen · Carnegie Mellon School of Computer Science</p>
-          <h1>I build patient, explainable systems for people I care about.</h1>
+          <h1>I build reliable systems that stay human at the edges.</h1>
           <p>
-            I’m a first-year drawn to the line between theory and impact. My weeks swing between 15-122 proofs,
-            15-151 problem sets, 21-241 linear transforms, and product sprints—and I’m happiest when the work ties
-            together: careful invariants, measurable results, and tools that earn trust.
+            I’m a first-year focused on machine learning and trustworthy product engineering. My time splits between
+            15-122, 15-151, 21-241, and shipping features—closing the loop from proof to deploy so tools behave the
+            way people expect them to.
           </p>
           <ul class="hero__stats">
             <li>
@@ -61,9 +63,9 @@
             </li>
           </ul>
           <ul class="hero__principles">
-            <li>Architect work like code: explicit interfaces, testable loops, and observability from the start.</li>
-            <li>Pair empathy with math—design from lived stories, validate with proofs, telemetry, and iteration.</li>
-            <li>Document and teach so future collaborators inherit clarity instead of guesswork.</li>
+            <li>Design workstreams like software: clean interfaces, regression tests, and observability hooks.</li>
+            <li>Start from lived needs, then justify decisions with math, telemetry, and quick iteration.</li>
+            <li>Document decisions so collaborators inherit context, not conjecture.</li>
           </ul>
           <div class="hero__cta">
             <a class="btn" href="#projects" data-cursor="accent">Browse selected work</a>
@@ -79,18 +81,18 @@
         </header>
         <div class="panel__grid">
           <p>
-            My story starts in my grandmother’s kitchen. Years later, Parkinson’s shook the hands that taught me patience,
-            and Levio became my way to help from three thousand miles away. Since then I’ve chased the idea that software
-            should feel steady and human: design from empathy, implement with rigor, and keep instrumentation close so I
-            know when to adjust.
+            Levio began as a late-night attempt to steady my grandmother’s Parkinson’s therapy from three thousand miles
+            away. That project reshaped how I work: start from a lived story, prove the system formally, and wire telemetry
+            so I know when reality disagrees with intent. Every build since then follows the same pattern—careful
+            abstractions, measurable results, and a bias toward tools that people can trust.
           </p>
           <article class="panel__card">
             <h3>Operating principles</h3>
             <ul>
-              <li>Structure work like code: sharp interfaces, testable units, intentional abstractions.</li>
-              <li>Pair fast loops with careful math—proofs, experiments, and postmortems included.</li>
-              <li>Ship with observability and privacy from the first commit, not as a retrofit.</li>
-              <li>Invest in documentation so future teammates inherit context, not guesswork.</li>
+              <li>Structure engagements as systems: crisp interfaces, testable units, intentional abstractions.</li>
+              <li>Balance velocity with rigor—proofs, experiments, and postmortems are part of the deliverable.</li>
+              <li>Ship with observability and privacy from the first commit instead of retrofitting guardrails.</li>
+              <li>Write clear docs so future teammates can extend the work without restarting the investigation.</li>
             </ul>
           </article>
         </div>
@@ -108,10 +110,10 @@
               <h3>Levio · Founder &amp; Lead Engineer</h3>
               <p class="timeline__meta">Flutter · Firebase · Applied ML</p>
               <ul>
-                <li>Built a cross-platform Parkinson’s companion with symptom tracking, medication logic, and guided therapy modules.</li>
-                <li>Engineered structured state management and secure cloud sync so data stays consistent across devices.</li>
-                <li>Designed dashboards that surface long-term trends families can understand at a glance.</li>
-                <li>Prototyped on-device signal processing and lightweight models to keep feedback private and immediate.</li>
+                <li>Built a cross-platform Parkinson’s companion in Flutter with Firebase Auth and Firestore for real-time sync.</li>
+                <li>Modelled state management so symptom logs, reminders, and therapy modules stay resilient across sessions.</li>
+                <li>Designed dashboards that translate longitudinal signals into guidance families can act on.</li>
+                <li>Prototyped on-device signal processing and lightweight models to deliver private, immediate feedback.</li>
               </ul>
             </div>
           </article>
@@ -121,10 +123,10 @@
               <h3>SoftCom Lab · Research Intern</h3>
               <p class="timeline__meta">NumPy · Pandas · scikit-learn</p>
               <ul>
-                <li>Curated interdisciplinary datasets of speech and movement signals focused on Parkinson’s progression.</li>
-                <li>Authored reproducible Python pipelines for feature extraction, normalization, and experiment tracking.</li>
-                <li>Ran validation splits that reflected real-world usage so models held up outside the lab.</li>
-                <li>Co-authored a peer-reviewed CCSIT paper translating raw logs into insights for digital therapeutics.</li>
+                <li>Curated speech and movement datasets on Parkinson’s progression alongside faculty mentors.</li>
+                <li>Authored reproducible pipelines for feature extraction, normalization, and experiment tracking.</li>
+                <li>Designed validation strategies that mirror deployment contexts instead of random shuffles.</li>
+                <li>Co-authored a CCSIT paper translating sensor logs into actionable digital therapeutic insights.</li>
               </ul>
             </div>
           </article>
@@ -134,10 +136,10 @@
               <h3>Game Creation Society · Core Developer</h3>
               <p class="timeline__meta">Unreal Engine 5 · Multiplayer systems</p>
               <ul>
-                <li>Implemented tether and grappling mechanics that give Aerial Blitz its midair control vocabulary.</li>
-                <li>Built replicated physics logic so collisions, impulses, and scoring stay in sync across players.</li>
-                <li>Shaped elimination and trailing systems that balance arcade energy with readable outcomes.</li>
-                <li>Optimized Blueprints for frame consistency while keeping the creative loop quick for designers.</li>
+                <li>Engineered tether and grappling mechanics in Unreal Engine 5 for expressive midair control.</li>
+                <li>Implemented replicated physics so collisions, impulses, and scoring stay consistent across sessions.</li>
+                <li>Designed elimination and trailing systems that reward precision while staying readable.</li>
+                <li>Profiled and tuned Blueprint graphs to hold frame times steady for designers and playtests.</li>
               </ul>
             </div>
           </article>
@@ -147,10 +149,10 @@
               <h3>Coding Minds Academy · Instructor</h3>
               <p class="timeline__meta">Python · C++ · JavaScript pedagogy</p>
               <ul>
-                <li>Taught loops, recursion, and competitive programming strategies tailored to K-12 learning stages.</li>
-                <li>Designed project briefs and assessments that make students reason about invariants and edge cases.</li>
-                <li>Debugged student code in real time while modeling clear problem decomposition and communication.</li>
-                <li>Strengthened my own algorithmic intuition by translating complex ideas into approachable explanations.</li>
+                <li>Guided K-12 learners through loops, recursion, and competitive programming strategies.</li>
+                <li>Built modular project briefs and assessments that emphasize invariants and edge cases.</li>
+                <li>Ran live debugging sessions that modelled calm decomposition and precise communication.</li>
+                <li>Strengthened my own algorithmic intuition by translating advanced ideas into approachable language.</li>
               </ul>
             </div>
           </article>
@@ -166,12 +168,12 @@
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
               <h3>Levio</h3>
-              <span class="tag">Mobile health · Patent-pending</span>
+              <span class="tag">Mobile health · Cross-platform</span>
             </header>
             <ul class="project-card__summary">
-              <li>Built in Flutter with Firebase Auth and Firestore so families stay synced across iOS and Android.</li>
-              <li>Structured state management to keep symptom logs, reminders, and therapy modules resilient across sessions.</li>
-              <li>Added on-device analytics that translate accelerometer signals into actionable coaching without leaving the phone.</li>
+              <li>Developed in Flutter with Firebase Auth and Firestore to keep care teams aligned across iOS and Android.</li>
+              <li>Engineered layered state management so symptom logs, reminders, and therapy modules remain durable over time.</li>
+              <li>Embedded on-device analytics that translate accelerometer signals into private, actionable coaching.</li>
             </ul>
             <ul class="project-card__tech">
               <li>Flutter &amp; Dart</li>
@@ -179,6 +181,14 @@
               <li>Signal processing</li>
               <li>On-device ML</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const levio = createApp({</span>
+              <span data-line="02" style="--indent: 1">platforms: ["iOS", "Android"],</span>
+              <span data-line="03" style="--indent: 1">modules: ["symptom-tracker", "therapy-flows", "reminders"],</span>
+              <span data-line="04" style="--indent: 1">reliability: hardenState({ firestore: true, offline: true }),</span>
+              <span data-line="05" style="--indent: 1">analytics: onDeviceSignals({ privacy: "local-first" })</span>
+              <span data-line="06">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
@@ -186,7 +196,7 @@
               <span class="tag">Infrastructure · Open data</span>
             </header>
             <ul class="project-card__summary">
-              <li>Parsed OpenStreetMap exports into normalized GeoJSON ready for the ScottyLabs frontends.</li>
+              <li>Parsed OpenStreetMap exports into normalized GeoJSON powering the ScottyLabs CMUMaps clients.</li>
               <li>Generated convex-hull hitboxes and polylabel-inspired anchors so campus search feels natural on touch.</li>
               <li>Automated dataset versioning and fallbacks to keep routing services stable during refreshes.</li>
             </ul>
@@ -196,16 +206,23 @@
               <li>Geometry heuristics</li>
               <li>Data validation</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const dataset = buildPipeline("CMUMaps", {</span>
+              <span data-line="02" style="--indent: 1">input: parseOSM({ buildings: true, relations: true }),</span>
+              <span data-line="03" style="--indent: 1">geometry: derive({ hulls: true, polylabel: true }),</span>
+              <span data-line="04" style="--indent: 1">publish: versionedArtifacts("s3://cmumaps/data")</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
               <h3>MyCommunity</h3>
-              <span class="tag">Android · Social impact</span>
+              <span class="tag">Android · Civic tech</span>
             </header>
             <ul class="project-card__summary">
-              <li>Developed in Java with Firebase to connect youth volunteers with nearby service opportunities and community teams.</li>
-              <li>Combined Google Maps overlays with New York Times context to surface location-aware recommendations.</li>
-              <li>Implemented authentication and offline caching so the app stays usable when connectivity drops.</li>
+              <li>Built in Java with Firebase to connect youth volunteers with nearby service opportunities and community teams.</li>
+              <li>Combined Google Maps overlays with New York Times context to ground recommendations in local events.</li>
+              <li>Implemented authentication and offline caching so the experience holds up when connectivity drops.</li>
             </ul>
             <ul class="project-card__tech">
               <li>Java</li>
@@ -213,6 +230,13 @@
               <li>REST integrations</li>
               <li>Offline-first UX</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const myCommunity = shipAndroid({</span>
+              <span data-line="02" style="--indent: 1">stack: ["Java", "Firebase", "Maps"],</span>
+              <span data-line="03" style="--indent: 1">features: ["troop-lookup", "service-matching"],</span>
+              <span data-line="04" style="--indent: 1">resilience: offlineCache({ sync: "realtime" })</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
@@ -230,6 +254,13 @@
               <li>Tailwind CSS</li>
               <li>Framer Motion</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const tarocchi = hackCMU({</span>
+              <span data-line="02" style="--indent: 1">frameworks: ["React", "Vite", "Tailwind"],</span>
+              <span data-line="03" style="--indent: 1">narrative: orchestration({ prompts: "Claude", minigames: true }),</span>
+              <span data-line="04" style="--indent: 1">experience: blend({ motion: "Framer", art: "pixel" })</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
         </div>
       </section>
@@ -243,9 +274,9 @@
           <article class="mosaic__card" data-animate>
             <h3>Data &amp; Software Engineer · CMUMaps</h3>
             <ul>
-              <li>Transform OpenStreetMap exports into geometry-safe JSON that powers campus routing.</li>
+              <li>Transformed OpenStreetMap exports into geometry-safe JSON that powers campus routing.</li>
               <li>Validated building outlines, interior IDs, and metadata consistency before publishing to AWS S3.</li>
-              <li>Collaborated with the Rust pathfinding team so data refreshes never compromise latency.</li>
+              <li>Partnered with the Rust pathfinding team so data refreshes never compromise latency.</li>
             </ul>
             <p class="mosaic__meta">Python · Geo data pipelines · Distributed systems</p>
           </article>
@@ -272,7 +303,7 @@
             <ul>
               <li>Committed 200+ hours yearly to rehearsals, performances, and precise ensemble coordination.</li>
               <li>Led sectionals, trained new members, and kept music libraries organized for marching and concert seasons.</li>
-              <li>Performed with Pasadena ensembles and national parades, learning calm leadership under pressure.</li>
+              <li>Performed with Pasadena ensembles and national parades, practicing calm leadership under pressure.</li>
             </ul>
             <p class="mosaic__meta">Discipline · Collaboration · Live performance</p>
           </article>
