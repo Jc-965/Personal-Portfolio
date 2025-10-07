@@ -27,6 +27,7 @@ document.addEventListener("scroll", () => {
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const root = document.documentElement;
+const cursorGlyph = document.querySelector(".cursor--glyph");
 const cursorDot = document.querySelector(".cursor--dot");
 const cursorRing = document.querySelector(".cursor--ring");
 const cursorHalo = document.querySelector(".cursor--halo");
@@ -68,6 +69,13 @@ const updateCursor = () => {
 
   const ringScale = (1 + clamp(velocity / 120, 0, 0.6)) * pressFactor;
   const haloScale = (1 + clamp(velocity / 250, 0, 0.8)) * haloPressFactor;
+  const glyphScale = 0.95 + clamp(velocity / 260, 0, 0.35);
+  const glyphRotation = angleDeg + Math.sin(performance.now() * 0.005) * 18;
+
+  cursorGlyph?.style.setProperty(
+    "transform",
+    `translate3d(${pointer.x}px, ${pointer.y}px, 0) rotate(${glyphRotation}deg) scale(${glyphScale * (isPressing ? 0.9 : 1)})`
+  );
 
   cursorDot?.style.setProperty(
     "transform",
@@ -93,6 +101,7 @@ const updateCursor = () => {
     root.style.setProperty("--cursor-angle", `${angleDeg}deg`);
     root.style.setProperty("--bg-hue", hue.toFixed(2));
     root.style.setProperty("--bg-lightness", lightness.toFixed(2));
+    root.style.setProperty("--cursor-hue", hue.toFixed(2));
   }
 
   if (background) {
@@ -117,6 +126,7 @@ const updateCursor = () => {
 
 const enableCursor = () => {
   if (prefersReducedMotion) return;
+  cursorGlyph?.classList.remove("is-hidden");
   cursorDot?.classList.remove("is-hidden");
   cursorRing?.classList.remove("is-hidden");
   cursorHalo?.classList.remove("is-hidden");
@@ -132,6 +142,7 @@ document.addEventListener("pointermove", (event) => {
 });
 
 document.addEventListener("pointerleave", () => {
+  cursorGlyph?.classList.add("is-hidden");
   cursorDot?.classList.add("is-hidden");
   cursorRing?.classList.add("is-hidden");
   cursorHalo?.classList.add("is-hidden");
@@ -153,13 +164,14 @@ if (background && !prefersReducedMotion) {
   const particles = [];
   const ripples = [];
   const palette = [
-    { hue: 220, saturation: 88, lightness: 64 },
-    { hue: 268, saturation: 90, lightness: 66 },
-    { hue: 192, saturation: 84, lightness: 60 },
+    { hue: 210, saturation: 92, lightness: 62 },
+    { hue: 268, saturation: 94, lightness: 66 },
+    { hue: 188, saturation: 90, lightness: 58 },
+    { hue: 326, saturation: 88, lightness: 64 },
   ];
   let canvasFrame;
 
-  const particleCount = () => Math.round(clamp((scene.width * scene.height) / 12000, 70, 150));
+  const particleCount = () => Math.round(clamp((scene.width * scene.height) / 6000, 130, 320));
 
   const setCanvasSize = () => {
     if (!backgroundCanvas || !ctx) return;
@@ -179,11 +191,11 @@ if (background && !prefersReducedMotion) {
     return {
       x: Math.random() * scene.width,
       y: Math.random() * scene.height,
-      vx: randomBetween(-0.4, 0.4),
-      vy: randomBetween(-0.4, 0.4),
-      baseVX: randomBetween(-0.12, 0.12),
-      baseVY: randomBetween(-0.12, 0.12),
-      radius: randomBetween(1.1, 2.8),
+      vx: randomBetween(-0.45, 0.45),
+      vy: randomBetween(-0.45, 0.45),
+      baseVX: randomBetween(-0.16, 0.16),
+      baseVY: randomBetween(-0.16, 0.16),
+      radius: randomBetween(1, 2.4),
       hue: swatch.hue + randomBetween(-6, 6),
       saturation: swatch.saturation,
       lightness: swatch.lightness + randomBetween(-6, 6),
@@ -228,28 +240,46 @@ if (background && !prefersReducedMotion) {
     }
   };
 
-  const animateBackground = () => {
+  let lastAutoRipple = 0;
+
+  const animateBackground = (now) => {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, scene.width, scene.height);
 
     const gradient = ctx.createLinearGradient(0, 0, scene.width, scene.height);
-    gradient.addColorStop(0, "rgba(8, 11, 28, 0.86)");
-    gradient.addColorStop(0.52, "rgba(6, 10, 26, 0.9)");
-    gradient.addColorStop(1, "rgba(10, 7, 26, 0.84)");
+    gradient.addColorStop(0, "rgba(6, 4, 24, 0.95)");
+    gradient.addColorStop(0.5, "rgba(10, 6, 32, 0.92)");
+    gradient.addColorStop(1, "rgba(8, 7, 26, 0.93)");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, scene.width, scene.height);
 
-    const time = performance.now() * 0.0015;
-    const pointerStrength = pointerInViewport ? clamp(velocity / 220, 0.12, 1.25) : 0;
-    const pointerRadius = pointerInViewport ? 200 : 140;
+    const time = now * 0.0012;
+    const ambientStrength = 0.2 + Math.sin(time * 0.6) * 0.06 + Math.cos(time * 0.35) * 0.04;
+    const pointerStrength = pointerInViewport
+      ? clamp(0.22 + velocity / 180, 0.22, 1.45)
+      : ambientStrength;
+    const pointerRadius = pointerInViewport ? 220 : 160 + Math.sin(time * 0.7) * 20;
+
+    if (now - lastAutoRipple > 4600) {
+      const x = Math.random() * scene.width;
+      const y = Math.random() * scene.height;
+      spawnRipple(x, y);
+      if (Math.random() > 0.4) {
+        spawnSpark(x, y);
+      }
+      lastAutoRipple = now;
+    }
 
     particles.forEach((particle) => {
-      particle.vx += (particle.baseVX - particle.vx) * 0.02;
-      particle.vy += (particle.baseVY - particle.vy) * 0.02;
+      particle.vx += (particle.baseVX - particle.vx) * 0.018;
+      particle.vy += (particle.baseVY - particle.vy) * 0.018;
 
-      particle.x += particle.vx + Math.cos(time + particle.noise) * 0.22;
-      particle.y += particle.vy + Math.sin(time * 0.8 + particle.noise) * 0.18;
+      const swirl = Math.sin(time + particle.noise) * 0.32;
+      const drift = Math.cos(time * 0.6 + particle.noise * 1.4) * 0.24;
+
+      particle.x += particle.vx + swirl + pointerStrength * 0.2;
+      particle.y += particle.vy + drift;
 
       if (pointerInViewport) {
         const dx = particle.x - pointer.x;
@@ -292,7 +322,7 @@ if (background && !prefersReducedMotion) {
         const band = Math.abs(distance - ripple.radius);
         if (band < 120) {
           const influence = (120 - band) / 120;
-          const wave = Math.cos((distance - ripple.radius) / 32) * influence * 0.6;
+          const wave = Math.cos((distance - ripple.radius) / 28) * influence * 0.68;
           particle.vx += (dx / distance) * wave;
           particle.vy += (dy / distance) * wave;
         }
@@ -309,13 +339,13 @@ if (background && !prefersReducedMotion) {
         0,
         particle.x,
         particle.y,
-        size * 4
+        size * 4.5
       );
       glow.addColorStop(0, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0.9)`);
       glow.addColorStop(1, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0)`);
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, size * 2, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, size * 2.4, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.restore();
@@ -336,7 +366,7 @@ if (background && !prefersReducedMotion) {
   document.addEventListener("pointermove", (event) => {
     background.classList.add("is-hovered");
     if (event.movementX || event.movementY) {
-      if (Math.random() > 0.97) {
+      if (Math.random() > 0.92) {
         spawnSpark(event.clientX, event.clientY);
       }
     }

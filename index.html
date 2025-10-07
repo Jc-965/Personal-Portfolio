@@ -14,9 +14,10 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="cursor cursor--dot" aria-hidden="true"></div>
-    <div class="cursor cursor--ring" aria-hidden="true"></div>
-    <div class="cursor cursor--halo" aria-hidden="true"></div>
+    <div class="cursor cursor--glyph is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--dot is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--ring is-hidden" aria-hidden="true"></div>
+    <div class="cursor cursor--halo is-hidden" aria-hidden="true"></div>
 
     <div class="background" aria-hidden="true">
       <canvas class="background__canvas" role="presentation"></canvas>
@@ -180,6 +181,14 @@
               <li>Signal processing</li>
               <li>On-device ML</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const levio = createApp({</span>
+              <span data-line="02" style="--indent: 1">platforms: ["iOS", "Android"],</span>
+              <span data-line="03" style="--indent: 1">modules: ["symptom-tracker", "therapy-flows", "reminders"],</span>
+              <span data-line="04" style="--indent: 1">reliability: hardenState({ firestore: true, offline: true }),</span>
+              <span data-line="05" style="--indent: 1">analytics: onDeviceSignals({ privacy: "local-first" })</span>
+              <span data-line="06">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
@@ -197,6 +206,13 @@
               <li>Geometry heuristics</li>
               <li>Data validation</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const dataset = buildPipeline("CMUMaps", {</span>
+              <span data-line="02" style="--indent: 1">input: parseOSM({ buildings: true, relations: true }),</span>
+              <span data-line="03" style="--indent: 1">geometry: derive({ hulls: true, polylabel: true }),</span>
+              <span data-line="04" style="--indent: 1">publish: versionedArtifacts("s3://cmumaps/data")</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
@@ -214,6 +230,13 @@
               <li>REST integrations</li>
               <li>Offline-first UX</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const myCommunity = shipAndroid({</span>
+              <span data-line="02" style="--indent: 1">stack: ["Java", "Firebase", "Maps"],</span>
+              <span data-line="03" style="--indent: 1">features: ["troop-lookup", "service-matching"],</span>
+              <span data-line="04" style="--indent: 1">resilience: offlineCache({ sync: "realtime" })</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
           <article class="project-card" data-animate data-cursor="accent">
             <header class="project-card__header">
@@ -231,6 +254,13 @@
               <li>Tailwind CSS</li>
               <li>Framer Motion</li>
             </ul>
+            <div class="project-card__code" aria-hidden="true">
+              <span data-line="01">const tarocchi = hackCMU({</span>
+              <span data-line="02" style="--indent: 1">frameworks: ["React", "Vite", "Tailwind"],</span>
+              <span data-line="03" style="--indent: 1">narrative: orchestration({ prompts: "Claude", minigames: true }),</span>
+              <span data-line="04" style="--indent: 1">experience: blend({ motion: "Framer", art: "pixel" })</span>
+              <span data-line="05">});</span>
+            </div>
           </article>
         </div>
       </section>
