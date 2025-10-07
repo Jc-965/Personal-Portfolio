@@ -4,8 +4,10 @@ const canvas = document.querySelector('.background__canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
 
 const cursorNode = document.querySelector('.cursor--pointer');
-const cursorRing = cursorNode?.querySelector('.cursor__ring');
-const cursorTail = cursorNode?.querySelector('.cursor__tail');
+const cursorHalo = cursorNode?.querySelector('.cursor__halo');
+const cursorCore = cursorNode?.querySelector('.cursor__core');
+const cursorGlyph = cursorNode?.querySelector('.cursor__glyph');
+const cursorOrbit = cursorNode?.querySelector('.cursor__orbit');
 
 let pointerTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let pointer = { x: pointerTarget.x, y: pointerTarget.y };
@@ -134,7 +136,7 @@ function animateCursor() {
     return;
   }
 
-  const follow = pointerDown ? 0.48 : 0.34;
+  const follow = pointerDown ? 0.6 : 0.46;
   pointer.x += (pointerTarget.x - pointer.x) * follow;
   pointer.y += (pointerTarget.y - pointer.y) * follow;
 
@@ -146,14 +148,27 @@ function animateCursor() {
   }
   rotation += normalizeAngle(rotationTarget - rotation) * 0.26;
   const lean = Math.max(Math.min(vx * 0.18, 18), -18);
-  const stretch = Math.min(1.18, 0.72 + speed * 0.045);
+  const stretch = Math.min(1.18, 0.78 + speed * 0.052);
   cursorNode.style.setProperty('--cursor-lean', lean.toFixed(2));
   cursorNode.style.setProperty('--cursor-stretch', stretch.toFixed(3));
-  if (cursorRing) {
-    cursorRing.style.opacity = Math.min(1, 0.65 + speed * 0.018).toFixed(3);
+  if (cursorHalo) {
+    cursorHalo.style.opacity = Math.min(1, 0.58 + speed * 0.02).toFixed(3);
+    const haloTilt = Math.max(Math.min(speed * 0.006, 0.12), 0);
+    const haloRotation = (lean * -0.002).toFixed(3);
+    const haloScale = (1 + haloTilt).toFixed(3);
+    cursorHalo.style.transform = `rotate(${haloRotation}turn) scale(${haloScale})`;
   }
-  if (cursorTail) {
-    cursorTail.style.opacity = Math.min(1, 0.4 + speed * 0.022).toFixed(3);
+  if (cursorCore) {
+    cursorCore.style.opacity = Math.min(1, 0.78 + speed * 0.018).toFixed(3);
+  }
+  if (cursorGlyph) {
+    const glyphScale = Math.min(1.24, 1 + speed * 0.03);
+    cursorGlyph.style.setProperty('--cursor-glyph-scale', glyphScale.toFixed(3));
+  }
+  if (cursorOrbit) {
+    const orbitScale = Math.min(1.2, 1 + speed * 0.02);
+    cursorOrbit.style.setProperty('--cursor-orbit-scale', orbitScale.toFixed(3));
+    cursorOrbit.style.opacity = Math.min(0.78, 0.38 + speed * 0.02).toFixed(3);
   }
   lastPointer = { x: pointer.x, y: pointer.y };
 
@@ -283,8 +298,9 @@ tiltTargets.forEach((element) => {
   });
 });
 
-const INFLUENCE_RADIUS = 240;
-const LINK_DISTANCE = 170;
+const INFLUENCE_RADIUS = 260;
+const LINK_DISTANCE = 220;
+const MAX_NEIGHBOR_LINKS = 3;
 
 const backgroundNode = document.querySelector('.background');
 
@@ -380,7 +396,7 @@ function resize() {
 function initParticles() {
   particles.length = 0;
   const area = Math.max(width * height, 1);
-  const density = Math.min(220, Math.max(90, Math.floor(area / 9000)));
+  const density = Math.min(260, Math.max(110, Math.floor(area / 7500)));
   for (let i = 0; i < density; i += 1) {
     particles.push(new Particle());
   }
@@ -394,8 +410,11 @@ function render(time) {
 
   ctx.clearRect(0, 0, width, height);
 
+  const pointerConnections = [];
+
   for (let i = 0; i < particles.length; i += 1) {
     const p1 = particles[i];
+    let links = 0;
     for (let j = i + 1; j < particles.length; j += 1) {
       const p2 = particles[j];
       const dx = p1.x - p2.x;
@@ -403,15 +422,40 @@ function render(time) {
       const dist = Math.hypot(dx, dy);
       if (dist < LINK_DISTANCE) {
         const opacity = 1 - dist / LINK_DISTANCE;
-        ctx.strokeStyle = `rgba(${particleLink}, ${opacity * 0.32})`;
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(${particleLink}, ${opacity * 0.36})`;
+        ctx.lineWidth = opacity > 0.7 ? 1.4 : 1;
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
+        links += 1;
+        if (links >= MAX_NEIGHBOR_LINKS && opacity < 0.55) {
+          break;
+        }
       }
     }
+
+    const pdx = p1.x - pointer.x;
+    const pdy = p1.y - pointer.y;
+    const pdist = Math.hypot(pdx, pdy);
+    if (pdist < LINK_DISTANCE * 0.9) {
+      pointerConnections.push({ particle: p1, distance: pdist });
+    }
   }
+
+  pointerConnections
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 4)
+    .forEach((connection, index) => {
+      const strength = 1 - connection.distance / (LINK_DISTANCE * 0.9);
+      const opacity = Math.max(0, Math.min(1, strength * (1.1 - index * 0.12)));
+      ctx.strokeStyle = `rgba(${particleLink}, ${opacity * 0.55})`;
+      ctx.lineWidth = 1.1 + opacity * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(connection.particle.x, connection.particle.y);
+      ctx.lineTo(pointer.x, pointer.y);
+      ctx.stroke();
+    });
 
   particles.forEach((particle) => {
     particle.update(delta);
