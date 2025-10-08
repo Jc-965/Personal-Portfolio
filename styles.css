@@ -336,15 +336,6 @@ main {
   transform: scale(1.45);
 }
 
-.background__layer--grid {
-  background-image:
-    linear-gradient(0deg, rgba(90, 142, 255, 0.28) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(70, 128, 255, 0.24) 1px, transparent 1px);
-  background-size: 48px 48px;
-  opacity: 0.32;
-  mix-blend-mode: screen;
-}
-
 .background__noise {
   position: absolute;
   inset: 0;
@@ -1255,9 +1246,36 @@ section {
 }
 
 .back-to-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  background: rgba(129, 140, 248, 0.16);
   color: var(--accent-active);
-  text-decoration: none;
   font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1;
+  font-family: inherit;
+  text-decoration: none;
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.back-to-top:hover,
+.back-to-top:focus-visible {
+  color: var(--text-primary);
+  background: var(--accent-active);
+  border-color: rgba(129, 140, 248, 0.6);
+  box-shadow: 0 16px 42px -28px rgba(99, 102, 241, 0.65);
+  transform: translateY(-1px);
+}
+
+.back-to-top:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 3px;
 }
 
 [data-animate] {
@@ -1338,14 +1356,6 @@ section {
 }
 
 @media (max-width: 640px) {
-  body {
-    cursor: default;
-  }
-
-  .cursor {
-    display: none;
-  }
-
   section {
     padding-top: 80px;
   }
@@ -1384,6 +1394,16 @@ section {
   }
 }
 
+@media (max-width: 640px) and (hover: none) and (pointer: coarse) {
+  body {
+    cursor: auto;
+  }
+
+  .cursor {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1392,14 +1412,6 @@ section {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-
-  body {
-    cursor: auto;
-  }
-
-  .cursor {
-    display: none !important;
   }
 
   .background {

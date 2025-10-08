@@ -31,6 +31,7 @@ const cursorNova = document.querySelector(".cursor--nova");
 const cursorTrailEl = cursorNova?.querySelector(".cursor__trail");
 const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
+const backToTopButton = document.querySelector(".back-to-top");
 
 const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const pointerTarget = { ...pointer };
@@ -44,24 +45,13 @@ const trailPoint = { ...pointer };
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const randomBetween = (min, max) => Math.random() * (max - min) + min;
 
-const updateCursor = () => {
-  const lerp = prefersReducedMotion ? 1 : isPressing ? 0.28 : 0.2;
-  pointer.x += (pointerTarget.x - pointer.x) * lerp;
-  pointer.y += (pointerTarget.y - pointer.y) * lerp;
-
-  const dx = pointer.x - lastPointer.x;
-  const dy = pointer.y - lastPointer.y;
-  const distance = Math.hypot(dx, dy);
-  velocity = 0.18 * distance + 0.82 * velocity;
-  lastPointer = { ...pointer };
-  trailPoint.x += (pointer.x - trailPoint.x) * (prefersReducedMotion ? 1 : 0.16);
-  trailPoint.y += (pointer.y - trailPoint.y) * (prefersReducedMotion ? 1 : 0.16);
-
+const applyPointerStyles = () => {
   const progressX = pointer.x / Math.max(window.innerWidth, 1);
   const progressY = pointer.y / Math.max(window.innerHeight, 1);
   const hue = 200 + progressX * 80;
   const lightness = 40 + progressY * 12 + Math.min(velocity / 18, 8);
   const speedFactor = clamp(velocity / 320, 0, 1);
+
   if (cursorNova) {
     cursorNova.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0)`);
     cursorNova.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
@@ -99,12 +89,34 @@ const updateCursor = () => {
     layer.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
     layer.style.opacity = String(clamp(0.32 + velocity / 640 - index * 0.05, 0.1, 0.72));
   });
+};
+
+backToTopButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  window.scrollTo({
+    top: 0,
+    behavior: prefersReducedMotion ? "auto" : "smooth",
+  });
+});
+
+const updateCursor = () => {
+  const lerp = prefersReducedMotion ? 1 : isPressing ? 0.28 : 0.2;
+  pointer.x += (pointerTarget.x - pointer.x) * lerp;
+  pointer.y += (pointerTarget.y - pointer.y) * lerp;
+
+  const dx = pointer.x - lastPointer.x;
+  const dy = pointer.y - lastPointer.y;
+  const distance = Math.hypot(dx, dy);
+  velocity = 0.18 * distance + 0.82 * velocity;
+  lastPointer = { ...pointer };
+  trailPoint.x += (pointer.x - trailPoint.x) * (prefersReducedMotion ? 1 : 0.16);
+  trailPoint.y += (pointer.y - trailPoint.y) * (prefersReducedMotion ? 1 : 0.16);
+  applyPointerStyles();
 
   animationFrame = requestAnimationFrame(updateCursor);
 };
 
 const enableCursor = () => {
-  if (prefersReducedMotion) return;
   cursorNova?.classList.remove("is-hidden");
   cancelAnimationFrame(animationFrame);
   animationFrame = requestAnimationFrame(updateCursor);
@@ -113,6 +125,17 @@ const enableCursor = () => {
 document.addEventListener("pointermove", (event) => {
   pointerTarget.x = event.clientX;
   pointerTarget.y = event.clientY;
+  pointerInViewport = true;
+  enableCursor();
+});
+
+document.addEventListener("pointerenter", (event) => {
+  pointerTarget.x = event.clientX;
+  pointerTarget.y = event.clientY;
+  pointer.x = pointerTarget.x;
+  pointer.y = pointerTarget.y;
+  trailPoint.x = pointer.x;
+  trailPoint.y = pointer.y;
   pointerInViewport = true;
   enableCursor();
 });
@@ -134,7 +157,12 @@ document.addEventListener("pointerleave", () => {
   pointer.y = window.innerHeight / 2;
   pointerTarget.x = pointer.x;
   pointerTarget.y = pointer.y;
+  trailPoint.x = pointer.x;
+  trailPoint.y = pointer.y;
+  applyPointerStyles();
 });
+
+applyPointerStyles();
 
 if (background && !prefersReducedMotion) {
   background.classList.add("is-ready");
