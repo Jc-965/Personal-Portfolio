@@ -325,10 +325,11 @@ main {
 
 .background__layer--grid {
   background-image:
-    linear-gradient(0deg, rgba(70, 118, 220, 0.22) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(52, 104, 210, 0.18) 1px, transparent 1px);
-  background-size: 64px 64px;
-  opacity: 0.22;
+    linear-gradient(0deg, rgba(90, 142, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70, 128, 255, 0.24) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.32;
+  mix-blend-mode: screen;
 }
 
 .background__noise {
@@ -358,39 +359,46 @@ main {
 }
 
 .cursor--comet {
-  width: 26px;
-  height: 26px;
-  border-radius: 52% 48% 62% 38%;
+  width: 28px;
+  height: 28px;
+  border-radius: 58% 42% 74% 26%;
   background:
-    radial-gradient(circle at 28% 32%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 62%),
-    linear-gradient(135deg, hsla(var(--cursor-hue), 92%, 72%, 0.92), hsla(calc(var(--cursor-hue) + 48), 82%, 58%, 0.68));
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 58%),
+    conic-gradient(from 210deg, hsla(var(--cursor-hue), 94%, 74%, 0.95) 0deg, hsla(calc(var(--cursor-hue) + 32), 86%, 60%, 0.7) 160deg, rgba(12, 24, 58, 0) 320deg);
   box-shadow: 0 12px 32px rgba(24, 36, 88, 0.45);
   mix-blend-mode: screen;
   transform-origin: 50% 50%;
   isolation: isolate;
   transition: filter 0.3s ease, opacity 0.3s ease;
+  clip-path: polygon(16% 18%, 62% 0%, 100% 38%, 90% 78%, 46% 100%, 0% 72%, 10% 30%);
+  backdrop-filter: blur(2px) saturate(1.2);
 }
 
 .cursor--comet::before {
   content: "";
   position: absolute;
   inset: -28px;
-  border-radius: 50% 58% 70% 38%;
-  background: radial-gradient(circle at 60% 40%, hsla(var(--cursor-hue), 96%, 68%, 0.3), transparent 76%);
-  filter: blur(22px);
-  opacity: calc(var(--comet-velocity, 0.55) + 0.1);
+  border-radius: 38% 74% 62% 40%;
+  background:
+    radial-gradient(circle at 62% 36%, hsla(var(--cursor-hue), 98%, 70%, 0.32), transparent 78%),
+    conic-gradient(from 200deg, rgba(92, 146, 255, 0.22), transparent 260deg);
+  filter: blur(24px);
+  opacity: calc(var(--comet-velocity, 0.55) + 0.18);
   z-index: -1;
 }
 
 .cursor--comet::after {
   content: "";
   position: absolute;
-  inset: -32% -140% -26% 48%;
-  border-radius: 60% 90% 20% 50%;
-  background: linear-gradient(145deg, rgba(128, 164, 255, 0.26), transparent 72%);
-  filter: blur(18px);
-  opacity: calc(var(--comet-velocity, 0.55) * 0.72);
+  inset: -22% -160% -34% 54%;
+  border-radius: 70% 92% 22% 60%;
+  background:
+    linear-gradient(160deg, rgba(108, 164, 255, 0.34), rgba(32, 60, 128, 0.08) 60%, transparent 90%),
+    radial-gradient(60% 140% at 0% 50%, rgba(168, 198, 255, 0.28), transparent 70%);
+  filter: blur(20px);
+  opacity: calc(var(--comet-velocity, 0.55) * 0.78);
   z-index: -2;
+  clip-path: polygon(0% 36%, 68% 0%, 100% 48%, 52% 100%);
 }
 
 .cursor.is-hidden {
