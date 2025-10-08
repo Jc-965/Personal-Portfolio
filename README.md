@@ -15,10 +15,10 @@ I build software that’s reliable, thoughtful, and designed to make technology 
 
 ## Tech Stack
 
-**Languages:** Python · C · C++ · Dart · Java · TypeScript · JavaScript  
-**Frameworks:** Flutter · Firebase · React · Tailwind · Unreal Engine 5  
-**Data:** NumPy · Pandas · scikit-learn  
-**Workflow:** Git · VS Code · Android Studio · Notion · Typst/LaTeX
+- **Languages:** Python · C · C++ · Dart · Java · TypeScript · JavaScript
+- **Frameworks:** Flutter · Firebase · React · Tailwind · Unreal Engine 5
+- **Data:** NumPy · Pandas · scikit-learn
+- **Workflow:** Git · VS Code · Android Studio · Notion · Typst/LaTeX
 
 ---
 
