@@ -303,14 +303,14 @@ main {
 .background__layer--gradient {
   background:
     radial-gradient(520px circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
-      hsla(var(--bg-hue), var(--bg-saturation), calc(var(--bg-lightness) + 14%), 0.24), transparent 70%),
+      hsla(var(--bg-hue), var(--bg-saturation), calc(var(--bg-lightness) + 18%), 0.26), transparent 68%),
     radial-gradient(720px circle at calc(var(--cursor-x, 50%) + 180px) calc(var(--cursor-y, 50%) + 260px),
-      hsla(calc(var(--bg-hue) + 40), 90%, 58%, 0.18), transparent 78%),
+      hsla(calc(var(--bg-hue) + 36), 92%, 60%, 0.22), transparent 76%),
     radial-gradient(880px circle at calc(var(--cursor-x, 50%) - 220px) calc(var(--cursor-y, 50%) - 180px),
-      hsla(calc(var(--bg-hue) - 60), 92%, 54%, 0.14), transparent 82%),
-    linear-gradient(160deg, rgba(5, 10, 24, 0.78), rgba(2, 6, 20, 0.86));
-  filter: saturate(1.18) brightness(1.04);
-  opacity: 0.5;
+      hsla(calc(var(--bg-hue) - 48), 95%, 58%, 0.18), transparent 80%),
+    linear-gradient(160deg, rgba(6, 12, 30, 0.78), rgba(3, 8, 26, 0.9));
+  filter: saturate(1.24) brightness(1.05);
+  opacity: 0.56;
 }
 
 .background__layer--orb {
@@ -325,10 +325,10 @@ main {
 
 .background__layer--grid {
   background-image:
-    linear-gradient(0deg, rgba(46, 87, 164, 0.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 72, 140, 0.12) 1px, transparent 1px);
-  background-size: 96px 96px;
-  opacity: 0.14;
+    linear-gradient(0deg, rgba(70, 118, 220, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52, 104, 210, 0.18) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.22;
 }
 
 .background__noise {

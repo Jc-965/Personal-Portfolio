@@ -32,6 +32,7 @@ const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
 
 const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+const pointerTarget = { ...pointer };
 let lastPointer = { ...pointer };
 let velocity = 0;
 let animationFrame;
@@ -44,6 +45,10 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const randomBetween = (min, max) => Math.random() * (max - min) + min;
 
 const updateCursor = () => {
+  const lerp = prefersReducedMotion ? 1 : isPressing ? 0.28 : 0.2;
+  pointer.x += (pointerTarget.x - pointer.x) * lerp;
+  pointer.y += (pointerTarget.y - pointer.y) * lerp;
+
   const dx = pointer.x - lastPointer.x;
   const dy = pointer.y - lastPointer.y;
   const distance = Math.hypot(dx, dy);
@@ -127,8 +132,8 @@ const enableCursor = () => {
 };
 
 document.addEventListener("pointermove", (event) => {
-  pointer.x = event.clientX;
-  pointer.y = event.clientY;
+  pointerTarget.x = event.clientX;
+  pointerTarget.y = event.clientY;
   pointerInViewport = true;
   enableCursor();
 });
@@ -143,6 +148,10 @@ document.addEventListener("pointerleave", () => {
   pointerInViewport = false;
   trail.length = 0;
   cancelAnimationFrame(animationFrame);
+  pointer.x = window.innerWidth / 2;
+  pointer.y = window.innerHeight / 2;
+  pointerTarget.x = pointer.x;
+  pointerTarget.y = pointer.y;
 });
 
 if (background && !prefersReducedMotion) {
@@ -157,7 +166,7 @@ if (background && !prefersReducedMotion) {
   };
 
   const grid = {
-    spacing: 52,
+    spacing: 38,
     offsetX: 0,
     offsetY: 0,
     driftX: 0,
@@ -201,8 +210,8 @@ if (background && !prefersReducedMotion) {
     nodes.length = 0;
     edges.length = 0;
     const branchSet = new Set();
-    const treeCount = Math.max(3, Math.round(scene.width / 420));
-    const nodesPerTree = Math.round(clamp(scene.height / 120, 9, 18));
+    const treeCount = Math.max(4, Math.round(scene.width / 320));
+    const nodesPerTree = Math.round(clamp(scene.height / 110, 10, 22));
     const treeColumns = [];
 
     const connect = (fromId, toId) => {
@@ -216,15 +225,15 @@ if (background && !prefersReducedMotion) {
 
     for (let treeIndex = 0; treeIndex < treeCount; treeIndex += 1) {
       const column = [];
-      const baseX = ((treeIndex + 0.5) / treeCount) * scene.width + randomBetween(-42, 42);
-      const branchSwing = randomBetween(18, 34);
-      const wobble = randomBetween(0.6, 1.2);
+      const baseX = ((treeIndex + 0.5) / treeCount) * scene.width + randomBetween(-36, 36);
+      const branchSwing = randomBetween(12, 22);
+      const wobble = randomBetween(0.9, 1.6);
       for (let i = 0; i < nodesPerTree; i += 1) {
         const depth = i / Math.max(nodesPerTree - 1, 1);
         const sway = Math.sin(depth * Math.PI * wobble) * branchSwing;
-        const noise = randomBetween(-10, 10);
+        const noise = randomBetween(-6, 6);
         const x = clamp(baseX + sway + noise, 24, scene.width - 24);
-        const y = scene.height * (0.08 + depth * 0.84) + randomBetween(-16, 16);
+        const y = scene.height * (0.04 + depth * 0.88) + randomBetween(-12, 12);
         const id = nodes.length;
 
         nodes.push({
@@ -235,7 +244,7 @@ if (background && !prefersReducedMotion) {
           baseY: y,
           vx: 0,
           vy: 0,
-          radius: randomBetween(1.4, 2.6),
+          radius: randomBetween(1.2, 2),
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
@@ -245,9 +254,10 @@ if (background && !prefersReducedMotion) {
         const previousId = column[column.length - 2];
         connect(previousId, id);
 
-        if (column.length > 3 && Math.random() > 0.58) {
-          const branchSpan = Math.min(3, column.length - 2);
-          const branchId = column[column.length - 1 - Math.floor(Math.random() * branchSpan) - 1];
+        if (column.length > 4 && Math.random() > 0.62) {
+          const branchSpan = Math.min(4, column.length - 2);
+          const backOffset = Math.floor(Math.random() * branchSpan);
+          const branchId = column[Math.max(0, column.length - 2 - backOffset)];
           connect(branchId, id);
         }
       }
@@ -258,10 +268,24 @@ if (background && !prefersReducedMotion) {
       const current = treeColumns[treeIndex];
       const next = treeColumns[treeIndex + 1];
       const pairCount = Math.min(current.length, next.length);
-      const stride = Math.max(2, Math.floor(pairCount / 4));
+      const stride = Math.max(2, Math.floor(pairCount / 5));
       for (let i = stride; i < pairCount; i += stride) {
         const from = current[i - Math.floor(Math.random() * Math.min(2, i))];
-        const to = next[Math.min(next.length - 1, i + Math.floor(Math.random() * 2) - 1)];
+        const to = next[Math.min(next.length - 1, i + Math.floor(Math.random() * 3) - 1)];
+        connect(from, to);
+      }
+    }
+
+    for (let treeIndex = 0; treeIndex < treeColumns.length - 2; treeIndex += 1) {
+      const current = treeColumns[treeIndex];
+      const far = treeColumns[treeIndex + 2];
+      if (!current || !far) continue;
+      const pairCount = Math.min(current.length, far.length);
+      const attempts = Math.max(1, Math.floor(pairCount / 6));
+      for (let i = 0; i < attempts; i += 1) {
+        if (Math.random() > 0.55) continue;
+        const from = current[Math.floor(Math.random() * pairCount)];
+        const to = far[Math.floor(Math.random() * pairCount)];
         connect(from, to);
       }
     }
@@ -279,22 +303,23 @@ if (background && !prefersReducedMotion) {
 
     ctx.clearRect(0, 0, scene.width, scene.height);
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, scene.height);
-    gradient.addColorStop(0, "#01030c");
-    gradient.addColorStop(0.45, "#040a1c");
-    gradient.addColorStop(1, "#020411");
+    const gradient = ctx.createLinearGradient(0, 0, scene.width, scene.height);
+    gradient.addColorStop(0, "#020218");
+    gradient.addColorStop(0.4, "#050523");
+    gradient.addColorStop(0.75, "#03031a");
+    gradient.addColorStop(1, "#010114");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, scene.width, scene.height);
 
     const time = now * 0.0012;
-    const pointerFactor = pointerInViewport ? clamp(velocity / 180, 0.08, 0.9) : 0.08;
-    const influenceRadius = pointerInViewport ? 240 + velocity * 0.8 : 160;
+    const pointerFactor = pointerInViewport ? clamp(velocity / 180, 0.08, 0.92) : 0.06;
+    const influenceRadius = pointerInViewport ? 260 + velocity * 0.9 : 150;
 
-    grid.driftX += 0.02 + Math.sin(time * 0.6) * 0.004;
-    grid.driftY += 0.018 + Math.cos(time * 0.5) * 0.004;
+    grid.driftX += 0.028 + Math.sin(time * 0.6) * 0.006;
+    grid.driftY += 0.024 + Math.cos(time * 0.5) * 0.006;
 
-    const parallaxX = pointerInViewport ? (pointer.x - scene.width / 2) * 0.08 : 0;
-    const parallaxY = pointerInViewport ? (pointer.y - scene.height / 2) * 0.08 : 0;
+    const parallaxX = pointerInViewport ? (pointer.x - scene.width / 2) * 0.1 : 0;
+    const parallaxY = pointerInViewport ? (pointer.y - scene.height / 2) * 0.1 : 0;
     const offsetX = (grid.offsetX + grid.driftX + parallaxX) % grid.spacing;
     const offsetY = (grid.offsetY + grid.driftY + parallaxY) % grid.spacing;
 
@@ -302,14 +327,14 @@ if (background && !prefersReducedMotion) {
     ctx.globalCompositeOperation = "lighter";
     const warpStepY = grid.spacing / 2;
     const warpStepX = grid.spacing / 2;
-    const gravityRadius = pointerInViewport ? 320 + velocity * 0.6 : 0;
+    const gravityRadius = pointerInViewport ? 340 + velocity * 0.7 : 0;
 
     for (let x = -grid.spacing; x < scene.width + grid.spacing; x += grid.spacing) {
       const baseX = x + offsetX;
-      const hueShift = 208 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 60 : 0);
-      const alpha = 0.05 + pointerFactor * 0.18 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.22 : 0);
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 68%, 38%, ${alpha.toFixed(3)})`;
-      ctx.lineWidth = 0.55;
+      const hueShift = 212 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 52 : 0);
+      const alpha = 0.08 + pointerFactor * 0.22 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.28 : 0);
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 74%, 48%, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 0.65;
       ctx.beginPath();
       const steps = Math.ceil((scene.height + grid.spacing * 2) / warpStepY);
       for (let s = 0; s <= steps; s += 1) {
@@ -321,7 +346,7 @@ if (background && !prefersReducedMotion) {
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
           const influence = Math.exp(-distSq / Math.max(gravityRadius * gravityRadius, 1));
-          drawX += dx * influence * 0.22;
+          drawX += dx * influence * 0.28;
         }
         if (s === 0) {
           ctx.moveTo(drawX, drawY);
@@ -334,10 +359,10 @@ if (background && !prefersReducedMotion) {
 
     for (let y = -grid.spacing; y < scene.height + grid.spacing; y += grid.spacing) {
       const baseY = y + offsetY;
-      const hueShift = 196 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 48 : 0);
-      const alpha = 0.045 + pointerFactor * 0.16 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.2 : 0);
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 62%, 34%, ${alpha.toFixed(3)})`;
-      ctx.lineWidth = 0.5;
+      const hueShift = 204 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 50 : 0);
+      const alpha = 0.07 + pointerFactor * 0.21 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.26 : 0);
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 70%, 44%, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 0.62;
       ctx.beginPath();
       const steps = Math.ceil((scene.width + grid.spacing * 2) / warpStepX);
       for (let s = 0; s <= steps; s += 1) {
@@ -349,7 +374,7 @@ if (background && !prefersReducedMotion) {
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
           const influence = Math.exp(-distSq / Math.max(gravityRadius * gravityRadius, 1));
-          drawY += dy * influence * 0.22;
+          drawY += dy * influence * 0.28;
         }
         if (s === 0) {
           ctx.moveTo(drawX, drawY);
@@ -364,8 +389,8 @@ if (background && !prefersReducedMotion) {
     for (let i = pulses.length - 1; i >= 0; i -= 1) {
       const pulse = pulses[i];
       const age = (now - pulse.start) / 1000;
-      const radius = 60 + age * 360;
-      const fade = Math.max(0, 1 - age / 1.8);
+      const radius = 80 + age * 380;
+      const fade = Math.max(0, 1 - age / 1.9);
       if (fade <= 0) {
         pulses.splice(i, 1);
         continue;
@@ -373,8 +398,8 @@ if (background && !prefersReducedMotion) {
 
       ctx.beginPath();
       ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${210 + age * 48}, 84%, 60%, ${0.24 * fade})`;
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = `hsla(${210 + age * 48}, 84%, 64%, ${0.28 * fade})`;
+      ctx.lineWidth = 1.3;
       ctx.stroke();
       pulse.radius = radius;
       pulse.fade = fade;
@@ -382,20 +407,20 @@ if (background && !prefersReducedMotion) {
 
     nodes.forEach((node) => {
       node.halo *= 0.92;
-      const swayX = Math.sin(time * 1.4 + node.phase) * 0.6;
-      const swayY = Math.cos(time * 1.1 + node.phase) * 0.6;
-      node.vx += (node.baseX - node.x) * 0.02 + swayX;
-      node.vy += (node.baseY - node.y) * 0.018 + swayY;
+      const swayX = Math.sin(time * 1.4 + node.phase) * 0.5;
+      const swayY = Math.cos(time * 1.1 + node.phase) * 0.5;
+      node.vx += (node.baseX - node.x) * 0.024 + swayX;
+      node.vy += (node.baseY - node.y) * 0.02 + swayY;
 
       if (pointerInViewport) {
         const dx = pointer.x - node.x;
         const dy = pointer.y - node.y;
         const distance = Math.hypot(dx, dy) || 0.001;
         if (distance < influenceRadius) {
-          const force = (1 - distance / influenceRadius) * (0.9 + pointerFactor * 1.2);
+          const force = (1 - distance / influenceRadius) * (0.86 + pointerFactor * 1.4);
           node.vx += (dx / distance) * force;
           node.vy += (dy / distance) * force;
-          node.halo = Math.min(1, node.halo + force * 0.7 + pointerFactor * 0.5);
+          node.halo = Math.min(1, node.halo + force * 0.75 + pointerFactor * 0.55);
         }
       }
 
@@ -412,8 +437,8 @@ if (background && !prefersReducedMotion) {
         }
       });
 
-      node.vx *= 0.88;
-      node.vy *= 0.88;
+      node.vx *= 0.9;
+      node.vy *= 0.9;
       node.x += node.vx;
       node.y += node.vy;
     });
@@ -429,9 +454,9 @@ if (background && !prefersReducedMotion) {
         ? distanceToSegment(pointer.x, pointer.y, from.x, from.y, to.x, to.y)
         : { distance: Infinity };
 
-      let highlight = Math.max(from.halo, to.halo) * 0.8;
+      let highlight = Math.max(from.halo, to.halo) * 0.78;
       if (pointerInViewport && pointerDistance < 160) {
-        highlight = Math.max(highlight, (1 - pointerDistance / 160) * (0.6 + pointerFactor));
+        highlight = Math.max(highlight, (1 - pointerDistance / 160) * (0.7 + pointerFactor));
       }
 
       pulses.forEach((pulse) => {
@@ -442,10 +467,10 @@ if (background && !prefersReducedMotion) {
         }
       });
 
-      const hue = 198 + highlight * 110;
-      const alpha = 0.12 + highlight * 0.36;
-      ctx.strokeStyle = `hsla(${hue}, 82%, ${38 + highlight * 18}%, ${alpha})`;
-      ctx.lineWidth = 0.6 + highlight * 1.4;
+      const hue = 208 + highlight * 100;
+      const alpha = 0.16 + highlight * 0.42;
+      ctx.strokeStyle = `hsla(${hue}, 88%, ${42 + highlight * 18}%, ${alpha})`;
+      ctx.lineWidth = 0.45 + highlight * 1.3;
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
@@ -453,23 +478,24 @@ if (background && !prefersReducedMotion) {
     });
 
     nodes.forEach((node) => {
-      const baseRadius = node.radius * (0.9 + node.depth * 0.25);
-      const glowRadius = baseRadius * (1.8 + node.halo * 3.1);
+      const baseRadius = node.radius * (0.82 + node.depth * 0.28);
+      const glowRadius = baseRadius * (2.6 + node.halo * 3.8);
       const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
-      gradientNode.addColorStop(0, `hsla(${204 + node.halo * 110}, 88%, 70%, ${0.42 + node.halo * 0.35})`);
-      gradientNode.addColorStop(1, "rgba(12, 28, 66, 0)");
+      gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 95%, 74%, ${0.5 + node.halo * 0.3})`);
+      gradientNode.addColorStop(0.6, `hsla(${212 + node.halo * 120}, 92%, 64%, ${0.32 + node.halo * 0.28})`);
+      gradientNode.addColorStop(1, "rgba(10, 26, 66, 0)");
       ctx.fillStyle = gradientNode;
       ctx.beginPath();
       ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = `hsla(${210 + node.halo * 80}, 92%, 74%, ${0.75 + node.halo * 0.2})`;
+      ctx.fillStyle = `hsla(${212 + node.halo * 90}, 95%, 76%, ${0.82 + node.halo * 0.18})`;
       ctx.beginPath();
       ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = `hsla(${198 + node.halo * 110}, 92%, 80%, ${0.28 + node.halo * 0.32})`;
-      ctx.lineWidth = 0.7;
+      ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 96%, 82%, ${0.32 + node.halo * 0.36})`;
+      ctx.lineWidth = 0.55;
       ctx.beginPath();
       ctx.arc(node.x, node.y, baseRadius + 2 + node.halo * 4.5, 0, Math.PI * 2);
       ctx.stroke();
@@ -507,10 +533,12 @@ if (background && !prefersReducedMotion) {
   });
 }
 
-document.addEventListener("pointerdown", () => {
+document.addEventListener("pointerdown", (event) => {
   isPressing = true;
   document.body.classList.add("is-pressing");
   pointerInViewport = true;
+  pointerTarget.x = event.clientX;
+  pointerTarget.y = event.clientY;
 });
 
 ["pointerup", "pointercancel"].forEach((type) =>
