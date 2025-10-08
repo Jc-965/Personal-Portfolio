@@ -69,7 +69,7 @@ const updateCursor = () => {
 
   if (cursorComet) {
     cursorComet.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(${scale})`);
-    cursorComet.style.setProperty("--comet-velocity", (0.45 + speedFactor * 0.45).toFixed(2));
+    cursorComet.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
 
     const trailShadow = trail
       .map((point, index) => {
@@ -135,6 +135,8 @@ document.addEventListener("pointermove", (event) => {
 
 document.addEventListener("pointerleave", () => {
   cursorComet?.classList.add("is-hidden");
+  cursorComet?.classList.remove("is-pressed");
+  cursorComet?.removeAttribute("data-mode");
   isPressing = false;
   document.body.classList.remove("is-pressing");
   if (background) {
@@ -591,12 +593,14 @@ document.addEventListener("pointerdown", (event) => {
   pointerInViewport = true;
   pointerTarget.x = event.clientX;
   pointerTarget.y = event.clientY;
+  cursorComet?.classList.add("is-pressed");
 });
 
 ["pointerup", "pointercancel"].forEach((type) =>
   document.addEventListener(type, () => {
     isPressing = false;
     document.body.classList.remove("is-pressing");
+    cursorComet?.classList.remove("is-pressed");
   })
 );
 
@@ -606,9 +610,11 @@ focusableElements.forEach((element) => {
   element.addEventListener("mouseenter", () => {
     const state = element.getAttribute("data-cursor") || "interactive";
     document.body.dataset.cursor = state;
+    cursorComet?.setAttribute("data-mode", state);
   });
   element.addEventListener("mouseleave", () => {
     delete document.body.dataset.cursor;
+    cursorComet?.removeAttribute("data-mode");
   });
 });
 
