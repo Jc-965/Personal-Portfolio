@@ -327,8 +327,8 @@ main {
   background-image:
     linear-gradient(0deg, rgba(46, 87, 164, 0.15) 1px, transparent 1px),
     linear-gradient(90deg, rgba(34, 72, 140, 0.12) 1px, transparent 1px);
-  background-size: 160px 160px;
-  opacity: 0.18;
+  background-size: 96px 96px;
+  opacity: 0.14;
 }
 
 .background__noise {
@@ -354,167 +354,79 @@ main {
   pointer-events: none;
   z-index: 5;
   transform: translate3d(-50%, -50%, 0);
-  transition: opacity 0.35s ease;
+  transition: opacity 0.3s ease;
 }
 
-.cursor--glyph {
+.cursor--comet {
   width: 26px;
   height: 26px;
-  border-radius: 9px;
-  border: 1px solid rgba(126, 158, 255, 0.45);
-  background: linear-gradient(135deg, rgba(72, 132, 255, 0.92), rgba(140, 102, 255, 0.88));
-  box-shadow: 0 8px 22px rgba(24, 40, 96, 0.45), 0 0 18px rgba(90, 132, 255, 0.45);
+  border-radius: 52% 48% 62% 38%;
+  background:
+    radial-gradient(circle at 28% 32%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, hsla(var(--cursor-hue), 92%, 72%, 0.92), hsla(calc(var(--cursor-hue) + 48), 82%, 58%, 0.68));
+  box-shadow: 0 12px 32px rgba(24, 36, 88, 0.45);
   mix-blend-mode: screen;
   transform-origin: 50% 50%;
-  overflow: hidden;
+  isolation: isolate;
+  transition: filter 0.3s ease, opacity 0.3s ease;
 }
 
-.cursor--glyph::after {
+.cursor--comet::before {
   content: "";
   position: absolute;
-  inset: 24%;
-  border-radius: 6px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 70%),
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.45), transparent 65%);
-  mix-blend-mode: soft-light;
+  inset: -28px;
+  border-radius: 50% 58% 70% 38%;
+  background: radial-gradient(circle at 60% 40%, hsla(var(--cursor-hue), 96%, 68%, 0.3), transparent 76%);
+  filter: blur(22px);
+  opacity: calc(var(--comet-velocity, 0.55) + 0.1);
+  z-index: -1;
 }
 
-.cursor--dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: hsla(var(--cursor-hue), 86%, 72%, 0.92);
-  box-shadow: 0 0 16px rgba(118, 150, 255, 0.5);
-}
-
-.cursor--ring {
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid rgba(112, 140, 255, 0.4);
-  border-radius: 999px;
-  box-shadow: 0 0 22px rgba(70, 120, 255, 0.28);
-  mix-blend-mode: screen;
-}
-
-.cursor--halo {
-  width: 120px;
-  height: 120px;
-  border-radius: 999px;
-  border: 1px solid rgba(70, 110, 204, 0.18);
-  background: radial-gradient(circle, rgba(70, 110, 204, 0.22), transparent 76%);
-  box-shadow: 0 0 42px rgba(32, 52, 112, 0.24);
-  mix-blend-mode: screen;
+.cursor--comet::after {
+  content: "";
+  position: absolute;
+  inset: -32% -140% -26% 48%;
+  border-radius: 60% 90% 20% 50%;
+  background: linear-gradient(145deg, rgba(128, 164, 255, 0.26), transparent 72%);
+  filter: blur(18px);
+  opacity: calc(var(--comet-velocity, 0.55) * 0.72);
+  z-index: -2;
 }
 
 .cursor.is-hidden {
   opacity: 0;
 }
 
-body[data-cursor="accent"] .cursor--glyph {
-  background: linear-gradient(135deg,
-      rgba(255, 140, 180, 0.9),
-      rgba(255, 207, 92, 0.82));
-  border-color: rgba(255, 173, 200, 0.42);
-  box-shadow: 0 10px 24px rgba(90, 34, 62, 0.32), 0 0 22px rgba(255, 168, 194, 0.5);
+body[data-cursor="accent"] .cursor--comet {
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(135deg, rgba(255, 156, 196, 0.92), rgba(255, 214, 112, 0.78));
+  box-shadow: 0 12px 34px rgba(80, 36, 64, 0.35);
+  filter: drop-shadow(0 0 14px rgba(255, 176, 206, 0.45));
 }
 
-body[data-cursor="accent"] .cursor--dot {
-  background: rgba(255, 173, 200, 0.92);
-  box-shadow: 0 0 18px rgba(255, 173, 200, 0.52);
+body[data-cursor="soft"] .cursor--comet {
+  background:
+    radial-gradient(circle at 30% 34%, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba(128, 172, 255, 0.86), rgba(94, 188, 255, 0.74));
+  box-shadow: 0 10px 28px rgba(18, 30, 70, 0.38);
+  filter: drop-shadow(0 0 10px rgba(110, 170, 255, 0.42));
 }
 
-body[data-cursor="accent"] .cursor--ring {
-  border-color: rgba(255, 173, 200, 0.42);
-  box-shadow: 0 0 24px rgba(255, 173, 200, 0.34);
+body[data-cursor="focus"] .cursor--comet {
+  background:
+    radial-gradient(circle at 32% 36%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 58%),
+    linear-gradient(135deg, rgba(220, 232, 255, 0.92), rgba(138, 174, 255, 0.82));
+  box-shadow: 0 0 32px rgba(176, 206, 255, 0.52);
+  filter: drop-shadow(0 0 18px rgba(176, 208, 255, 0.55));
 }
 
-body[data-cursor="accent"] .cursor--halo {
-  border-color: rgba(255, 173, 200, 0.16);
-  background: radial-gradient(circle, rgba(255, 173, 200, 0.2), transparent 76%);
-  box-shadow: 0 0 38px rgba(120, 50, 82, 0.24);
+body[data-cursor="interactive"] .cursor--comet {
+  filter: drop-shadow(0 0 14px rgba(118, 156, 255, 0.46));
 }
 
-body[data-cursor="soft"] .cursor--glyph {
-  background: linear-gradient(135deg,
-      rgba(34, 197, 214, 0.88),
-      rgba(125, 220, 255, 0.86));
-  border-color: rgba(96, 224, 232, 0.42);
-  box-shadow: 0 8px 22px rgba(16, 68, 72, 0.3), 0 0 20px rgba(96, 224, 232, 0.5);
-}
-
-body[data-cursor="soft"] .cursor--dot {
-  background: rgba(96, 224, 232, 0.9);
-  box-shadow: 0 0 18px rgba(96, 224, 232, 0.45);
-}
-
-body[data-cursor="soft"] .cursor--ring {
-  border-color: rgba(96, 224, 232, 0.32);
-  box-shadow: 0 0 22px rgba(96, 224, 232, 0.28);
-}
-
-body[data-cursor="soft"] .cursor--halo {
-  border-color: rgba(96, 224, 232, 0.16);
-  background: radial-gradient(circle, rgba(96, 224, 232, 0.18), transparent 76%);
-  box-shadow: 0 0 36px rgba(40, 120, 132, 0.24);
-}
-
-body[data-cursor="focus"] .cursor--glyph {
-  background: linear-gradient(135deg,
-      rgba(251, 191, 36, 0.88),
-      rgba(147, 197, 253, 0.82));
-  border-color: rgba(251, 191, 36, 0.4);
-  box-shadow: 0 10px 24px rgba(78, 58, 18, 0.32), 0 0 20px rgba(251, 191, 36, 0.44);
-}
-
-body[data-cursor="focus"] .cursor--dot {
-  background: rgba(251, 191, 36, 0.9);
-  box-shadow: 0 0 18px rgba(251, 191, 36, 0.48);
-}
-
-body[data-cursor="focus"] .cursor--ring {
-  border-color: rgba(251, 191, 36, 0.36);
-  box-shadow: 0 0 22px rgba(251, 191, 36, 0.28);
-}
-
-body[data-cursor="focus"] .cursor--halo {
-  border-color: rgba(251, 191, 36, 0.16);
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.2), transparent 76%);
-  box-shadow: 0 0 36px rgba(110, 84, 20, 0.24);
-}
-
-body[data-cursor="interactive"] .cursor--glyph {
-  background: linear-gradient(135deg,
-      rgba(132, 148, 255, 0.9),
-      rgba(72, 188, 255, 0.86));
-  border-color: rgba(132, 148, 255, 0.42);
-  box-shadow: 0 10px 24px rgba(24, 48, 110, 0.34), 0 0 20px rgba(132, 148, 255, 0.48);
-}
-
-body[data-cursor="interactive"] .cursor--dot {
-  background: rgba(132, 148, 255, 0.94);
-  box-shadow: 0 0 18px rgba(132, 148, 255, 0.46);
-}
-
-body[data-cursor="interactive"] .cursor--ring {
-  border-color: rgba(132, 148, 255, 0.36);
-  box-shadow: 0 0 22px rgba(132, 148, 255, 0.3);
-}
-
-body[data-cursor="interactive"] .cursor--halo {
-  border-color: rgba(132, 148, 255, 0.16);
-  background: radial-gradient(circle, rgba(132, 148, 255, 0.2), transparent 76%);
-  box-shadow: 0 0 36px rgba(40, 58, 130, 0.24);
-}
-
-body.is-pressing .cursor--ring {
-  border-color: rgba(132, 148, 255, 0.58);
-}
-
-body.is-pressing .cursor--halo {
-  border-color: rgba(132, 148, 255, 0.22);
-  background: radial-gradient(circle, rgba(132, 148, 255, 0.24), transparent 70%);
-  box-shadow: 0 0 44px rgba(40, 58, 130, 0.3);
+body.is-pressing .cursor--comet::after {
+  opacity: calc(var(--comet-velocity, 0.6) + 0.25);
 }
 
 .nav {
