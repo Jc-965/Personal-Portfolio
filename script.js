@@ -60,8 +60,6 @@ const updateCursor = () => {
     trail.pop();
   }
 
-  const angleRad = Math.atan2(dy, dx);
-  const angleDeg = (angleRad * 180) / Math.PI;
   const progressX = pointer.x / Math.max(window.innerWidth, 1);
   const progressY = pointer.y / Math.max(window.innerHeight, 1);
   const hue = 200 + progressX * 80;
@@ -70,10 +68,7 @@ const updateCursor = () => {
   const scale = isPressing ? 0.82 : 1 + speedFactor * 0.25;
 
   if (cursorComet) {
-    cursorComet.style.setProperty(
-      "transform",
-      `translate3d(${pointer.x}px, ${pointer.y}px, 0) rotate(${angleDeg}deg) scale(${scale})`
-    );
+    cursorComet.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(${scale})`);
     cursorComet.style.setProperty("--comet-velocity", (0.45 + speedFactor * 0.45).toFixed(2));
 
     const trailShadow = trail
@@ -98,7 +93,7 @@ const updateCursor = () => {
     root.style.setProperty("--cursor-x", `${pointer.x}px`);
     root.style.setProperty("--cursor-y", `${pointer.y}px`);
     root.style.setProperty("--cursor-v", velocity.toFixed(2));
-    root.style.setProperty("--cursor-angle", `${angleDeg}deg`);
+    root.style.setProperty("--cursor-angle", `0deg`);
     root.style.setProperty("--bg-hue", hue.toFixed(2));
     root.style.setProperty("--bg-lightness", lightness.toFixed(2));
     root.style.setProperty("--cursor-hue", hue.toFixed(2));
@@ -108,7 +103,7 @@ const updateCursor = () => {
     background.style.setProperty("--cursor-x", `${pointer.x}px`);
     background.style.setProperty("--cursor-y", `${pointer.y}px`);
     background.style.setProperty("--cursor-v", velocity.toFixed(2));
-    background.style.setProperty("--cursor-angle", `${angleDeg}deg`);
+    background.style.setProperty("--cursor-angle", `0deg`);
     background.style.setProperty("--bg-hue", hue.toFixed(2));
     background.style.setProperty("--bg-lightness", lightness.toFixed(2));
   }
@@ -175,7 +170,7 @@ if (background && !prefersReducedMotion) {
 
   const nodes = [];
   const edges = [];
-  const pulses = [];
+  const impulses = [];
   let canvasFrame;
 
   const distanceToSegment = (px, py, ax, ay, bx, by) => {
@@ -250,10 +245,10 @@ if (background && !prefersReducedMotion) {
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
-          driftRadius: randomBetween(18, 48) * (0.4 + depth * 0.6),
-          driftSpeed: randomBetween(0.12, 0.36),
-          swirlSpeed: randomBetween(0.08, 0.24),
-          jitter: randomBetween(6, 18),
+          driftRadius: randomBetween(14, 40) * (0.4 + depth * 0.55),
+          driftSpeed: randomBetween(0.1, 0.28),
+          swirlSpeed: randomBetween(0.06, 0.2),
+          jitter: randomBetween(4, 12),
         });
 
         column.push(id);
@@ -297,10 +292,16 @@ if (background && !prefersReducedMotion) {
     }
   };
 
-  const addPulse = (x, y, power = 1) => {
-    pulses.push({ x, y, start: performance.now(), power });
-    if (pulses.length > 8) {
-      pulses.shift();
+  const addImpulse = (x, y, power = 1) => {
+    impulses.push({
+      x,
+      y,
+      power,
+      radius: 80,
+      start: performance.now(),
+    });
+    if (impulses.length > 8) {
+      impulses.shift();
     }
   };
 
@@ -331,30 +332,42 @@ if (background && !prefersReducedMotion) {
     const offsetY = (grid.offsetY + grid.driftY + parallaxY) % grid.spacing;
 
     ctx.save();
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.9;
     const warpStepY = grid.spacing / 2;
     const warpStepX = grid.spacing / 2;
-    const gravityRadius = pointerInViewport ? 340 + velocity * 0.7 : 0;
+    const gravityRadius = pointerInViewport ? 320 + velocity * 0.6 : 0;
 
     for (let x = -grid.spacing; x < scene.width + grid.spacing; x += grid.spacing) {
       const baseX = x + offsetX;
-      const hueShift = 210 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 64 : 0);
-      const alpha = 0.12 + pointerFactor * 0.28 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.36 : 0);
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 78%, 54%, ${alpha.toFixed(3)})`;
-      ctx.lineWidth = 0.78;
+      const hueShift = 208 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 48 : 0);
+      const alpha = 0.08 + pointerFactor * 0.22 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.22 : 0);
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 74%, 56%, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 0.64;
       ctx.beginPath();
       const steps = Math.ceil((scene.height + grid.spacing * 2) / warpStepY);
       for (let s = 0; s <= steps; s += 1) {
         const baseY = -grid.spacing + s * warpStepY + offsetY;
         let drawX = baseX;
-        const drawY = baseY;
+        let drawY = baseY;
         if (pointerInViewport) {
           const dx = pointer.x - baseX;
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
           const influence = Math.exp(-distSq / Math.max(gravityRadius * gravityRadius, 1));
-          drawX += dx * influence * 0.28;
+          drawX += dx * influence * 0.22;
+          drawY += dy * influence * 0.04;
         }
+        impulses.forEach((impulse) => {
+          if (!impulse.radius) return;
+          const idx = drawX - impulse.x;
+          const idy = drawY - impulse.y;
+          const dist = Math.hypot(idx, idy);
+          if (dist < impulse.radius) {
+            const strength = (1 - dist / impulse.radius) * impulse.power;
+            const normX = idx / (dist || 1);
+            drawX += normX * strength * 12;
+          }
+        });
         if (s === 0) {
           ctx.moveTo(drawX, drawY);
         } else {
@@ -366,23 +379,35 @@ if (background && !prefersReducedMotion) {
 
     for (let y = -grid.spacing; y < scene.height + grid.spacing; y += grid.spacing) {
       const baseY = y + offsetY;
-      const hueShift = 202 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 60 : 0);
-      const alpha = 0.11 + pointerFactor * 0.26 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.34 : 0);
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 76%, 50%, ${alpha.toFixed(3)})`;
-      ctx.lineWidth = 0.75;
+      const hueShift = 200 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 42 : 0);
+      const alpha = 0.075 + pointerFactor * 0.2 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.2 : 0);
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 70%, 52%, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 0.62;
       ctx.beginPath();
       const steps = Math.ceil((scene.width + grid.spacing * 2) / warpStepX);
       for (let s = 0; s <= steps; s += 1) {
         const baseX = -grid.spacing + s * warpStepX + offsetX;
+        let drawX = baseX;
         let drawY = baseY;
-        const drawX = baseX;
         if (pointerInViewport) {
           const dx = pointer.x - baseX;
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
           const influence = Math.exp(-distSq / Math.max(gravityRadius * gravityRadius, 1));
-          drawY += dy * influence * 0.28;
+          drawY += dy * influence * 0.22;
+          drawX += dx * influence * 0.04;
         }
+        impulses.forEach((impulse) => {
+          if (!impulse.radius) return;
+          const idx = drawX - impulse.x;
+          const idy = drawY - impulse.y;
+          const dist = Math.hypot(idx, idy);
+          if (dist < impulse.radius) {
+            const strength = (1 - dist / impulse.radius) * impulse.power;
+            const normY = idy / (dist || 1);
+            drawY += normY * strength * 12;
+          }
+        });
         if (s === 0) {
           ctx.moveTo(drawX, drawY);
         } else {
@@ -393,23 +418,15 @@ if (background && !prefersReducedMotion) {
     }
     ctx.restore();
 
-    for (let i = pulses.length - 1; i >= 0; i -= 1) {
-      const pulse = pulses[i];
-      const age = (now - pulse.start) / 1000;
-      const radius = 80 + age * 380;
-      const fade = Math.max(0, 1 - age / 1.9);
-      if (fade <= 0) {
-        pulses.splice(i, 1);
-        continue;
+    for (let i = impulses.length - 1; i >= 0; i -= 1) {
+      const impulse = impulses[i];
+      impulse.radius += 28;
+      impulse.power *= 0.88;
+      const age = (now - impulse.start) / 1000;
+      impulse.fade = Math.max(0, 1 - age / 1.4);
+      if (impulse.power < 0.05 || impulse.fade <= 0) {
+        impulses.splice(i, 1);
       }
-
-      ctx.beginPath();
-      ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${210 + age * 48}, 84%, 64%, ${0.28 * fade})`;
-      ctx.lineWidth = 1.3;
-      ctx.stroke();
-      pulse.radius = radius;
-      pulse.fade = fade;
     }
 
     for (let i = 0; i < nodes.length; i += 1) {
@@ -442,31 +459,31 @@ if (background && !prefersReducedMotion) {
       node.baseY = clamp(node.anchorY + driftY + jitterY, 36, scene.height - 36);
       const swayX = Math.sin(time * 1.2 + node.phase) * 0.45;
       const swayY = Math.cos(time * 1 + node.phase) * 0.45;
-      node.vx += (node.baseX - node.x) * 0.018 + swayX;
-      node.vy += (node.baseY - node.y) * 0.016 + swayY;
+      node.vx += (node.baseX - node.x) * 0.016 + swayX;
+      node.vy += (node.baseY - node.y) * 0.014 + swayY;
 
       if (pointerInViewport) {
         const dx = pointer.x - node.x;
         const dy = pointer.y - node.y;
         const distance = Math.hypot(dx, dy) || 0.001;
         if (distance < influenceRadius) {
-          const force = (1 - distance / influenceRadius) * (0.92 + pointerFactor * 1.6);
+          const force = (1 - distance / influenceRadius) * (0.7 + pointerFactor * 1.2);
           node.vx -= (dx / distance) * force;
           node.vy -= (dy / distance) * force;
-          node.halo = Math.min(1, node.halo + force * 0.65 + pointerFactor * 0.5);
+          node.halo = Math.min(1, node.halo + force * 0.45 + pointerFactor * 0.32);
         }
       }
 
-      pulses.forEach((pulse) => {
-        if (!pulse.radius) return;
-        const dx = node.x - pulse.x;
-        const dy = node.y - pulse.y;
+      impulses.forEach((impulse) => {
+        if (!impulse.radius) return;
+        const dx = node.x - impulse.x;
+        const dy = node.y - impulse.y;
         const distance = Math.hypot(dx, dy) || 0.001;
-        if (distance < pulse.radius) {
-          const wave = (1 - distance / pulse.radius) * pulse.power;
-          node.vx += (dx / distance) * wave * 1.1;
-          node.vy += (dy / distance) * wave * 1.1;
-          node.halo = Math.min(1, node.halo + wave * 1.2 * pulse.fade);
+        if (distance < impulse.radius) {
+          const wave = (1 - distance / impulse.radius) * impulse.power;
+          node.vx += (dx / distance) * wave * 1.05;
+          node.vy += (dy / distance) * wave * 1.05;
+          node.halo = Math.min(1, node.halo + wave * 0.9 * impulse.fade);
         }
       });
 
@@ -494,11 +511,11 @@ if (background && !prefersReducedMotion) {
         highlight = Math.max(highlight, (1 - pointerDistance / 160) * (0.7 + pointerFactor));
       }
 
-      pulses.forEach((pulse) => {
-        if (!pulse.radius) return;
-        const { distance } = distanceToSegment(pulse.x, pulse.y, from.x, from.y, to.x, to.y);
-        if (distance < pulse.radius) {
-          highlight = Math.max(highlight, (1 - distance / pulse.radius) * pulse.fade * 0.6);
+      impulses.forEach((impulse) => {
+        if (!impulse.radius) return;
+        const { distance } = distanceToSegment(impulse.x, impulse.y, from.x, from.y, to.x, to.y);
+        if (distance < impulse.radius) {
+          highlight = Math.max(highlight, (1 - distance / impulse.radius) * impulse.fade * 0.4);
         }
       });
 
@@ -513,26 +530,26 @@ if (background && !prefersReducedMotion) {
     });
 
     nodes.forEach((node) => {
-      const baseRadius = node.radius * (0.82 + node.depth * 0.28);
-      const glowRadius = baseRadius * (2.6 + node.halo * 3.8);
+      const baseRadius = node.radius * (0.78 + node.depth * 0.26);
+      const glowRadius = baseRadius * (1.9 + node.halo * 2.6);
       const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
-      gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 95%, 74%, ${0.5 + node.halo * 0.3})`);
-      gradientNode.addColorStop(0.6, `hsla(${212 + node.halo * 120}, 92%, 64%, ${0.32 + node.halo * 0.28})`);
-      gradientNode.addColorStop(1, "rgba(10, 26, 66, 0)");
+      gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 92%, 70%, ${0.34 + node.halo * 0.24})`);
+      gradientNode.addColorStop(0.65, `hsla(${212 + node.halo * 120}, 88%, 60%, ${0.24 + node.halo * 0.22})`);
+      gradientNode.addColorStop(1, "rgba(6, 18, 48, 0)");
       ctx.fillStyle = gradientNode;
       ctx.beginPath();
       ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = `hsla(${212 + node.halo * 90}, 95%, 76%, ${0.82 + node.halo * 0.18})`;
+      ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
       ctx.beginPath();
       ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 96%, 82%, ${0.32 + node.halo * 0.36})`;
-      ctx.lineWidth = 0.55;
+      ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 92%, 82%, ${0.22 + node.halo * 0.28})`;
+      ctx.lineWidth = 0.45;
       ctx.beginPath();
-      ctx.arc(node.x, node.y, baseRadius + 2 + node.halo * 4.5, 0, Math.PI * 2);
+      ctx.arc(node.x, node.y, baseRadius + 1.6 + node.halo * 3.4, 0, Math.PI * 2);
       ctx.stroke();
     });
 
@@ -555,7 +572,7 @@ if (background && !prefersReducedMotion) {
 
   document.addEventListener("pointerdown", (event) => {
     background.classList.add("is-active");
-    addPulse(event.clientX, event.clientY, 1);
+    addImpulse(event.clientX, event.clientY, 1);
   });
 
   document.addEventListener("pointerup", () => {
