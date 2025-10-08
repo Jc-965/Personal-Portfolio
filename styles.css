@@ -94,11 +94,11 @@ body::before {
   inset: 0;
   background:
     radial-gradient(320px circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
-      hsla(var(--cursor-hue), 92%, 62%, 0.18), transparent 70%),
+      hsla(var(--cursor-hue), 92%, 62%, 0.14), transparent 70%),
     radial-gradient(560px circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
-      hsla(calc(var(--cursor-hue) + 32), 82%, 58%, 0.12), transparent 78%),
+      hsla(calc(var(--cursor-hue) + 32), 82%, 58%, 0.1), transparent 78%),
     radial-gradient(1120px circle at 82% 12%, rgba(18, 54, 120, 0.16), transparent 80%),
-    radial-gradient(1060px circle at 14% 86%, rgba(14, 36, 92, 0.12), transparent 82%);
+    radial-gradient(1060px circle at 14% 86%, rgba(14, 36, 92, 0.1), transparent 82%);
   pointer-events: none;
   mix-blend-mode: screen;
   z-index: -4;
@@ -114,17 +114,17 @@ body::after {
       hsla(calc(var(--cursor-hue) + 80), 84%, 60%, 0.18) 140deg,
       hsla(calc(var(--cursor-hue) - 120), 88%, 58%, 0.14) 260deg,
       transparent 360deg),
-    radial-gradient(780px circle at 78% 18%, rgba(20, 44, 94, 0.22), transparent 76%),
-    radial-gradient(680px circle at 26% 78%, rgba(12, 40, 96, 0.18), transparent 74%);
+    radial-gradient(780px circle at 78% 18%, rgba(20, 44, 94, 0.18), transparent 76%),
+    radial-gradient(680px circle at 26% 78%, rgba(12, 40, 96, 0.15), transparent 74%);
   mix-blend-mode: screen;
-  opacity: 0.48;
+  opacity: 0.36;
   pointer-events: none;
   transition: opacity 0.6s ease;
   z-index: -3;
 }
 
 body.is-pressing::after {
-  opacity: 0.68;
+  opacity: 0.48;
 }
 
 h1,
@@ -341,11 +341,11 @@ main {
 }
 
 .background.is-hovered .background__layer--gradient {
-  opacity: 0.58;
+  opacity: 0.5;
 }
 
 .background.is-active .background__layer--gradient {
-  opacity: 0.72;
+  opacity: 0.58;
 }
 
 .cursor {
