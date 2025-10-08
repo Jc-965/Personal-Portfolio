@@ -160,18 +160,40 @@ if (background && !prefersReducedMotion) {
 
   const backgroundCanvas = background.querySelector(".background__canvas");
   const ctx = backgroundCanvas?.getContext("2d");
-  const scene = { width: window.innerWidth, height: window.innerHeight, dpr: Math.min(window.devicePixelRatio || 1, 2.2) };
-  const particles = [];
-  const ripples = [];
-  const palette = [
-    { hue: 210, saturation: 92, lightness: 62 },
-    { hue: 268, saturation: 94, lightness: 66 },
-    { hue: 188, saturation: 90, lightness: 58 },
-    { hue: 326, saturation: 88, lightness: 64 },
-  ];
-  let canvasFrame;
+  const scene = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    dpr: Math.min(window.devicePixelRatio || 1, 2.2),
+  };
 
-  const particleCount = () => Math.round(clamp((scene.width * scene.height) / 6000, 130, 320));
+  const grid = {
+    spacing: 86,
+    offsetX: 0,
+    offsetY: 0,
+    driftX: 0,
+    driftY: 0,
+  };
+
+  const nodes = [];
+  const edges = [];
+  const pulses = [];
+  let canvasFrame;
+  let lastAutoPulse = 0;
+
+  const distanceToSegment = (px, py, ax, ay, bx, by) => {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const apx = px - ax;
+    const apy = py - ay;
+    const abLenSq = abx * abx + aby * aby || 1;
+    let t = (apx * abx + apy * aby) / abLenSq;
+    t = clamp(t, 0, 1);
+    const closestX = ax + abx * t;
+    const closestY = ay + aby * t;
+    const dx = px - closestX;
+    const dy = py - closestY;
+    return { distance: Math.hypot(dx, dy), closestX, closestY };
+  };
 
   const setCanvasSize = () => {
     if (!backgroundCanvas || !ctx) return;
@@ -186,202 +208,265 @@ if (background && !prefersReducedMotion) {
     ctx.scale(scene.dpr, scene.dpr);
   };
 
-  const createParticle = () => {
-    const swatch = palette[Math.floor(Math.random() * palette.length)];
-    return {
-      x: Math.random() * scene.width,
-      y: Math.random() * scene.height,
-      vx: randomBetween(-0.45, 0.45),
-      vy: randomBetween(-0.45, 0.45),
-      baseVX: randomBetween(-0.16, 0.16),
-      baseVY: randomBetween(-0.16, 0.16),
-      radius: randomBetween(1, 2.4),
-      hue: swatch.hue + randomBetween(-6, 6),
-      saturation: swatch.saturation,
-      lightness: swatch.lightness + randomBetween(-6, 6),
-      noise: Math.random() * Math.PI * 2,
-    };
-  };
-
-  const initParticles = () => {
-    particles.length = 0;
-    const count = particleCount();
+  const initNodes = () => {
+    nodes.length = 0;
+    edges.length = 0;
+    const count = Math.round(clamp((scene.width * scene.height) / 9000, 18, 42));
+    const branchSet = new Set();
     for (let i = 0; i < count; i += 1) {
-      particles.push(createParticle());
+      const depth = i / count;
+      const sway = Math.sin(depth * Math.PI * 1.2) * 60;
+      const x = scene.width * (0.2 + Math.random() * 0.6) + sway;
+      const y = scene.height * (0.08 + depth * 0.82) + Math.cos(depth * 5.2) * 18;
+      nodes.push({
+        id: i,
+        x,
+        y,
+        baseX: x,
+        baseY: y,
+        vx: 0,
+        vy: 0,
+        radius: randomBetween(3.2, 5.4),
+        halo: 0,
+        phase: Math.random() * Math.PI * 2,
+        depth: depth + Math.random() * 0.08,
+      });
     }
-  };
 
-  const spawnSpark = (x, y) => {
-    const spark = document.createElement("span");
-    spark.className = "background__spark";
-    spark.style.left = `${x}px`;
-    spark.style.top = `${y}px`;
-    background.appendChild(spark);
-    spark.addEventListener("animationend", () => {
-      spark.remove();
+    const sorted = [...nodes].sort((a, b) => a.baseY - b.baseY);
+    sorted.forEach((node, index) => {
+      const candidates = sorted
+        .slice(Math.max(0, index - 6), index)
+        .sort((a, b) => {
+          const da = Math.hypot(node.baseX - a.baseX, node.baseY - a.baseY);
+          const db = Math.hypot(node.baseX - b.baseX, node.baseY - b.baseY);
+          return da - db;
+        });
+      const connections = candidates.slice(0, clamp(1 + Math.floor(Math.random() * 3), 1, 3));
+      connections.forEach((target) => {
+        const key = node.id < target.id ? `${node.id}-${target.id}` : `${target.id}-${node.id}`;
+        if (!branchSet.has(key)) {
+          edges.push([node.id, target.id]);
+          branchSet.add(key);
+        }
+      });
     });
   };
 
-  const spawnPulse = (x, y) => {
-    const pulse = document.createElement("span");
-    pulse.className = "background__pulse";
-    pulse.style.left = `${x}px`;
-    pulse.style.top = `${y}px`;
-    background.appendChild(pulse);
-    pulse.addEventListener("animationend", () => {
-      pulse.remove();
-    });
-  };
-
-  const spawnRipple = (x, y) => {
-    ripples.push({ x, y, radius: 0, alpha: 0.55, hue: 220 + Math.random() * 80 });
-    if (ripples.length > 6) {
-      ripples.shift();
+  const ensureTreeBackbone = () => {
+    if (!nodes.length) return;
+    const sorted = [...nodes].sort((a, b) => a.baseY - b.baseY);
+    for (let i = 1; i < sorted.length; i += 1) {
+      const current = sorted[i];
+      const previous = sorted[i - 1];
+      const key = current.id < previous.id ? `${current.id}-${previous.id}` : `${previous.id}-${current.id}`;
+      if (!edges.some(([a, b]) => (a === current.id && b === previous.id) || (a === previous.id && b === current.id))) {
+        edges.push([current.id, previous.id]);
+      }
     }
   };
 
-  let lastAutoRipple = 0;
+  const addPulse = (x, y, power = 1) => {
+    pulses.push({ x, y, start: performance.now(), power });
+    if (pulses.length > 8) {
+      pulses.shift();
+    }
+  };
 
   const animateBackground = (now) => {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, scene.width, scene.height);
 
-    const gradient = ctx.createLinearGradient(0, 0, scene.width, scene.height);
-    gradient.addColorStop(0, "rgba(6, 4, 24, 0.95)");
-    gradient.addColorStop(0.5, "rgba(10, 6, 32, 0.92)");
-    gradient.addColorStop(1, "rgba(8, 7, 26, 0.93)");
+    const gradient = ctx.createLinearGradient(0, 0, 0, scene.height);
+    gradient.addColorStop(0, "#01030c");
+    gradient.addColorStop(0.45, "#040a1c");
+    gradient.addColorStop(1, "#020411");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, scene.width, scene.height);
 
     const time = now * 0.0012;
-    const ambientStrength = 0.2 + Math.sin(time * 0.6) * 0.06 + Math.cos(time * 0.35) * 0.04;
-    const pointerStrength = pointerInViewport
-      ? clamp(0.22 + velocity / 180, 0.22, 1.45)
-      : ambientStrength;
-    const pointerRadius = pointerInViewport ? 220 : 160 + Math.sin(time * 0.7) * 20;
+    const pointerFactor = pointerInViewport ? clamp(velocity / 180, 0.08, 0.9) : 0.08;
+    const influenceRadius = pointerInViewport ? 240 + velocity * 0.8 : 160;
 
-    if (now - lastAutoRipple > 4600) {
-      const x = Math.random() * scene.width;
-      const y = Math.random() * scene.height;
-      spawnRipple(x, y);
-      if (Math.random() > 0.4) {
-        spawnSpark(x, y);
-      }
-      lastAutoRipple = now;
-    }
+    grid.driftX += 0.02 + Math.sin(time * 0.6) * 0.004;
+    grid.driftY += 0.018 + Math.cos(time * 0.5) * 0.004;
 
-    particles.forEach((particle) => {
-      particle.vx += (particle.baseVX - particle.vx) * 0.018;
-      particle.vy += (particle.baseVY - particle.vy) * 0.018;
+    const parallaxX = pointerInViewport ? (pointer.x - scene.width / 2) * 0.08 : 0;
+    const parallaxY = pointerInViewport ? (pointer.y - scene.height / 2) * 0.08 : 0;
+    const offsetX = (grid.offsetX + grid.driftX + parallaxX) % grid.spacing;
+    const offsetY = (grid.offsetY + grid.driftY + parallaxY) % grid.spacing;
 
-      const swirl = Math.sin(time + particle.noise) * 0.32;
-      const drift = Math.cos(time * 0.6 + particle.noise * 1.4) * 0.24;
-
-      particle.x += particle.vx + swirl + pointerStrength * 0.2;
-      particle.y += particle.vy + drift;
-
-      if (pointerInViewport) {
-        const dx = particle.x - pointer.x;
-        const dy = particle.y - pointer.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance < pointerRadius) {
-          const norm = distance === 0 ? 1 : distance;
-          const force = (pointerRadius - distance) / pointerRadius;
-          particle.vx += (dx / norm) * force * (0.6 + pointerStrength * 0.6);
-          particle.vy += (dy / norm) * force * (0.6 + pointerStrength * 0.6);
-        }
-      }
-
-      if (particle.x < -120) particle.x = scene.width + 120;
-      if (particle.x > scene.width + 120) particle.x = -120;
-      if (particle.y < -120) particle.y = scene.height + 120;
-      if (particle.y > scene.height + 120) particle.y = -120;
-    });
-
-    for (let i = ripples.length - 1; i >= 0; i -= 1) {
-      const ripple = ripples[i];
-      ripple.radius += 7 + ripple.radius * 0.035;
-      ripple.alpha *= 0.965;
-      if (ripple.alpha <= 0.02) {
-        ripples.splice(i, 1);
-        continue;
-      }
-
-      ctx.beginPath();
-      ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${(ripple.hue + ripple.radius * 0.14) % 360}, 92%, 68%, ${ripple.alpha})`;
-      ctx.lineWidth = 1.2 + Math.min(ripple.radius / 160, 5);
-      ctx.stroke();
-
-      particles.forEach((particle) => {
-        const dx = particle.x - ripple.x;
-        const dy = particle.y - ripple.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance === 0) return;
-        const band = Math.abs(distance - ripple.radius);
-        if (band < 120) {
-          const influence = (120 - band) / 120;
-          const wave = Math.cos((distance - ripple.radius) / 28) * influence * 0.68;
-          particle.vx += (dx / distance) * wave;
-          particle.vy += (dy / distance) * wave;
-        }
-      });
+    if (now - lastAutoPulse > 5200) {
+      addPulse(Math.random() * scene.width, Math.random() * scene.height, 0.75);
+      lastAutoPulse = now;
     }
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    particles.forEach((particle) => {
-      const size = particle.radius * (1 + pointerStrength * 0.45);
-      const glow = ctx.createRadialGradient(
-        particle.x,
-        particle.y,
-        0,
-        particle.x,
-        particle.y,
-        size * 4.5
-      );
-      glow.addColorStop(0, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0.9)`);
-      glow.addColorStop(1, `hsla(${particle.hue}, ${particle.saturation}%, ${particle.lightness}%, 0)`);
-      ctx.fillStyle = glow;
+    for (let x = -grid.spacing; x < scene.width + grid.spacing; x += grid.spacing) {
+      const posX = x + offsetX;
+      const distX = pointerInViewport ? Math.abs(pointer.x - posX) : Infinity;
+      const alpha = 0.07 + Math.max(0, 1 - distX / 320) * 0.25 + pointerFactor * 0.2;
+      const hueShift = 210 + Math.max(0, 1 - distX / 420) * 70;
+      ctx.strokeStyle = `hsla(${hueShift}, 68%, 42%, ${alpha})`;
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, size * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-    });
+      ctx.moveTo(posX, 0);
+      ctx.lineTo(posX, scene.height);
+      ctx.stroke();
+    }
+
+    for (let y = -grid.spacing; y < scene.height + grid.spacing; y += grid.spacing) {
+      const posY = y + offsetY;
+      const distY = pointerInViewport ? Math.abs(pointer.y - posY) : Infinity;
+      const alpha = 0.06 + Math.max(0, 1 - distY / 320) * 0.22 + pointerFactor * 0.18;
+      const hueShift = 198 + Math.max(0, 1 - distY / 360) * 60;
+      ctx.strokeStyle = `hsla(${hueShift}, 62%, 36%, ${alpha})`;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(0, posY);
+      ctx.lineTo(scene.width, posY);
+      ctx.stroke();
+    }
     ctx.restore();
+
+    for (let i = pulses.length - 1; i >= 0; i -= 1) {
+      const pulse = pulses[i];
+      const age = (now - pulse.start) / 1000;
+      const radius = 80 + age * 420;
+      const fade = Math.max(0, 1 - age / 2.2);
+      if (fade <= 0) {
+        pulses.splice(i, 1);
+        continue;
+      }
+
+      ctx.beginPath();
+      ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${210 + age * 60}, 86%, 64%, ${0.3 * fade})`;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      pulse.radius = radius;
+      pulse.fade = fade;
+    }
+
+    nodes.forEach((node) => {
+      node.halo *= 0.92;
+      const swayX = Math.sin(time * 1.4 + node.phase) * 0.6;
+      const swayY = Math.cos(time * 1.1 + node.phase) * 0.6;
+      node.vx += (node.baseX - node.x) * 0.02 + swayX;
+      node.vy += (node.baseY - node.y) * 0.018 + swayY;
+
+      if (pointerInViewport) {
+        const dx = node.x - pointer.x;
+        const dy = node.y - pointer.y;
+        const distance = Math.hypot(dx, dy) || 0.001;
+        if (distance < influenceRadius) {
+          const force = (1 - distance / influenceRadius) * (1.6 + pointerFactor * 1.4);
+          node.vx += (dx / distance) * force;
+          node.vy += (dy / distance) * force;
+          node.halo = Math.min(1, node.halo + force * 0.6 + pointerFactor * 0.6);
+        }
+      }
+
+      pulses.forEach((pulse) => {
+        if (!pulse.radius) return;
+        const dx = node.x - pulse.x;
+        const dy = node.y - pulse.y;
+        const distance = Math.hypot(dx, dy) || 0.001;
+        if (distance < pulse.radius) {
+          const wave = (1 - distance / pulse.radius) * pulse.power;
+          node.vx += (dx / distance) * wave * 1.1;
+          node.vy += (dy / distance) * wave * 1.1;
+          node.halo = Math.min(1, node.halo + wave * 1.2 * pulse.fade);
+        }
+      });
+
+      node.vx *= 0.88;
+      node.vy *= 0.88;
+      node.x += node.vx;
+      node.y += node.vy;
+    });
+
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    edges.forEach(([fromId, toId]) => {
+      const from = nodes[fromId];
+      const to = nodes[toId];
+      if (!from || !to) return;
+
+      const { distance: pointerDistance } = pointerInViewport
+        ? distanceToSegment(pointer.x, pointer.y, from.x, from.y, to.x, to.y)
+        : { distance: Infinity };
+
+      let highlight = Math.max(from.halo, to.halo);
+      if (pointerInViewport && pointerDistance < 180) {
+        highlight = Math.max(highlight, (1 - pointerDistance / 180) * (0.7 + pointerFactor));
+      }
+
+      pulses.forEach((pulse) => {
+        if (!pulse.radius) return;
+        const { distance } = distanceToSegment(pulse.x, pulse.y, from.x, from.y, to.x, to.y);
+        if (distance < pulse.radius) {
+          highlight = Math.max(highlight, (1 - distance / pulse.radius) * pulse.fade * 0.8);
+        }
+      });
+
+      const hue = 198 + highlight * 120;
+      const alpha = 0.16 + highlight * 0.55;
+      ctx.strokeStyle = `hsla(${hue}, 82%, ${42 + highlight * 20}%, ${alpha})`;
+      ctx.lineWidth = 1.2 + highlight * 2.2;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+    });
+
+    nodes.forEach((node) => {
+      const baseRadius = node.radius * (1 + node.depth * 0.3);
+      const glowRadius = baseRadius * (2.6 + node.halo * 3.8);
+      const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
+      gradientNode.addColorStop(0, `hsla(${204 + node.halo * 120}, 90%, 72%, ${0.6 + node.halo * 0.4})`);
+      gradientNode.addColorStop(1, "rgba(12, 35, 78, 0)");
+      ctx.fillStyle = gradientNode;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `hsla(${210 + node.halo * 90}, 92%, 72%, 0.9)`;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `hsla(${200 + node.halo * 120}, 92%, 82%, ${0.35 + node.halo * 0.4})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, baseRadius + 3 + node.halo * 6, 0, Math.PI * 2);
+      ctx.stroke();
+    });
 
     canvasFrame = requestAnimationFrame(animateBackground);
   };
 
   if (backgroundCanvas && ctx) {
     setCanvasSize();
-    initParticles();
+    initNodes();
+    ensureTreeBackbone();
     canvasFrame = requestAnimationFrame(animateBackground);
     window.addEventListener("resize", () => {
       setCanvasSize();
-      initParticles();
+      initNodes();
+      ensureTreeBackbone();
     });
   }
 
-  document.addEventListener("pointermove", (event) => {
+  document.addEventListener("pointermove", () => {
     background.classList.add("is-hovered");
-    if (event.movementX || event.movementY) {
-      if (Math.random() > 0.92) {
-        spawnSpark(event.clientX, event.clientY);
-      }
-    }
   });
 
   document.addEventListener("pointerdown", (event) => {
     background.classList.add("is-active");
-    spawnPulse(event.clientX, event.clientY);
-    spawnRipple(event.clientX, event.clientY);
-    for (let i = 0; i < 4; i += 1) {
-      const angle = (Math.PI / 2) * i;
-      const x = event.clientX + Math.cos(angle) * 12;
-      const y = event.clientY + Math.sin(angle) * 12;
-      spawnSpark(x, y);
-    }
+    addPulse(event.clientX, event.clientY, 1.2);
   });
 
   document.addEventListener("pointerup", () => {
@@ -390,6 +475,7 @@ if (background && !prefersReducedMotion) {
 
   document.addEventListener("pointerleave", () => {
     background.classList.remove("is-active");
+    background.classList.remove("is-hovered");
   });
 }
 
