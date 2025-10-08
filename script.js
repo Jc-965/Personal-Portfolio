@@ -27,7 +27,8 @@ document.addEventListener("scroll", () => {
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const root = document.documentElement;
-const cursorComet = document.querySelector(".cursor--comet");
+const cursorNova = document.querySelector(".cursor--nova");
+const cursorTrailEl = cursorNova?.querySelector(".cursor__trail");
 const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
 
@@ -38,8 +39,7 @@ let velocity = 0;
 let animationFrame;
 let isPressing = false;
 let pointerInViewport = false;
-const trail = [];
-const maxTrail = 14;
+const trailPoint = { ...pointer };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const randomBetween = (min, max) => Math.random() * (max - min) + min;
@@ -54,39 +54,23 @@ const updateCursor = () => {
   const distance = Math.hypot(dx, dy);
   velocity = 0.18 * distance + 0.82 * velocity;
   lastPointer = { ...pointer };
-
-  trail.unshift({ x: pointer.x, y: pointer.y });
-  if (trail.length > maxTrail) {
-    trail.pop();
-  }
+  trailPoint.x += (pointer.x - trailPoint.x) * (prefersReducedMotion ? 1 : 0.16);
+  trailPoint.y += (pointer.y - trailPoint.y) * (prefersReducedMotion ? 1 : 0.16);
 
   const progressX = pointer.x / Math.max(window.innerWidth, 1);
   const progressY = pointer.y / Math.max(window.innerHeight, 1);
   const hue = 200 + progressX * 80;
   const lightness = 40 + progressY * 12 + Math.min(velocity / 18, 8);
   const speedFactor = clamp(velocity / 320, 0, 1);
-  const scale = isPressing ? 0.82 : 1 + speedFactor * 0.25;
-
-  if (cursorComet) {
-    cursorComet.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0) scale(${scale})`);
-    cursorComet.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
-
-    const trailShadow = trail
-      .map((point, index) => {
-        if (index === 0) return null;
-        const progress = index / Math.max(trail.length - 1, 1);
-        const fade = Math.pow(1 - progress, 1.6);
-        const offsetX = point.x - pointer.x;
-        const offsetY = point.y - pointer.y;
-        const blur = Math.max(8 - index * 0.4, 2);
-        const spread = Math.max(6 - index * 0.3, 1.5);
-        const hueShift = hue + progress * 36;
-        return `${offsetX}px ${offsetY}px ${blur}px ${spread}px hsla(${hueShift.toFixed(1)}, 92%, ${68 - progress * 14}%, ${0.28 * fade})`;
-      })
-      .filter(Boolean)
-      .join(", ");
-
-    cursorComet.style.boxShadow = trailShadow;
+  if (cursorNova) {
+    cursorNova.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0)`);
+    cursorNova.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
+    const offsetX = clamp(pointer.x - trailPoint.x, -80, 80);
+    cursorNova.style.setProperty("--trail-offset", `${offsetX.toFixed(2)}px`);
+    if (cursorTrailEl) {
+      const trailOpacity = Math.max(0.15, 0.2 + speedFactor * 0.4);
+      cursorTrailEl.style.opacity = trailOpacity.toFixed(3);
+    }
   }
 
   if (root) {
@@ -121,7 +105,7 @@ const updateCursor = () => {
 
 const enableCursor = () => {
   if (prefersReducedMotion) return;
-  cursorComet?.classList.remove("is-hidden");
+  cursorNova?.classList.remove("is-hidden");
   cancelAnimationFrame(animationFrame);
   animationFrame = requestAnimationFrame(updateCursor);
 };
@@ -134,16 +118,17 @@ document.addEventListener("pointermove", (event) => {
 });
 
 document.addEventListener("pointerleave", () => {
-  cursorComet?.classList.add("is-hidden");
-  cursorComet?.classList.remove("is-pressed");
-  cursorComet?.removeAttribute("data-mode");
+  cursorNova?.classList.add("is-hidden");
+  cursorNova?.classList.remove("is-pressed");
+  cursorNova?.removeAttribute("data-mode");
   isPressing = false;
   document.body.classList.remove("is-pressing");
   if (background) {
     background.classList.remove("is-hovered");
   }
   pointerInViewport = false;
-  trail.length = 0;
+  trailPoint.x = pointer.x;
+  trailPoint.y = pointer.y;
   cancelAnimationFrame(animationFrame);
   pointer.x = window.innerWidth / 2;
   pointer.y = window.innerHeight / 2;
@@ -294,12 +279,12 @@ if (background && !prefersReducedMotion) {
     }
   };
 
-  const addImpulse = (x, y, power = 1) => {
+  const addImpulse = (x, y, power = 1.35) => {
     impulses.push({
       x,
       y,
       power,
-      radius: 80,
+      radius: 60,
       start: performance.now(),
     });
     if (impulses.length > 8) {
@@ -367,7 +352,7 @@ if (background && !prefersReducedMotion) {
           if (dist < impulse.radius) {
             const strength = (1 - dist / impulse.radius) * impulse.power;
             const normX = idx / (dist || 1);
-            drawX += normX * strength * 12;
+            drawX += normX * strength * 22;
           }
         });
         if (s === 0) {
@@ -407,7 +392,7 @@ if (background && !prefersReducedMotion) {
           if (dist < impulse.radius) {
             const strength = (1 - dist / impulse.radius) * impulse.power;
             const normY = idy / (dist || 1);
-            drawY += normY * strength * 12;
+            drawY += normY * strength * 22;
           }
         });
         if (s === 0) {
@@ -422,10 +407,10 @@ if (background && !prefersReducedMotion) {
 
     for (let i = impulses.length - 1; i >= 0; i -= 1) {
       const impulse = impulses[i];
-      impulse.radius += 28;
-      impulse.power *= 0.88;
+      impulse.radius += 34;
+      impulse.power *= 0.92;
       const age = (now - impulse.start) / 1000;
-      impulse.fade = Math.max(0, 1 - age / 1.4);
+      impulse.fade = Math.max(0, 1 - age / 1.6);
       if (impulse.power < 0.05 || impulse.fade <= 0) {
         impulses.splice(i, 1);
       }
@@ -483,9 +468,9 @@ if (background && !prefersReducedMotion) {
         const distance = Math.hypot(dx, dy) || 0.001;
         if (distance < impulse.radius) {
           const wave = (1 - distance / impulse.radius) * impulse.power;
-          node.vx += (dx / distance) * wave * 1.05;
-          node.vy += (dy / distance) * wave * 1.05;
-          node.halo = Math.min(1, node.halo + wave * 0.9 * impulse.fade);
+          node.vx += (dx / distance) * wave * 1.55;
+          node.vy += (dy / distance) * wave * 1.55;
+          node.halo = Math.min(1, node.halo + wave * 1.1 * impulse.fade);
         }
       });
 
@@ -574,7 +559,7 @@ if (background && !prefersReducedMotion) {
 
   document.addEventListener("pointerdown", (event) => {
     background.classList.add("is-active");
-    addImpulse(event.clientX, event.clientY, 1);
+    addImpulse(event.clientX, event.clientY, 1.6);
   });
 
   document.addEventListener("pointerup", () => {
@@ -593,14 +578,15 @@ document.addEventListener("pointerdown", (event) => {
   pointerInViewport = true;
   pointerTarget.x = event.clientX;
   pointerTarget.y = event.clientY;
-  cursorComet?.classList.add("is-pressed");
+  cursorNova?.classList.add("is-pressed");
+  enableCursor();
 });
 
 ["pointerup", "pointercancel"].forEach((type) =>
   document.addEventListener(type, () => {
     isPressing = false;
     document.body.classList.remove("is-pressing");
-    cursorComet?.classList.remove("is-pressed");
+    cursorNova?.classList.remove("is-pressed");
   })
 );
 
@@ -610,11 +596,11 @@ focusableElements.forEach((element) => {
   element.addEventListener("mouseenter", () => {
     const state = element.getAttribute("data-cursor") || "interactive";
     document.body.dataset.cursor = state;
-    cursorComet?.setAttribute("data-mode", state);
+    cursorNova?.setAttribute("data-mode", state);
   });
   element.addEventListener("mouseleave", () => {
     delete document.body.dataset.cursor;
-    cursorComet?.removeAttribute("data-mode");
+    cursorNova?.removeAttribute("data-mode");
   });
 });
 
