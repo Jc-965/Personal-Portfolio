@@ -30,13 +30,14 @@
 
   <header class="nav" data-cursor="interactive">
     <div class="nav__brand">Jesse · CMU SCS</div>
-    <nav class="nav__menu" aria-label="Primary">
+    <nav class="nav__menu" id="primary-navigation" aria-label="Primary">
       <a href="#about">About</a>
       <a href="#journey">Journey</a>
       <a href="#projects">Projects</a>
       <a href="#skills">Skills</a>
     </nav>
-    <button class="nav__toggle" aria-label="Toggle navigation" data-cursor="focus">
+    <button class="nav__toggle" type="button" aria-label="Toggle navigation" aria-expanded="false"
+      aria-controls="primary-navigation" data-cursor="focus">
       <span></span>
       <span></span>
       <span></span>
@@ -83,7 +84,7 @@
       </div>
     </section>
 
-    <section class="panel" id="about" data-accent="amber" style="font-size: 1.4rem;">
+    <section class="panel" id="about" data-accent="amber">
       <header class="panel__header">
         <p class="panel__eyebrow">Story</p>
         <h2>The Human Side of Engineering</h2>
@@ -99,7 +100,6 @@
           software with that same intention: to build things that don't just work, but mean something.
         </p>
       </article>
-      </div>
     </section>
 
     <section class="panel panel--columns" id="journey" data-accent="teal">
@@ -327,17 +327,13 @@
         </article>
       </div>
     </section>
-  </main>
-</body>
-
-</html>
-<section class="panel panel--mosaic" id="life" data-accent="slate">
-  <header class="panel__header">
-    <p class="panel__eyebrow">Beyond the build</p>
-    <h2>Leadership, teamwork, and building beyond code.</h2>
-  </header>
-  <div class="mosaic">
-    <!-- <article class="mosaic__card" data-animate>
+    <section class="panel panel--mosaic" id="life" data-accent="slate">
+      <header class="panel__header">
+        <p class="panel__eyebrow">Beyond the build</p>
+        <h2>Leadership, teamwork, and building beyond code.</h2>
+      </header>
+      <div class="mosaic">
+        <!-- <article class="mosaic__card" data-animate>
             <h3>Data &amp; Software Engineer · CMUMaps</h3>
             <ul>
               <li>Transformed OpenStreetMap data into geometry-safe JSON for campus routing and search tools.</li>
@@ -347,43 +343,47 @@
             <p class="mosaic__meta">Python · Geo data pipelines · Distributed systems</p>
           </article> -->
 
-    <article class="mosaic__card" data-animate>
-      <h3>Developer &amp; Treasurer · Arcadia App Development</h3>
-      <ul>
-        <li>Helped develop a digital student ID system that improved event check-ins for thousands of students.</li>
-        <li>Worked closely with administrators to design features based on real student and faculty needs.</li>
-        <li>Managed finances and outreach efforts, expanding the club’s reach and project capacity.</li>
-      </ul>
-      <p class="mosaic__meta">Firebase · Android · Product management</p>
-    </article>
+        <article class="mosaic__card" data-animate>
+          <h3>Developer &amp; Treasurer · Arcadia App Development</h3>
+          <ul>
+            <li>Helped develop a digital student ID system that improved event check-ins for thousands of students.</li>
+            <li>Worked closely with administrators to design features based on real student and faculty needs.</li>
+            <li>Managed finances and outreach efforts, expanding the club’s reach and project capacity.</li>
+          </ul>
+          <p class="mosaic__meta">Firebase · Android · Product management</p>
+        </article>
 
-    <article class="mosaic__card" data-animate>
-      <h3>Eagle Scout · Boy Scouts of America</h3>
-      <ul>
-        <li>Led the planning and construction of wooden signage and a large outdoor banner for a local elementary
-          school.</li>
-        <li>Organized volunteers and coordinated logistics to ensure safety, accuracy, and meaningful results.</li>
-        <li>Mentored younger Scouts on leadership, communication, and responsibility through hands-on activities.</li>
-      </ul>
-      <p class="mosaic__meta">Leadership · Logistics · Community service</p>
-    </article>
+        <article class="mosaic__card" data-animate>
+          <h3>Eagle Scout · Boy Scouts of America</h3>
+          <ul>
+            <li>Led the planning and construction of wooden signage and a large outdoor banner for a local elementary
+              school.</li>
+            <li>Organized volunteers and coordinated logistics to ensure safety, accuracy, and meaningful results.</li>
+            <li>Mentored younger Scouts on leadership, communication, and responsibility through hands-on activities.
+            </li>
+          </ul>
+          <p class="mosaic__meta">Leadership · Logistics · Community service</p>
+        </article>
 
-    <article class="mosaic__card" data-animate>
-      <h3>Clarinet Section Leader &amp; Soloist</h3>
-      <ul>
-        <li>Dedicated over 200 hours each year to rehearsals, performances, and coordinating with directors and peers.
-        </li>
-        <li>Led sectionals, coached younger clarinetists, and organized music for both marching and concert seasons.
-        </li>
-        <li>Performed nationally and abroad with the Pasadena Symphony and Pops, developing focus and composure under
-          pressure.</li>
-      </ul>
-      <p class="mosaic__meta">Discipline · Collaboration · Performance</p>
-    </article>
-  </div>
-</section>
+        <article class="mosaic__card" data-animate>
+          <h3>Clarinet Section Leader &amp; Soloist</h3>
+          <ul>
+            <li>Dedicated over 200 hours each year to rehearsals, performances, and coordinating with directors and
+              peers.
+            </li>
+            <li>Led sectionals, coached younger clarinetists, and organized music for both marching and concert
+              seasons.
+            </li>
+            <li>Performed nationally and abroad with the Pasadena Symphony and Pops, developing focus and composure
+              under
+              pressure.</li>
+          </ul>
+          <p class="mosaic__meta">Discipline · Collaboration · Performance</p>
+        </article>
+      </div>
+    </section>
 
-<!-- <section class="panel panel--recognition" id="recognition" data-accent="coral">
+    <!-- <section class="panel panel--recognition" id="recognition" data-accent="coral">
         <header class="panel__header">
           <p class="panel__eyebrow">Recognition</p>
           <h2>Milestones that shaped my path.</h2>
@@ -400,65 +400,65 @@
         </div>
       </section> -->
 
-<section class="panel" id="skills" data-accent="blue">
-  <header class="panel__header">
-    <p class="panel__eyebrow">Toolkit</p>
-    <h2>A set of tools for building, learning, and refining ideas.</h2>
-  </header>
-  <div class="skills skills--expanded">
-    <article class="skills__group" data-animate>
-      <h3>Languages</h3>
-      <ul>
-        <li>Python · C · C++</li>
-        <li>Dart · Java</li>
-        <li>JavaScript · TypeScript</li>
-        <li>HTML/CSS · SQL · Markdown</li>
-      </ul>
-    </article>
+    <section class="panel" id="skills" data-accent="blue">
+      <header class="panel__header">
+        <p class="panel__eyebrow">Toolkit</p>
+        <h2>A set of tools for building, learning, and refining ideas.</h2>
+      </header>
+      <div class="skills skills--expanded">
+        <article class="skills__group" data-animate>
+          <h3>Languages</h3>
+          <ul>
+            <li>Python · C · C++</li>
+            <li>Dart · Java</li>
+            <li>JavaScript · TypeScript</li>
+            <li>HTML/CSS · SQL · Markdown</li>
+          </ul>
+        </article>
 
-    <article class="skills__group" data-animate>
-      <h3>Frameworks &amp; Libraries</h3>
-      <ul>
-        <li>Flutter · Firebase · Android SDK</li>
-        <li>React · Vite · Tailwind CSS</li>
-        <li>Framer Motion · Unreal Engine</li>
-        <li>OpenStreetMap tools · XML/JSON parsing</li>
-      </ul>
-    </article>
+        <article class="skills__group" data-animate>
+          <h3>Frameworks &amp; Libraries</h3>
+          <ul>
+            <li>Flutter · Firebase · Android SDK</li>
+            <li>React · Vite · Tailwind CSS</li>
+            <li>Framer Motion · Unreal Engine</li>
+            <li>OpenStreetMap tools · XML/JSON parsing</li>
+          </ul>
+        </article>
 
-    <article class="skills__group" data-animate>
-      <h3>Data &amp; Intelligence</h3>
-      <ul>
-        <li>NumPy · Pandas · scikit-learn</li>
-        <li>On-device analytics &amp; signal processing</li>
-        <li>Experiment design · error analysis</li>
-        <li>Data logging &amp; instrumentation</li>
-      </ul>
-    </article>
+        <article class="skills__group" data-animate>
+          <h3>Data &amp; Intelligence</h3>
+          <ul>
+            <li>NumPy · Pandas · scikit-learn</li>
+            <li>On-device analytics &amp; signal processing</li>
+            <li>Experiment design · error analysis</li>
+            <li>Data logging &amp; instrumentation</li>
+          </ul>
+        </article>
 
-    <article class="skills__group" data-animate>
-      <h3>Systems &amp; Tools</h3>
-      <ul>
-        <li>Git &amp; GitHub Actions · Unix shell</li>
-        <li>VS Code · Android Studio · Xcode</li>
-        <li>Figma · Canva · Notion</li>
-        <li>LaTeX · Typst · Technical documentation</li>
-      </ul>
-    </article>
+        <article class="skills__group" data-animate>
+          <h3>Systems &amp; Tools</h3>
+          <ul>
+            <li>Git &amp; GitHub Actions · Unix shell</li>
+            <li>VS Code · Android Studio · Xcode</li>
+            <li>Figma · Canva · Notion</li>
+            <li>LaTeX · Typst · Technical documentation</li>
+          </ul>
+        </article>
 
-    <article class="skills__group" data-animate>
-      <h3>Concepts &amp; Soft Skills</h3>
-      <ul>
-        <li>Full-stack product development</li>
-        <li>Machine learning pipelines</li>
-        <li>Human-centered design &amp; research</li>
-        <li>Leadership · Mentorship · Communication</li>
-      </ul>
-    </article>
-  </div>
-</section>
+        <article class="skills__group" data-animate>
+          <h3>Concepts &amp; Soft Skills</h3>
+          <ul>
+            <li>Full-stack product development</li>
+            <li>Machine learning pipelines</li>
+            <li>Human-centered design &amp; research</li>
+            <li>Leadership · Mentorship · Communication</li>
+          </ul>
+        </article>
+      </div>
+    </section>
 
-<!-- <section class="panel panel--vision" id="vision" data-accent="violet">
+    <!-- <section class="panel panel--vision" id="vision" data-accent="violet">
   <header class="panel__header">
     <p class="panel__eyebrow">Vision</p>
     <h2>Building systems that balance logic and empathy.</h2>
@@ -470,8 +470,8 @@
       understanding.
     </p>
   </div>
-</section> -->
-</main>
+      </section> -->
+  </main>
 
 <footer class="footer">
   <p>© <span id="year"></span> Jesse Chen</p>

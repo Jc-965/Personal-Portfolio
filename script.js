@@ -6,22 +6,32 @@ if (yearEl) {
 const navToggle = document.querySelector(".nav__toggle");
 const navMenu = document.querySelector(".nav__menu");
 
+const setNavigationState = (isOpen) => {
+  if (!navMenu || !navToggle) return;
+  navMenu.classList.toggle("is-open", isOpen);
+  navToggle.classList.toggle("is-active", isOpen);
+  navToggle.setAttribute("aria-expanded", String(isOpen));
+};
+
 navToggle?.addEventListener("click", () => {
-  navMenu?.classList.toggle("is-open");
-  navToggle.classList.toggle("is-active");
+  const nextState = !navMenu?.classList.contains("is-open");
+  setNavigationState(nextState);
 });
 
 navMenu?.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", () => {
-    navMenu.classList.remove("is-open");
-    navToggle?.classList.remove("is-active");
-  });
+  link.addEventListener("click", () => setNavigationState(false));
 });
 
-document.addEventListener("scroll", () => {
+const collapseMenuOnScroll = () => {
   if (!navMenu || window.innerWidth > 960) return;
-  navMenu.classList.remove("is-open");
-  navToggle?.classList.remove("is-active");
+  setNavigationState(false);
+};
+
+document.addEventListener("scroll", collapseMenuOnScroll);
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 960) {
+    setNavigationState(false);
+  }
 });
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -42,10 +52,48 @@ let isPressing = false;
 let pointerInViewport = false;
 const trailPoint = { ...pointer };
 
+const supportsFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+const enableInteractiveVisuals = supportsFinePointer && !prefersReducedMotion && !!cursorNova;
+
+const getZoomScale = () => window.visualViewport?.scale ?? 1;
+const ZOOM_DISABLE_THRESHOLD = 1.05;
+const shouldSuspendForZoom = () => {
+  const scale = getZoomScale();
+  const highDprZoom = (window.devicePixelRatio || 1) > 1.6 && scale > 1.01;
+  return scale > ZOOM_DISABLE_THRESHOLD || highDprZoom;
+};
+
+let backgroundCanvas;
+let ctx;
+let canvasFrame = 0;
+let backgroundSuspended = false;
+let suspendBackground;
+let resumeBackground;
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const randomBetween = (min, max) => Math.random() * (max - min) + min;
 
+const stopCursorAnimation = () => {
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+  }
+};
+
+if (!enableInteractiveVisuals) {
+  if (!supportsFinePointer) {
+    document.body.classList.add("is-touch");
+  }
+  cursorNova?.classList.add("is-hidden");
+  cursorNova?.setAttribute("hidden", "true");
+  if (background) {
+    background.classList.add("is-static");
+  }
+}
+
 const applyPointerStyles = () => {
+  if (!enableInteractiveVisuals) return;
+
   const progressX = pointer.x / Math.max(window.innerWidth, 1);
   const progressY = pointer.y / Math.max(window.innerHeight, 1);
   const hue = 200 + progressX * 80;
@@ -53,7 +101,8 @@ const applyPointerStyles = () => {
   const speedFactor = clamp(velocity / 320, 0, 1);
 
   if (cursorNova) {
-    cursorNova.style.setProperty("transform", `translate3d(${pointer.x}px, ${pointer.y}px, 0)`);
+    cursorNova.style.left = `${pointer.x}px`;
+    cursorNova.style.top = `${pointer.y}px`;
     cursorNova.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
     const offsetX = clamp(pointer.x - trailPoint.x, -80, 80);
     cursorNova.style.setProperty("--trail-offset", `${offsetX.toFixed(2)}px`);
@@ -82,13 +131,15 @@ const applyPointerStyles = () => {
     background.style.setProperty("--bg-lightness", lightness.toFixed(2));
   }
 
-  backgroundLayers.forEach((layer, index) => {
-    const depth = parseFloat(layer.dataset.depth || "0.05");
-    const offsetX = (pointer.x - window.innerWidth / 2) * depth;
-    const offsetY = (pointer.y - window.innerHeight / 2) * depth;
-    layer.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
-    layer.style.opacity = String(clamp(0.32 + velocity / 640 - index * 0.05, 0.1, 0.72));
-  });
+  if (!backgroundSuspended) {
+    backgroundLayers.forEach((layer, index) => {
+      const depth = parseFloat(layer.dataset.depth || "0.05");
+      const offsetX = (pointer.x - window.innerWidth / 2) * depth;
+      const offsetY = (pointer.y - window.innerHeight / 2) * depth;
+      layer.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
+      layer.style.opacity = String(clamp(0.32 + velocity / 640 - index * 0.05, 0.1, 0.72));
+    });
+  }
 };
 
 backToTopButton?.addEventListener("click", (event) => {
@@ -100,9 +151,12 @@ backToTopButton?.addEventListener("click", (event) => {
 });
 
 const updateCursor = () => {
-  const lerp = prefersReducedMotion ? 1 : isPressing ? 0.28 : 0.2;
-  pointer.x += (pointerTarget.x - pointer.x) * lerp;
-  pointer.y += (pointerTarget.y - pointer.y) * lerp;
+  if (!enableInteractiveVisuals) {
+    animationFrame = 0;
+    return;
+  }
+  pointer.x = pointerTarget.x;
+  pointer.y = pointerTarget.y;
 
   const dx = pointer.x - lastPointer.x;
   const dy = pointer.y - lastPointer.y;
@@ -117,19 +171,25 @@ const updateCursor = () => {
 };
 
 const enableCursor = () => {
+  if (!enableInteractiveVisuals) return;
   cursorNova?.classList.remove("is-hidden");
-  cancelAnimationFrame(animationFrame);
+  cursorNova?.removeAttribute("hidden");
+  stopCursorAnimation();
   animationFrame = requestAnimationFrame(updateCursor);
 };
 
 document.addEventListener("pointermove", (event) => {
+  if (!enableInteractiveVisuals) return;
   pointerTarget.x = event.clientX;
   pointerTarget.y = event.clientY;
+  pointer.x = pointerTarget.x;
+  pointer.y = pointerTarget.y;
   pointerInViewport = true;
   enableCursor();
 });
 
 document.addEventListener("pointerenter", (event) => {
+  if (!enableInteractiveVisuals) return;
   pointerTarget.x = event.clientX;
   pointerTarget.y = event.clientY;
   pointer.x = pointerTarget.x;
@@ -141,6 +201,8 @@ document.addEventListener("pointerenter", (event) => {
 });
 
 document.addEventListener("pointerleave", () => {
+  pointerInViewport = false;
+  if (!enableInteractiveVisuals) return;
   cursorNova?.classList.add("is-hidden");
   cursorNova?.classList.remove("is-pressed");
   cursorNova?.removeAttribute("data-mode");
@@ -152,7 +214,7 @@ document.addEventListener("pointerleave", () => {
   pointerInViewport = false;
   trailPoint.x = pointer.x;
   trailPoint.y = pointer.y;
-  cancelAnimationFrame(animationFrame);
+  stopCursorAnimation();
   pointer.x = window.innerWidth / 2;
   pointer.y = window.innerHeight / 2;
   pointerTarget.x = pointer.x;
@@ -162,17 +224,17 @@ document.addEventListener("pointerleave", () => {
   applyPointerStyles();
 });
 
-applyPointerStyles();
+if (enableInteractiveVisuals) {
+  applyPointerStyles();
+}
 
-if (background && !prefersReducedMotion) {
-  background.classList.add("is-ready");
-
-  const backgroundCanvas = background.querySelector(".background__canvas");
-  const ctx = backgroundCanvas?.getContext("2d");
+if (enableInteractiveVisuals && background) {
+  backgroundCanvas = background.querySelector(".background__canvas");
+  ctx = backgroundCanvas?.getContext("2d");
   const scene = {
     width: window.innerWidth,
     height: window.innerHeight,
-    dpr: Math.min(window.devicePixelRatio || 1, 2.2),
+    dpr: Math.min(window.devicePixelRatio || 1, 1.6),
   };
 
   const grid = {
@@ -186,7 +248,6 @@ if (background && !prefersReducedMotion) {
   const nodes = [];
   const edges = [];
   const impulses = [];
-  let canvasFrame;
 
   const distanceToSegment = (px, py, ax, ay, bx, by) => {
     const abx = bx - ax;
@@ -207,7 +268,8 @@ if (background && !prefersReducedMotion) {
     if (!backgroundCanvas || !ctx) return;
     scene.width = window.innerWidth;
     scene.height = window.innerHeight;
-    scene.dpr = Math.min(window.devicePixelRatio || 1, 2.2);
+    const targetDpr = backgroundSuspended ? 1.1 : 1.6;
+    scene.dpr = Math.min(window.devicePixelRatio || 1, targetDpr);
     backgroundCanvas.width = scene.width * scene.dpr;
     backgroundCanvas.height = scene.height * scene.dpr;
     backgroundCanvas.style.width = `${scene.width}px`;
@@ -321,6 +383,11 @@ if (background && !prefersReducedMotion) {
   };
 
   const animateBackground = (now) => {
+    if (backgroundSuspended) {
+      canvasFrame = 0;
+      return;
+    }
+
     if (!ctx) return;
 
     ctx.clearRect(0, 0, scene.width, scene.height);
@@ -571,36 +638,92 @@ if (background && !prefersReducedMotion) {
     canvasFrame = requestAnimationFrame(animateBackground);
   };
 
-  if (backgroundCanvas && ctx) {
+  const startBackground = () => {
+    if (!backgroundCanvas || !ctx) return;
     setCanvasSize();
     initNodes();
-    canvasFrame = requestAnimationFrame(animateBackground);
-    window.addEventListener("resize", () => {
-      setCanvasSize();
-      initNodes();
-    });
+    if (!backgroundSuspended && !canvasFrame) {
+      canvasFrame = requestAnimationFrame(animateBackground);
+    }
+  };
+
+  suspendBackground = () => {
+    if (backgroundSuspended && background.classList.contains("is-static")) {
+      if (canvasFrame) {
+        cancelAnimationFrame(canvasFrame);
+        canvasFrame = 0;
+      }
+      return;
+    }
+    backgroundSuspended = true;
+    background.classList.add("is-static");
+    background.classList.remove("is-ready");
+    background.classList.remove("is-active");
+    background.classList.remove("is-hovered");
+    if (canvasFrame) {
+      cancelAnimationFrame(canvasFrame);
+      canvasFrame = 0;
+    }
+  };
+
+  resumeBackground = () => {
+    if (!backgroundSuspended) return;
+    backgroundSuspended = false;
+    background.classList.remove("is-static");
+    background.classList.add("is-ready");
+    startBackground();
+  };
+
+  backgroundSuspended = shouldSuspendForZoom();
+
+  if (backgroundSuspended) {
+    suspendBackground();
+  } else {
+    background.classList.add("is-ready");
+    startBackground();
   }
 
+  window.addEventListener("resize", () => {
+    setCanvasSize();
+    if (!backgroundSuspended) {
+      initNodes();
+    }
+    handleZoomChange();
+  });
+
+  window.visualViewport?.addEventListener("resize", () => {
+    setCanvasSize();
+    if (!backgroundSuspended) {
+      initNodes();
+    }
+    handleZoomChange();
+  });
+
   document.addEventListener("pointermove", () => {
+    if (backgroundSuspended) return;
     background.classList.add("is-hovered");
   });
 
   document.addEventListener("pointerdown", (event) => {
+    if (backgroundSuspended) return;
     background.classList.add("is-active");
     addImpulse(event.clientX, event.clientY, 1.6);
   });
 
   document.addEventListener("pointerup", () => {
+    if (backgroundSuspended) return;
     background.classList.remove("is-active");
   });
 
   document.addEventListener("pointerleave", () => {
+    if (backgroundSuspended) return;
     background.classList.remove("is-active");
     background.classList.remove("is-hovered");
   });
 }
 
 document.addEventListener("pointerdown", (event) => {
+  if (!enableInteractiveVisuals) return;
   isPressing = true;
   document.body.classList.add("is-pressing");
   pointerInViewport = true;
@@ -612,25 +735,30 @@ document.addEventListener("pointerdown", (event) => {
 
 ["pointerup", "pointercancel"].forEach((type) =>
   document.addEventListener(type, () => {
+    if (!enableInteractiveVisuals) return;
     isPressing = false;
     document.body.classList.remove("is-pressing");
     cursorNova?.classList.remove("is-pressed");
   })
 );
 
-const focusableElements = document.querySelectorAll("a, button, input, textarea, [data-cursor]");
+if (enableInteractiveVisuals) {
+  const focusableElements = document.querySelectorAll("a, button, input, textarea, [data-cursor]");
 
-focusableElements.forEach((element) => {
-  element.addEventListener("mouseenter", () => {
-    const state = element.getAttribute("data-cursor") || "interactive";
-    document.body.dataset.cursor = state;
-    cursorNova?.setAttribute("data-mode", state);
+  focusableElements.forEach((element) => {
+    element.addEventListener("mouseenter", () => {
+      if (!enableInteractiveVisuals) return;
+      const state = element.getAttribute("data-cursor") || "interactive";
+      document.body.dataset.cursor = state;
+      cursorNova?.setAttribute("data-mode", state);
+    });
+    element.addEventListener("mouseleave", () => {
+      if (!enableInteractiveVisuals) return;
+      delete document.body.dataset.cursor;
+      cursorNova?.removeAttribute("data-mode");
+    });
   });
-  element.addEventListener("mouseleave", () => {
-    delete document.body.dataset.cursor;
-    cursorNova?.removeAttribute("data-mode");
-  });
-});
+}
 
 if ("IntersectionObserver" in window) {
   const observer = new IntersectionObserver(
@@ -669,3 +797,22 @@ if ("IntersectionObserver" in window && accentSections.length) {
 
   accentSections.forEach((section) => accentObserver.observe(section));
 }
+
+function handleZoomChange() {
+  if (!enableInteractiveVisuals) return;
+  const zoomed = shouldSuspendForZoom();
+  if (zoomed) {
+    suspendBackground?.();
+    document.body.classList.add("is-zoomed");
+  } else {
+    resumeBackground?.();
+    document.body.classList.remove("is-zoomed");
+  }
+}
+
+if (enableInteractiveVisuals) {
+  window.addEventListener("resize", handleZoomChange);
+  window.visualViewport?.addEventListener("resize", handleZoomChange);
+}
+
+handleZoomChange();
