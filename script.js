@@ -55,10 +55,6 @@ const applyPointerStyles = () => {
   const speedFactor = clamp(velocity / 320, 0, 1);
 
   if (cursorNova) {
-    cursorNova.style.setProperty(
-      "transform",
-      `translate3d(${pointer.x}px, ${pointer.y}px, 0)`
-    );
     cursorNova.style.setProperty("--cursor-speed", speedFactor.toFixed(3));
     const offsetX = clamp(pointer.x - trailPoint.x, -80, 80);
     cursorNova.style.setProperty("--trail-offset", `${offsetX.toFixed(2)}px`);
@@ -107,9 +103,8 @@ backToTopButton?.addEventListener("click", (event) => {
 });
 
 const updateCursor = () => {
-  const lerp = prefersReducedMotion ? 1 : isPressing ? 0.28 : 0.2;
-  pointer.x += (pointerTarget.x - pointer.x) * lerp;
-  pointer.y += (pointerTarget.y - pointer.y) * lerp;
+  pointer.x = pointerTarget.x;
+  pointer.y = pointerTarget.y;
 
   const dx = pointer.x - lastPointer.x;
   const dy = pointer.y - lastPointer.y;
