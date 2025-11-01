@@ -69,6 +69,10 @@
   box-sizing: border-box;
 }
 
+html {
+  cursor: none;
+}
+
 body {
   margin: 0;
   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -87,13 +91,18 @@ body {
   letter-spacing: -0.005em;
   line-height: 1.6;
   font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
-  cursor: none;
   transition: background 0.6s ease, color 0.6s ease;
 }
 
 body.is-touch {
   cursor: auto;
   background-attachment: scroll;
+}
+
+body.is-touch *,
+body.is-touch *::before,
+body.is-touch *::after {
+  cursor: auto !important;
 }
 
 body.is-touch::before,
@@ -385,7 +394,7 @@ main {
   top: 0;
   left: 0;
   pointer-events: none;
-  z-index: 5;
+  z-index: 9999;
   transform: translate3d(-50%, -50%, 0);
   transition: opacity 0.25s ease;
 }
