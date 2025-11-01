@@ -84,6 +84,7 @@ if (!enableInteractiveVisuals) {
   if (!supportsFinePointer) {
     document.body.classList.add("is-touch");
   }
+  root?.classList.add("has-native-cursor");
   cursorNova?.classList.add("is-hidden");
   cursorNova?.setAttribute("hidden", "true");
   if (background) {
