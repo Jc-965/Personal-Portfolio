@@ -87,27 +87,11 @@ body {
   letter-spacing: -0.005em;
   line-height: 1.6;
   font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
-  cursor: none;
   transition: background 0.6s ease, color 0.6s ease;
 }
 
-html {
-  cursor: none;
-}
-
-html.has-native-cursor {
-  cursor: auto;
-}
-
-html.has-native-cursor body,
-html.has-native-cursor body *,
-html.has-native-cursor body *::before,
-html.has-native-cursor body *::after {
-  cursor: auto !important;
-}
-
 body.is-touch {
-  cursor: auto;
+  cursor: auto !important;
   background-attachment: scroll;
 }
 
@@ -126,10 +110,26 @@ body.is-touch .background {
   display: none;
 }
 
-body:not(.is-touch),
-body:not(.is-touch) *,
-body:not(.is-touch) *::before,
-body:not(.is-touch) *::after {
+html,
+body {
+  cursor: none !important;
+}
+
+html.has-native-cursor,
+html.has-native-cursor body {
+  cursor: auto !important;
+}
+
+html.has-native-cursor body *,
+html.has-native-cursor body *::before,
+html.has-native-cursor body *::after {
+  cursor: auto !important;
+}
+
+html:not(.has-native-cursor) body:not(.is-touch),
+html:not(.has-native-cursor) body:not(.is-touch) *,
+html:not(.has-native-cursor) body:not(.is-touch) *::before,
+html:not(.has-native-cursor) body:not(.is-touch) *::after {
   cursor: none !important;
 }
 
