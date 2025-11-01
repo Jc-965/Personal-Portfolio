@@ -5,15 +5,68 @@ if (yearEl) {
 
 const navToggle = document.querySelector(".nav__toggle");
 const navMenu = document.querySelector(".nav__menu");
+const navThemeToggle = document.querySelector(".nav__theme");
+const navLinks = Array.from(document.querySelectorAll(".nav__menu a"));
+const progressMarkers = Array.from(
+  document.querySelectorAll(".progress__track li")
+);
+
+const THEME_STORAGE_KEY = "jesse-portfolio-theme";
+
+const getStoredTheme = () => {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    console.error("Unable to read theme from storage", error);
+    return null;
+  }
+};
+
+const storeTheme = (theme) => {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (error) {
+    console.error("Unable to store theme preference", error);
+  }
+};
+
+const applyTheme = (theme) => {
+  if (theme === "light") {
+    document.body.dataset.theme = "light";
+  } else {
+    document.body.dataset.theme = "dark";
+  }
+};
+
+const resolveInitialTheme = () => {
+  const stored = getStoredTheme();
+  if (stored === "light" || stored === "dark") {
+    return stored;
+  }
+  if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return "dark";
+};
+
+const toggleTheme = () => {
+  const next = document.body.dataset.theme === "light" ? "dark" : "light";
+  applyTheme(next);
+  storeTheme(next);
+};
+
+applyTheme(resolveInitialTheme());
+
+navThemeToggle?.addEventListener("click", toggleTheme);
 
 navToggle?.addEventListener("click", () => {
   navMenu?.classList.toggle("is-open");
   navToggle.classList.toggle("is-active");
 });
 
-navMenu?.querySelectorAll("a").forEach((link) => {
+navLinks.forEach((link) => {
   link.addEventListener("click", () => {
-    navMenu.classList.remove("is-open");
+    navMenu?.classList.remove("is-open");
     navToggle?.classList.remove("is-active");
   });
 });
@@ -738,6 +791,93 @@ focusableElements.forEach((element) => {
     cursorNova?.removeAttribute("data-mode");
   });
 });
+
+const sectionRegistry = new Map();
+
+const registerSectionRef = (selector, type, ref) => {
+  if (!selector) return;
+  const target = document.querySelector(selector);
+  if (!target) return;
+  const entry = sectionRegistry.get(target) || { nav: [], dots: [] };
+  entry[type].push(ref);
+  sectionRegistry.set(target, entry);
+};
+
+navLinks.forEach((link) => {
+  registerSectionRef(link.getAttribute("href"), "nav", link);
+});
+
+progressMarkers.forEach((marker) => {
+  const selector = marker.dataset.target;
+  registerSectionRef(selector, "dots", marker);
+  if (!selector) return;
+  const target = document.querySelector(selector);
+  if (!target) return;
+  const scrollToSection = () => {
+    target.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
+  };
+  marker.addEventListener("click", scrollToSection);
+  marker.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      scrollToSection();
+    }
+  });
+});
+
+const sectionEntries = Array.from(sectionRegistry.keys());
+
+const activateSection = (section) => {
+  sectionRegistry.forEach((refs, el) => {
+    const isActive = el === section;
+    refs.nav.forEach((link) =>
+      link.classList.toggle("is-active", isActive && !!link)
+    );
+    refs.dots.forEach((dot) =>
+      dot.classList.toggle("is-active", isActive && !!dot)
+    );
+  });
+};
+
+const updateSectionHighlight = () => {
+  let bestSection = null;
+  let bestScore = -Infinity;
+  const viewportHeight = window.innerHeight || 1;
+
+  sectionEntries.forEach((section) => {
+    const rect = section.getBoundingClientRect();
+    const center = rect.top + rect.height / 2;
+    const distance = Math.abs(center - viewportHeight * 0.38);
+    const score = -distance;
+    if (score > bestScore && rect.bottom > 120 && rect.top < viewportHeight) {
+      bestScore = score;
+      bestSection = section;
+    }
+  });
+
+  if (bestSection) {
+    activateSection(bestSection);
+  }
+};
+
+let isUpdatingSection = false;
+const scheduleSectionUpdate = () => {
+  if (isUpdatingSection) return;
+  isUpdatingSection = true;
+  requestAnimationFrame(() => {
+    updateSectionHighlight();
+    isUpdatingSection = false;
+  });
+};
+
+if (sectionEntries.length) {
+  scheduleSectionUpdate();
+  window.addEventListener("scroll", scheduleSectionUpdate, { passive: true });
+  window.addEventListener("resize", scheduleSectionUpdate);
+}
 
 if ("IntersectionObserver" in window) {
   const observer = new IntersectionObserver(
