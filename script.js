@@ -27,11 +27,30 @@ document.addEventListener("scroll", () => {
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const root = document.documentElement;
+const body = document.body;
 const cursorNova = document.querySelector(".cursor--nova");
+const ensureCursorLayer = () => {
+  if (!body) return null;
+  let layer = document.querySelector(".cursor-layer");
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.className = "cursor-layer";
+    layer.setAttribute("aria-hidden", "true");
+  }
+
+  body.append(layer);
+  return layer;
+};
 const cursorTrailEl = cursorNova?.querySelector(".cursor__trail");
 const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
 const backToTopButton = document.querySelector(".back-to-top");
+
+const cursorLayer = ensureCursorLayer();
+
+if (cursorNova && cursorLayer) {
+  cursorLayer.append(cursorNova);
+}
 
 const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const pointerTarget = { ...pointer };
