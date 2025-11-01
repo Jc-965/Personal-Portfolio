@@ -98,7 +98,7 @@ body {
   .btn,
   [data-cursor],
   [role="button"] {
-    cursor: none;
+    cursor: inherit !important;
   }
 }
 
@@ -353,6 +353,13 @@ main {
   opacity: 0.58;
 }
 
+.cursor-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483646;
+}
+
 .cursor {
   position: fixed;
   top: 0;
@@ -369,7 +376,7 @@ main {
   display: grid;
   place-items: center;
   isolation: isolate;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   filter: drop-shadow(0 14px 32px rgba(16, 24, 58, 0.5));
   transition: opacity 0.25s ease, filter 0.35s ease;
 }
