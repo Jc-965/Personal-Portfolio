@@ -43,6 +43,10 @@ const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
 const backToTopButton = document.querySelector(".back-to-top");
 
+if (cursorNova && cursorNova.nextSibling && document.body) {
+  document.body.append(cursorNova);
+}
+
 const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const pointerTarget = { ...pointer };
 let lastPointer = { ...pointer };
@@ -90,6 +94,8 @@ if (!enableInteractiveVisuals) {
   if (background) {
     background.classList.add("is-static");
   }
+} else {
+  root?.classList.remove("has-native-cursor");
 }
 
 const applyPointerStyles = () => {
