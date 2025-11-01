@@ -110,11 +110,6 @@ body.is-touch .background {
   display: none;
 }
 
-html,
-body {
-  cursor: none !important;
-}
-
 html.has-native-cursor,
 html.has-native-cursor body {
   cursor: auto !important;
@@ -126,11 +121,14 @@ html.has-native-cursor body *::after {
   cursor: auto !important;
 }
 
-html:not(.has-native-cursor) body:not(.is-touch),
+html:not(.has-native-cursor) body:not(.is-touch) {
+  cursor: none !important;
+}
+
 html:not(.has-native-cursor) body:not(.is-touch) *,
 html:not(.has-native-cursor) body:not(.is-touch) *::before,
 html:not(.has-native-cursor) body:not(.is-touch) *::after {
-  cursor: none !important;
+  cursor: inherit !important;
 }
 
 body.is-zoomed .background {
@@ -143,7 +141,7 @@ body.is-zoomed .background {
   .btn,
   [data-cursor],
   [role="button"] {
-    cursor: none;
+    cursor: inherit !important;
   }
 }
 
@@ -400,6 +398,13 @@ main {
 
 .background.is-active .background__layer--gradient {
   opacity: 0.58;
+}
+
+.cursor-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483646;
 }
 
 .cursor {
