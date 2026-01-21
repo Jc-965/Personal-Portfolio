@@ -1860,25 +1860,19 @@ section {
   flex-direction: column;
   gap: 18px;
   background:
-    linear-gradient(
-      135deg,
-      rgba(var(--mosaic-accent-rgb), 0.16),
-      transparent 58%
-    ),
     radial-gradient(
-      240px circle at 92% 0%,
-      rgba(var(--mosaic-accent-rgb), 0.2),
-      transparent 70%
+      260px circle at 12% 0%,
+      rgba(var(--mosaic-accent-rgb), 0.18),
+      transparent 68%
     ),
     linear-gradient(
       165deg,
-      rgba(18, 22, 44, 0.96),
-      rgba(12, 16, 32, 0.92) 60%,
-      rgba(9, 12, 26, 0.9)
+      rgba(16, 18, 32, 0.96),
+      rgba(9, 11, 24, 0.94)
     );
-  border: 1px solid rgba(var(--mosaic-accent-rgb), 0.22);
+  border: 1px solid rgba(var(--mosaic-accent-rgb), 0.24);
   box-shadow:
-    0 30px 70px -48px rgba(5, 8, 24, 0.88),
+    0 28px 70px -52px rgba(5, 8, 24, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1916,18 +1910,18 @@ section {
 }
 
 .mosaic__card--arcadia {
-  --mosaic-accent: var(--accent-teal);
-  --mosaic-accent-rgb: 45, 212, 191;
+  --mosaic-accent: #4f86d9;
+  --mosaic-accent-rgb: 79, 134, 217;
 }
 
 .mosaic__card--eagle {
-  --mosaic-accent: var(--accent-amber);
-  --mosaic-accent-rgb: 251, 191, 36;
+  --mosaic-accent: #c8734a;
+  --mosaic-accent-rgb: 200, 115, 74;
 }
 
 .mosaic__card--clarinet {
-  --mosaic-accent: var(--accent-coral);
-  --mosaic-accent-rgb: 255, 139, 167;
+  --mosaic-accent: #5bb5a2;
+  --mosaic-accent-rgb: 91, 181, 162;
 }
 
 .mosaic__card:hover {
@@ -2145,28 +2139,28 @@ section {
 }
 
 .skills__group--languages {
-  --skills-accent: var(--accent-blue);
-  --skills-accent-rgb: 56, 189, 248;
+  --skills-accent: #5d7dd6;
+  --skills-accent-rgb: 93, 125, 214;
 }
 
 .skills__group--frameworks {
-  --skills-accent: var(--accent-teal);
-  --skills-accent-rgb: 45, 212, 191;
+  --skills-accent: #3a9b95;
+  --skills-accent-rgb: 58, 155, 149;
 }
 
 .skills__group--data {
-  --skills-accent: var(--accent-amber);
-  --skills-accent-rgb: 251, 191, 36;
+  --skills-accent: #c78649;
+  --skills-accent-rgb: 199, 134, 73;
 }
 
 .skills__group--systems {
-  --skills-accent: var(--accent-slate);
-  --skills-accent-rgb: 148, 163, 184;
+  --skills-accent: #7e8aa5;
+  --skills-accent-rgb: 126, 138, 165;
 }
 
 .skills__group--concepts {
-  --skills-accent: var(--accent-coral);
-  --skills-accent-rgb: 255, 139, 167;
+  --skills-accent: #a26aa2;
+  --skills-accent-rgb: 162, 106, 162;
 }
 
 .skills__group:hover {
