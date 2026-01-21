@@ -32,7 +32,17 @@ navToggle?.addEventListener("click", () => {
 });
 
 navMenu?.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", closeNavMenu);
+  link.addEventListener("click", (event) => {
+    const targetId = link.getAttribute("href");
+    if (targetId === "#top") {
+      event.preventDefault();
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      });
+    }
+    closeNavMenu();
+  });
 });
 
 document.addEventListener("scroll", () => {
