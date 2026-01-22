@@ -119,6 +119,25 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 const root = document.documentElement;
 const cursorNova = document.querySelector(".cursor--nova");
 const cursorTrailEl = cursorNova?.querySelector(".cursor__trail");
+const cursorMedia = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+const lockCursor = () => {
+  if (!cursorMedia.matches) {
+    return;
+  }
+  document.documentElement.classList.add("cursor-lock");
+  document.documentElement.style.setProperty("cursor", "none", "important");
+  if (document.body) {
+    document.body.style.setProperty("cursor", "none", "important");
+  }
+};
+
+const enforceCursorTarget = (target) => {
+  if (!cursorMedia.matches || !target || !target.style) {
+    return;
+  }
+  target.style.setProperty("cursor", "none", "important");
+};
 const background = document.querySelector(".background");
 const backgroundLayers = document.querySelectorAll(".background__layer");
 const backToTopButton = document.querySelector(".back-to-top");
@@ -225,6 +244,7 @@ document.addEventListener("pointermove", (event) => {
   pointerTarget.y = event.clientY;
   pointerInViewport = true;
   enableCursor();
+  lockCursor();
 });
 
 document.addEventListener("pointerenter", (event) => {
@@ -236,6 +256,7 @@ document.addEventListener("pointerenter", (event) => {
   trailPoint.y = pointer.y;
   pointerInViewport = true;
   enableCursor();
+  lockCursor();
 });
 
 document.addEventListener("pointerleave", () => {
@@ -261,6 +282,27 @@ document.addEventListener("pointerleave", () => {
 });
 
 applyPointerStyles();
+lockCursor();
+window.addEventListener("focus", lockCursor);
+document.addEventListener("mouseover", (event) => {
+  lockCursor();
+  enforceCursorTarget(event.target);
+}, true);
+document.addEventListener("mousemove", lockCursor, { passive: true });
+document.addEventListener("pointerover", (event) => {
+  lockCursor();
+  enforceCursorTarget(event.target);
+}, { passive: true });
+document.addEventListener("focusin", (event) => {
+  lockCursor();
+  enforceCursorTarget(event.target);
+});
+document.addEventListener("pointerdown", lockCursor, { passive: true });
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    lockCursor();
+  }
+});
 
 // ============================================================================
 // ANIMATED BACKGROUND CANVAS
