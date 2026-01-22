@@ -206,6 +206,10 @@ applyPointerStyles();
 // ANIMATED BACKGROUND CANVAS
 // ============================================================================
 
+// Detect low-end devices for performance optimization
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isLowEnd = isMobile || navigator.hardwareConcurrency <= 4 || window.innerWidth < 768;
+
 if (background && !prefersReducedMotion) {
   background.classList.add("is-ready");
 
@@ -215,11 +219,11 @@ if (background && !prefersReducedMotion) {
   const scene = {
     width: window.innerWidth,
     height: window.innerHeight,
-    dpr: Math.min(window.devicePixelRatio || 1, 2.2),
+    dpr: isLowEnd ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2.2),
   };
 
   const grid = {
-    spacing: 34,
+    spacing: isLowEnd ? 42 : 34,
     offsetX: 0,
     offsetY: 0,
     driftX: 0,
@@ -230,6 +234,9 @@ if (background && !prefersReducedMotion) {
   const edges = [];
   const impulses = [];
   let canvasFrame;
+  let lastFrameTime = 0;
+  const targetFPS = isLowEnd ? 30 : 60;
+  const frameInterval = 1000 / targetFPS;
 
   // Calculate distance from point to line segment
   const distanceToSegment = (px, py, ax, ay, bx, by) => {
@@ -269,8 +276,13 @@ if (background && !prefersReducedMotion) {
     edges.length = 0;
 
     const branchSet = new Set();
-    const treeCount = Math.max(6, Math.round(scene.width / 220));
-    const nodesPerTree = Math.round(clamp(scene.height / 90, 14, 30));
+    // Reduce node count significantly on low-end devices
+    const treeCount = isLowEnd
+      ? Math.max(3, Math.round(scene.width / 400))
+      : Math.max(6, Math.round(scene.width / 220));
+    const nodesPerTree = isLowEnd
+      ? Math.round(clamp(scene.height / 160, 6, 12))
+      : Math.round(clamp(scene.height / 90, 14, 30));
     const treeColumns = [];
 
     // Create edge connection between nodes
@@ -367,8 +379,10 @@ if (background && !prefersReducedMotion) {
     }
   };
 
-  // Add ripple impulse effect at coordinates
+  // Add ripple impulse effect at coordinates (skip on low-end)
   const addImpulse = (x, y, power = 1.35) => {
+    if (isLowEnd) return; // Skip impulses on low-end devices
+
     impulses.push({
       x,
       y,
@@ -387,6 +401,16 @@ if (background && !prefersReducedMotion) {
   const animateBackground = (now) => {
     if (!ctx) return;
 
+    // Frame throttling for low-end devices
+    if (isLowEnd) {
+      const elapsed = now - lastFrameTime;
+      if (elapsed < frameInterval) {
+        canvasFrame = requestAnimationFrame(animateBackground);
+        return;
+      }
+      lastFrameTime = now - (elapsed % frameInterval);
+    }
+
     // Clear canvas
     ctx.clearRect(0, 0, scene.width, scene.height);
 
@@ -404,27 +428,28 @@ if (background && !prefersReducedMotion) {
     const influenceRadius = pointerInViewport ? 280 + velocity * 0.8 : 170;
 
     // Update grid drift and parallax
-    grid.spacing = clamp(scene.width / 44, 26, 34);
+    grid.spacing = isLowEnd ? clamp(scene.width / 28, 36, 50) : clamp(scene.width / 44, 26, 34);
     grid.driftX += 0.032 + Math.sin(time * 0.6) * 0.007;
     grid.driftY += 0.028 + Math.cos(time * 0.5) * 0.007;
 
-    const parallaxX = pointerInViewport ? (pointer.x - scene.width / 2) * 0.1 : 0;
-    const parallaxY = pointerInViewport ? (pointer.y - scene.height / 2) * 0.1 : 0;
+    const parallaxX = pointerInViewport && !isLowEnd ? (pointer.x - scene.width / 2) * 0.1 : 0;
+    const parallaxY = pointerInViewport && !isLowEnd ? (pointer.y - scene.height / 2) * 0.1 : 0;
     const offsetX = (grid.offsetX + grid.driftX + parallaxX) % grid.spacing;
     const offsetY = (grid.offsetY + grid.driftY + parallaxY) % grid.spacing;
 
     ctx.save();
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = isLowEnd ? 0.7 : 0.9;
 
-    const warpStepY = grid.spacing / 2;
-    const warpStepX = grid.spacing / 2;
-    const gravityRadius = pointerInViewport ? 320 + velocity * 0.6 : 0;
+    // Larger steps on low-end devices for fewer line segments
+    const warpStepY = isLowEnd ? grid.spacing : grid.spacing / 2;
+    const warpStepX = isLowEnd ? grid.spacing : grid.spacing / 2;
+    const gravityRadius = pointerInViewport && !isLowEnd ? 320 + velocity * 0.6 : 0;
 
     // Draw vertical grid lines with distortion
     for (let x = -grid.spacing; x < scene.width + grid.spacing; x += grid.spacing) {
       const baseX = x + offsetX;
-      const hueShift = 208 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 48 : 0);
-      const alpha = 0.14 + pointerFactor * 0.28 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.28 : 0);
+      const hueShift = 208 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 48 : 0);
+      const alpha = isLowEnd ? 0.16 : 0.14 + pointerFactor * 0.28 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.28 : 0);
 
       ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 78%, 58%, ${alpha.toFixed(3)})`;
       ctx.lineWidth = 0.8;
@@ -436,8 +461,8 @@ if (background && !prefersReducedMotion) {
         let drawX = baseX;
         let drawY = baseY;
 
-        // Apply pointer gravity effect
-        if (pointerInViewport) {
+        // Apply pointer gravity effect (skip on low-end)
+        if (pointerInViewport && !isLowEnd) {
           const dx = pointer.x - baseX;
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
@@ -446,18 +471,20 @@ if (background && !prefersReducedMotion) {
           drawY += dy * influence * 0.04;
         }
 
-        // Apply impulse ripple effects
-        impulses.forEach((impulse) => {
-          if (!impulse.radius) return;
-          const idx = drawX - impulse.x;
-          const idy = drawY - impulse.y;
-          const dist = Math.hypot(idx, idy);
-          if (dist < impulse.radius) {
-            const strength = (1 - dist / impulse.radius) * impulse.power;
-            const normX = idx / (dist || 1);
-            drawX += normX * strength * 22;
-          }
-        });
+        // Apply impulse ripple effects (skip on low-end)
+        if (!isLowEnd) {
+          impulses.forEach((impulse) => {
+            if (!impulse.radius) return;
+            const idx = drawX - impulse.x;
+            const idy = drawY - impulse.y;
+            const dist = Math.hypot(idx, idy);
+            if (dist < impulse.radius) {
+              const strength = (1 - dist / impulse.radius) * impulse.power;
+              const normX = idx / (dist || 1);
+              drawX += normX * strength * 22;
+            }
+          });
+        }
 
         s === 0 ? ctx.moveTo(drawX, drawY) : ctx.lineTo(drawX, drawY);
       }
@@ -467,8 +494,8 @@ if (background && !prefersReducedMotion) {
     // Draw horizontal grid lines with distortion
     for (let y = -grid.spacing; y < scene.height + grid.spacing; y += grid.spacing) {
       const baseY = y + offsetY;
-      const hueShift = 200 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 42 : 0);
-      const alpha = 0.13 + pointerFactor * 0.26 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.26 : 0);
+      const hueShift = 200 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 42 : 0);
+      const alpha = isLowEnd ? 0.15 : 0.13 + pointerFactor * 0.26 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.26 : 0);
 
       ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 76%, 56%, ${alpha.toFixed(3)})`;
       ctx.lineWidth = 0.78;
@@ -480,8 +507,8 @@ if (background && !prefersReducedMotion) {
         let drawX = baseX;
         let drawY = baseY;
 
-        // Apply pointer gravity effect
-        if (pointerInViewport) {
+        // Apply pointer gravity effect (skip on low-end)
+        if (pointerInViewport && !isLowEnd) {
           const dx = pointer.x - baseX;
           const dy = pointer.y - baseY;
           const distSq = dx * dx + dy * dy;
@@ -490,18 +517,20 @@ if (background && !prefersReducedMotion) {
           drawX += dx * influence * 0.04;
         }
 
-        // Apply impulse ripple effects
-        impulses.forEach((impulse) => {
-          if (!impulse.radius) return;
-          const idx = drawX - impulse.x;
-          const idy = drawY - impulse.y;
-          const dist = Math.hypot(idx, idy);
-          if (dist < impulse.radius) {
-            const strength = (1 - dist / impulse.radius) * impulse.power;
-            const normY = idy / (dist || 1);
-            drawY += normY * strength * 22;
-          }
-        });
+        // Apply impulse ripple effects (skip on low-end)
+        if (!isLowEnd) {
+          impulses.forEach((impulse) => {
+            if (!impulse.radius) return;
+            const idx = drawX - impulse.x;
+            const idy = drawY - impulse.y;
+            const dist = Math.hypot(idx, idy);
+            if (dist < impulse.radius) {
+              const strength = (1 - dist / impulse.radius) * impulse.power;
+              const normY = idy / (dist || 1);
+              drawY += normY * strength * 22;
+            }
+          });
+        }
 
         s === 0 ? ctx.moveTo(drawX, drawY) : ctx.lineTo(drawX, drawY);
       }
@@ -524,27 +553,29 @@ if (background && !prefersReducedMotion) {
       }
     }
 
-    // Apply node separation forces
-    for (let i = 0; i < nodes.length; i += 1) {
-      const nodeA = nodes[i];
-      for (let j = i + 1; j < nodes.length; j += 1) {
-        const nodeB = nodes[j];
-        const dx = nodeB.x - nodeA.x;
-        const dy = nodeB.y - nodeA.y;
-        const distSq = dx * dx + dy * dy;
-        const separationRadius = 46;
+    // Apply node separation forces (skip on low-end devices for performance)
+    if (!isLowEnd) {
+      for (let i = 0; i < nodes.length; i += 1) {
+        const nodeA = nodes[i];
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const nodeB = nodes[j];
+          const dx = nodeB.x - nodeA.x;
+          const dy = nodeB.y - nodeA.y;
+          const distSq = dx * dx + dy * dy;
+          const separationRadius = 46;
 
-        if (distSq === 0 || distSq > separationRadius * separationRadius) continue;
+          if (distSq === 0 || distSq > separationRadius * separationRadius) continue;
 
-        const dist = Math.sqrt(distSq);
-        const push = ((separationRadius - dist) / separationRadius) * 0.42;
-        const nx = dx / (dist || 1);
-        const ny = dy / (dist || 1);
+          const dist = Math.sqrt(distSq);
+          const push = ((separationRadius - dist) / separationRadius) * 0.42;
+          const nx = dx / (dist || 1);
+          const ny = dy / (dist || 1);
 
-        nodeA.vx -= nx * push;
-        nodeA.vy -= ny * push;
-        nodeB.vx += nx * push;
-        nodeB.vy += ny * push;
+          nodeA.vx -= nx * push;
+          nodeA.vy -= ny * push;
+          nodeB.vx += nx * push;
+          nodeB.vy += ny * push;
+        }
       }
     }
 
@@ -566,8 +597,8 @@ if (background && !prefersReducedMotion) {
       node.vx += (node.baseX - node.x) * 0.016 + swayX;
       node.vy += (node.baseY - node.y) * 0.014 + swayY;
 
-      // Pointer repulsion effect
-      if (pointerInViewport) {
+      // Pointer repulsion effect (simplified on low-end)
+      if (pointerInViewport && !isLowEnd) {
         const dx = pointer.x - node.x;
         const dy = pointer.y - node.y;
         const distance = Math.hypot(dx, dy) || 0.001;
@@ -580,20 +611,22 @@ if (background && !prefersReducedMotion) {
         }
       }
 
-      // Impulse wave effects
-      impulses.forEach((impulse) => {
-        if (!impulse.radius) return;
-        const dx = node.x - impulse.x;
-        const dy = node.y - impulse.y;
-        const distance = Math.hypot(dx, dy) || 0.001;
+      // Impulse wave effects (skip on low-end)
+      if (!isLowEnd) {
+        impulses.forEach((impulse) => {
+          if (!impulse.radius) return;
+          const dx = node.x - impulse.x;
+          const dy = node.y - impulse.y;
+          const distance = Math.hypot(dx, dy) || 0.001;
 
-        if (distance < impulse.radius) {
-          const wave = (1 - distance / impulse.radius) * impulse.power;
-          node.vx += (dx / distance) * wave * 1.55;
-          node.vy += (dy / distance) * wave * 1.55;
-          node.halo = Math.min(1, node.halo + wave * 1.1 * impulse.fade);
-        }
-      });
+          if (distance < impulse.radius) {
+            const wave = (1 - distance / impulse.radius) * impulse.power;
+            node.vx += (dx / distance) * wave * 1.55;
+            node.vy += (dy / distance) * wave * 1.55;
+            node.halo = Math.min(1, node.halo + wave * 1.1 * impulse.fade);
+          }
+        });
+      }
 
       // Apply velocity damping and update position
       node.vx *= 0.9;
@@ -613,65 +646,81 @@ if (background && !prefersReducedMotion) {
       const to = nodes[toId];
       if (!from || !to) return;
 
-      // Calculate proximity to pointer
-      const { distance: pointerDistance } = pointerInViewport
-        ? distanceToSegment(pointer.x, pointer.y, from.x, from.y, to.x, to.y)
-        : { distance: Infinity };
+      let highlight = 0;
 
-      // Calculate highlight intensity
-      let highlight = Math.max(from.halo, to.halo) * 0.78;
+      if (isLowEnd) {
+        // Simplified highlight calculation for low-end devices
+        highlight = Math.max(from.halo, to.halo) * 0.5;
+      } else {
+        // Calculate proximity to pointer
+        const { distance: pointerDistance } = pointerInViewport
+          ? distanceToSegment(pointer.x, pointer.y, from.x, from.y, to.x, to.y)
+          : { distance: Infinity };
 
-      if (pointerInViewport && pointerDistance < 160) {
-        highlight = Math.max(highlight, (1 - pointerDistance / 160) * (0.7 + pointerFactor));
-      }
+        // Calculate highlight intensity
+        highlight = Math.max(from.halo, to.halo) * 0.78;
 
-      // Add impulse highlights
-      impulses.forEach((impulse) => {
-        if (!impulse.radius) return;
-        const { distance } = distanceToSegment(impulse.x, impulse.y, from.x, from.y, to.x, to.y);
-        if (distance < impulse.radius) {
-          highlight = Math.max(highlight, (1 - distance / impulse.radius) * impulse.fade * 0.4);
+        if (pointerInViewport && pointerDistance < 160) {
+          highlight = Math.max(highlight, (1 - pointerDistance / 160) * (0.7 + pointerFactor));
         }
-      });
+
+        // Add impulse highlights
+        impulses.forEach((impulse) => {
+          if (!impulse.radius) return;
+          const { distance } = distanceToSegment(impulse.x, impulse.y, from.x, from.y, to.x, to.y);
+          if (distance < impulse.radius) {
+            highlight = Math.max(highlight, (1 - distance / impulse.radius) * impulse.fade * 0.4);
+          }
+        });
+      }
 
       // Draw edge with dynamic color
       const hue = 208 + highlight * 100;
-      const alpha = 0.16 + highlight * 0.42;
+      const alpha = isLowEnd ? 0.2 : 0.16 + highlight * 0.42;
       ctx.strokeStyle = `hsla(${hue}, 88%, ${42 + highlight * 18}%, ${alpha})`;
-      ctx.lineWidth = 0.45 + highlight * 1.3;
+      ctx.lineWidth = isLowEnd ? 0.6 : 0.45 + highlight * 1.3;
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
     });
 
-    // Draw nodes with glow effects
+    // Draw nodes with glow effects (simplified for low-end devices)
     nodes.forEach((node) => {
       const baseRadius = node.radius * (0.78 + node.depth * 0.26);
-      const glowRadius = baseRadius * (1.9 + node.halo * 2.6);
 
-      // Draw outer glow
-      const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
-      gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 92%, 70%, ${0.34 + node.halo * 0.24})`);
-      gradientNode.addColorStop(0.65, `hsla(${212 + node.halo * 120}, 88%, 60%, ${0.24 + node.halo * 0.22})`);
-      gradientNode.addColorStop(1, "rgba(6, 18, 48, 0)");
-      ctx.fillStyle = gradientNode;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
-      ctx.fill();
+      if (isLowEnd) {
+        // Simplified rendering for low-end devices - no gradients
+        ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, baseRadius * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const glowRadius = baseRadius * (1.9 + node.halo * 2.6);
 
-      // Draw node core
-      ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
-      ctx.fill();
+        // Draw outer glow
+        const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
+        gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 92%, 70%, ${0.34 + node.halo * 0.24})`);
+        gradientNode.addColorStop(0.65, `hsla(${212 + node.halo * 120}, 88%, 60%, ${0.24 + node.halo * 0.22})`);
+        gradientNode.addColorStop(1, "rgba(6, 18, 48, 0)");
+        ctx.fillStyle = gradientNode;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Draw node outline
-      ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 92%, 82%, ${0.22 + node.halo * 0.28})`;
-      ctx.lineWidth = 0.45;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, baseRadius + 1.6 + node.halo * 3.4, 0, Math.PI * 2);
-      ctx.stroke();
+        // Draw node core
+        ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw node outline
+        ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 92%, 82%, ${0.22 + node.halo * 0.28})`;
+        ctx.lineWidth = 0.45;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, baseRadius + 1.6 + node.halo * 3.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     });
 
     canvasFrame = requestAnimationFrame(animateBackground);
