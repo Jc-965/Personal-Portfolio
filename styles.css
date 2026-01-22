@@ -72,12 +72,15 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  a,
-  button,
-  .btn,
-  [data-cursor],
-  [role="button"] {
-    cursor: none;
+  html,
+  body {
+    cursor: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    cursor: none !important;
   }
 }
 
@@ -766,6 +769,12 @@ body[data-cursor="interactive"] .cursor--nova {
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav:hover {
+  border-color: rgba(129, 140, 248, 0.25);
+  box-shadow: var(--shadow-soft), 0 0 20px rgba(129, 140, 248, 0.08);
 }
 
 .nav__brand {
@@ -788,7 +797,7 @@ body[data-cursor="interactive"] .cursor--nova {
   letter-spacing: 0.01em;
   position: relative;
   padding-bottom: 4px;
-  transition: color 0.25s ease;
+  transition: color 0.25s ease, transform 0.15s ease, text-shadow 0.25s ease;
 }
 
 .nav__menu a::after {
@@ -799,7 +808,7 @@ body[data-cursor="interactive"] .cursor--nova {
   height: 2px;
   width: 0;
   background: var(--accent-active);
-  transition: width 0.25s ease;
+  transition: width 0.25s ease, box-shadow 0.25s ease;
 }
 
 .nav__menu a:hover,
@@ -810,6 +819,20 @@ body[data-cursor="interactive"] .cursor--nova {
 .nav__menu a:hover::after,
 .nav__menu a:focus-visible::after {
   width: 100%;
+}
+
+.nav__menu a.is-active {
+  color: var(--text-primary);
+  text-shadow: 0 0 12px rgba(129, 140, 248, 0.4);
+}
+
+.nav__menu a.is-active::after {
+  width: 100%;
+  box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
+}
+
+.nav__menu a.is-clicking {
+  transform: scale(0.95);
 }
 
 .nav__toggle {
@@ -2518,7 +2541,7 @@ section {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
-  margin: 4px 0 0;
+  margin: 16px 0 0;
   padding: 0;
   list-style: none;
   position: relative;
@@ -2532,6 +2555,7 @@ section {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-tertiary);
+  margin-bottom: 4px;
 }
 
 .project-card__tech li {

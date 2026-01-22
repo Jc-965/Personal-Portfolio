@@ -34,6 +34,11 @@ navToggle?.addEventListener("click", () => {
 navMenu?.querySelectorAll("a").forEach((link) => {
   link.addEventListener("click", (event) => {
     const targetId = link.getAttribute("href");
+
+    // Add click animation
+    link.classList.add("is-clicking");
+    setTimeout(() => link.classList.remove("is-clicking"), 150);
+
     if (targetId === "#top") {
       event.preventDefault();
       window.scrollTo({
@@ -44,6 +49,61 @@ navMenu?.querySelectorAll("a").forEach((link) => {
     closeNavMenu();
   });
 });
+
+// Active section tracking
+const navLinks = navMenu?.querySelectorAll("a");
+const sections = document.querySelectorAll("section[id]");
+
+const updateActiveNav = () => {
+  if (!navLinks || !sections.length) return;
+
+  const scrollY = window.scrollY;
+  const windowHeight = window.innerHeight;
+
+  // Find which section is most in view
+  let activeSection = null;
+  let maxVisibility = 0;
+
+  sections.forEach((section) => {
+    const rect = section.getBoundingClientRect();
+    const sectionTop = rect.top + scrollY;
+    const sectionHeight = rect.height;
+
+    // Calculate how much of the section is visible in the viewport
+    const visibleTop = Math.max(scrollY, sectionTop);
+    const visibleBottom = Math.min(scrollY + windowHeight, sectionTop + sectionHeight);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+    // Weight sections near the top of viewport more heavily
+    const topWeight = 1 - Math.min(Math.abs(rect.top) / windowHeight, 1) * 0.5;
+    const visibility = visibleHeight * topWeight;
+
+    if (visibility > maxVisibility) {
+      maxVisibility = visibility;
+      activeSection = section;
+    }
+  });
+
+  // Update nav link active states
+  navLinks.forEach((link) => {
+    const href = link.getAttribute("href");
+    const isActive = activeSection && href === `#${activeSection.id}`;
+    link.classList.toggle("is-active", isActive);
+  });
+};
+
+// Throttle scroll updates for performance
+let scrollTimeout;
+window.addEventListener("scroll", () => {
+  if (scrollTimeout) return;
+  scrollTimeout = setTimeout(() => {
+    updateActiveNav();
+    scrollTimeout = null;
+  }, 50);
+}, { passive: true });
+
+// Initial update
+updateActiveNav();
 
 document.addEventListener("scroll", () => {
   if (!navMenu || window.innerWidth > 960) return;
