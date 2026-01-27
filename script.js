@@ -949,16 +949,8 @@ if ("IntersectionObserver" in window && accentSections.length) {
 // COLLABORATIVE CONSTELLATION
 // ============================================================================
 
-// Firebase configuration - Replace with your own Firebase project config
-const firebaseConfig = {
-  apiKey: "AIzaSyBBRKfUkp3GymTRNxnJyN0u81Xog_CShH8",
-  authDomain: "personal-portfolio-8ef5f.firebaseapp.com",
-  projectId: "personal-portfolio-8ef5f",
-  storageBucket: "personal-portfolio-8ef5f.firebasestorage.app",
-  messagingSenderId: "1004562396839",
-  appId: "1:1004562396839:web:a3cda9c9946651d3188d82",
-  measurementId: "G-2H1LXZQMS7"
-};
+// Firebase configuration is loaded from firebase-config.js (not committed to git)
+// If firebaseConfig is not defined, constellation will use local storage fallback
 
 const initConstellation = () => {
   const canvas = document.getElementById('constellation-canvas');
@@ -1082,7 +1074,11 @@ const initConstellation = () => {
 
   // Initialize Firebase if available
   const initFirebase = () => {
-    if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    // Check if Firebase SDK and config are available
+    if (typeof firebase !== 'undefined' &&
+        typeof firebaseConfig !== 'undefined' &&
+        firebaseConfig.apiKey &&
+        firebaseConfig.apiKey !== "YOUR_API_KEY") {
       try {
         firebase.initializeApp(firebaseConfig);
         database = firebase.database();
@@ -1097,11 +1093,11 @@ const initConstellation = () => {
 
         console.log('Firebase connected for constellation');
       } catch (e) {
-        console.log('Firebase not configured, using local mode');
+        console.log('Firebase error:', e.message, '- using local mode');
         loadLocalStars();
       }
     } else {
-      console.log('Firebase not available, using local demo mode');
+      console.log('Firebase config not found - using local demo mode');
       loadLocalStars();
     }
   };
