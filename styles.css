@@ -74,7 +74,7 @@ a, button, input, textarea, select, label, img, svg, canvas,
 
 body {
   margin: 0;
-  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   font-weight: 400;
   background-color: #000000;
@@ -204,9 +204,9 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: "Sora", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
@@ -1311,24 +1311,49 @@ section {
 
 .timeline {
   position: relative;
-  padding-left: 32px;
+  padding-left: 40px;
   display: grid;
   gap: 48px;
-  --timeline-accent-rgb: 45, 212, 191;
+  --timeline-accent-rgb: 0, 255, 255;
 }
 
+/* Main timeline line with glow */
 .timeline::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 10px;
+  left: 12px;
   width: 2px;
   height: 100%;
   background: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0.32),
-    rgba(99, 102, 241, 0)
+    rgba(0, 255, 255, 0.8) 0%,
+    rgba(0, 255, 255, 0.5) 50%,
+    rgba(0, 255, 255, 0.2) 100%
   );
+  box-shadow:
+    0 0 10px rgba(0, 255, 255, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.3),
+    0 0 30px rgba(0, 255, 255, 0.1);
+}
+
+/* Animated pulse effect on timeline */
+.timeline::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 6px;
+  height: 20px;
+  background: rgba(0, 255, 255, 0.8);
+  border-radius: 3px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+  animation: timeline-pulse 3s ease-in-out infinite;
+}
+
+@keyframes timeline-pulse {
+  0%, 100% { top: 0; opacity: 1; }
+  50% { top: calc(100% - 20px); opacity: 0.5; }
 }
 
 .timeline__item {
@@ -1365,10 +1390,23 @@ section {
   border-radius: inherit;
   background: radial-gradient(
     360px circle at 0% 10%,
-    rgba(109, 111, 248, 0.24),
+    rgba(0, 255, 255, 0.12),
     transparent 75%
   );
-  opacity: 0.55;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Tech corner accents for timeline cards */
+.timeline__item::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  border-top: 2px solid rgba(0, 255, 255, 0.4);
+  border-right: 2px solid rgba(0, 255, 255, 0.4);
   pointer-events: none;
 }
 
@@ -1384,13 +1422,30 @@ section {
 
 .timeline__marker {
   position: absolute;
-  left: -32px;
+  left: -40px;
   top: 36px;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: var(--accent-active);
-  box-shadow: 0 0 0 6px rgba(109, 111, 248, 0.16);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid var(--accent-cyber);
+  box-shadow:
+    0 0 15px rgba(0, 255, 255, 0.6),
+    0 0 30px rgba(0, 255, 255, 0.3),
+    inset 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.timeline__marker::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--accent-cyber);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-cyber);
 }
 
 .timeline__content {
@@ -1436,14 +1491,16 @@ section {
 }
 
 .timeline__stack li {
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: rgba(12, 16, 32, 0.7);
-  border: 1px solid rgba(var(--timeline-accent-rgb), 0.3);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: rgba(0, 10, 20, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--accent-cyber);
   font-weight: 500;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
 }
 
 .timeline__tiles {
@@ -1459,22 +1516,33 @@ section {
   gap: 12px;
   align-items: center;
   padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(10, 14, 30, 0.58);
-  border: 1px solid rgba(var(--timeline-accent-rgb), 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  background: rgba(0, 10, 20, 0.7);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(0, 255, 255, 0.08),
+    0 0 15px rgba(0, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.timeline__tile:hover {
+  border-color: rgba(0, 255, 255, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(0, 255, 255, 0.12),
+    0 0 25px rgba(0, 255, 255, 0.1);
+  transform: translateX(4px);
 }
 
 .timeline__tile-icon {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
-  background: rgba(var(--timeline-accent-rgb), 0.18);
-  border: 1px solid rgba(var(--timeline-accent-rgb), 0.4);
-  color: var(--accent-active);
-  box-shadow: 0 10px 22px -16px rgba(var(--timeline-accent-rgb), 0.6);
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: var(--accent-cyber);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
 }
 
 .timeline__tile-icon svg {
