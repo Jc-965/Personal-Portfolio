@@ -516,12 +516,12 @@ if (background && !prefersReducedMotion) {
     // Clear canvas
     ctx.clearRect(0, 0, scene.width, scene.height);
 
-    // Draw gradient background
+    // Draw gradient background - deep black techy
     const gradient = ctx.createLinearGradient(0, 0, scene.width, scene.height);
-    gradient.addColorStop(0, "#020218");
-    gradient.addColorStop(0.4, "#050523");
-    gradient.addColorStop(0.75, "#03031a");
-    gradient.addColorStop(1, "#010114");
+    gradient.addColorStop(0, "#000000");
+    gradient.addColorStop(0.4, "#000508");
+    gradient.addColorStop(0.75, "#000204");
+    gradient.addColorStop(1, "#000000");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, scene.width, scene.height);
 
@@ -550,10 +550,10 @@ if (background && !prefersReducedMotion) {
     // Draw vertical grid lines with distortion
     for (let x = -grid.spacing; x < scene.width + grid.spacing; x += grid.spacing) {
       const baseX = x + offsetX;
-      const hueShift = 208 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 48 : 0);
-      const alpha = isLowEnd ? 0.16 : 0.14 + pointerFactor * 0.28 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.28 : 0);
+      const hueShift = 180 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.x - baseX) / 420, 0, 1) * 30 : 0);
+      const alpha = isLowEnd ? 0.12 : 0.1 + pointerFactor * 0.2 + (pointerInViewport ? clamp(1 - Math.abs(pointer.x - baseX) / 360, 0, 1) * 0.2 : 0);
 
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 78%, 58%, ${alpha.toFixed(3)})`;
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 100%, 50%, ${alpha.toFixed(3)})`;
       ctx.lineWidth = 0.8;
       ctx.beginPath();
 
@@ -596,10 +596,10 @@ if (background && !prefersReducedMotion) {
     // Draw horizontal grid lines with distortion
     for (let y = -grid.spacing; y < scene.height + grid.spacing; y += grid.spacing) {
       const baseY = y + offsetY;
-      const hueShift = 200 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 42 : 0);
-      const alpha = isLowEnd ? 0.15 : 0.13 + pointerFactor * 0.26 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.26 : 0);
+      const hueShift = 180 + (pointerInViewport && !isLowEnd ? clamp(1 - Math.abs(pointer.y - baseY) / 360, 0, 1) * 30 : 0);
+      const alpha = isLowEnd ? 0.1 : 0.08 + pointerFactor * 0.18 + (pointerInViewport ? clamp(1 - Math.abs(pointer.y - baseY) / 320, 0, 1) * 0.18 : 0);
 
-      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 76%, 56%, ${alpha.toFixed(3)})`;
+      ctx.strokeStyle = `hsla(${hueShift.toFixed(1)}, 100%, 50%, ${alpha.toFixed(3)})`;
       ctx.lineWidth = 0.78;
       ctx.beginPath();
 
@@ -777,10 +777,10 @@ if (background && !prefersReducedMotion) {
       }
 
       // Draw edge with dynamic color
-      const hue = 208 + highlight * 100;
-      const alpha = isLowEnd ? 0.2 : 0.16 + highlight * 0.42;
-      ctx.strokeStyle = `hsla(${hue}, 88%, ${42 + highlight * 18}%, ${alpha})`;
-      ctx.lineWidth = isLowEnd ? 0.6 : 0.45 + highlight * 1.3;
+      const hue = 180 + highlight * 60;
+      const alpha = isLowEnd ? 0.15 : 0.12 + highlight * 0.35;
+      ctx.strokeStyle = `hsla(${hue}, 100%, ${50 + highlight * 15}%, ${alpha})`;
+      ctx.lineWidth = isLowEnd ? 0.5 : 0.4 + highlight * 1.2;
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
@@ -793,7 +793,7 @@ if (background && !prefersReducedMotion) {
 
       if (isLowEnd) {
         // Simplified rendering for low-end devices - no gradients
-        ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
+        ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 60%, ${0.6 + node.halo * 0.2})`;
         ctx.beginPath();
         ctx.arc(node.x, node.y, baseRadius * 1.2, 0, Math.PI * 2);
         ctx.fill();
@@ -802,22 +802,22 @@ if (background && !prefersReducedMotion) {
 
         // Draw outer glow
         const gradientNode = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
-        gradientNode.addColorStop(0, `hsla(${210 + node.halo * 110}, 92%, 70%, ${0.34 + node.halo * 0.24})`);
-        gradientNode.addColorStop(0.65, `hsla(${212 + node.halo * 120}, 88%, 60%, ${0.24 + node.halo * 0.22})`);
-        gradientNode.addColorStop(1, "rgba(6, 18, 48, 0)");
+        gradientNode.addColorStop(0, `hsla(${180 + node.halo * 60}, 100%, 60%, ${0.3 + node.halo * 0.2})`);
+        gradientNode.addColorStop(0.65, `hsla(${180 + node.halo * 60}, 100%, 50%, ${0.2 + node.halo * 0.18})`);
+        gradientNode.addColorStop(1, "rgba(0, 10, 20, 0)");
         ctx.fillStyle = gradientNode;
         ctx.beginPath();
         ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw node core
-        ctx.fillStyle = `hsla(${212 + node.halo * 90}, 92%, 76%, ${0.7 + node.halo * 0.18})`;
+        ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 60%, ${0.6 + node.halo * 0.2})`;
         ctx.beginPath();
         ctx.arc(node.x, node.y, baseRadius, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw node outline
-        ctx.strokeStyle = `hsla(${208 + node.halo * 120}, 92%, 82%, ${0.22 + node.halo * 0.28})`;
+        ctx.strokeStyle = `hsla(${180 + node.halo * 60}, 100%, 70%, ${0.18 + node.halo * 0.25})`;
         ctx.lineWidth = 0.45;
         ctx.beginPath();
         ctx.arc(node.x, node.y, baseRadius + 1.6 + node.halo * 3.4, 0, Math.PI * 2);
@@ -943,4 +943,368 @@ if ("IntersectionObserver" in window && accentSections.length) {
   );
 
   accentSections.forEach((section) => accentObserver.observe(section));
+}
+
+// ============================================================================
+// COLLABORATIVE CONSTELLATION
+// ============================================================================
+
+// Firebase configuration - Replace with your own Firebase project config
+const firebaseConfig = {
+  apiKey: "AIzaSyBBRKfUkp3GymTRNxnJyN0u81Xog_CShH8",
+  authDomain: "personal-portfolio-8ef5f.firebaseapp.com",
+  projectId: "personal-portfolio-8ef5f",
+  storageBucket: "personal-portfolio-8ef5f.firebasestorage.app",
+  messagingSenderId: "1004562396839",
+  appId: "1:1004562396839:web:a3cda9c9946651d3188d82",
+  measurementId: "G-2H1LXZQMS7"
+};
+
+const initConstellation = () => {
+  const canvas = document.getElementById('constellation-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const container = canvas.parentElement;
+  const tooltip = document.getElementById('constellation-tooltip');
+  let selectedColor = '#00ffff';
+  let stars = [];
+  let hoveredStar = null;
+  let database = null;
+  let starsRef = null;
+
+  // Responsive canvas sizing
+  const resizeCanvas = () => {
+    const rect = container.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  };
+
+  // Draw all stars with glow effect and connections
+  const drawStars = () => {
+    const rect = container.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw subtle grid
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
+    ctx.lineWidth = 0.5;
+    const gridSize = 40;
+    for (let x = 0; x < width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Draw connection lines between nearby stars
+    stars.forEach((star, i) => {
+      const x1 = star.x * width;
+      const y1 = star.y * height;
+
+      stars.slice(i + 1).forEach(otherStar => {
+        const x2 = otherStar.x * width;
+        const y2 = otherStar.y * height;
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 120) {
+          const alpha = 0.15 * (1 - distance / 120);
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      });
+    });
+
+    // Draw stars
+    stars.forEach(star => {
+      const x = star.x * width;
+      const y = star.y * height;
+      const isHovered = hoveredStar === star;
+      const size = isHovered ? 5 : 3;
+      const glowSize = isHovered ? 30 : 20;
+
+      // Outer glow
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowSize);
+      gradient.addColorStop(0, star.color);
+      gradient.addColorStop(0.3, star.color + '60');
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(x, y, glowSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core
+      ctx.fillStyle = star.color;
+      ctx.shadowColor = star.color;
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Sparkle effect
+      if (isHovered) {
+        ctx.strokeStyle = star.color + '80';
+        ctx.lineWidth = 1;
+        const sparkleSize = 12;
+        ctx.beginPath();
+        ctx.moveTo(x - sparkleSize, y);
+        ctx.lineTo(x + sparkleSize, y);
+        ctx.moveTo(x, y - sparkleSize);
+        ctx.lineTo(x, y + sparkleSize);
+        ctx.stroke();
+      }
+    });
+
+    // Update star count
+    const countEl = document.getElementById('star-count');
+    if (countEl) countEl.textContent = stars.length;
+  };
+
+  // Initialize Firebase if available
+  const initFirebase = () => {
+    if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        starsRef = database.ref('stars');
+
+        // Listen for real-time updates
+        starsRef.on('value', (snapshot) => {
+          const data = snapshot.val();
+          stars = data ? Object.values(data) : [];
+          drawStars();
+        });
+
+        console.log('Firebase connected for constellation');
+      } catch (e) {
+        console.log('Firebase not configured, using local mode');
+        loadLocalStars();
+      }
+    } else {
+      console.log('Firebase not available, using local demo mode');
+      loadLocalStars();
+    }
+  };
+
+  // Local storage fallback
+  const loadLocalStars = () => {
+    const saved = localStorage.getItem('constellation-stars');
+    if (saved) {
+      try {
+        stars = JSON.parse(saved);
+      } catch (e) {
+        stars = [];
+      }
+    }
+    // Add some demo stars if empty
+    if (stars.length === 0) {
+      stars = [
+        { x: 0.2, y: 0.3, color: '#00ffff', message: 'Welcome!', timestamp: Date.now() },
+        { x: 0.5, y: 0.5, color: '#ff00ff', message: '', timestamp: Date.now() },
+        { x: 0.8, y: 0.4, color: '#00ff41', message: 'Hello world', timestamp: Date.now() },
+        { x: 0.3, y: 0.7, color: '#ffcc00', message: '', timestamp: Date.now() },
+        { x: 0.7, y: 0.8, color: '#ff3366', message: '', timestamp: Date.now() },
+      ];
+    }
+    drawStars();
+  };
+
+  const saveLocalStars = () => {
+    localStorage.setItem('constellation-stars', JSON.stringify(stars));
+  };
+
+  // Color picker
+  document.querySelectorAll('.constellation__color-picker button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelector('.constellation__color-picker .active')?.classList.remove('active');
+      btn.classList.add('active');
+      selectedColor = btn.dataset.color;
+    });
+  });
+
+  // Add star on click
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    const messageInput = document.querySelector('.constellation__message');
+    const message = messageInput?.value.trim() || '';
+
+    const newStar = {
+      x,
+      y,
+      color: selectedColor,
+      message,
+      timestamp: Date.now()
+    };
+
+    // Push to Firebase or local
+    if (starsRef) {
+      starsRef.push(newStar);
+    } else {
+      stars.push(newStar);
+      saveLocalStars();
+      drawStars();
+    }
+
+    // Clear message input
+    if (messageInput) messageInput.value = '';
+
+    // Visual feedback
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    createRipple(clickX, clickY);
+  });
+
+  // Create ripple effect on click
+  const createRipple = (x, y) => {
+    const rect = container.getBoundingClientRect();
+    let radius = 0;
+    const maxRadius = 60;
+    const ripple = () => {
+      radius += 3;
+      if (radius > maxRadius) return;
+
+      ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - radius / maxRadius)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      requestAnimationFrame(ripple);
+    };
+    ripple();
+  };
+
+  // Hover detection for tooltip
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / rect.width;
+    const mouseY = (e.clientY - rect.top) / rect.height;
+
+    let found = null;
+    for (const star of stars) {
+      const dx = star.x - mouseX;
+      const dy = star.y - mouseY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < 0.03) {
+        found = star;
+        break;
+      }
+    }
+
+    if (found !== hoveredStar) {
+      hoveredStar = found;
+      drawStars();
+
+      if (found && found.message && tooltip) {
+        tooltip.textContent = found.message;
+        tooltip.style.left = `${e.clientX - rect.left}px`;
+        tooltip.style.top = `${e.clientY - rect.top - 40}px`;
+        tooltip.classList.add('is-visible');
+      } else if (tooltip) {
+        tooltip.classList.remove('is-visible');
+      }
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoveredStar = null;
+    if (tooltip) tooltip.classList.remove('is-visible');
+    drawStars();
+  });
+
+  // Animation loop for subtle twinkling
+  let animFrame = 0;
+  const animate = () => {
+    animFrame++;
+    if (animFrame % 60 === 0) {
+      drawStars();
+    }
+    requestAnimationFrame(animate);
+  };
+
+  // Initialize
+  resizeCanvas();
+  initFirebase();
+  animate();
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    drawStars();
+  });
+};
+
+// Initialize constellation when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initConstellation);
+} else {
+  initConstellation();
+}
+
+// ============================================================================
+// TYPEWRITER EFFECT FOR EYEBROWS
+// ============================================================================
+
+const initTypewriter = () => {
+  const eyebrows = document.querySelectorAll('.panel__eyebrow, .hero__eyebrow');
+
+  eyebrows.forEach(eyebrow => {
+    const originalText = eyebrow.textContent;
+    eyebrow.dataset.text = originalText;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          typewriterEffect(eyebrow, originalText);
+          observer.unobserve(eyebrow);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    observer.observe(eyebrow);
+  });
+};
+
+const typewriterEffect = (element, text, speed = 40) => {
+  element.textContent = '';
+  let i = 0;
+
+  const type = () => {
+    if (i < text.length) {
+      element.textContent += text.charAt(i);
+      i++;
+      setTimeout(type, speed);
+    }
+  };
+
+  type();
+};
+
+// Initialize typewriter on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTypewriter);
+} else {
+  initTypewriter();
 }

@@ -527,7 +527,7 @@
       </header>
 
       <div class="projects">
-        <article class="project-card project-card--levio" data-animate data-cursor="accent">
+        <article class="project-card project-card--levio" data-animate>
           <header class="project-card__header">
             <h3>Levio</h3>
             <span class="tag">Mobile health · Cross-platform</span>
@@ -548,7 +548,7 @@
           </ul>
         </article>
 
-        <article class="project-card project-card--mycommunity" data-animate data-cursor="accent">
+        <article class="project-card project-card--mycommunity" data-animate>
           <header class="project-card__header">
             <h3>MyCommunity</h3>
             <span class="tag">Android · Civic tech</span>
@@ -852,12 +852,43 @@
     </p>
   </div>
 </section> -->
+
+<section class="panel panel--constellation" id="constellation" data-accent="matrix">
+  <header class="panel__header">
+    <p class="panel__eyebrow">Collaborative</p>
+    <h2>Leave Your Mark in the Constellation</h2>
+  </header>
+  <p class="constellation__intro">
+    Click anywhere on the canvas to add your star. Every visitor can see and contribute to this growing constellation.
+    <span class="constellation__counter">
+      <span id="star-count">0</span> stars placed
+    </span>
+  </p>
+  <div class="constellation" data-animate>
+    <canvas class="constellation__canvas" id="constellation-canvas"></canvas>
+    <div class="constellation__controls">
+      <div class="constellation__color-picker">
+        <button data-color="#00ffff" class="active" style="--btn-color: #00ffff" aria-label="Cyan"></button>
+        <button data-color="#ff00ff" style="--btn-color: #ff00ff" aria-label="Magenta"></button>
+        <button data-color="#00ff41" style="--btn-color: #00ff41" aria-label="Green"></button>
+        <button data-color="#ffcc00" style="--btn-color: #ffcc00" aria-label="Yellow"></button>
+        <button data-color="#ff3366" style="--btn-color: #ff3366" aria-label="Red"></button>
+      </div>
+      <input type="text" class="constellation__message" placeholder="Leave a message (optional)" maxlength="50" data-cursor="focus">
+    </div>
+    <div class="constellation__tooltip" id="constellation-tooltip"></div>
+  </div>
+</section>
 </main>
 
 <footer class="footer">
   <p>© <span id="year"></span> Jesse Chen</p>
   <button type="button" class="back-to-top" data-cursor="accent">Back to top ↑</button>
 </footer>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script src="script.js" defer></script>
 </body>
