@@ -1,5 +1,8 @@
-# Firebase configuration with API keys
-firebase-config.js
+# Build output
+dist/
+
+# Dependencies
+node_modules/
 
 # Environment files
 .env
@@ -20,6 +23,3 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-
-# Dependencies (if you add them later)
-node_modules/
