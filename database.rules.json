@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "stars": {
+      ".read": true,
+      ".write": true,
+      "$starId": {
+        ".validate": "newData.hasChildren(['x', 'y', 'color', 'timestamp', 'sessionId']) && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('color').isString() && newData.child('message').isString() && newData.child('message').val().length <= 50"
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}
