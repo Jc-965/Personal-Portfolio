@@ -100,7 +100,7 @@ export default function Hero() {
         >
           <a className="btn btn--primary btn--glow" href="#projects">
             <span className="btn__icon">&#9654;</span>
-            Browse selected work
+            Browse projects
           </a>
           <a className="btn btn--ghost" href="#journey">
             <span className="btn__icon">$</span>

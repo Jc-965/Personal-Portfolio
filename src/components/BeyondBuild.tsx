@@ -66,66 +66,87 @@ const items: MosaicItem[] = [
 function MosaicCard({ item, index }: { item: MosaicItem; index: number }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
+  const cardRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
+
+  const handleMouse = (e: React.MouseEvent) => {
+    if (!cardRef.current) return
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      if (!cardRef.current) return
+      const rect = cardRef.current.getBoundingClientRect()
+      const x = Math.max(-1, Math.min(1, ((e.clientX - rect.left) / rect.width - 0.5) * 2))
+      const y = Math.max(-1, Math.min(1, ((e.clientY - rect.top) / rect.height - 0.5) * 2))
+      cardRef.current.style.transform = `rotateX(${y * -8}deg) rotateY(${x * 8}deg)`
+    })
+  }
+
+  const handleMouseLeave = () => {
+    cancelAnimationFrame(rafRef.current)
+    if (cardRef.current) cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
+  }
 
   return (
-    <motion.article
-      ref={ref}
-      className="mosaic-card"
-      style={{ '--mosaic-accent': item.accent } as React.CSSProperties}
-      initial={{ opacity: 0, y: 25 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.3, delay: index * 0.08 }}
-    >
-      {/* Grid pattern overlay */}
-      <div className="mosaic-card__pattern" />
+    <div className="card-3d-wrap">
+      <div
+        ref={cardRef}
+        className="card-3d-tilt"
+        onMouseMove={handleMouse}
+        onMouseLeave={handleMouseLeave}
+      >
+        <motion.article
+          ref={ref}
+          className="mosaic-card"
+          style={{ '--mosaic-accent': item.accent } as React.CSSProperties}
+          initial={{ opacity: 0, y: 25 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.3, delay: index * 0.08 }}
+        >
+          {/* Grid pattern overlay */}
+          <div className="mosaic-card__pattern" />
 
-      {/* Header with badge */}
-      <div className="mosaic-card__header">
-        <div className="mosaic-card__badge">{item.icon}</div>
-        <div className="mosaic-card__titles">
-          <h3>{item.title}</h3>
-          <span className="mosaic-card__subtitle">{item.subtitle}</span>
-        </div>
-      </div>
-
-      {/* Stats display */}
-      <div className="mosaic-card__stats">
-        {item.stats.map((stat, i) => (
-          <div key={i} className="mosaic-card__stat">
-            <span className="mosaic-card__stat-value">{stat.value}</span>
-            <span className="mosaic-card__stat-label">{stat.label}</span>
+          {/* Header with badge */}
+          <div className="mosaic-card__header">
+            <div className="mosaic-card__badge">{item.icon}</div>
+            <div className="mosaic-card__titles">
+              <h3>{item.title}</h3>
+              <span className="mosaic-card__subtitle">{item.subtitle}</span>
+            </div>
           </div>
-        ))}
-        <div className="mosaic-card__stat-indicator">
-          <motion.span
-            className="mosaic-card__pulse"
-            animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-        </div>
+
+          {/* Stats display */}
+          <div className="mosaic-card__stats">
+            {item.stats.map((stat, i) => (
+              <div key={i} className="mosaic-card__stat">
+                <span className="mosaic-card__stat-label">{stat.label}</span>
+                <span className="mosaic-card__stat-value">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Content list */}
+          <ul className="mosaic-card__list">
+            {item.bullets.map((b, j) => (
+              <motion.li
+                key={j}
+                initial={{ opacity: 0, x: -10 }}
+                animate={inView ? { opacity: 1, x: 0 } : {}}
+                transition={{ duration: 0.3, delay: 0.2 + j * 0.1 }}
+              >
+                <span className="mosaic-card__bullet">›</span>
+                {b}
+              </motion.li>
+            ))}
+          </ul>
+
+          {/* Corner brackets */}
+          <span className="mosaic-card__corner mosaic-card__corner--tl" />
+          <span className="mosaic-card__corner mosaic-card__corner--tr" />
+          <span className="mosaic-card__corner mosaic-card__corner--bl" />
+          <span className="mosaic-card__corner mosaic-card__corner--br" />
+        </motion.article>
       </div>
-
-      {/* Content list */}
-      <ul className="mosaic-card__list">
-        {item.bullets.map((b, j) => (
-          <motion.li
-            key={j}
-            initial={{ opacity: 0, x: -10 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.3, delay: 0.2 + j * 0.1 }}
-          >
-            <span className="mosaic-card__bullet">›</span>
-            {b}
-          </motion.li>
-        ))}
-      </ul>
-
-      {/* Corner brackets */}
-      <span className="mosaic-card__corner mosaic-card__corner--tl" />
-      <span className="mosaic-card__corner mosaic-card__corner--tr" />
-      <span className="mosaic-card__corner mosaic-card__corner--bl" />
-      <span className="mosaic-card__corner mosaic-card__corner--br" />
-    </motion.article>
+    </div>
   )
 }
 

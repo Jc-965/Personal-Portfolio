@@ -17,6 +17,8 @@ function App() {
 
   return (
     <>
+      <Cursor />
+      <div className="vintage-overlay" />
       <AnimatePresence mode="wait">
         {isLoading ? (
           <LoadingScreen key="loading" onComplete={() => setIsLoading(false)} />
@@ -27,7 +29,6 @@ function App() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Cursor />
             <Background />
             <Navbar />
             <main>
