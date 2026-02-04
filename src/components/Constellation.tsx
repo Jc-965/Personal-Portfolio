@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { initializeApp } from 'firebase/app'
-import { getDatabase, ref as dbRef, push, remove, onValue, type Database } from 'firebase/database'
+import { getDatabase, ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get, type Database } from 'firebase/database'
 
 interface Star {
   x: number
@@ -47,7 +47,7 @@ function getSessionId(): string {
   return id
 }
 
-// Calculate mega stars from a batch of regular stars
+// Calculate mega stars from all stars (mega stars weighted by mergedCount)
 function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
   if (stars.length < MEGA_STAR_COUNT) return []
 
@@ -62,22 +62,27 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
     density.get(key)!.push(star)
   })
 
-  const sortedCells = Array.from(density.entries())
+  const getWeight = (s: Star) => s.isMega ? (s.mergedCount || 1) : 1
+
+  const cellData = Array.from(density.entries())
     .map(([key, cellStars]) => {
       const [gx, gy] = key.split(',').map(Number)
+      const weightedCount = cellStars.reduce((sum, s) => sum + getWeight(s), 0)
       return {
+        key,
         x: (gx + 0.5) / gridSize,
         y: (gy + 0.5) / gridSize,
         stars: cellStars,
-        count: cellStars.length,
+        count: weightedCount,
       }
     })
     .sort((a, b) => b.count - a.count)
 
   const megaStars: Star[] = []
+  const selectedCellKeys = new Set<string>()
   const sessionId = getSessionId()
 
-  for (const cell of sortedCells) {
+  for (const cell of cellData) {
     if (megaStars.length >= MEGA_STAR_COUNT) break
 
     const tooClose = megaStars.some(
@@ -85,12 +90,14 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
     )
     if (tooClose) continue
 
-    // Find most common message (excluding empty)
+    selectedCellKeys.add(cell.key)
+
+    // Find most common message (excluding empty), weighted by star count
     const messageCounts: Map<string, number> = new Map()
     cell.stars.forEach(s => {
       if (s.message && s.message.trim()) {
         const msg = s.message.trim()
-        messageCounts.set(msg, (messageCounts.get(msg) || 0) + 1)
+        messageCounts.set(msg, (messageCounts.get(msg) || 0) + getWeight(s))
       }
     })
 
@@ -103,10 +110,10 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
       }
     })
 
-    // Find most common color
+    // Find most common color, weighted by star count
     const colorCounts: Map<string, number> = new Map()
     cell.stars.forEach(s => {
-      colorCounts.set(s.color, (colorCounts.get(s.color) || 0) + 1)
+      colorCounts.set(s.color, (colorCounts.get(s.color) || 0) + getWeight(s))
     })
     let topColor = '#00ffff'
     let maxColorCount = 0
@@ -127,6 +134,23 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
       isMega: true,
       mergedCount: cell.count,
     })
+  }
+
+  // Redistribute stars from non-selected cells to nearest mega star
+  for (const cell of cellData) {
+    if (selectedCellKeys.has(cell.key)) continue
+
+    let nearestIdx = 0
+    let minDist = Infinity
+    for (let i = 0; i < megaStars.length; i++) {
+      const d = Math.hypot(megaStars[i].x - cell.x, megaStars[i].y - cell.y)
+      if (d < minDist) {
+        minDist = d
+        nearestIdx = i
+      }
+    }
+
+    megaStars[nearestIdx].mergedCount = (megaStars[nearestIdx].mergedCount || 0) + cell.count
   }
 
   return megaStars
@@ -166,9 +190,11 @@ export default function Constellation() {
   const tooltipTimeout = useRef<number | null>(null)
   const [selectedColor, setSelectedColor] = useState('#00ffff')
   const [message, setMessage] = useState('')
-  const [totalStars, setTotalStars] = useState(0)
+  const [totalStarsEver, setTotalStarsEver] = useState(0)
+  const [starsSinceMerge, setStarsSinceMerge] = useState(0)
   const [megaStarCount, setMegaStarCount] = useState(0)
   const [filterError, setFilterError] = useState(false)
+  const metaReceivedRef = useRef(false)
   const sessionId = useRef(getSessionId())
 
   const sectionRef = useRef(null)
@@ -268,30 +294,70 @@ export default function Constellation() {
     const db = getFirebase()
     if (db) {
       const starsDbRef = dbRef(db, 'stars')
-      const unsubscribe = onValue(starsDbRef, (snapshot) => {
+      const metaRef = dbRef(db, 'metadata')
+
+      const unsubStars = onValue(starsDbRef, (snapshot) => {
         const data = snapshot.val()
         const starsList: Star[] = data
           ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
           : []
         starsRef.current = starsList
 
-        // Count totals
-        let total = 0
         let megaCount = 0
+        let regularCount = 0
+        let calculatedTotal = 0
         starsList.forEach(s => {
           if (s.isMega) {
             megaCount++
-            total += s.mergedCount || 1
+            calculatedTotal += s.mergedCount || 1
           } else {
-            total++
+            regularCount++
+            calculatedTotal++
           }
         })
-        setTotalStars(total)
+        setStarsSinceMerge(regularCount)
         setMegaStarCount(megaCount)
+
+        // Use calculated total as fallback until metadata is received
+        if (!metaReceivedRef.current) {
+          setTotalStarsEver(calculatedTotal)
+        }
 
         drawStars()
       })
-      return () => unsubscribe()
+
+      const unsubMeta = onValue(metaRef, (snapshot) => {
+        const data = snapshot.val()
+        if (data && data.totalStarsEver != null) {
+          metaReceivedRef.current = true
+          setTotalStarsEver(data.totalStarsEver)
+        }
+      })
+
+      // Initialize totalStarsEver in metadata if not yet set
+      get(metaRef).then(snap => {
+        const data = snap.val()
+        if (!data || data.totalStarsEver == null) {
+          get(starsDbRef).then(starsSnap => {
+            const starsData = starsSnap.val()
+            if (!starsData) return
+            const starsList: Star[] = Object.values(starsData)
+            let total = 0
+            starsList.forEach(s => {
+              if (s.isMega) {
+                total += s.mergedCount || 1
+              } else {
+                total++
+              }
+            })
+            if (total > 0) {
+              update(dbRef(db, 'metadata'), { totalStarsEver: total })
+            }
+          })
+        }
+      })
+
+      return () => { unsubStars(); unsubMeta() }
     } else {
       const saved = localStorage.getItem('constellation-stars')
       let stars: Star[] = []
@@ -300,18 +366,28 @@ export default function Constellation() {
       }
       starsRef.current = stars
 
-      let total = 0
+      let calculatedTotal = 0
       let megaCount = 0
+      let regularCount = 0
       stars.forEach(s => {
         if (s.isMega) {
           megaCount++
-          total += s.mergedCount || 1
+          calculatedTotal += s.mergedCount || 1
         } else {
-          total++
+          regularCount++
+          calculatedTotal++
         }
       })
-      setTotalStars(total)
+      setStarsSinceMerge(regularCount)
       setMegaStarCount(megaCount)
+
+      const savedTotal = localStorage.getItem('constellation-totalStarsEver')
+      if (savedTotal != null) {
+        setTotalStarsEver(Number(savedTotal))
+      } else {
+        setTotalStarsEver(calculatedTotal)
+        localStorage.setItem('constellation-totalStarsEver', String(calculatedTotal))
+      }
 
       drawStars()
     }
@@ -358,18 +434,20 @@ export default function Constellation() {
     const stars = starsRef.current
     const regularStars = stars.filter(s => !s.isMega)
 
+    // Merge when 300 regular stars (stars since last merge) have accumulated
     if (regularStars.length >= MERGE_THRESHOLD) {
-      // Create mega stars from regular stars
-      const megaStars = calculateMegaStarsFromBatch(regularStars)
+      // Merge ALL stars (including existing mega stars) into 10 new mega stars
+      const newMegaStars = calculateMegaStarsFromBatch(stars)
 
-      // Remove regular stars and add mega stars
-      regularStars.forEach(star => {
+      // Remove ALL existing stars
+      stars.forEach(star => {
         if (star.key) {
           remove(dbRef(db, `stars/${star.key}`))
         }
       })
 
-      megaStars.forEach(megaStar => {
+      // Add the 10 new mega stars
+      newMegaStars.forEach(megaStar => {
         push(dbRef(db, 'stars'), megaStar)
       })
     }
@@ -400,13 +478,18 @@ export default function Constellation() {
     const db = getFirebase()
     if (db) {
       push(dbRef(db, 'stars'), newStar).then(() => {
-        // Check merge after adding
+        update(dbRef(db, 'metadata'), { totalStarsEver: fbIncrement(1) })
         setTimeout(checkAndMerge, 500)
       })
     } else {
       starsRef.current = [...starsRef.current, newStar]
       localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
-      setTotalStars(prev => prev + 1)
+      setStarsSinceMerge(prev => prev + 1)
+      setTotalStarsEver(prev => {
+        const newVal = prev + 1
+        localStorage.setItem('constellation-totalStarsEver', String(newVal))
+        return newVal
+      })
       drawStars()
     }
     setMessage('')
@@ -422,14 +505,16 @@ export default function Constellation() {
 
     for (const star of starsRef.current) {
       if (star.sessionId !== sessionId.current || star.isMega) continue
-      if (Math.hypot(star.x - mx, star.y - my) < 0.03) {
+      const dx = (star.x - mx) * rect.width
+      const dy = (star.y - my) * rect.height
+      if (Math.hypot(dx, dy) < 15) {
         const db = getFirebase()
         if (db && star.key) {
           remove(dbRef(db, `stars/${star.key}`))
         } else {
           starsRef.current = starsRef.current.filter(s => s !== star)
           localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
-          setTotalStars(prev => prev - 1)
+          setStarsSinceMerge(prev => prev - 1)
           drawStars()
         }
         break
@@ -451,10 +536,12 @@ export default function Constellation() {
     }
 
     let found: Star | null = null
-    const threshold = 0.04
 
     for (const star of starsRef.current) {
-      if (Math.hypot(star.x - mx, star.y - my) < threshold) {
+      const dx = (star.x - mx) * rect.width
+      const dy = (star.y - my) * rect.height
+      const hitRadius = star.isMega ? 28 : 18
+      if (Math.hypot(dx, dy) < hitRadius) {
         found = star
         break
       }
@@ -513,7 +600,12 @@ export default function Constellation() {
 
       <div className="constellation__stats">
         <span className="constellation__stat">
-          <span className="constellation__stat-value">{totalStars}</span>
+          <span className="constellation__stat-value">{starsSinceMerge}</span>
+          <span className="constellation__stat-label">since last merge</span>
+        </span>
+        <span className="constellation__stat-divider">/</span>
+        <span className="constellation__stat">
+          <span className="constellation__stat-value">{totalStarsEver}</span>
           <span className="constellation__stat-label">total stars</span>
         </span>
         <span className="constellation__stat-divider">/</span>
