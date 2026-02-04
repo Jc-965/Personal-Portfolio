@@ -336,12 +336,21 @@ export default function Background() {
       spawnClickEffect(e.clientX, e.clientY)
     }
 
+    const handleVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frameId)
+      } else {
+        frameId = requestAnimationFrame(animate)
+      }
+    }
+
     resize()
     frameId = requestAnimationFrame(animate)
     window.addEventListener('resize', resize)
-    document.addEventListener('pointermove', onMove)
-    document.addEventListener('pointerleave', onLeave)
-    document.addEventListener('pointerdown', onClick)
+    document.addEventListener('pointermove', onMove, { passive: true })
+    document.addEventListener('pointerleave', onLeave, { passive: true })
+    document.addEventListener('pointerdown', onClick, { passive: true })
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       cancelAnimationFrame(frameId)
@@ -349,6 +358,7 @@ export default function Background() {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('pointerdown', onClick)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

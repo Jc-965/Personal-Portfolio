@@ -38,6 +38,12 @@ function isClean(text: string): boolean {
   return !BLOCKED_WORDS.some(w => lower.includes(w))
 }
 
+function escapeHtml(text: string): string {
+  const el = document.createElement('span')
+  el.textContent = text
+  return el.innerHTML
+}
+
 function getSessionId(): string {
   let id = localStorage.getItem('constellation-session')
   if (!id) {
@@ -192,7 +198,7 @@ export default function Constellation() {
   const [message, setMessage] = useState('')
   const [totalStarsEver, setTotalStarsEver] = useState(0)
   const [starsSinceMerge, setStarsSinceMerge] = useState(0)
-  const [megaStarCount, setMegaStarCount] = useState(0)
+  const [mergeCount, setMergeCount] = useState(0)
   const [filterError, setFilterError] = useState(false)
   const metaReceivedRef = useRef(false)
   const sessionId = useRef(getSessionId())
@@ -303,12 +309,10 @@ export default function Constellation() {
           : []
         starsRef.current = starsList
 
-        let megaCount = 0
         let regularCount = 0
         let calculatedTotal = 0
         starsList.forEach(s => {
           if (s.isMega) {
-            megaCount++
             calculatedTotal += s.mergedCount || 1
           } else {
             regularCount++
@@ -316,7 +320,6 @@ export default function Constellation() {
           }
         })
         setStarsSinceMerge(regularCount)
-        setMegaStarCount(megaCount)
 
         // Use calculated total as fallback until metadata is received
         if (!metaReceivedRef.current) {
@@ -328,33 +331,49 @@ export default function Constellation() {
 
       const unsubMeta = onValue(metaRef, (snapshot) => {
         const data = snapshot.val()
-        if (data && data.totalStarsEver != null) {
-          metaReceivedRef.current = true
-          setTotalStarsEver(data.totalStarsEver)
+        if (data) {
+          if (data.totalStarsEver != null) {
+            metaReceivedRef.current = true
+            setTotalStarsEver(data.totalStarsEver)
+          }
+          if (data.mergeCount != null) {
+            setMergeCount(data.mergeCount)
+          }
         }
       })
 
-      // Initialize totalStarsEver in metadata if not yet set
+      // Initialize metadata fields if not yet set
       get(metaRef).then(snap => {
         const data = snap.val()
-        if (!data || data.totalStarsEver == null) {
-          get(starsDbRef).then(starsSnap => {
-            const starsData = starsSnap.val()
+        const needsTotal = !data || data.totalStarsEver == null
+        const needsMerge = !data || data.mergeCount == null
+
+        if (!needsTotal && !needsMerge) return
+
+        get(starsDbRef).then(starsSnap => {
+          const starsData = starsSnap.val()
+          const updates: Record<string, number> = {}
+
+          if (needsTotal) {
             if (!starsData) return
-            const starsList: Star[] = Object.values(starsData)
+            const allStars: Star[] = Object.values(starsData)
             let total = 0
-            starsList.forEach(s => {
-              if (s.isMega) {
-                total += s.mergedCount || 1
-              } else {
-                total++
-              }
+            allStars.forEach(s => {
+              total += s.isMega ? (s.mergedCount || 1) : 1
             })
-            if (total > 0) {
-              update(dbRef(db, 'metadata'), { totalStarsEver: total })
-            }
-          })
-        }
+            if (total > 0) updates.totalStarsEver = total
+          }
+
+          if (needsMerge) {
+            const hasMega = starsData && Object.values(starsData as Record<string, Star>).some(s => s.isMega)
+            const totalForCalc = data?.totalStarsEver || updates.totalStarsEver || 0
+            updates.mergeCount = hasMega ? Math.max(1, Math.floor(totalForCalc / MERGE_THRESHOLD)) : 0
+          }
+
+          if (Object.keys(updates).length > 0) {
+            update(dbRef(db, 'metadata'), updates)
+          }
+        })
       })
 
       return () => { unsubStars(); unsubMeta() }
@@ -367,11 +386,9 @@ export default function Constellation() {
       starsRef.current = stars
 
       let calculatedTotal = 0
-      let megaCount = 0
       let regularCount = 0
       stars.forEach(s => {
         if (s.isMega) {
-          megaCount++
           calculatedTotal += s.mergedCount || 1
         } else {
           regularCount++
@@ -379,7 +396,6 @@ export default function Constellation() {
         }
       })
       setStarsSinceMerge(regularCount)
-      setMegaStarCount(megaCount)
 
       const savedTotal = localStorage.getItem('constellation-totalStarsEver')
       if (savedTotal != null) {
@@ -450,6 +466,9 @@ export default function Constellation() {
       newMegaStars.forEach(megaStar => {
         push(dbRef(db, 'stars'), megaStar)
       })
+
+      // Track the merge
+      update(dbRef(db, 'metadata'), { mergeCount: fbIncrement(1) })
     }
   }, [])
 
@@ -568,9 +587,11 @@ export default function Constellation() {
         }
 
         if (label || found.isMega) {
-          tooltipRef.current.innerHTML = found.isMega
-            ? `${found.message ? `"${found.message}" ` : ''}<span class="constellation__tooltip-count">(${found.mergedCount} stars)</span>`
-            : label
+          if (found.isMega) {
+            tooltipRef.current.innerHTML = `${found.message ? `"${escapeHtml(found.message)}" ` : ''}<span class="constellation__tooltip-count">(${Number(found.mergedCount) || 0} stars)</span>`
+          } else {
+            tooltipRef.current.textContent = label
+          }
           tooltipRef.current.style.left = `${starX}px`
           tooltipRef.current.style.top = `${starY - 45}px`
           tooltipRef.current.classList.add('is-visible')
@@ -610,8 +631,8 @@ export default function Constellation() {
         </span>
         <span className="constellation__stat-divider">/</span>
         <span className="constellation__stat">
-          <span className="constellation__stat-value">{megaStarCount}</span>
-          <span className="constellation__stat-label">mega stars</span>
+          <span className="constellation__stat-value">{mergeCount}</span>
+          <span className="constellation__stat-label">merges</span>
         </span>
       </div>
 

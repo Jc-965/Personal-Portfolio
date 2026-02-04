@@ -16,7 +16,7 @@ const groups: SkillGroup[] = [
     name: 'Languages',
     icon: <Code size={16} />,
     accent: '#00ffff',
-    items: ['Python', 'TypeScript', 'JavaScript', 'C++', 'Dart', 'Java', 'C', 'SQL'],
+    items: ['Python', 'TypeScript', 'JavaScript', 'C++', 'Dart', 'Java', 'C', 'SQL', 'Assembly'],
   },
   {
     id: 'frameworks',
@@ -30,21 +30,21 @@ const groups: SkillGroup[] = [
     name: 'Data & ML',
     icon: <BarChart3 size={16} />,
     accent: '#ff00ff',
-    items: ['NumPy', 'Pandas', 'scikit-learn', 'Data Pipelines', 'Signal Processing'],
+    items: ['NumPy', 'Pandas', 'scikit-learn', 'Data Pipelines', 'Signal Processing', 'GeoJSON', 'ArcGIS', 'OpenStreetMap'],
   },
   {
     id: 'systems',
     name: 'Systems & Tools',
     icon: <TerminalSquare size={16} />,
     accent: '#ffcc00',
-    items: ['Git', 'Unix Shell', 'VS Code', 'GitHub Actions', 'Docker', 'Figma'],
+    items: ['Git', 'Unix Shell', 'SSH', 'VS Code', 'GitHub Actions', 'CI/CD', 'Docker', 'Figma'],
   },
   {
     id: 'concepts',
     name: 'Concepts',
     icon: <Network size={16} />,
     accent: '#ff3366',
-    items: ['Full-stack Dev', 'System Design', 'HCI Research', 'Technical Writing'],
+    items: ['Full-stack Dev', 'System Design', 'Agile Development', 'Technical Writing'],
   },
 ]
 
