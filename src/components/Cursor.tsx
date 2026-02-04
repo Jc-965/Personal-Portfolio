@@ -271,14 +271,24 @@ export default function Cursor() {
       if (interactive) hovering.current = false
     }
 
+    const handleVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frame)
+      } else {
+        lastTime = performance.now()
+        frame = requestAnimationFrame(tick)
+      }
+    }
+
     frame = requestAnimationFrame(tick)
     window.addEventListener('resize', resize)
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseleave', onLeave)
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('mouseup', onUp)
-    document.addEventListener('mouseover', onOver)
-    document.addEventListener('mouseout', onOut)
+    document.addEventListener('mousemove', onMove, { passive: true })
+    document.addEventListener('mouseleave', onLeave, { passive: true })
+    document.addEventListener('mousedown', onDown, { passive: true })
+    document.addEventListener('mouseup', onUp, { passive: true })
+    document.addEventListener('mouseover', onOver, { passive: true })
+    document.addEventListener('mouseout', onOut, { passive: true })
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       cancelAnimationFrame(frame)
@@ -289,6 +299,7 @@ export default function Cursor() {
       document.removeEventListener('mouseup', onUp)
       document.removeEventListener('mouseover', onOver)
       document.removeEventListener('mouseout', onOut)
+      document.removeEventListener('visibilitychange', handleVisibility)
       document.documentElement.classList.remove('has-custom-cursor')
     }
   }, [])
