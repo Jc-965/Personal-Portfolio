@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Code, Layers, BarChart3, TerminalSquare, Network } from 'lucide-react'
 
@@ -48,7 +48,7 @@ const groups: SkillGroup[] = [
   },
 ]
 
-function SkillCard({ group, index }: { group: SkillGroup; index: number }) {
+const SkillCard = memo(function SkillCard({ group, index }: { group: SkillGroup; index: number }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-40px' })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -126,14 +126,14 @@ function SkillCard({ group, index }: { group: SkillGroup; index: number }) {
       </div>
     </div>
   )
-}
+})
 
 export default function Toolkit() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
   return (
-    <section className="section toolkit" id="skills">
+    <>
       <motion.header
         ref={headerRef}
         className="section__header"
@@ -153,6 +153,6 @@ export default function Toolkit() {
           <SkillCard key={g.id} group={g} index={i} />
         ))}
       </div>
-    </section>
+    </>
   )
 }

@@ -1,19 +1,16 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
 import Background from './components/Background'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
-import Journey from './components/Journey'
-import Projects from './components/Projects'
-import BeyondBuild from './components/BeyondBuild'
-import Toolkit from './components/Toolkit'
-import Constellation from './components/Constellation'
+import LazySection from './components/LazySection'
 import Footer from './components/Footer'
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
+  const onLoadingComplete = useCallback(() => setIsLoading(false), [])
 
   return (
     <>
@@ -21,7 +18,7 @@ function App() {
       <div className="vintage-overlay" />
       <AnimatePresence mode="wait">
         {isLoading ? (
-          <LoadingScreen key="loading" onComplete={() => setIsLoading(false)} />
+          <LoadingScreen key="loading" onComplete={onLoadingComplete} />
         ) : (
           <motion.div
             key="main"
@@ -33,11 +30,11 @@ function App() {
             <Navbar />
             <main>
               <Hero />
-              <Journey />
-              <Projects />
-              <BeyondBuild />
-              <Toolkit />
-              <Constellation />
+              <LazySection id="journey" className="section journey" load={() => import('./components/Journey')} />
+              <LazySection id="projects" className="section projects" load={() => import('./components/Projects')} />
+              <LazySection id="life" className="section beyond" load={() => import('./components/BeyondBuild')} />
+              <LazySection id="skills" className="section toolkit" load={() => import('./components/Toolkit')} />
+              <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
             </main>
             <Footer />
           </motion.div>

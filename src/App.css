@@ -261,6 +261,12 @@ ul {
   max-width: 700px;
 }
 
+/* Placeholder for lazy-loaded sections (avoids layout shift) */
+.section__placeholder {
+  min-height: 320px;
+  padding: var(--section-pad) 32px;
+}
+
 /* ============================================================================
    HERO SECTION
    ============================================================================ */
@@ -874,7 +880,6 @@ ul {
   padding: 28px;
   overflow: hidden;
   transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
-  will-change: transform;
 }
 
 .project-card:hover {
@@ -1767,6 +1772,9 @@ ul {
 .card-3d-tilt {
   transform-style: preserve-3d;
   transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.card-3d-tilt:hover {
   will-change: transform;
 }
 
