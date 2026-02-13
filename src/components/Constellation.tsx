@@ -430,16 +430,23 @@ export default function Constellation() {
     return () => window.removeEventListener('resize', resize)
   }, [drawStars])
 
-  // Animation
+  // Animation — redraw at ~1.5s intervals; pause when tab hidden to save CPU
   useEffect(() => {
     let frame = 0, animId: number
     const tick = () => {
+      if (document.hidden) return // pause: do not schedule next frame
       frame++
       if (frame % 90 === 0) drawStars()
       animId = requestAnimationFrame(tick)
     }
-    animId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(animId)
+    const start = () => { animId = requestAnimationFrame(tick) }
+    const onVisibility = () => { if (!document.hidden) start() }
+    start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      cancelAnimationFrame(animId)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [drawStars])
 
   // Check if we need to merge
@@ -605,8 +612,9 @@ export default function Constellation() {
   }
 
   return (
-    <section className="section constellation-section" id="constellation" ref={sectionRef}>
+    <>
       <motion.header
+        ref={sectionRef}
         className="section__header"
         initial={{ opacity: 0, y: 20 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -691,6 +699,6 @@ export default function Constellation() {
           )}
         </div>
       </div>
-    </section>
+    </>
   )
 }

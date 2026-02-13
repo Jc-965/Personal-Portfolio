@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
 
 interface Project {
@@ -69,7 +69,7 @@ const projects: Project[] = [
   },
 ]
 
-function ProjectCard({ project, index }: { project: Project; index: number }) {
+const ProjectCard = memo(function ProjectCard({ project, index }: { project: Project; index: number }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -173,14 +173,14 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
       </div>
     </div>
   )
-}
+})
 
 export default function Projects() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
   return (
-    <section className="section projects" id="projects">
+    <>
       <motion.header
         ref={headerRef}
         className="section__header"
@@ -200,6 +200,6 @@ export default function Projects() {
           <ProjectCard key={p.id} project={p} index={i} />
         ))}
       </div>
-    </section>
+    </>
   )
 }

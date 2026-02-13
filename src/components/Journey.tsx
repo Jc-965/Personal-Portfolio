@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical } from 'lucide-react'
 
@@ -92,7 +92,7 @@ const experiences: Experience[] = [
   },
 ]
 
-function ProcessCard({ exp, index }: { exp: Experience; index: number }) {
+const ProcessCard = memo(function ProcessCard({ exp, index }: { exp: Experience; index: number }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -221,14 +221,14 @@ function ProcessCard({ exp, index }: { exp: Experience; index: number }) {
       </div>
     </div>
   )
-}
+})
 
 export default function Journey() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
   return (
-    <section className="section journey" id="journey">
+    <>
       <motion.header
         ref={headerRef}
         className="section__header"
@@ -248,6 +248,6 @@ export default function Journey() {
           <ProcessCard key={exp.id} exp={exp} index={i} />
         ))}
       </div>
-    </section>
+    </>
   )
 }

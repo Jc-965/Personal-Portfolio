@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Smartphone, Clock, Music } from 'lucide-react'
 
@@ -63,7 +63,7 @@ const items: MosaicItem[] = [
   },
 ]
 
-function MosaicCard({ item, index }: { item: MosaicItem; index: number }) {
+const MosaicCard = memo(function MosaicCard({ item, index }: { item: MosaicItem; index: number }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -148,14 +148,14 @@ function MosaicCard({ item, index }: { item: MosaicItem; index: number }) {
       </div>
     </div>
   )
-}
+})
 
 export default function BeyondBuild() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
   return (
-    <section className="section beyond" id="life">
+    <>
       <motion.header
         ref={headerRef}
         className="section__header"
@@ -175,6 +175,6 @@ export default function BeyondBuild() {
           <MosaicCard key={item.id} item={item} index={i} />
         ))}
       </div>
-    </section>
+    </>
   )
 }
