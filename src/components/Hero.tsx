@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import ASCIIText from '../../react-bits-upstream/src/ts-default/TextAnimations/ASCIIText/ASCIIText'
+import ASCIIText from './ASCIIText'
 import DecryptedText from './DecryptedText'
 import Magnet from './Magnet'
 
