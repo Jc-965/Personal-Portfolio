@@ -126,6 +126,7 @@ const ProcessCard = memo(function ProcessCard({ exp, index }: { exp: Experience;
         <motion.article
           ref={ref}
           className="process-card"
+          data-cursor
           style={{ '--process-accent': exp.accent } as React.CSSProperties}
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -192,21 +193,10 @@ const ProcessCard = memo(function ProcessCard({ exp, index }: { exp: Experience;
                   )}
                 </div>
               ))}
-              {/* Data visualization dots */}
+              {/* Data visualization dots (CSS-animated) */}
               <div className="process-card__data-viz">
                 {Array.from({ length: 12 }).map((_, i) => (
-                  <motion.span
-                    key={i}
-                    className="process-card__data-dot"
-                    initial={{ opacity: 0.2 }}
-                    animate={inView ? { opacity: [0.2, 0.8, 0.2] } : {}}
-                    transition={{
-                      duration: 2,
-                      delay: i * 0.1,
-                      repeat: Infinity,
-                      repeatType: 'reverse',
-                    }}
-                  />
+                  <span key={i} className="process-card__data-dot" />
                 ))}
               </div>
             </div>

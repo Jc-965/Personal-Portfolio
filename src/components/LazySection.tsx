@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useInView } from 'framer-motion'
-import { Suspense, lazy, type LazyExoticComponent, type ComponentType } from 'react'
+import { Suspense, lazy, type ComponentType } from 'react'
 
 interface LazySectionProps {
   id: string
@@ -15,7 +15,7 @@ export default function LazySection({ id, className, load, fallback }: LazySecti
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true, margin: '200px 0px' })
 
-  const LazyComponent = lazy(load) as LazyExoticComponent<ComponentType>
+  const LazyComponent = useMemo(() => lazy(load), [load])
 
   return (
     <section id={id} className={className} ref={ref}>

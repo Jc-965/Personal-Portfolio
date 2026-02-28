@@ -11,6 +11,15 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('firebase')) return 'firebase'
+          if (
+            id.includes('node_modules/three') ||
+            id.includes('node_modules/@react-three') ||
+            id.includes('node_modules/postprocessing') ||
+            id.includes('node_modules/mathjs')
+          ) {
+            return 'vendor-3d'
+          }
+          if (id.includes('node_modules/gsap')) return 'vendor-gsap'
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor-react'
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion'
           if (id.includes('node_modules/lucide-react')) return 'vendor-lucide'

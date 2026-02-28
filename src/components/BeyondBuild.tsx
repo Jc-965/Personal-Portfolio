@@ -1,18 +1,9 @@
-import { useRef, memo } from 'react'
+import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Smartphone, Clock, Music } from 'lucide-react'
+import MagicBento, { type MagicBentoItem } from './MagicBento'
 
-interface MosaicItem {
-  id: string
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  bullets: string[]
-  stats: { label: string; value: string }[]
-  accent: string
-}
-
-const items: MosaicItem[] = [
+const items: MagicBentoItem[] = [
   {
     id: 'arcadia',
     icon: <Smartphone size={18} />,
@@ -21,13 +12,25 @@ const items: MosaicItem[] = [
     bullets: [
       'Helped develop a digital student ID system that improved event check-ins for thousands of students.',
       'Worked closely with administrators to design features based on real student and faculty needs.',
-      'Managed finances and outreach efforts, expanding the club\'s reach and project capacity.',
+      'Managed finances and outreach efforts, expanding the club’s reach and project capacity.',
     ],
     stats: [
       { label: 'USERS', value: '2K+' },
       { label: 'EVENTS', value: '50+' },
     ],
     accent: '#3a9b95',
+    feature: {
+      variant: 'app',
+      eyebrow: 'digital student hub',
+      title: 'AHS Student App',
+      tags: ['Digital ID', 'Events', 'Alerts', 'Schedule'],
+      meters: [
+        { label: 'Check-In', value: 'READY', level: 100 },
+        { label: 'Events', value: '4 LIVE', level: 68 },
+        { label: 'Notices', value: '2 NEW', level: 42 },
+      ],
+      notifications: ['Student ID active', 'Club Fair check-in opens at 4:30', '2 announcements just posted'],
+    },
   },
   {
     id: 'eagle',
@@ -63,93 +66,6 @@ const items: MosaicItem[] = [
   },
 ]
 
-const MosaicCard = memo(function MosaicCard({ item, index }: { item: MosaicItem; index: number }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-  const cardRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef<number>(0)
-
-  const handleMouse = (e: React.MouseEvent) => {
-    if (!cardRef.current) return
-    cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => {
-      if (!cardRef.current) return
-      const rect = cardRef.current.getBoundingClientRect()
-      const x = Math.max(-1, Math.min(1, ((e.clientX - rect.left) / rect.width - 0.5) * 2))
-      const y = Math.max(-1, Math.min(1, ((e.clientY - rect.top) / rect.height - 0.5) * 2))
-      cardRef.current.style.transform = `rotateX(${y * -8}deg) rotateY(${x * 8}deg)`
-    })
-  }
-
-  const handleMouseLeave = () => {
-    cancelAnimationFrame(rafRef.current)
-    if (cardRef.current) cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
-  }
-
-  return (
-    <div className="card-3d-wrap">
-      <div
-        ref={cardRef}
-        className="card-3d-tilt"
-        onMouseMove={handleMouse}
-        onMouseLeave={handleMouseLeave}
-      >
-        <motion.article
-          ref={ref}
-          className="mosaic-card"
-          style={{ '--mosaic-accent': item.accent } as React.CSSProperties}
-          initial={{ opacity: 0, y: 25 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3, delay: index * 0.08 }}
-        >
-          {/* Grid pattern overlay */}
-          <div className="mosaic-card__pattern" />
-
-          {/* Header with badge */}
-          <div className="mosaic-card__header">
-            <div className="mosaic-card__badge">{item.icon}</div>
-            <div className="mosaic-card__titles">
-              <h3>{item.title}</h3>
-              <span className="mosaic-card__subtitle">{item.subtitle}</span>
-            </div>
-          </div>
-
-          {/* Stats display */}
-          <div className="mosaic-card__stats">
-            {item.stats.map((stat, i) => (
-              <div key={i} className="mosaic-card__stat">
-                <span className="mosaic-card__stat-label">{stat.label}</span>
-                <span className="mosaic-card__stat-value">{stat.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Content list */}
-          <ul className="mosaic-card__list">
-            {item.bullets.map((b, j) => (
-              <motion.li
-                key={j}
-                initial={{ opacity: 0, x: -10 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
-                transition={{ duration: 0.3, delay: 0.2 + j * 0.1 }}
-              >
-                <span className="mosaic-card__bullet">›</span>
-                {b}
-              </motion.li>
-            ))}
-          </ul>
-
-          {/* Corner brackets */}
-          <span className="mosaic-card__corner mosaic-card__corner--tl" />
-          <span className="mosaic-card__corner mosaic-card__corner--tr" />
-          <span className="mosaic-card__corner mosaic-card__corner--bl" />
-          <span className="mosaic-card__corner mosaic-card__corner--br" />
-        </motion.article>
-      </div>
-    </div>
-  )
-})
-
 export default function BeyondBuild() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
@@ -170,11 +86,20 @@ export default function BeyondBuild() {
         <h2>Leadership, collaboration, and community impact.</h2>
       </motion.header>
 
-      <div className="mosaic-grid">
-        {items.map((item, i) => (
-          <MosaicCard key={item.id} item={item} index={i} />
-        ))}
-      </div>
+      <MagicBento
+        items={items}
+        textAutoHide
+        enableStars={false}
+        enableSpotlight
+        enableBorderGlow
+        enableTilt
+        enableMagnetism
+        clickEffect
+        spotlightRadius={300}
+        particleCount={12}
+        glowColor="132, 0, 255"
+        disableAnimations={false}
+      />
     </>
   )
 }

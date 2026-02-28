@@ -103,6 +103,7 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
         <motion.article
           ref={ref}
           className="project-card"
+          data-cursor
           style={{
             '--project-accent': project.accent,
             '--project-accent-rgb': project.accentRgb,

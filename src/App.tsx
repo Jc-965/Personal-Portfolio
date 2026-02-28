@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
+import TargetCursor from './components/TargetCursor'
 import Background from './components/Background'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -15,6 +16,15 @@ function App() {
   return (
     <>
       <Cursor />
+      {!isLoading && (
+        <TargetCursor
+          targetSelector="a, button, input, textarea, [data-cursor]"
+          spinDuration={2}
+          hideDefaultCursor={false}
+          parallaxOn
+          hoverDuration={0.2}
+        />
+      )}
       <div className="vintage-overlay" />
       <AnimatePresence mode="wait">
         {isLoading ? (

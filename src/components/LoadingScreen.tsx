@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Dither from './Dither'
 
 interface LoadingScreenProps {
   onComplete: () => void
@@ -61,6 +62,20 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
+          <div className="loading-screen__dither" aria-hidden="true">
+            <Dither
+              waveColor={[0.06, 0.24, 0.34]}
+              disableAnimation={false}
+              enableMouseInteraction
+              mouseRadius={0.10}
+              colorNum={5}
+              pixelSize={1.35}
+              waveAmplitude={0.58}
+              waveFrequency={3.8}
+              waveSpeed={0.03}
+            />
+          </div>
+
           {/* Subtle grid background */}
           <div className="loading-screen__grid" />
 
