@@ -1,32 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-
-function useTypewriter(text: string, speed = 30, startDelay = 0) {
-  const [displayed, setDisplayed] = useState('')
-  const [started, setStarted] = useState(false)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setStarted(true), startDelay)
-    return () => clearTimeout(timer)
-  }, [startDelay])
-
-  useEffect(() => {
-    if (!started || displayed.length >= text.length) return
-    const t = setTimeout(() => setDisplayed(text.slice(0, displayed.length + 1)), speed)
-    return () => clearTimeout(t)
-  }, [displayed, started, text, speed])
-
-  return displayed
-}
+import ASCIIText from '../../react-bits-upstream/src/ts-default/TextAnimations/ASCIIText/ASCIIText'
+import DecryptedText from './DecryptedText'
+import Magnet from './Magnet'
 
 export default function Hero() {
   const [showContent, setShowContent] = useState(false)
-
-  const eyebrow = useTypewriter(
-    'Jesse Chen // Carnegie Mellon SCS',
-    25,
-    showContent ? 200 : 1000
-  )
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 300)
@@ -50,36 +29,73 @@ export default function Hero() {
           transition={{ duration: 0.5, delay: 0.1 }}
         >
           <span className="hero__prompt">&gt; </span>
-          {eyebrow}
-          <span className="hero__cursor">_</span>
+          <DecryptedText
+            text="Jesse Chen // Carnegie Mellon SCS"
+            speed={18}
+            sequential
+            revealDirection="start"
+            animateOn="view"
+            characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-"
+            parentClassName="hero__eyebrow-text"
+            className="hero__eyebrow-char"
+            encryptedClassName="hero__eyebrow-char hero__eyebrow-char--encrypted"
+          />
         </motion.p>
 
-        <h1 className="hero__title hero__title--centered">
-          <motion.span
-            className="hero__title-line"
+        <h1 className="hero__title-sr">
+          Building technology that solves real problems for real people.
+        </h1>
+
+        <div className="hero__title hero__title--centered" aria-hidden="true">
+          <motion.div
+            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
             initial={{ opacity: 0, y: 40, rotateX: -30 }}
             animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
           >
-            Building technology
-          </motion.span>
-          <motion.span
-            className="hero__title-line hero__title-line--accent"
+            <ASCIIText
+              text="Building technology"
+              enableWaves
+              asciiFontSize={4}
+              textFontSize={260}
+              textColor="#f8fbff"
+              planeBaseHeight={6.2}
+              interactionMode="viewport"
+            />
+          </motion.div>
+          <motion.div
+            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-accent"
             initial={{ opacity: 0, y: 40, rotateX: -30 }}
             animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
           >
-            that solves real problems
-          </motion.span>
-          <motion.span
-            className="hero__title-line"
+            <ASCIIText
+              text="that solves real problems"
+              enableWaves
+              asciiFontSize={4}
+              textFontSize={260}
+              textColor="#7efcff"
+              planeBaseHeight={6.2}
+              interactionMode="viewport"
+            />
+          </motion.div>
+          <motion.div
+            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
             initial={{ opacity: 0, y: 40, rotateX: -30 }}
             animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
           >
-            for real people.
-          </motion.span>
-        </h1>
+            <ASCIIText
+              text="for real people."
+              enableWaves
+              asciiFontSize={4}
+              textFontSize={260}
+              textColor="#f8fbff"
+              planeBaseHeight={6.2}
+              interactionMode="viewport"
+            />
+          </motion.div>
+        </div>
 
         <motion.p
           className="hero__description hero__description--centered"
@@ -98,14 +114,30 @@ export default function Hero() {
           animate={showContent ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.8 }}
         >
-          <a className="btn btn--primary btn--glow" href="#projects">
-            <span className="btn__icon">&#9654;</span>
-            Browse projects
-          </a>
-          <a className="btn btn--ghost" href="#journey">
-            <span className="btn__icon">$</span>
-            See the journey
-          </a>
+          <Magnet
+            padding={72}
+            disabled={false}
+            magnetStrength={12}
+            activeTransition="transform 0.14s cubic-bezier(0.16, 1, 0.3, 1)"
+            inactiveTransition="transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)"
+          >
+            <a className="btn btn--primary btn--glow" href="#projects">
+              <span className="btn__icon">&#9654;</span>
+              Browse projects
+            </a>
+          </Magnet>
+          <Magnet
+            padding={72}
+            disabled={false}
+            magnetStrength={12}
+            activeTransition="transform 0.14s cubic-bezier(0.16, 1, 0.3, 1)"
+            inactiveTransition="transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)"
+          >
+            <a className="btn btn--ghost" href="#journey">
+              <span className="btn__icon">$</span>
+              See the journey
+            </a>
+          </Magnet>
         </motion.div>
 
         <motion.div

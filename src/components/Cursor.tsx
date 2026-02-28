@@ -8,7 +8,9 @@ export default function Cursor() {
   const hovering = useRef(false)
   const clicking = useRef(false)
   const rotation = useRef(0)
-  const trail = useRef<{ x: number; y: number; alpha: number }[]>([])
+  const trailPool = useRef(Array.from({ length: 12 }, () => ({ x: 0, y: 0, alpha: 0 })))
+  const trailHead = useRef(0)
+  const trailCount = useRef(0)
   const pulseWaves = useRef<{ x: number; y: number; radius: number; alpha: number }[]>([])
 
   useEffect(() => {
@@ -38,17 +40,27 @@ export default function Cursor() {
     }
     resize()
 
-    let frame: number
+    let frame = 0
     let lastTime = 0
 
+    const hasActiveEffects = () =>
+      visible.current || trailCount.current > 0 || pulseWaves.current.length > 0
+
+    const requestTick = () => {
+      if (!frame) {
+        frame = requestAnimationFrame(tick)
+      }
+    }
+
     const tick = (now: number) => {
-      const dt = Math.min((now - lastTime) / 16.67, 3) // normalize to ~60fps
+      frame = 0
+      const elapsed = lastTime === 0 ? 16.67 : now - lastTime
+      const dt = Math.min(elapsed / 16.67, 3)
       lastTime = now
 
       ctx.clearRect(0, 0, w, h)
 
-      if (!visible.current) {
-        frame = requestAnimationFrame(tick)
+      if (!hasActiveEffects()) {
         return
       }
 
@@ -68,10 +80,15 @@ export default function Cursor() {
       // Rotation
       rotation.current += (isHover ? 0.04 : 0.02) * dt
 
-      // Update trail
-      trail.current.push({ x: px, y: py, alpha: 0.5 })
-      if (trail.current.length > 12) trail.current.shift()
-      trail.current.forEach(t => { t.alpha *= 0.85 })
+      // Update trail (ring buffer — no allocations)
+      const pool = trailPool.current
+      const entry = pool[trailHead.current]
+      entry.x = px; entry.y = py; entry.alpha = 0.5
+      trailHead.current = (trailHead.current + 1) % 12
+      if (trailCount.current < 12) trailCount.current++
+      for (let i = 0; i < trailCount.current; i++) {
+        pool[i].alpha *= 0.85
+      }
 
       // Update pulse waves
       for (let i = pulseWaves.current.length - 1; i >= 0; i--) {
@@ -82,13 +99,14 @@ export default function Cursor() {
       }
 
       // Draw trail
-      trail.current.forEach(t => {
-        if (t.alpha < 0.02) return
+      for (let i = 0; i < trailCount.current; i++) {
+        const t = pool[i]
+        if (t.alpha < 0.02) continue
         ctx.fillStyle = `rgba(0, 255, 255, ${t.alpha * 0.15})`
         ctx.beginPath()
         ctx.arc(t.x, t.y, 2, 0, Math.PI * 2)
         ctx.fill()
-      })
+      }
 
       // Draw pulse waves from clicks
       pulseWaves.current.forEach(pw => {
@@ -128,36 +146,30 @@ export default function Cursor() {
       ctx.lineTo(px, py + crossLen + crossGap)
       ctx.stroke()
 
-      // Small corner brackets at crosshair ends
+      // Small corner brackets at crosshair ends (single batched path)
       const bracketSize = 3
       ctx.strokeStyle = `rgba(0, 255, 255, ${crossAlpha * 0.7})`
       ctx.lineWidth = 0.6
-      // Top
       ctx.beginPath()
+      // Top
       ctx.moveTo(px - bracketSize, py - crossLen - crossGap)
       ctx.lineTo(px, py - crossLen - crossGap)
       ctx.lineTo(px, py - crossLen - crossGap + bracketSize)
-      ctx.stroke()
       // Bottom
-      ctx.beginPath()
       ctx.moveTo(px + bracketSize, py + crossLen + crossGap)
       ctx.lineTo(px, py + crossLen + crossGap)
       ctx.lineTo(px, py + crossLen + crossGap - bracketSize)
-      ctx.stroke()
       // Left
-      ctx.beginPath()
       ctx.moveTo(px - crossLen - crossGap, py - bracketSize)
       ctx.lineTo(px - crossLen - crossGap, py)
       ctx.lineTo(px - crossLen - crossGap + bracketSize, py)
-      ctx.stroke()
       // Right
-      ctx.beginPath()
       ctx.moveTo(px + crossLen + crossGap, py + bracketSize)
       ctx.lineTo(px + crossLen + crossGap, py)
       ctx.lineTo(px + crossLen + crossGap - bracketSize, py)
       ctx.stroke()
 
-      // Rotating dashed ring
+      // Rotating dashed ring (batched into single path)
       const ringRadius = isClick ? 12 : isHover ? 24 : 18
       const segments = 8
       const segmentAngle = (Math.PI * 2) / segments
@@ -165,15 +177,16 @@ export default function Cursor() {
       ctx.strokeStyle = `rgba(0, 255, 255, ${isHover ? 0.6 : 0.35})`
       ctx.lineWidth = isHover ? 1.8 : 1.2
 
+      ctx.beginPath()
       for (let i = 0; i < segments; i++) {
         const startAngle = rotation.current + i * segmentAngle
         const endAngle = startAngle + segmentAngle * (1 - gapRatio)
-        ctx.beginPath()
         ctx.arc(rx, ry, ringRadius, startAngle, endAngle)
-        ctx.stroke()
+        ctx.moveTo(rx + Math.cos(endAngle) * ringRadius, ry + Math.sin(endAngle) * ringRadius)
       }
+      ctx.stroke()
 
-      // Second ring rotating opposite direction (outer, fainter)
+      // Second ring rotating opposite direction (outer, fainter, batched)
       if (!isClick) {
         const outerRadius = isHover ? 32 : 24
         ctx.strokeStyle = `rgba(0, 255, 255, ${isHover ? 0.2 : 0.1})`
@@ -181,31 +194,32 @@ export default function Cursor() {
         const outerSegments = 12
         const outerSegAngle = (Math.PI * 2) / outerSegments
 
+        ctx.beginPath()
         for (let i = 0; i < outerSegments; i++) {
           const startAngle = -rotation.current * 0.7 + i * outerSegAngle
           const endAngle = startAngle + outerSegAngle * 0.4
-          ctx.beginPath()
           ctx.arc(rx, ry, outerRadius, startAngle, endAngle)
-          ctx.stroke()
+          ctx.moveTo(rx + Math.cos(endAngle) * outerRadius, ry + Math.sin(endAngle) * outerRadius)
         }
+        ctx.stroke()
       }
 
-      // Small tick marks on the ring
+      // Small tick marks on the ring (batched)
       const tickRadius = isHover ? 24 : 18
       const tickLength = 3
       ctx.strokeStyle = `rgba(0, 255, 255, ${isHover ? 0.3 : 0.15})`
       ctx.lineWidth = 0.5
+      ctx.beginPath()
       for (let i = 0; i < 4; i++) {
         const angle = rotation.current * 0.5 + (i * Math.PI) / 2
         const innerX = rx + Math.cos(angle) * (tickRadius - tickLength)
         const innerY = ry + Math.sin(angle) * (tickRadius - tickLength)
         const outerX = rx + Math.cos(angle) * (tickRadius + tickLength)
         const outerY = ry + Math.sin(angle) * (tickRadius + tickLength)
-        ctx.beginPath()
         ctx.moveTo(innerX, innerY)
         ctx.lineTo(outerX, outerY)
-        ctx.stroke()
       }
+      ctx.stroke()
 
       // Center dot with glow
       const dotSize = isClick ? 3 : isHover ? 4 : 3
@@ -230,7 +244,9 @@ export default function Cursor() {
       ctx.arc(px, py, 1, 0, Math.PI * 2)
       ctx.fill()
 
-      frame = requestAnimationFrame(tick)
+      if (hasActiveEffects()) {
+        requestTick()
+      }
     }
 
     const onMove = (e: MouseEvent) => {
@@ -238,12 +254,15 @@ export default function Cursor() {
       pos.current.y = e.clientY
       if (!visible.current) {
         visible.current = true
-        ringPos.current = { ...pos.current }
+        ringPos.current.x = pos.current.x
+        ringPos.current.y = pos.current.y
       }
+      requestTick()
     }
 
     const onLeave = () => {
       visible.current = false
+      requestTick()
     }
 
     const onDown = () => {
@@ -253,10 +272,12 @@ export default function Cursor() {
         x: pos.current.x, y: pos.current.y,
         radius: 8, alpha: 0.6
       })
+      requestTick()
     }
 
     const onUp = () => {
       clicking.current = false
+      requestTick()
     }
 
     const onOver = (e: MouseEvent) => {
@@ -274,13 +295,15 @@ export default function Cursor() {
     const handleVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(frame)
+        frame = 0
       } else {
-        lastTime = performance.now()
-        frame = requestAnimationFrame(tick)
+        lastTime = 0
+        if (hasActiveEffects()) {
+          requestTick()
+        }
       }
     }
 
-    frame = requestAnimationFrame(tick)
     window.addEventListener('resize', resize)
     document.addEventListener('mousemove', onMove, { passive: true })
     document.addEventListener('mouseleave', onLeave, { passive: true })
@@ -292,6 +315,7 @@ export default function Cursor() {
 
     return () => {
       cancelAnimationFrame(frame)
+      frame = 0
       window.removeEventListener('resize', resize)
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseleave', onLeave)
