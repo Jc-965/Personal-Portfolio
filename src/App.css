@@ -2804,6 +2804,213 @@ ul {
 }
 
 /* ============================================================================
+   EMAIL POPUP
+   ============================================================================ */
+
+.email-popup__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.email-popup__card {
+  position: relative;
+  width: 90%;
+  max-width: 420px;
+  padding: 32px 28px 28px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(5, 11, 20, 0.96), rgba(2, 7, 15, 0.98));
+  box-shadow:
+    0 0 40px rgba(0, 255, 255, 0.08),
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.email-popup__scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 255, 0.015) 0px,
+    rgba(0, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+.email-popup__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(0, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.email-popup__close:hover {
+  border-color: rgba(0, 255, 255, 0.3);
+  color: var(--accent-cyan);
+  background: rgba(0, 255, 255, 0.06);
+}
+
+.email-popup__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.email-popup__prompt {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
+.email-popup__title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+}
+
+.email-popup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.email-popup__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.email-popup__label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.email-popup__input,
+.email-popup__textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 255, 255, 0.03);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.email-popup__textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.email-popup__input::placeholder,
+.email-popup__textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.email-popup__input:focus,
+.email-popup__textarea:focus {
+  border-color: rgba(0, 255, 255, 0.35);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.08);
+}
+
+.email-popup__input:disabled,
+.email-popup__textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.email-popup__submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 255, 255, 0.1);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  align-self: flex-end;
+}
+
+.email-popup__submit:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.18);
+  border-color: rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+}
+
+.email-popup__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.email-popup__submit svg {
+  color: var(--accent-cyan);
+}
+
+.email-popup__error {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-red);
+}
+
+.email-popup__success {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.email-popup__success p {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--accent-green);
+  margin-bottom: 6px;
+}
+
+.email-popup__success-sub {
+  font-size: 0.78rem !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ============================================================================
    RESPONSIVE
    ============================================================================ */
 

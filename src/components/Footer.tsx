@@ -1,6 +1,12 @@
+import { useState, useCallback } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { Github, Linkedin, Mail } from 'lucide-react'
+import EmailPopup from './EmailPopup'
 
 export default function Footer() {
+  const [showEmail, setShowEmail] = useState(false)
+  const closeEmail = useCallback(() => setShowEmail(false), [])
+
   return (
     <footer className="footer">
       <p>&copy; {new Date().getFullYear()} Jesse Chen</p>
@@ -16,15 +22,15 @@ export default function Footer() {
           <Github size={15} strokeWidth={2.25} aria-hidden="true" />
           <span className="footer__social-text">GitHub</span>
         </a>
-        <a
+        <button
           className="footer__social-link"
-          href="mailto:jessec2@andrew.cmu.edu"
+          onClick={() => setShowEmail(true)}
           aria-label="Send an email"
           title="Send an email"
         >
           <Mail size={15} strokeWidth={2.25} aria-hidden="true" />
           <span className="footer__social-text">Email</span>
-        </a>
+        </button>
         <a
           className="footer__social-link"
           href="https://www.linkedin.com/in/jessechen2/"
@@ -43,6 +49,10 @@ export default function Footer() {
       >
         cd ~/ &uarr;
       </button>
+
+      <AnimatePresence>
+        {showEmail && <EmailPopup onClose={closeEmail} />}
+      </AnimatePresence>
     </footer>
   )
 }
