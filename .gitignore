@@ -23,3 +23,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Local vendored source that has been removed from the repo
+react-bits-upstream/
