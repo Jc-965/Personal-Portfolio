@@ -10,7 +10,7 @@ const items: MagicBentoItem[] = [
     title: 'Arcadia App Development',
     subtitle: 'Developer & Treasurer',
     bullets: [
-      'Helped develop a digital student ID system that improved event check-ins for thousands of students.',
+      'Helped develop a digital student ID system that improved check-ins for thousands of students.',
       'Worked closely with administrators to design features based on real student and faculty needs.',
       'Managed finances and outreach efforts, expanding the club’s reach and project capacity.',
     ],
@@ -59,7 +59,7 @@ const items: MagicBentoItem[] = [
       'Performed nationally and abroad with the Pasadena Symphony and Pops, developing focus and composure under pressure.',
     ],
     stats: [
-      { label: 'YEARS', value: '6' },
+      { label: 'YEARS', value: '4' },
       { label: 'ANNUAL HRS', value: '200+' },
     ],
     accent: '#9c7fae',
