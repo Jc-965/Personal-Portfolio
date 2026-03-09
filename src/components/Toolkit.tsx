@@ -68,7 +68,7 @@ export default function Toolkit() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Toolkit
         </p>
-        <h2>Technologies and tools I work with.</h2>
+        <h2>Technologies and tools I work with</h2>
       </motion.header>
 
       <motion.div

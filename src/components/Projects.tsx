@@ -193,7 +193,7 @@ export default function Projects() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Projects
         </p>
-        <h2>Building software that solves meaningful problems.</h2>
+        <h2>Building software that solves meaningful problems</h2>
       </motion.header>
 
       <div className="projects__grid">

@@ -43,7 +43,7 @@ export default function Hero() {
         </motion.p>
 
         <h1 className="hero__title-sr">
-          Building technology that solves real problems for real people.
+          Building technology that solves real problems for real people
         </h1>
 
         <div className="hero__title hero__title--centered" aria-hidden="true">
@@ -104,8 +104,7 @@ export default function Hero() {
           transition={{ duration: 0.5, delay: 0.65 }}
         >
           First-year CS student at Carnegie Mellon focused on developing
-          technology that addresses meaningful challenges. Building software
-          that bridges engineering and human needs.
+          technology that addresses meaningful challenges.
         </motion.p>
 
         <motion.div
@@ -138,29 +137,6 @@ export default function Hero() {
               See the journey
             </a>
           </Magnet>
-        </motion.div>
-
-        <motion.div
-          className="hero__status hero__status--centered"
-          initial={{ opacity: 0 }}
-          animate={showContent ? { opacity: 1 } : {}}
-          transition={{ duration: 0.5, delay: 0.95 }}
-        >
-          <div className="hero__status-item">
-            <span className="hero__status-label">LOCATION</span>
-            <span className="hero__status-value">Pittsburgh, PA</span>
-          </div>
-          <div className="hero__status-item">
-            <span className="hero__status-label">FOCUS</span>
-            <span className="hero__status-value">Human-centered computing</span>
-          </div>
-          <div className="hero__status-item">
-            <span className="hero__status-label">STATUS</span>
-            <span className="hero__status-value is-pulse">
-              <span className="hero__status-dot" />
-              Online
-            </span>
-          </div>
         </motion.div>
       </motion.div>
     </section>
