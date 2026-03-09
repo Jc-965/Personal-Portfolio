@@ -86,7 +86,7 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
           >
             <ASCIIText
-              text="for real people."
+              text="for real people"
               enableWaves
               asciiFontSize={4}
               textFontSize={260}
