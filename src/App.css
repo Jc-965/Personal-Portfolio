@@ -3071,8 +3071,8 @@ ul {
 
   .hero__title-line--ascii {
     width: calc(100% + 28px);
-    height: clamp(56px, 9vw, 82px);
-    margin: 0 -14px -8px;
+    height: clamp(64px, 14vw, 110px);
+    margin: 0 -14px -6px;
   }
 
   .hero__cta {
