@@ -230,7 +230,7 @@ export default function Journey() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Journey
         </p>
-        <h2>From Human Stories to Working Systems.</h2>
+        <h2>From Research Labs to Shipped Products</h2>
       </motion.header>
 
       <div className="process-grid">

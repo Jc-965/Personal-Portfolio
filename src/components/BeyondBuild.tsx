@@ -83,7 +83,7 @@ export default function BeyondBuild() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Beyond the build
         </p>
-        <h2>Leadership, collaboration, and community impact.</h2>
+        <h2>Leadership, collaboration, and community impact</h2>
       </motion.header>
 
       <MagicBento
