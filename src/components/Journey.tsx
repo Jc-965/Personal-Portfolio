@@ -1,6 +1,6 @@
-import { useRef, memo } from 'react'
+import { useRef, memo, useEffect, useState, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical } from 'lucide-react'
+import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical, Shield } from 'lucide-react'
 
 interface Experience {
   id: string
@@ -8,40 +8,129 @@ interface Experience {
   icon: React.ReactNode
   title: string
   role: string
+  track: string
+  period?: string
+  location?: string
+  status?: string
   summary: string
   stack: string[]
   metrics: { label: string; value: string; bar?: number }[]
   accent: string
 }
 
+const revealEase = [0.22, 1, 0.36, 1] as const
+
+const metaVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: (index: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.55,
+      delay: index * 0.06,
+      ease: revealEase,
+    },
+  }),
+}
+
+const branchVariants = {
+  hidden: { opacity: 0, scaleX: 0.85 },
+  visible: (index: number) => ({
+    opacity: 1,
+    scaleX: 1,
+    transition: {
+      duration: 0.5,
+      delay: 0.08 + index * 0.06,
+      ease: revealEase,
+    },
+  }),
+}
+
+const markerVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: (index: number) => ({
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.45,
+      delay: 0.14 + index * 0.06,
+      ease: revealEase,
+    },
+  }),
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.65,
+      delay: 0.12 + index * 0.06,
+      ease: revealEase,
+    },
+  }),
+}
+
+interface RailPoint {
+  accent: string
+  center: number
+}
+
 const experiences: Experience[] = [
   {
-    id: 'sorcea',
+    id: 'blue-shield',
     pid: '001',
+    icon: <Shield size={16} />,
+    title: 'Blue Shield of California',
+    role: 'Incoming Mobile Software Engineering Intern',
+    track: 'Healthcare',
+    period: 'Summer 2026',
+    location: 'Long Beach, CA',
+    status: 'Incoming',
+    summary: 'Joining Blue Shield of California as an incoming Mobile Software Engineering Intern for Summer 2026, working on mobile healthcare technology.',
+    stack: ['Mobile Engineering', 'Healthcare Tech', 'Summer 2026'],
+    metrics: [
+      { label: 'Stage', value: 'INCOMING', bar: 100 },
+      { label: 'Start', value: 'SUMMER 2026', bar: 78 },
+      { label: 'Focus', value: 'MOBILE', bar: 72 },
+    ],
+    accent: '#2d7ff9',
+  },
+  {
+    id: 'sorcea',
+    pid: '002',
     icon: <Terminal size={16} />,
     title: 'Sorcea Labs',
-    role: 'App Developer Intern',
-    summary: 'Drove onboarding UI improvements and visual system refinement in Flutter/Dart, delivering smoother splash-to-landing transitions and responsive layouts. Partnered with the CTO to scope features, conduct code reviews, and align frontend components with backend APIs.',
-    stack: ['Flutter', 'Dart', 'UI Engineering', 'API Integration'],
+    role: 'Mobile Software Engineering Intern',
+    track: 'Industry',
+    period: 'Dec 2025 - Present',
+    location: 'Remote',
+    status: 'Now',
+    summary: 'Built Flutter/Dart onboarding, profile, guided tutorial, and skin-analysis quiz systems that power personalized skincare recommendations for 1.5k+ users. Integrated routine-builder, product review, and animated scoring interfaces.',
+    stack: ['Flutter', 'Dart', 'Dio', 'AWS Amplify', 'Firebase'],
     metrics: [
-      { label: 'Components', value: '24', bar: 80 },
-      { label: 'Screens', value: '8', bar: 65 },
-      { label: 'API Calls', value: '12', bar: 50 },
+      { label: 'Users', value: '1.5k+', bar: 85 },
+      { label: 'Core Flows', value: '4', bar: 72 },
+      { label: 'Integrations', value: '4', bar: 68 },
     ],
     accent: '#00ffff',
   },
   {
     id: 'gcs',
-    pid: '002',
+    pid: '005',
     icon: <Gamepad2 size={16} />,
     title: 'Game Creation Society',
     role: 'Core Developer',
-    summary: 'Implemented aerial-physics systems and replication logic for an Unreal Engine 5 multiplayer prototype, tuning movement feel and network consistency. Iterated on gameplay balance and optimized Blueprints for responsive playtests.',
-    stack: ['Unreal Engine 5', 'Multiplayer systems'],
+    track: 'Game Systems',
+    period: 'Sep 2025 - Dec 2025',
+    location: 'Pittsburgh, PA',
+    summary: 'Programmed grappling and tether mechanics in Unreal Engine 5 Blueprints, focusing on physics-driven first-person control. Built local multiplayer networking logic to synchronize collisions, player feedback, and elimination trails in real time.',
+    stack: ['Unreal Engine 5', 'Blueprints', 'Physics Systems', 'Multiplayer Logic'],
     metrics: [
-      { label: 'Physics Sys', value: '3', bar: 75 },
-      { label: 'Net Sync', value: '60hz', bar: 90 },
-      { label: 'Players', value: '2', bar: 55 },
+      { label: 'Mechanics', value: '2', bar: 78 },
+      { label: 'Networking', value: 'LOCAL MP', bar: 84 },
+      { label: 'Feedback', value: 'REAL-TIME', bar: 74 },
     ],
     accent: '#ff00ff',
   },
@@ -51,12 +140,16 @@ const experiences: Experience[] = [
     icon: <Map size={16} />,
     title: 'CMUMaps',
     role: 'Data & Software Engineer',
-    summary: 'Built a GeoJSON processing pipeline from OpenStreetMap XML and generated geometry anchors for accurate campus rendering. Automated outline and metadata validation, preparing datasets for deployment to AWS S3.',
-    stack: ['Python', 'XML Parsing', 'Geometry Algorithms', 'Data Validation'],
+    track: 'Campus Data',
+    period: 'Sep 2025 - Present',
+    location: 'Pittsburgh, PA',
+    status: 'Now',
+    summary: 'Parsed OpenStreetMap data into normalized JSON, validating room IDs, geometry, and metadata consistency for downstream frontend and backend consumers. Automated serializer and deserializer workflows for versioned dataset publishing to AWS S3 and implemented geometry-based anchors for more accurate map rendering and label placement.',
+    stack: ['Python', 'OSM Parsing', 'JSON Pipelines', 'AWS S3', 'Geometry Anchors'],
     metrics: [
-      { label: 'Buildings', value: '142', bar: 95 },
-      { label: 'Paths', value: '1.2k', bar: 85 },
-      { label: 'Accuracy', value: '99%', bar: 99 },
+      { label: 'Source', value: 'OSM', bar: 92 },
+      { label: 'Output', value: 'VERSIONED JSON', bar: 84 },
+      { label: 'Deploy', value: 'AWS S3', bar: 80 },
     ],
     accent: '#00ff41',
   },
@@ -66,6 +159,9 @@ const experiences: Experience[] = [
     icon: <GraduationCap size={16} />,
     title: 'Coding Minds Academy',
     role: 'Instructor',
+    track: 'Teaching',
+    period: 'Jun 2025 - Feb 2026',
+    location: 'Remote',
     summary: 'Designed and taught curriculum covering core programming paradigms, algorithmic reasoning, and competitive problem solving. Built project-based labs and visualization exercises to translate abstract logic into working code.',
     stack: ['Python', 'C++', 'JavaScript', 'ACSL'],
     metrics: [
@@ -77,24 +173,75 @@ const experiences: Experience[] = [
   },
   {
     id: 'softcom',
-    pid: '005',
+    pid: '006',
     icon: <FlaskConical size={16} />,
     title: 'SoftCom Lab',
     role: 'Research Intern',
-    summary: "Built preprocessing and evaluation pipelines for Parkinson's progression datasets using NumPy, Pandas, and scikit-learn. Supported model validation and analysis workflows that contributed to a peer-reviewed publication.",
-    stack: ['NumPy', 'Pandas', 'Scikit-learn'],
+    track: 'Research',
+    period: 'Jun 2023 - Aug 2024',
+    location: 'Pomona, CA',
+    summary: "Initiated a Parkinson's-focused mobile-health study by assembling speech and movement datasets under faculty mentorship. Built reproducible Python pipelines with NumPy, Pandas, and scikit-learn for feature extraction and analysis, contributing methodology and results to a peer-reviewed CCSIT paper on healthcare AI and digital therapeutics.",
+    stack: ['Python', 'NumPy', 'Pandas', 'Scikit-learn', 'Healthcare AI/ML'],
     metrics: [
-      { label: 'Datasets', value: '4', bar: 65 },
-      { label: 'Models', value: '7', bar: 75 },
-      { label: 'Published', value: '1', bar: 100 },
+      { label: 'Study', value: 'M-HEALTH', bar: 76 },
+      { label: 'Data', value: 'SPEECH + MOTION', bar: 82 },
+      { label: 'Paper', value: 'CCSIT', bar: 100 },
     ],
     accent: '#ff3366',
   },
 ]
 
-const ProcessCard = memo(function ProcessCard({ exp, index }: { exp: Experience; index: number }) {
+const timelineOrder = ['blue-shield', 'sorcea', 'cmumaps', 'coding-minds', 'gcs', 'softcom']
+
+const orderedExperiences = timelineOrder
+  .map(id => experiences.find(exp => exp.id === id))
+  .filter((exp): exp is Experience => Boolean(exp))
+
+function buildProgressGradient(points: RailPoint[], railHeight: number) {
+  if (!points.length || railHeight <= 0) {
+    return 'linear-gradient(180deg, rgba(143, 252, 255, 0.92), rgba(0, 255, 255, 0.32))'
+  }
+
+  const stops: string[] = [`${points[0].accent} 0%`]
+
+  points.forEach((point, index) => {
+    const pointPct = (point.center / railHeight) * 100
+    stops.push(`${point.accent} ${pointPct.toFixed(2)}%`)
+
+    if (index === points.length - 1) {
+      stops.push(`${point.accent} 100%`)
+      return
+    }
+
+    const next = points[index + 1]
+    const nextPct = (next.center / railHeight) * 100
+    const segmentPct = Math.max(0, nextPct - pointPct)
+    const transitionStartPct = pointPct + segmentPct * 0.875
+
+    stops.push(`${point.accent} ${transitionStartPct.toFixed(2)}%`)
+    stops.push(`${next.accent} ${nextPct.toFixed(2)}%`)
+  })
+
+  return `linear-gradient(180deg, ${stops.join(', ')})`
+}
+
+const ProcessCard = memo(function ProcessCard({
+  exp,
+  index,
+  onReveal,
+  registerMarker,
+}: {
+  exp: Experience
+  index: number
+  onReveal: (index: number) => void
+  registerMarker: (id: string, marker: HTMLSpanElement | null) => void
+}) {
   const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
+  const inView = useInView(ref, {
+    once: true,
+    amount: 0.34,
+    margin: '0px 0px -10% 0px',
+  })
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
 
@@ -115,107 +262,199 @@ const ProcessCard = memo(function ProcessCard({ exp, index }: { exp: Experience;
     if (cardRef.current) cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
   }
 
+  useEffect(() => {
+    if (!inView) return
+    onReveal(index)
+  }, [inView, index, onReveal])
+
   return (
-    <div className="card-3d-wrap">
-      <div
-        ref={cardRef}
-        className="card-3d-tilt"
-        onMouseMove={handleMouse}
-        onMouseLeave={handleMouseLeave}
-      >
-        <motion.article
-          ref={ref}
-          className="process-card"
-          data-cursor
-          style={{ '--process-accent': exp.accent } as React.CSSProperties}
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.35, delay: index * 0.06 }}
-        >
-          {/* Tech overlay pattern */}
-          <div className="process-card__overlay" />
+    <motion.div
+      ref={ref}
+      className="timeline-entry"
+      style={{ '--process-accent': exp.accent } as React.CSSProperties}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+    >
+      <motion.div className="timeline-entry__meta" variants={metaVariants} custom={index}>
+        <div className="timeline-entry__meta-top">
+          <span className="timeline-entry__track">{exp.track}</span>
+          {exp.status && <span className="timeline-entry__status">{exp.status}</span>}
+        </div>
+        {exp.period && <div className="timeline-entry__date">{exp.period}</div>}
+        {exp.location && <div className="timeline-entry__location">{exp.location}</div>}
+      </motion.div>
 
-          {/* Terminal title bar */}
-          <div className="process-card__titlebar">
-            <div className="process-card__dots">
-              <span className="process-card__dot process-card__dot--red" />
-              <span className="process-card__dot process-card__dot--yellow" />
-              <span className="process-card__dot process-card__dot--green" />
-            </div>
-            <div className="process-card__path">
-              {exp.icon}
-              <span>~/{exp.id}</span>
-            </div>
-            <div className="process-card__pid">PID:{exp.pid}</div>
-          </div>
-
-          {/* Content */}
-          <div className="process-card__body">
-            <div className="process-card__main">
-              <div className="process-card__header">
-                <h3>
-                  <span className="process-card__prompt">&gt; </span>
-                  {exp.title}
-                </h3>
-                <span className="process-card__role">{exp.role}</span>
-              </div>
-
-              <p className="process-card__summary">{exp.summary}</p>
-
-              <div className="process-card__stack">
-                {exp.stack.map(s => (
-                  <span key={s} className="process-card__tag">{s}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Visual metrics panel */}
-            <div className="process-card__metrics">
-              <div className="process-card__metrics-header">
-                <span className="process-card__metrics-label">METRICS</span>
-                <span className="process-card__metrics-status">● ACTIVE</span>
-              </div>
-              {exp.metrics.map((m, i) => (
-                <div key={i} className="process-card__metric">
-                  <div className="process-card__metric-info">
-                    <span className="process-card__metric-label">{m.label}</span>
-                    <span className="process-card__metric-value">{m.value}</span>
-                  </div>
-                  {m.bar !== undefined && (
-                    <div className="process-card__metric-bar">
-                      <motion.div
-                        className="process-card__metric-fill"
-                        initial={{ width: 0 }}
-                        animate={inView ? { width: `${m.bar}%` } : {}}
-                        transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {/* Data visualization dots (CSS-animated) */}
-              <div className="process-card__data-viz">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <span key={i} className="process-card__data-dot" />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Corner brackets */}
-          <span className="process-card__corner process-card__corner--tl" />
-          <span className="process-card__corner process-card__corner--tr" />
-          <span className="process-card__corner process-card__corner--bl" />
-          <span className="process-card__corner process-card__corner--br" />
-        </motion.article>
+      <div className="timeline-entry__marker" aria-hidden="true">
+        <motion.span className="timeline-entry__branch" variants={branchVariants} custom={index} />
+        <motion.span
+          ref={node => registerMarker(exp.id, node)}
+          className="timeline-entry__dot"
+          variants={markerVariants}
+          custom={index}
+        />
       </div>
-    </div>
+
+      <motion.div className="card-3d-wrap timeline-entry__card" variants={cardVariants} custom={index}>
+        <div
+          ref={cardRef}
+          className="card-3d-tilt"
+          onMouseMove={handleMouse}
+          onMouseLeave={handleMouseLeave}
+        >
+          <article className="process-card" data-cursor>
+            {/* Tech overlay pattern */}
+            <div className="process-card__overlay" />
+
+            {/* Terminal title bar */}
+            <div className="process-card__titlebar">
+              <div className="process-card__dots">
+                <span className="process-card__dot process-card__dot--red" />
+                <span className="process-card__dot process-card__dot--yellow" />
+                <span className="process-card__dot process-card__dot--green" />
+              </div>
+              <div className="process-card__path">
+                {exp.icon}
+                <span>~/{exp.id}</span>
+              </div>
+              <div className="process-card__pid">PID:{exp.pid}</div>
+            </div>
+
+            {/* Content */}
+            <div className="process-card__body">
+              <div className="process-card__main">
+                <div className="process-card__header">
+                  <h3>
+                    <span className="process-card__prompt">&gt; </span>
+                    {exp.title}
+                  </h3>
+                  <span className="process-card__role">{exp.role}</span>
+                </div>
+
+                <p className="process-card__summary">{exp.summary}</p>
+
+                <div className="process-card__stack">
+                  {exp.stack.map(s => (
+                    <span key={s} className="process-card__tag">{s}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Visual metrics panel */}
+              <div className="process-card__metrics">
+                <div className="process-card__metrics-header">
+                  <span className="process-card__metrics-label">METRICS</span>
+                  <span className="process-card__metrics-status">● ACTIVE</span>
+                </div>
+                {exp.metrics.map((m, i) => (
+                  <div key={i} className="process-card__metric">
+                    <div className="process-card__metric-info">
+                      <span className="process-card__metric-label">{m.label}</span>
+                      <span className="process-card__metric-value">{m.value}</span>
+                    </div>
+                    {m.bar !== undefined && (
+                      <div className="process-card__metric-bar">
+                        <motion.div
+                          className="process-card__metric-fill"
+                          initial={{ width: 0 }}
+                          animate={inView ? { width: `${m.bar}%` } : {}}
+                          transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Data visualization dots (CSS-animated) */}
+                <div className="process-card__data-viz">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <span key={i} className="process-card__data-dot" />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Corner brackets */}
+            <span className="process-card__corner process-card__corner--tl" />
+            <span className="process-card__corner process-card__corner--tr" />
+            <span className="process-card__corner process-card__corner--bl" />
+            <span className="process-card__corner process-card__corner--br" />
+          </article>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 })
 
 export default function Journey() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
+  const railRef = useRef<HTMLDivElement>(null)
+  const markerRefs = useRef<Record<string, HTMLSpanElement | null>>({})
+  const [revealedIndex, setRevealedIndex] = useState(-1)
+  const [railHeightPx, setRailHeightPx] = useState(0)
+  const [progressHeightPx, setProgressHeightPx] = useState(0)
+  const [progressGradient, setProgressGradient] = useState(
+    'linear-gradient(180deg, rgba(143, 252, 255, 0.92), rgba(0, 255, 255, 0.32))'
+  )
+
+  const registerMarker = useCallback((id: string, marker: HTMLSpanElement | null) => {
+    markerRefs.current[id] = marker
+  }, [])
+
+  const handleReveal = useCallback((index: number) => {
+    setRevealedIndex(current => Math.max(current, index))
+  }, [])
+
+  const updateRailVisuals = useCallback(() => {
+    if (!railRef.current) return
+
+    const railRect = railRef.current.getBoundingClientRect()
+    const railHeight = railRect.height
+
+    if (railHeight <= 0) return
+
+    setRailHeightPx(railHeight)
+
+    const points = orderedExperiences
+      .map(exp => {
+        const marker = markerRefs.current[exp.id]
+        if (!marker) return null
+
+        const markerRect = marker.getBoundingClientRect()
+        return {
+          accent: exp.accent,
+          center: Math.max(0, Math.min(railHeight, markerRect.top - railRect.top + markerRect.height / 2)),
+        }
+      })
+      .filter((point): point is RailPoint => Boolean(point))
+
+    if (!points.length) return
+
+    setProgressGradient(buildProgressGradient(points, railHeight))
+
+    if (revealedIndex < 0) {
+      setProgressHeightPx(0)
+      return
+    }
+
+    const clampedIndex = Math.min(revealedIndex, points.length - 1)
+    const target = clampedIndex === points.length - 1
+      ? railHeight
+      : Math.max(points[clampedIndex].center, 8)
+
+    setProgressHeightPx(Math.max(0, Math.min(railHeight, target)))
+  }, [revealedIndex])
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(updateRailVisuals)
+    const onResize = () => updateRailVisuals()
+
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [updateRailVisuals])
 
   return (
     <>
@@ -234,8 +473,30 @@ export default function Journey() {
       </motion.header>
 
       <div className="process-grid">
-        {experiences.map((exp, i) => (
-          <ProcessCard key={exp.id} exp={exp} index={i} />
+        <div ref={railRef} className="process-grid__rail">
+          <motion.div
+            className="process-grid__progress-viewport"
+            initial={false}
+            animate={{ height: progressHeightPx, opacity: progressHeightPx > 0 ? 1 : 0 }}
+            transition={{ duration: 0.8, ease: revealEase }}
+          >
+            <div
+              className="process-grid__progress"
+              style={{
+                background: progressGradient,
+                height: railHeightPx > 0 ? `${railHeightPx}px` : '100%',
+              }}
+            />
+          </motion.div>
+        </div>
+        {orderedExperiences.map((exp, i) => (
+          <ProcessCard
+            key={exp.id}
+            exp={exp}
+            index={i}
+            onReveal={handleReveal}
+            registerMarker={registerMarker}
+          />
         ))}
       </div>
     </>

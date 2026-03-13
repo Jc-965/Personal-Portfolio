@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Code, Layers, BarChart3, TerminalSquare, Network } from 'lucide-react'
 import CardSwap, { Card } from './CardSwap'
+import useIsPhone from '../hooks/useIsPhone'
 
 interface SkillGroup {
   id: string
@@ -54,6 +55,7 @@ export default function Toolkit() {
   const swapRef = useRef<HTMLDivElement>(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
   const swapInView = useInView(swapRef, { margin: '-80px 0px' })
+  const isPhone = useIsPhone()
 
   return (
     <>
@@ -73,12 +75,49 @@ export default function Toolkit() {
 
       <motion.div
         ref={swapRef}
-        className="toolkit__swap-shell"
+        className={isPhone ? 'skill-grid skill-grid--mobile' : 'toolkit__swap-shell'}
         initial={{ opacity: 0, y: 24 }}
         animate={headerInView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.45, delay: 0.08 }}
       >
-        {swapInView ? (
+        {isPhone ? (
+          groups.map((group, index) => (
+            <motion.article
+              key={group.id}
+              className="skill-card skill-card--mobile"
+              style={{ '--skill-accent': group.accent } as React.CSSProperties}
+              initial={{ opacity: 0, y: 20 }}
+              animate={headerInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.35, delay: 0.12 + index * 0.05 }}
+            >
+              <div className="skill-card__terminal-bar">
+                <span className="skill-card__dot" />
+                <span className="skill-card__dot" />
+                <span className="skill-card__dot" />
+                <span className="skill-card__terminal-title">{group.id}.config</span>
+              </div>
+
+              <div className="skill-card__header">
+                <div className="skill-card__icon">{group.icon}</div>
+                <h3 className="skill-card__title">{group.name}</h3>
+                <span className="skill-card__count">{group.items.length}</span>
+              </div>
+
+              <div className="skill-card__tags">
+                {group.items.map(item => (
+                  <span key={item} className="skill-card__tag">
+                    {item}
+                  </span>
+                ))}
+              </div>
+
+              <div className="skill-card__status">
+                <span className="skill-card__status-dot" />
+                <span>Active</span>
+              </div>
+            </motion.article>
+          ))
+        ) : swapInView ? (
           <CardSwap
             width="100%"
             height={300}
