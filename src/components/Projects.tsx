@@ -20,9 +20,9 @@ const projects: Project[] = [
     accent: '#6aa5af',
     accentRgb: '106, 165, 175',
     bullets: [
-      "Architected a Flutter Parkinson's care app with symptom logging, medication scheduling, guided recovery media, and moderated community posts.",
-      'Led end-to-end iOS and Android release engineering with GitHub Actions CI/CD for testing and staging builds.',
-      'Integrated Supabase auth and data services with device-local JSON caching to support reliable offline sync.',
+      "Built a Flutter app for Parkinson's care with symptom tracking, medication schedules, recovery media, and moderated community posts.",
+      'Led iOS/Android release engineering with GitHub Actions CI/CD for testing and staging.',
+      'Integrated Supabase auth/data with local JSON caching for offline sync.',
     ],
     tech: ['Flutter & Dart', 'Supabase', 'GitHub Actions CI/CD', 'Offline Sync'],
     stats: [
@@ -38,9 +38,9 @@ const projects: Project[] = [
     accent: '#4c8bff',
     accentRgb: '76, 139, 255',
     bullets: [
-      'Built an anonymous career network with React 19, TypeScript, Bun/Elysia, PostgreSQL, and Drizzle, shipping school-email auth, feeds, voting, and threaded discussions.',
-      'Designed trust-aware networking flows with identity visibility controls, moderated direct messaging, and mutual identity-reveal workflows.',
-      'Implemented SHA-256-hashed session-token auth and career discovery features including a D3 force-directed graph, company pages, and internship discovery.',
+      'Built an anonymous career network with React 19, TypeScript, Bun/Elysia, PostgreSQL, and Drizzle, with school-email auth, feeds, voting, and threaded discussions.',
+      'Designed trust-aware networking with identity controls, moderated direct messaging, and mutual identity reveal.',
+      'Implemented SHA-256 session-token auth and discovery features including a D3 force-directed graph, company pages, and internship discovery.',
     ],
     tech: ['React 19', 'TypeScript', 'Bun/Elysia', 'PostgreSQL/Drizzle', 'D3'],
     stats: [
@@ -56,9 +56,9 @@ const projects: Project[] = [
     accent: '#b38e5d',
     accentRgb: '179, 142, 93',
     bullets: [
-      'Built a native Android app in Java to help Scouts discover troops and service opportunities through location-aware search.',
-      'Integrated Firebase, Google Maps API, and the NYT API with OkHttp, Gson, and Glide for cloud-backed troop profiles and a dynamic news feed.',
-      'Combined geospatial browsing and community discovery into a lightweight engagement platform for scouting activities.',
+      'Built a native Android app in Java to help Scouts find troops and service opportunities through location-aware search.',
+      'Integrated Firebase, Google Maps, and NYT APIs with OkHttp, Gson, and Glide for troop profiles and a dynamic news feed.',
+      'Combined geospatial browsing and community discovery into a lightweight scouting platform.',
     ],
     tech: ['Java', 'Firebase', 'Google Maps API', 'OkHttp/Gson/Glide'],
     stats: [
@@ -74,9 +74,9 @@ const projects: Project[] = [
     accent: '#9c7fae',
     accentRgb: '156, 127, 174',
     bullets: [
-      'Built using React and TypeScript with a tarot-inspired interactive visual experience.',
-      'Implemented branching logic through prompt-based storytelling and interactive choices.',
-      'Added parallax visuals and soundscapes for an immersive web experience.',
+      'Built a tarot-inspired interactive web experience in React and TypeScript.',
+      'Implemented branching storytelling through prompt-based choices.',
+      'Added parallax visuals and soundscapes for a more immersive experience.',
     ],
     tech: ['React & Vite', 'TypeScript', 'Tailwind CSS', 'Framer Motion'],
     stats: [
