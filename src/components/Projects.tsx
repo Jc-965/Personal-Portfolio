@@ -7,6 +7,7 @@ interface Project {
   tag: string
   accent: string
   accentRgb: string
+  featured?: boolean
   bullets: string[]
   tech: string[]
   stats: { label: string; value: string }[]
@@ -19,12 +20,13 @@ const projects: Project[] = [
     tag: 'Mobile health · Cross-platform',
     accent: '#6aa5af',
     accentRgb: '106, 165, 175',
+    featured: true,
     bullets: [
-      "Built a Flutter app for Parkinson's care with symptom tracking, medication schedules, recovery media, and moderated community posts.",
-      'Led iOS/Android release engineering with GitHub Actions CI/CD for testing and staging.',
-      'Integrated Supabase auth/data with local JSON caching for offline sync.',
+      "Levio is a mobile care product that brings Parkinson's symptom tracking, medication routines, recovery media, and community support into one experience.",
+      'Handled iOS/Android release engineering with automated testing and staged releases.',
+      'Combined cloud auth/data services with local JSON caching so core care flows stayed usable offline.',
     ],
-    tech: ['Flutter & Dart', 'Supabase', 'GitHub Actions CI/CD', 'Offline Sync'],
+    tech: ['Supabase', 'Flutter', 'Dart', 'Offline Sync', 'GitHub Actions CI/CD'],
     stats: [
       { label: 'PLATFORM', value: 'IOS/ANDROID' },
       { label: 'PIPELINE', value: 'CI/CD' },
@@ -34,15 +36,16 @@ const projects: Project[] = [
   {
     id: 'agoriai',
     name: 'Agoriai',
-    tag: 'Full-stack · Social platform',
+    tag: 'Full-stack · Social platform · Tartan Hacks 2026',
     accent: '#4c8bff',
     accentRgb: '76, 139, 255',
+    featured: true,
     bullets: [
-      'Built an anonymous career network with React 19, TypeScript, Bun/Elysia, PostgreSQL, and Drizzle, with school-email auth, feeds, voting, and threaded discussions.',
-      'Designed trust-aware networking with identity controls, moderated direct messaging, and mutual identity reveal.',
-      'Implemented SHA-256 session-token auth and discovery features including a D3 force-directed graph, company pages, and internship discovery.',
+      'Agoriai is an anonymous career network for candid questions about internships, recruiting, and companies without the usual social risk.',
+      'Designed trust-aware networking with identity controls, moderated direct messaging, and mutual identity-reveal workflows.',
+      'Implemented hashed-session auth and graph-driven discovery across company pages, relationship maps, and internship search.',
     ],
-    tech: ['React 19', 'TypeScript', 'Bun/Elysia', 'PostgreSQL/Drizzle', 'D3'],
+    tech: ['React 19', 'TypeScript', 'D3', 'Bun/Elysia', 'PostgreSQL/Drizzle', ],
     stats: [
       { label: 'EVENT', value: '2026' },
       { label: 'GRAPH', value: 'D3' },
@@ -56,9 +59,9 @@ const projects: Project[] = [
     accent: '#b38e5d',
     accentRgb: '179, 142, 93',
     bullets: [
-      'Built a native Android app in Java to help Scouts find troops and service opportunities through location-aware search.',
-      'Integrated Firebase, Google Maps, and NYT APIs with OkHttp, Gson, and Glide for troop profiles and a dynamic news feed.',
-      'Combined geospatial browsing and community discovery into a lightweight scouting platform.',
+      'MyCommunity is a scouting app for finding nearby troops, service opportunities, and local updates in one place.',
+      'Connected cloud-backed troop profiles, map-based search, and live news into a single mobile workflow.',
+      'Turned geospatial browsing into a practical discovery tool for scouting participation and community engagement.',
     ],
     tech: ['Java', 'Firebase', 'Google Maps API', 'OkHttp/Gson/Glide'],
     stats: [
@@ -74,9 +77,9 @@ const projects: Project[] = [
     accent: '#9c7fae',
     accentRgb: '156, 127, 174',
     bullets: [
-      'Built a tarot-inspired interactive web experience in React and TypeScript.',
-      'Implemented branching storytelling through prompt-based choices.',
-      'Added parallax visuals and soundscapes for a more immersive experience.',
+      'Tarocchi is a tarot-inspired interactive narrative designed to feel exploratory, replayable, and atmospheric.',
+      'Structured 24 branching paths through prompt-based choice logic so each route felt distinct without losing coherence.',
+      'Synchronized parallax motion and layered soundscapes to reinforce mood and pacing throughout the experience.',
     ],
     tech: ['React & Vite', 'TypeScript', 'Tailwind CSS', 'Framer Motion'],
     stats: [
@@ -92,6 +95,8 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
   const inView = useInView(ref, { once: true, margin: '-60px' })
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
+  const [lead, ...details] = project.bullets
+  const featured = Boolean(project.featured)
 
   const handleMouse = (e: React.MouseEvent) => {
     if (!cardRef.current) return
@@ -111,7 +116,7 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
   }
 
   return (
-    <div className="card-3d-wrap">
+    <div className={`card-3d-wrap project-slot ${featured ? 'project-slot--featured' : 'project-slot--standard'}`}>
       <div
         ref={cardRef}
         className="card-3d-tilt"
@@ -120,7 +125,7 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
       >
         <motion.article
           ref={ref}
-          className="project-card"
+          className={`project-card ${featured ? 'project-card--featured' : 'project-card--standard'}`}
           data-cursor
           style={{
             '--project-accent': project.accent,
@@ -133,52 +138,95 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
           {/* Tech grid overlay */}
           <div className="project-card__grid" />
 
-          {/* Header with status display */}
           <div className="project-card__header">
             <div className="project-card__title-row">
-              <h3>{project.name}</h3>
+              <div className="project-card__title-block">
+                <h3>{project.name}</h3>
+                <span className="project-card__tag">{project.tag}</span>
+              </div>
               <span className="project-card__indicator" />
             </div>
-            <span className="project-card__tag">{project.tag}</span>
           </div>
 
-          {/* Stats bar - visual data display */}
-          <div className="project-card__stats">
-            {project.stats.map((stat, i) => (
-              <div key={i} className="project-card__stat">
-                <span className="project-card__stat-label">{stat.label}</span>
-                <span className="project-card__stat-value">{stat.value}</span>
-              </div>
-            ))}
-          </div>
+          <div className={`project-card__body ${featured ? 'project-card__body--featured' : ''}`}>
+            <div className="project-card__content">
+              <p className="project-card__lead">{lead}</p>
 
-          {/* Bullets */}
-          <ul className="project-card__bullets">
-            {project.bullets.map((b, i) => (
-              <li key={i}>
-                <span className="project-card__bullet-icon">›</span>
-                {b}
-              </li>
-            ))}
-          </ul>
-
-          {/* Tech with visual connectors */}
-          <div className="project-card__tech">
-            <div className="project-card__tech-label">STACK</div>
-            <div className="project-card__tech-list">
-              {project.tech.map((t, i) => (
-                <motion.span
-                  key={t}
-                  className="project-card__tech-tag"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={inView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ duration: 0.3, delay: 0.4 + i * 0.05 }}
-                >
-                  {t}
-                </motion.span>
-              ))}
+              <ul className="project-card__bullets">
+                {details.map((bullet, bulletIndex) => (
+                  <li key={bulletIndex}>
+                    <span className="project-card__bullet-icon">›</span>
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {featured && (
+              <aside className="project-card__aside">
+                <div className="project-card__panel">
+                  <div className="project-card__panel-label">AT A GLANCE</div>
+                  <div className="project-card__stats project-card__stats--stacked">
+                    {project.stats.map((stat, statIndex) => (
+                      <div key={statIndex} className="project-card__stat">
+                        <span className="project-card__stat-label">{stat.label}</span>
+                        <span className="project-card__stat-value">{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="project-card__panel">
+                  <div className="project-card__tech">
+                    <div className="project-card__tech-label">TECH STACK</div>
+                    <div className="project-card__tech-list">
+                      {project.tech.map((tech, techIndex) => (
+                        <motion.span
+                          key={tech}
+                          className="project-card__tech-tag"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={inView ? { opacity: 1, scale: 1 } : {}}
+                          transition={{ duration: 0.3, delay: 0.4 + techIndex * 0.05 }}
+                        >
+                          {tech}
+                        </motion.span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            )}
           </div>
+
+          {!featured && (
+            <>
+              <div className="project-card__stats">
+                {project.stats.map((stat, statIndex) => (
+                  <div key={statIndex} className="project-card__stat">
+                    <span className="project-card__stat-label">{stat.label}</span>
+                    <span className="project-card__stat-value">{stat.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="project-card__tech">
+                <div className="project-card__tech-label">TECH STACK</div>
+                <div className="project-card__tech-list">
+                  {project.tech.map((tech, techIndex) => (
+                    <motion.span
+                      key={tech}
+                      className="project-card__tech-tag"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={inView ? { opacity: 1, scale: 1 } : {}}
+                      transition={{ duration: 0.3, delay: 0.4 + techIndex * 0.05 }}
+                    >
+                      {tech}
+                    </motion.span>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Corner brackets */}
           <span className="project-card__corner project-card__corner--tl" />
