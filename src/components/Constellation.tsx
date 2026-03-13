@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { initializeApp } from 'firebase/app'
 import { getDatabase, ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get, type Database } from 'firebase/database'
+import useIsPhone from '../hooks/useIsPhone'
 
 interface Star {
   x: number
@@ -202,6 +203,7 @@ export default function Constellation() {
   const [filterError, setFilterError] = useState(false)
   const metaReceivedRef = useRef(false)
   const sessionId = useRef(getSessionId())
+  const isPhone = useIsPhone()
 
   const sectionRef = useRef(null)
   const inView = useInView(sectionRef, { once: true, margin: '-50px' })
@@ -645,8 +647,10 @@ export default function Constellation() {
       </div>
 
       <p className="constellation__intro">
-        Click to place a star. At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
-        Your stars have a ring — <span className="constellation__delete-hint">right-click to delete</span>.
+        {isPhone ? 'Tap to place a star.' : 'Click to place a star.'} At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
+        {isPhone ? ' Stars you add keep a ring so they are easy to spot.' : (
+          <> Your stars have a ring — <span className="constellation__delete-hint">right-click to delete</span>.</>
+        )}
       </p>
 
       <motion.div
