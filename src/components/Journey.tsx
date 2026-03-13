@@ -2,6 +2,12 @@ import { useRef, memo, useEffect, useState, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical, Shield } from 'lucide-react'
 
+interface ExperienceDetail {
+  label: string
+  value: string
+  bar?: number
+}
+
 interface Experience {
   id: string
   pid: string
@@ -14,7 +20,10 @@ interface Experience {
   status?: string
   summary: string
   stack: string[]
-  metrics: { label: string; value: string; bar?: number }[]
+  panelLabel: string
+  panelStatus: string
+  panelMode: 'metrics' | 'details'
+  details: ExperienceDetail[]
   accent: string
 }
 
@@ -90,10 +99,13 @@ const experiences: Experience[] = [
     status: 'Incoming',
     summary: 'Joining Blue Shield of California as an incoming Mobile Software Engineering Intern for Summer 2026, working on mobile healthcare technology.',
     stack: ['Mobile Engineering', 'Healthcare Tech', 'Summer 2026'],
-    metrics: [
-      { label: 'Stage', value: 'INCOMING', bar: 100 },
-      { label: 'Start', value: 'SUMMER 2026', bar: 78 },
-      { label: 'Focus', value: 'MOBILE', bar: 72 },
+    panelLabel: 'AT A GLANCE',
+    panelStatus: 'INCOMING',
+    panelMode: 'details',
+    details: [
+      { label: 'Start', value: 'SUMMER 2026' },
+      { label: 'Track', value: 'MOBILE ENG' },
+      { label: 'Domain', value: 'HEALTHCARE' },
     ],
     accent: '#2d7ff9',
   },
@@ -109,10 +121,13 @@ const experiences: Experience[] = [
     status: 'Now',
     summary: 'Built Flutter/Dart onboarding, profile, guided tutorial, and skin-analysis quiz systems that power personalized skincare recommendations for 1.5k+ users. Integrated routine-builder, product review, and animated scoring interfaces.',
     stack: ['Flutter', 'Dart', 'Dio', 'AWS Amplify', 'Firebase'],
-    metrics: [
-      { label: 'Users', value: '1.5k+', bar: 85 },
-      { label: 'Core Flows', value: '4', bar: 72 },
-      { label: 'Integrations', value: '4', bar: 68 },
+    panelLabel: 'METRICS',
+    panelStatus: 'CURRENT',
+    panelMode: 'metrics',
+    details: [
+      { label: 'Users', value: '1.5K+', bar: 88 },
+      { label: 'Features', value: '7', bar: 76 },
+      { label: 'Services', value: '2', bar: 62 },
     ],
     accent: '#00ffff',
   },
@@ -127,10 +142,13 @@ const experiences: Experience[] = [
     location: 'Pittsburgh, PA',
     summary: 'Programmed grappling and tether mechanics in Unreal Engine 5 Blueprints, focusing on physics-driven first-person control. Built local multiplayer networking logic to synchronize collisions, player feedback, and elimination trails in real time.',
     stack: ['Unreal Engine 5', 'Blueprints', 'Physics Systems', 'Multiplayer Logic'],
-    metrics: [
-      { label: 'Mechanics', value: '2', bar: 78 },
-      { label: 'Networking', value: 'LOCAL MP', bar: 84 },
-      { label: 'Feedback', value: 'REAL-TIME', bar: 74 },
+    panelLabel: 'SYSTEMS',
+    panelStatus: 'SHIPPED',
+    panelMode: 'details',
+    details: [
+      { label: 'Mechanics', value: 'GRAPPLE + TETHER' },
+      { label: 'Mode', value: 'LOCAL MULTIPLAYER' },
+      { label: 'Sync', value: 'COLLISIONS + TRAILS' },
     ],
     accent: '#ff00ff',
   },
@@ -144,12 +162,15 @@ const experiences: Experience[] = [
     period: 'Sep 2025 - Present',
     location: 'Pittsburgh, PA',
     status: 'Now',
-    summary: 'Parsed OpenStreetMap data into normalized JSON, validating room IDs, geometry, and metadata consistency for downstream frontend and backend consumers. Automated serializer and deserializer workflows for versioned dataset publishing to AWS S3 and implemented geometry-based anchors for more accurate map rendering and label placement.',
+    summary: 'Parsed OpenStreetMap data into normalized JSON, validating room IDs, geometry, and metadata for frontend/backend consumers. Automated serializer/deserializer workflows for versioned AWS S3 publishing and built geometry anchors for more accurate rendering and label placement.',
     stack: ['Python', 'OSM Parsing', 'JSON Pipelines', 'AWS S3', 'Geometry Anchors'],
-    metrics: [
-      { label: 'Source', value: 'OSM', bar: 92 },
-      { label: 'Output', value: 'VERSIONED JSON', bar: 84 },
-      { label: 'Deploy', value: 'AWS S3', bar: 80 },
+    panelLabel: 'METRICS',
+    panelStatus: 'CURRENT',
+    panelMode: 'metrics',
+    details: [
+      { label: 'Buildings', value: '142', bar: 92 },
+      { label: 'Paths', value: '1.2K', bar: 84 },
+      { label: 'Workflows', value: '2', bar: 78 },
     ],
     accent: '#00ff41',
   },
@@ -164,10 +185,13 @@ const experiences: Experience[] = [
     location: 'Remote',
     summary: 'Designed and taught curriculum covering core programming paradigms, algorithmic reasoning, and competitive problem solving. Built project-based labs and visualization exercises to translate abstract logic into working code.',
     stack: ['Python', 'C++', 'JavaScript', 'ACSL'],
-    metrics: [
-      { label: 'Students', value: '50+', bar: 70 },
-      { label: 'Courses', value: '6', bar: 60 },
-      { label: 'Projects', value: '30+', bar: 80 },
+    panelLabel: 'TEACHING',
+    panelStatus: 'COMPLETE',
+    panelMode: 'details',
+    details: [
+      { label: 'Languages', value: 'PYTHON / C++ / JS' },
+      { label: 'Focus', value: 'ALGORITHMS + ACSL' },
+      { label: 'Format', value: 'PROJECT LABS' },
     ],
     accent: '#ffcc00',
   },
@@ -180,12 +204,15 @@ const experiences: Experience[] = [
     track: 'Research',
     period: 'Jun 2023 - Aug 2024',
     location: 'Pomona, CA',
-    summary: "Initiated a Parkinson's-focused mobile-health study by assembling speech and movement datasets under faculty mentorship. Built reproducible Python pipelines with NumPy, Pandas, and scikit-learn for feature extraction and analysis, contributing methodology and results to a peer-reviewed CCSIT paper on healthcare AI and digital therapeutics.",
+    summary: "Initiated a Parkinson's-focused mobile-health study by assembling speech and movement datasets under faculty mentorship. Built reproducible Python pipelines with NumPy, Pandas, and scikit-learn for feature extraction and analysis, contributing to a peer-reviewed CCSIT paper on healthcare AI and digital therapeutics.",
     stack: ['Python', 'NumPy', 'Pandas', 'Scikit-learn', 'Healthcare AI/ML'],
-    metrics: [
-      { label: 'Study', value: 'M-HEALTH', bar: 76 },
-      { label: 'Data', value: 'SPEECH + MOTION', bar: 82 },
-      { label: 'Paper', value: 'CCSIT', bar: 100 },
+    panelLabel: 'RESEARCH',
+    panelStatus: 'PUBLISHED',
+    panelMode: 'details',
+    details: [
+      { label: 'Study', value: "PARKINSON'S M-HEALTH" },
+      { label: 'Signals', value: 'SPEECH + MOTION' },
+      { label: 'Output', value: 'PEER-REVIEWED PAPER' },
     ],
     accent: '#ff3366',
   },
@@ -320,7 +347,7 @@ const ProcessCard = memo(function ProcessCard({
             </div>
 
             {/* Content */}
-            <div className="process-card__body">
+            <div className={`process-card__body ${exp.panelMode === 'details' ? 'process-card__body--details' : ''}`}>
               <div className="process-card__main">
                 <div className="process-card__header">
                   <h3>
@@ -339,19 +366,19 @@ const ProcessCard = memo(function ProcessCard({
                 </div>
               </div>
 
-              {/* Visual metrics panel */}
-              <div className="process-card__metrics">
+              {/* Sidebar panel */}
+              <div className={`process-card__metrics ${exp.panelMode === 'details' ? 'process-card__metrics--details' : ''}`}>
                 <div className="process-card__metrics-header">
-                  <span className="process-card__metrics-label">METRICS</span>
-                  <span className="process-card__metrics-status">● ACTIVE</span>
+                  <span className="process-card__metrics-label">{exp.panelLabel}</span>
+                  <span className="process-card__metrics-status">● {exp.panelStatus}</span>
                 </div>
-                {exp.metrics.map((m, i) => (
+                {exp.details.map((m, i) => (
                   <div key={i} className="process-card__metric">
                     <div className="process-card__metric-info">
                       <span className="process-card__metric-label">{m.label}</span>
                       <span className="process-card__metric-value">{m.value}</span>
                     </div>
-                    {m.bar !== undefined && (
+                    {exp.panelMode === 'metrics' && m.bar !== undefined && (
                       <div className="process-card__metric-bar">
                         <motion.div
                           className="process-card__metric-fill"

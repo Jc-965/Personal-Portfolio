@@ -949,6 +949,11 @@ ul {
   padding: 24px;
 }
 
+.process-card__body--details {
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 20px;
+}
+
 .process-card__main {
   min-width: 0;
 }
@@ -1020,6 +1025,10 @@ ul {
   font-size: 0.7rem;
 }
 
+.process-card__metrics--details .process-card__metrics-header {
+  margin-bottom: 10px;
+}
+
 .process-card__metrics-label {
   color: var(--text-muted);
   letter-spacing: 1px;
@@ -1034,21 +1043,70 @@ ul {
   margin-bottom: 10px;
 }
 
+.process-card__metrics--details .process-card__metric {
+  margin-bottom: 8px;
+  padding: 8px 0 9px 12px;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--process-accent) 28%, transparent);
+  border-radius: 0;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--process-accent) 5%, transparent), transparent 68%);
+  box-shadow: none;
+}
+
+.process-card__metrics--details .process-card__metric:last-of-type {
+  margin-bottom: 0;
+}
+
+.process-card__metrics--details .process-card__metric:not(:last-of-type) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+}
+
 .process-card__metric-info {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   margin-bottom: 4px;
 }
 
+.process-card__metrics--details .process-card__metric-info {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
 .process-card__metric-label {
-  color: var(--text-muted);
+  color: color-mix(in srgb, var(--text-primary) 60%, var(--process-accent) 8%);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.process-card__metrics--details .process-card__metric-label {
+  font-size: 0.54rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-primary) 38%, var(--process-accent) 14%);
 }
 
 .process-card__metric-value {
   color: var(--process-accent);
   font-weight: 600;
+  font-size: 0.8rem;
+  text-align: right;
+  line-height: 1.25;
+}
+
+.process-card__metrics--details .process-card__metric-value {
+  text-align: left;
+  font-size: 0.76rem;
+  line-height: 1.08;
+  letter-spacing: 0;
+  max-width: 100%;
+  color: color-mix(in srgb, var(--process-accent) 78%, var(--text-primary));
+  text-shadow: none;
 }
 
 .process-card__metric-bar {
@@ -1072,6 +1130,12 @@ ul {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.process-card__metrics--details .process-card__data-viz {
+  margin-top: 10px;
+  padding-top: 10px;
+  opacity: 0.82;
 }
 
 .process-card__data-dot {
@@ -3619,7 +3683,23 @@ ul {
   }
 
   .process-card__metric-info {
-    font-size: 0.69rem;
+    font-size: 0.66rem;
+  }
+
+  .process-card__metric-label {
+    font-size: 0.68rem;
+  }
+
+  .process-card__metric-value {
+    font-size: 0.76rem;
+  }
+
+  .process-card__metrics--details .process-card__metric-label {
+    font-size: 0.5rem;
+  }
+
+  .process-card__metrics--details .process-card__metric-value {
+    font-size: 0.72rem;
   }
 
   .process-card__data-viz {
