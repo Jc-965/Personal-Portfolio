@@ -3594,6 +3594,10 @@ ul {
     font-size: clamp(1.35rem, 7vw, 1.8rem);
   }
 
+  .hero__title-line--ascii {
+    height: clamp(26px, 7.5vw, 40px);
+  }
+
   .section__header h2 {
     font-size: clamp(1.4rem, 7vw, 1.8rem);
   }
@@ -3688,6 +3692,12 @@ ul {
   .hero__title {
     width: 100%;
     margin-bottom: 12px;
+  }
+
+  .hero__title-line--ascii {
+    width: calc(100% + 28px);
+    height: clamp(32px, 8.5vw, 52px);
+    margin: 0 -14px -4px;
   }
 
   .hero__title-line--mobile {
@@ -4080,50 +4090,15 @@ ul {
 
   .toolkit__swap-shell {
     width: 100%;
-    height: auto;
-    margin-top: 4px;
+    height: 280px;
+    margin-top: 8px;
   }
 
-  .skill-grid--mobile {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .skill-card--mobile {
-    min-height: 0;
-  }
-
-  .skill-card--mobile .skill-card__terminal-bar {
-    padding: 6px 10px;
-    gap: 5px;
-  }
-
-  .skill-card--mobile .skill-card__terminal-title {
-    font-size: 0.6rem;
-  }
-
-  .skill-card--mobile .skill-card__dot {
-    width: 6px;
-    height: 6px;
-  }
-
-  .skill-card--mobile .skill-card__header {
-    padding: 10px 12px 8px;
-  }
-
-  .skill-card--mobile .skill-card__tags {
-    padding: 0 12px 10px;
-    gap: 6px;
-  }
-
-  .skill-card--mobile .skill-card__tag {
-    font-size: 0.64rem;
-    padding: 4px 8px;
-  }
-
-  .skill-card--mobile .skill-card__status {
-    padding: 8px 12px 10px;
-    font-size: 0.6rem;
+  .toolkit__swap-shell .card-swap-container {
+    top: 40px;
+    left: 0;
+    right: 20px;
+    transform: none;
   }
 
   .constellation__stats {
