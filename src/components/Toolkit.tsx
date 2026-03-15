@@ -65,7 +65,7 @@ export default function Toolkit() {
     if (!el || !isPhone || !gyro.permitted) return
 
     return gyro.subscribe((gx, gy) => {
-      el.style.transform = `perspective(800px) rotateX(${gy * -5}deg) rotateY(${gx * 5}deg)`
+      el.style.transform = `perspective(800px) rotateX(${gy * -8}deg) rotateY(${gx * 8}deg) translate(${gx * 6}px, ${gy * 4}px)`
     })
   }, [isPhone, gyro])
 

@@ -108,7 +108,7 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
     if (!el || !isPhone || !gyro.permitted) return
 
     return gyro.subscribe((gx, gy) => {
-      el.style.transform = `rotateX(${gy * -5}deg) rotateY(${gx * 5}deg)`
+      el.style.transform = `perspective(800px) rotateX(${gy * -10}deg) rotateY(${gx * 10}deg) translate(${gx * 8}px, ${gy * 5}px)`
     })
   }, [gyro, isPhone])
 

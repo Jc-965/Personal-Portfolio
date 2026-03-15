@@ -196,8 +196,10 @@ function InteractiveCard({
 
     return gyro.subscribe((gx, gy) => {
       gsap.set(el, {
-        rotateX: gy * -6,
-        rotateY: gx * 6,
+        rotateX: gy * -10,
+        rotateY: gx * 10,
+        x: gx * 6,
+        y: gy * 4,
         transformPerspective: 800,
       })
     })

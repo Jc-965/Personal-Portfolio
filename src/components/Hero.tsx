@@ -22,16 +22,16 @@ export default function Hero() {
     return gyro.subscribe((gx, gy) => {
       // Layers at different depths: eyebrow barely moves, CTA moves most
       if (eyebrowRef.current) {
-        eyebrowRef.current.style.transform = `translate(${gx * 3}px, ${gy * 2}px)`
+        eyebrowRef.current.style.transform = `translate(${gx * 5}px, ${gy * 3}px)`
       }
       if (titleRef.current) {
-        titleRef.current.style.transform = `translate(${gx * 8}px, ${gy * 5}px)`
+        titleRef.current.style.transform = `translate(${gx * 14}px, ${gy * 8}px)`
       }
       if (descRef.current) {
-        descRef.current.style.transform = `translate(${gx * 5}px, ${gy * 3}px)`
+        descRef.current.style.transform = `translate(${gx * 8}px, ${gy * 5}px)`
       }
       if (ctaRef.current) {
-        ctaRef.current.style.transform = `translate(${gx * 12}px, ${gy * 7}px)`
+        ctaRef.current.style.transform = `translate(${gx * 18}px, ${gy * 10}px)`
       }
     })
   }, [isPhone, gyro])

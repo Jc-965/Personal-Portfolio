@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback, useState } from 'react'
 
-const LERP = 0.12
+const LERP = 0.18
+const INPUT_SMOOTH = 0.25
 const MAX_TILT = 35
 
 function lerpVal(a: number, b: number, t: number) {
@@ -46,8 +47,12 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
       const neutralBeta = 30
       const adjustedBeta = beta - neutralBeta
 
-      target.current.x = clamp(gamma / MAX_TILT, -1, 1)
-      target.current.y = clamp(adjustedBeta / MAX_TILT, -1, 1)
+      const rawX = clamp(gamma / MAX_TILT, -1, 1)
+      const rawY = clamp(adjustedBeta / MAX_TILT, -1, 1)
+
+      // Low-pass filter on input to remove sensor noise/jumps
+      target.current.x += (rawX - target.current.x) * INPUT_SMOOTH
+      target.current.y += (rawY - target.current.y) * INPUT_SMOOTH
     }
 
     window.addEventListener('deviceorientation', handleOrientation, { passive: true })
