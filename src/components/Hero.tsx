@@ -59,7 +59,7 @@ export default function Hero() {
               text="Building technology"
               enableWaves
               asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 160 : 260}
+              textFontSize={isPhone ? 200 : 260}
               textColor="#f8fbff"
               planeBaseHeight={isPhone ? 4.5 : 6.2}
               interactionMode="viewport"
@@ -75,7 +75,7 @@ export default function Hero() {
               text="that solves real problems"
               enableWaves
               asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 160 : 260}
+              textFontSize={isPhone ? 200 : 260}
               textColor="#7efcff"
               planeBaseHeight={isPhone ? 4.5 : 6.2}
               interactionMode="viewport"
@@ -91,7 +91,7 @@ export default function Hero() {
               text="for real people"
               enableWaves
               asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 160 : 260}
+              textFontSize={isPhone ? 200 : 260}
               textColor="#f8fbff"
               planeBaseHeight={isPhone ? 4.5 : 6.2}
               interactionMode="viewport"
