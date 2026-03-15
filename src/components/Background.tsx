@@ -204,6 +204,7 @@ export default function Background() {
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
       const gravR = p.inViewport && !isLowEnd ? 320 + p.velocity * 0.6 : 0
+      const gravRSq = gravR * gravR || 1
       const clickR = clickDistortion.strength > 0.01 ? 300 * clickDistortion.strength : 0
 
       ctx.save()
@@ -233,7 +234,7 @@ export default function Background() {
           if (p.inViewport && !isLowEnd) {
             const ddx = p.x - bx
             const ddy = p.y - drawY
-            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / Math.max(gravR * gravR, 1))
+            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
             drawX += ddx * inf * 0.22
             drawY += ddy * inf * 0.04
           }
@@ -279,7 +280,7 @@ export default function Background() {
           if (p.inViewport && !isLowEnd) {
             const ddx = p.x - drawX
             const ddy = p.y - by
-            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / Math.max(gravR * gravR, 1))
+            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
             drawY += ddy * inf * 0.22
             drawX += ddx * inf * 0.04
           }
@@ -408,9 +409,15 @@ export default function Background() {
       }
     }
 
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(resize, 150)
+    }
+
     resize()
     frameId = requestAnimationFrame(animate)
-    window.addEventListener('resize', resize)
+    window.addEventListener('resize', debouncedResize)
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
     document.addEventListener('pointerdown', onClick, { passive: true })
@@ -418,7 +425,8 @@ export default function Background() {
 
     return () => {
       cancelAnimationFrame(frameId)
-      window.removeEventListener('resize', resize)
+      if (resizeTimer) clearTimeout(resizeTimer)
+      window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('pointerdown', onClick)

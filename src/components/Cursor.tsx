@@ -304,7 +304,12 @@ export default function Cursor() {
       }
     }
 
-    window.addEventListener('resize', resize)
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(resize, 150)
+    }
+    window.addEventListener('resize', debouncedResize)
     document.addEventListener('mousemove', onMove, { passive: true })
     document.addEventListener('mouseleave', onLeave, { passive: true })
     document.addEventListener('mousedown', onDown, { passive: true })
@@ -316,7 +321,8 @@ export default function Cursor() {
     return () => {
       cancelAnimationFrame(frame)
       frame = 0
-      window.removeEventListener('resize', resize)
+      if (resizeTimer) clearTimeout(resizeTimer)
+      window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseleave', onLeave)
       document.removeEventListener('mousedown', onDown)
