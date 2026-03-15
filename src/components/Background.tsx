@@ -87,9 +87,9 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = profile.isCompact ? 1.24 : 0.8
-      const clickRadius = profile.isCompact ? 220 : 200
-      const clickForce = profile.isCompact ? 4.4 : 3
+      clickDistortion.strength = profile.isCompact ? 0.98 : 0.8
+      const clickRadius = profile.isCompact ? 160 : 200
+      const clickForce = profile.isCompact ? 4.8 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -99,13 +99,13 @@ export default function Background() {
           const force = (1 - dist / clickRadius) * clickForce
           const pushX = (ddx / dist) * force
           const pushY = (ddy / dist) * force
-          node.vx += pushX * (profile.isCompact ? 1.55 : 1)
-          node.vy += pushY * (profile.isCompact ? 1.55 : 1)
+          node.vx += pushX * (profile.isCompact ? 1.18 : 1)
+          node.vy += pushY * (profile.isCompact ? 1.18 : 1)
           if (profile.isCompact) {
-            node.x = clamp(node.x + pushX * 1.22, 24, w - 24)
-            node.y = clamp(node.y + pushY * 1.22, 24, h - 24)
+            node.x = clamp(node.x + pushX * 1.6, 24, w - 24)
+            node.y = clamp(node.y + pushY * 1.6, 24, h - 24)
           }
-          node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.28 : 0.2))
+          node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.34 : 0.2))
         }
       })
     }
@@ -217,25 +217,37 @@ export default function Background() {
       }
 
       if (profile.isCompact) {
-        const clusterCount = Math.max(3, Math.min(4, Math.round(w / 180)))
-        const trunkSegments = Math.round(clamp(h / 148, 6, 8))
+        const clusterCount = Math.max(4, Math.min(5, Math.round(w / 150)))
+        const trunkSegments = Math.round(clamp(h / 116, 8, 10))
         const clusters: number[][] = []
 
         for (let c = 0; c < clusterCount; c++) {
           const cluster: number[] = []
-          const baseX = ((c + 1) / (clusterCount + 1)) * w + rand(-w * 0.09, w * 0.09)
-          const rootY = h * rand(0.08, 0.16)
-          const lateralBias = rand(-0.22, 0.22)
+          const lane = clusterCount === 1 ? 0.5 : c / (clusterCount - 1)
+          const edgeBias = lane < 0.34 ? -1 : lane > 0.66 ? 1 : 0
+          const baseX = clamp(
+            w * (0.08 + lane * 0.84) + rand(-w * 0.035, w * 0.035),
+            30,
+            w - 30
+          )
+          const rootY = h * rand(0.03, 0.09)
+          const lateralBias = edgeBias === 0
+            ? rand(-0.18, 0.18)
+            : rand(0.08, 0.24) * edgeBias
           let x = clamp(baseX, 34, w - 34)
           let y = rootY
           let previousId: number | undefined
-          let branchBudget = Math.round(rand(1, 2.6))
+          let branchBudget = Math.round(rand(1, 2.3))
 
           for (let i = 0; i < trunkSegments; i++) {
             const progress = i / Math.max(trunkSegments - 1, 1)
             if (i > 0) {
-              x = clamp(x + rand(-18, 18) + lateralBias * (14 + progress * 18), 30, w - 30)
-              y = clamp(y + rand(h * 0.065, h * 0.098), 36, h - 48)
+              x = clamp(
+                x + rand(-22, 22) + lateralBias * (18 + progress * 26) + Math.sin(progress * Math.PI * 2 + c) * 8,
+                30,
+                w - 30
+              )
+              y = clamp(y + rand(h * 0.075, h * 0.115), 36, h - 40)
             }
 
             const trunkId = addNode(x, y, 0.12 + progress * 0.82)
@@ -250,19 +262,21 @@ export default function Background() {
             if (!canBranch || Math.random() > 0.46) continue
 
             branchBudget -= 1
-            const branchDirection = Math.random() > 0.5 ? 1 : -1
-            const branchSegments = Math.round(rand(2, 3.6))
+            const branchDirection = edgeBias === 0
+              ? (Math.random() > 0.5 ? 1 : -1)
+              : (Math.random() > 0.2 ? edgeBias : -edgeBias)
+            const branchSegments = Math.round(rand(2, 3.2))
             let branchParent = trunkId
             let bx = x
             let by = y
 
             for (let j = 0; j < branchSegments; j++) {
               bx = clamp(
-                bx + branchDirection * rand(18, 30) + lateralBias * 10 + rand(-8, 8),
+                bx + branchDirection * rand(14, 24) + lateralBias * 8 + rand(-10, 10),
                 28,
                 w - 28
               )
-              by = clamp(by + rand(h * 0.03, h * 0.06), 36, h - 40)
+              by = clamp(by + rand(h * 0.04, h * 0.075), 36, h - 36)
               const branchDepth = clamp(0.16 + (i + j + 1) / (trunkSegments + branchSegments), 0, 1)
               const branchId = addNode(bx, by, branchDepth)
               cluster.push(branchId)
@@ -380,7 +394,7 @@ export default function Background() {
       lastPointer.current.x = p.x
       lastPointer.current.y = p.y
 
-      clickDistortion.strength *= profile.isCompact ? 0.76 : 0.95
+      clickDistortion.strength *= profile.isCompact ? 0.79 : 0.95
 
       const pointerFactor = p.inViewport
         ? clamp(p.velocity / (profile.isCompact ? 260 : 180), profile.isCompact ? 0.03 : 0.08, profile.isCompact ? 0.44 : 0.92)
@@ -405,9 +419,10 @@ export default function Background() {
       const offY = (gridDriftY + parallaxY) % spacing
       const gravR = p.inViewport && !profile.isLowPower ? (profile.isCompact ? 150 : 320) + p.velocity * (profile.isCompact ? 0.1 : 0.6) : 0
       const gravRSq = gravR * gravR || 1
-      const clickStrengthBase = profile.isCompact ? 1.24 : 0.8
-      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 215 : 300) * clickDistortion.strength : 0
-      const clickGridForce = profile.isCompact ? 68 : 30
+      const clickStrengthBase = profile.isCompact ? 0.98 : 0.8
+      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 150 : 300) * clickDistortion.strength : 0
+      const clickGridForce = profile.isCompact ? 34 : 30
+      const clickAlphaBoost = profile.isCompact ? 0.43 : 0.3
 
       ctx.save()
       ctx.globalAlpha = profile.useSimpleGrid ? (profile.isCompact ? 0.74 : 0.72) : 0.9
@@ -501,7 +516,7 @@ export default function Background() {
           if (clickR > 0) {
             const distToClick = Math.abs(clickDistortion.x - bx)
             if (distToClick < clickR) {
-              alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
+              alpha += (1 - distToClick / clickR) * clickDistortion.strength * clickAlphaBoost
             }
           }
 
@@ -547,7 +562,7 @@ export default function Background() {
           if (clickR > 0) {
             const distToClick = Math.abs(clickDistortion.y - by)
             if (distToClick < clickR) {
-              alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
+              alpha += (1 - distToClick / clickR) * clickDistortion.strength * clickAlphaBoost
             }
           }
 
@@ -598,8 +613,8 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0044 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.03 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.004 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.03 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0062 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.025 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0056 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.025 : 0.45)
 
         if (p.inViewport && !profile.isLowPower) {
           const ddx = p.x - node.x
@@ -619,8 +634,8 @@ export default function Background() {
           node.vy += gy * (profile.isCompact ? 0.07 : 0.18)
         }
 
-        node.vx *= profile.isCompact ? 0.94 : 0.9
-        node.vy *= profile.isCompact ? 0.94 : 0.9
+        node.vx *= profile.isCompact ? 0.91 : 0.9
+        node.vy *= profile.isCompact ? 0.91 : 0.9
         node.x += node.vx
         node.y += node.vy
         node.x = clamp(node.x, 24, w - 24)
@@ -703,7 +718,7 @@ export default function Background() {
       pointer.current.x = x
       pointer.current.y = y
       pointer.current.inViewport = true
-      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 260 : 120)
+      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 190 : 120)
       spawnClickEffect(x, y)
     }
 
