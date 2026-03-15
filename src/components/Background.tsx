@@ -54,7 +54,7 @@ export default function Background() {
 
     let w = window.innerWidth
     let h = window.innerHeight
-    const dpr = isLowEnd ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2)
+    const dpr = isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 2)
 
     const nodes: Node[] = []
     const edges: [number, number][] = []
@@ -92,9 +92,9 @@ export default function Background() {
       bgGradient = grad
     }
 
-    const resize = () => {
-      w = window.innerWidth
-      h = window.innerHeight
+    let initialized = false
+
+    const resizeCanvas = () => {
       canvas.width = w * dpr
       canvas.height = h * dpr
       canvas.style.width = `${w}px`
@@ -102,15 +102,40 @@ export default function Background() {
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
       buildBgGradient()
-      initNodes()
+    }
+
+    const resize = () => {
+      const oldW = w
+      const oldH = h
+      w = window.innerWidth
+      h = window.innerHeight
+      resizeCanvas()
+
+      if (!initialized || nodes.length === 0) {
+        initNodes()
+        initialized = true
+        return
+      }
+
+      // Proportionally reposition existing nodes instead of rebuilding
+      const sx = w / oldW
+      const sy = h / oldH
+      nodes.forEach(node => {
+        node.anchorX = clamp(node.anchorX * sx, 32, w - 32)
+        node.anchorY = clamp(node.anchorY * sy, 32, h - 32)
+        node.baseX = clamp(node.baseX * sx, 36, w - 36)
+        node.baseY = clamp(node.baseY * sy, 36, h - 36)
+        node.x = clamp(node.x * sx, 24, w - 24)
+        node.y = clamp(node.y * sy, 24, h - 24)
+      })
     }
 
     const initNodes = () => {
       nodes.length = 0
       edges.length = 0
       const branchSet = new Set<string>()
-      const treeCount = isLowEnd ? Math.max(4, Math.round(w / 200)) : Math.max(6, Math.round(w / 220))
-      const perTree = isLowEnd ? Math.round(clamp(h / 120, 8, 18)) : Math.round(clamp(h / 90, 14, 30))
+      const treeCount = isLowEnd ? Math.max(3, Math.round(w / 280)) : Math.max(6, Math.round(w / 220))
+      const perTree = isLowEnd ? Math.round(clamp(h / 180, 5, 10)) : Math.round(clamp(h / 90, 14, 30))
       const cols: number[][] = []
 
       const connect = (a: number, b: number) => {
@@ -191,7 +216,15 @@ export default function Background() {
       }
     }
 
+    let lastFrameTime = 0
+    const frameInterval = isLowEnd ? 1000 / 30 : 0 // cap at 30fps on mobile
+
     const animate = (now: number) => {
+      frameId = requestAnimationFrame(animate)
+
+      if (isLowEnd && now - lastFrameTime < frameInterval) return
+      lastFrameTime = now
+
       ctx.clearRect(0, 0, w, h)
 
       ctx.fillStyle = bgGradient
@@ -210,7 +243,7 @@ export default function Background() {
       const pointerFactor = p.inViewport ? clamp(p.velocity / 180, 0.08, 0.92) : 0.06
       const influenceR = p.inViewport ? 280 + p.velocity * 0.8 : 170
 
-      const spacing = isLowEnd ? clamp(w / 18, 20, 30) : clamp(w / 44, 26, 34)
+      const spacing = isLowEnd ? clamp(w / 10, 34, 48) : clamp(w / 44, 26, 34)
       const gridDriftX = (time * 1.5) % spacing
       const gridDriftY = (time * 1.3) % spacing
       const gx = gyroRef.current.x
@@ -227,96 +260,120 @@ export default function Background() {
       ctx.save()
       ctx.globalAlpha = isLowEnd ? 0.7 : 0.9
 
-      for (let x = -spacing; x < w + spacing; x += spacing) {
-        const bx = x + offX
-        const hue = 180 + (p.inViewport && !isLowEnd ? clamp(1 - Math.abs(p.x - bx) / 420, 0, 1) * 30 : 0)
-        let alpha = isLowEnd ? 0.12 : 0.1 + pointerFactor * 0.2 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 360, 0, 1) * 0.2 : 0)
+      if (isLowEnd) {
+        // Fast path: single batch draw, no per-line distortion math
+        ctx.strokeStyle = `hsla(180, 100%, 50%, 0.12)`
+        ctx.lineWidth = 0.6
 
-        if (clickR > 0) {
-          const distToClick = Math.abs(clickDistortion.x - bx)
-          if (distToClick < clickR) {
-            alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
-          }
-        }
-
-        ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
-        ctx.lineWidth = 0.8
+        // Vertical lines
         ctx.beginPath()
-        const step = isLowEnd ? spacing : spacing / 2
-        const steps = Math.ceil((h + spacing * 2) / step)
-        for (let s = 0; s <= steps; s++) {
-          let drawX = bx
-          let drawY = -spacing + s * step + offY
+        for (let x = -spacing; x < w + spacing; x += spacing) {
+          const bx = x + offX
+          ctx.moveTo(bx, -spacing + offY)
+          ctx.lineTo(bx, h + spacing + offY)
+        }
+        ctx.stroke()
 
-          if (p.inViewport && !isLowEnd) {
-            const ddx = p.x - bx
-            const ddy = p.y - drawY
-            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
-            drawX += ddx * inf * 0.22
-            drawY += ddy * inf * 0.04
-          }
+        // Horizontal lines
+        ctx.beginPath()
+        for (let y = -spacing; y < h + spacing; y += spacing) {
+          const by = y + offY
+          ctx.moveTo(-spacing + offX, by)
+          ctx.lineTo(w + spacing + offX, by)
+        }
+        ctx.stroke()
+      } else {
+        for (let x = -spacing; x < w + spacing; x += spacing) {
+          const bx = x + offX
+          const hue = 180 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 420, 0, 1) * 30 : 0)
+          let alpha = 0.1 + pointerFactor * 0.2 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 360, 0, 1) * 0.2 : 0)
 
           if (clickR > 0) {
-            const cdx = drawX - clickDistortion.x
-            const cdy = drawY - clickDistortion.y
-            const cdist = Math.hypot(cdx, cdy) || 1
-            if (cdist < clickR) {
-              const pushForce = (1 - cdist / clickR) * clickDistortion.strength * 30
-              drawX += (cdx / cdist) * pushForce
-              drawY += (cdy / cdist) * pushForce
+            const distToClick = Math.abs(clickDistortion.x - bx)
+            if (distToClick < clickR) {
+              alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
             }
           }
 
-          if (s === 0) ctx.moveTo(drawX, drawY)
-          else ctx.lineTo(drawX, drawY)
-        }
-        ctx.stroke()
-      }
+          ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
+          ctx.lineWidth = 0.8
+          ctx.beginPath()
+          const step = spacing / 2
+          const steps = Math.ceil((h + spacing * 2) / step)
+          for (let s = 0; s <= steps; s++) {
+            let drawX = bx
+            let drawY = -spacing + s * step + offY
 
-      for (let y = -spacing; y < h + spacing; y += spacing) {
-        const by = y + offY
-        const hue = 180 + (p.inViewport && !isLowEnd ? clamp(1 - Math.abs(p.y - by) / 360, 0, 1) * 30 : 0)
-        let alpha = isLowEnd ? 0.1 : 0.08 + pointerFactor * 0.18 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 320, 0, 1) * 0.18 : 0)
+            if (p.inViewport) {
+              const ddx = p.x - bx
+              const ddy = p.y - drawY
+              const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
+              drawX += ddx * inf * 0.22
+              drawY += ddy * inf * 0.04
+            }
 
-        if (clickR > 0) {
-          const distToClick = Math.abs(clickDistortion.y - by)
-          if (distToClick < clickR) {
-            alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
+            if (clickR > 0) {
+              const cdx = drawX - clickDistortion.x
+              const cdy = drawY - clickDistortion.y
+              const cdist = Math.hypot(cdx, cdy) || 1
+              if (cdist < clickR) {
+                const pushForce = (1 - cdist / clickR) * clickDistortion.strength * 30
+                drawX += (cdx / cdist) * pushForce
+                drawY += (cdy / cdist) * pushForce
+              }
+            }
+
+            if (s === 0) ctx.moveTo(drawX, drawY)
+            else ctx.lineTo(drawX, drawY)
           }
+          ctx.stroke()
         }
 
-        ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
-        ctx.lineWidth = 0.78
-        ctx.beginPath()
-        const step = isLowEnd ? spacing : spacing / 2
-        const steps = Math.ceil((w + spacing * 2) / step)
-        for (let s = 0; s <= steps; s++) {
-          let drawX = -spacing + s * step + offX
-          let drawY = by
-
-          if (p.inViewport && !isLowEnd) {
-            const ddx = p.x - drawX
-            const ddy = p.y - by
-            const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
-            drawY += ddy * inf * 0.22
-            drawX += ddx * inf * 0.04
-          }
+        for (let y = -spacing; y < h + spacing; y += spacing) {
+          const by = y + offY
+          const hue = 180 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 360, 0, 1) * 30 : 0)
+          let alpha = 0.08 + pointerFactor * 0.18 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 320, 0, 1) * 0.18 : 0)
 
           if (clickR > 0) {
-            const cdx = drawX - clickDistortion.x
-            const cdy = drawY - clickDistortion.y
-            const cdist = Math.hypot(cdx, cdy) || 1
-            if (cdist < clickR) {
-              const pushForce = (1 - cdist / clickR) * clickDistortion.strength * 30
-              drawX += (cdx / cdist) * pushForce
-              drawY += (cdy / cdist) * pushForce
+            const distToClick = Math.abs(clickDistortion.y - by)
+            if (distToClick < clickR) {
+              alpha += (1 - distToClick / clickR) * clickDistortion.strength * 0.3
             }
           }
 
-          if (s === 0) ctx.moveTo(drawX, drawY)
-          else ctx.lineTo(drawX, drawY)
+          ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
+          ctx.lineWidth = 0.78
+          ctx.beginPath()
+          const step = spacing / 2
+          const steps = Math.ceil((w + spacing * 2) / step)
+          for (let s = 0; s <= steps; s++) {
+            let drawX = -spacing + s * step + offX
+            let drawY = by
+
+            if (p.inViewport) {
+              const ddx = p.x - drawX
+              const ddy = p.y - by
+              const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
+              drawY += ddy * inf * 0.22
+              drawX += ddx * inf * 0.04
+            }
+
+            if (clickR > 0) {
+              const cdx = drawX - clickDistortion.x
+              const cdy = drawY - clickDistortion.y
+              const cdist = Math.hypot(cdx, cdy) || 1
+              if (cdist < clickR) {
+                const pushForce = (1 - cdist / clickR) * clickDistortion.strength * 30
+                drawX += (cdx / cdist) * pushForce
+                drawY += (cdy / cdist) * pushForce
+              }
+            }
+
+            if (s === 0) ctx.moveTo(drawX, drawY)
+            else ctx.lineTo(drawX, drawY)
+          }
+          ctx.stroke()
         }
-        ctx.stroke()
       }
       ctx.restore()
 
@@ -407,7 +464,6 @@ export default function Background() {
         }
       })
 
-      frameId = requestAnimationFrame(animate)
     }
 
     const onMove = (e: PointerEvent) => {
@@ -440,7 +496,7 @@ export default function Background() {
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const debouncedResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer)
-      resizeTimer = setTimeout(resize, 150)
+      resizeTimer = setTimeout(resize, 250)
     }
 
     resize()
