@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { gsap } from 'gsap'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 export interface MagicBentoItem {
   id: string
@@ -168,6 +169,7 @@ function InteractiveCard({
   clickEffect,
   enableMagnetism,
   enableBorderGlow,
+  isMobile,
 }: {
   item: MagicBentoItem
   index: number
@@ -180,10 +182,26 @@ function InteractiveCard({
   clickEffect: boolean
   enableMagnetism: boolean
   enableBorderGlow: boolean
+  isMobile: boolean
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const magnetTweenRef = useRef<gsap.core.Tween | null>(null)
+  const gyro = useGyroscope()
   const { clearParticles, spawnParticles } = useParticles(cardRef, enableStars && !shouldDisableAnimations, particleCount, glowColor)
+
+  // Gyroscope-driven tilt on mobile
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el || !isMobile || !gyro.permitted || !enableTilt) return
+
+    return gyro.subscribe((gx, gy) => {
+      gsap.set(el, {
+        rotateX: gy * -6,
+        rotateY: gx * 6,
+        transformPerspective: 800,
+      })
+    })
+  }, [isMobile, gyro, enableTilt])
 
   useEffect(() => {
     const el = cardRef.current
@@ -582,6 +600,7 @@ export default function MagicBento({
             clickEffect={clickEffect}
             enableMagnetism={enableMagnetism}
             enableBorderGlow={enableBorderGlow}
+            isMobile={isMobile}
           />
         ))}
       </div>

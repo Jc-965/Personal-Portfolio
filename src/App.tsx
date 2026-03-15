@@ -8,13 +8,15 @@ import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import LazySection from './components/LazySection'
 import Footer from './components/Footer'
+import { GyroscopeProvider } from './context/GyroscopeContext'
+import GyroPrompt from './components/GyroPrompt'
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const onLoadingComplete = useCallback(() => setIsLoading(false), [])
 
   return (
-    <>
+    <GyroscopeProvider>
       <Cursor />
       {!isLoading && (
         <TargetCursor
@@ -47,10 +49,11 @@ function App() {
               <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
             </main>
             <Footer />
+            <GyroPrompt />
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </GyroscopeProvider>
   )
 }
 

@@ -1,5 +1,6 @@
-import { useRef, memo } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 interface Project {
   id: string
@@ -97,6 +98,17 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
   const rafRef = useRef<number>(0)
   const [lead, ...details] = project.bullets
   const featured = Boolean(project.featured)
+  const gyro = useGyroscope()
+
+  // Gyroscope tilt on mobile
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el || !gyro.permitted) return
+
+    return gyro.subscribe((gx, gy) => {
+      el.style.transform = `rotateX(${gy * -5}deg) rotateY(${gx * 5}deg)`
+    })
+  }, [gyro])
 
   const handleMouse = (e: React.MouseEvent) => {
     if (!cardRef.current) return

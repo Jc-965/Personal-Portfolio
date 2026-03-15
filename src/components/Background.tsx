@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const rand = (min: number, max: number) => Math.random() * (max - min) + min
@@ -27,6 +28,17 @@ export default function Background() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointer = useRef({ x: 0, y: 0, inViewport: false, velocity: 0 })
   const lastPointer = useRef({ x: 0, y: 0 })
+  const gyro = useGyroscope()
+  const gyroRef = useRef({ x: 0, y: 0 })
+
+  // Subscribe to gyroscope updates
+  useEffect(() => {
+    if (!gyro.permitted) return
+    return gyro.subscribe((x, y) => {
+      gyroRef.current.x = x
+      gyroRef.current.y = y
+    })
+  }, [gyro, gyro.permitted])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -199,8 +211,11 @@ export default function Background() {
       const spacing = isLowEnd ? clamp(w / 28, 36, 50) : clamp(w / 44, 26, 34)
       const gridDriftX = (time * 1.5) % spacing
       const gridDriftY = (time * 1.3) % spacing
-      const parallaxX = p.inViewport && !isLowEnd ? (p.x - w / 2) * 0.1 : 0
-      const parallaxY = p.inViewport && !isLowEnd ? (p.y - h / 2) * 0.1 : 0
+      const gx = gyroRef.current.x
+      const gy = gyroRef.current.y
+      const hasGyro = Math.abs(gx) > 0.001 || Math.abs(gy) > 0.001
+      const parallaxX = hasGyro ? gx * w * 0.08 : (p.inViewport && !isLowEnd ? (p.x - w / 2) * 0.1 : 0)
+      const parallaxY = hasGyro ? gy * h * 0.06 : (p.inViewport && !isLowEnd ? (p.y - h / 2) * 0.1 : 0)
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
       const gravR = p.inViewport && !isLowEnd ? 320 + p.velocity * 0.6 : 0
@@ -327,6 +342,12 @@ export default function Background() {
             node.vy -= (ddy / dist) * force
             node.halo = Math.min(1, node.halo + force * 0.45 + pointerFactor * 0.32)
           }
+        }
+
+        // Gyroscope-driven drift: tilt phone to nudge nodes
+        if (hasGyro) {
+          node.vx += gx * 0.6
+          node.vy += gy * 0.4
         }
 
         node.vx *= 0.9

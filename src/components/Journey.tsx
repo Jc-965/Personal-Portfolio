@@ -1,6 +1,7 @@
 import { useRef, memo, useEffect, useState, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical, Shield } from 'lucide-react'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 interface ExperienceDetail {
   label: string
@@ -271,6 +272,17 @@ const ProcessCard = memo(function ProcessCard({
   })
   const cardRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
+  const gyro = useGyroscope()
+
+  // Gyroscope tilt on mobile
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el || !gyro.permitted) return
+
+    return gyro.subscribe((gx, gy) => {
+      el.style.transform = `rotateX(${gy * -4}deg) rotateY(${gx * 4}deg)`
+    })
+  }, [gyro])
 
   const handleMouse = (e: React.MouseEvent) => {
     if (!cardRef.current) return
