@@ -13,7 +13,7 @@ const getPerformanceProfile = () => {
   const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
   const isCompact = width < MOBILE_BREAKPOINT
   const isLowPower = (navigator.hardwareConcurrency || 8) <= LOW_POWER_THREADS || (deviceMemory !== undefined && deviceMemory <= 4)
-  const useSimpleGrid = isCompact || isLowPower
+  const useSimpleGrid = isLowPower
 
   return {
     isTouch,
@@ -21,8 +21,8 @@ const getPerformanceProfile = () => {
     isCompact,
     isLowPower,
     useSimpleGrid,
-    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isCompact ? 1.35 : 2),
-    targetFps: isLowPower ? 36 : isCompact ? 48 : 60,
+    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isCompact ? 1.85 : 2),
+    targetFps: isLowPower ? 36 : isCompact ? 46 : 60,
   }
 }
 
@@ -87,9 +87,9 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = profile.isCompact ? 0.58 : 0.8
-      const clickRadius = profile.isCompact ? 190 : 200
-      const clickForce = profile.isCompact ? 2.35 : 3
+      clickDistortion.strength = profile.isCompact ? 0.72 : 0.8
+      const clickRadius = profile.isCompact ? 225 : 200
+      const clickForce = profile.isCompact ? 2.85 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -176,10 +176,10 @@ export default function Background() {
       edges.length = 0
       const branchSet = new Set<string>()
       const treeCount = profile.isCompact
-        ? Math.max(4, Math.round(w / 128))
+        ? Math.max(5, Math.round(w / 96))
         : Math.max(6, Math.round(w / 220))
       const perTree = profile.isCompact
-        ? Math.round(clamp(h / 120, 8, 14))
+        ? Math.round(clamp(h / 108, 10, 16))
         : Math.round(clamp(h / 90, 14, 30))
       const cols: number[][] = []
 
@@ -194,9 +194,9 @@ export default function Background() {
 
       for (let t = 0; t < treeCount; t++) {
         const col: number[] = []
-        const baseX = ((t + 0.5) / treeCount) * w + rand(profile.isCompact ? -18 : -48, profile.isCompact ? 18 : 48)
-        const swing = rand(profile.isCompact ? 10 : 18, profile.isCompact ? 18 : 32)
-        const wobble = rand(profile.isCompact ? 0.7 : 0.8, profile.isCompact ? 1.35 : 1.8)
+        const baseX = ((t + 0.5) / treeCount) * w + rand(profile.isCompact ? -14 : -48, profile.isCompact ? 14 : 48)
+        const swing = rand(profile.isCompact ? 8 : 18, profile.isCompact ? 15 : 32)
+        const wobble = rand(profile.isCompact ? 0.75 : 0.8, profile.isCompact ? 1.2 : 1.8)
 
         for (let i = 0; i < perTree; i++) {
           const depth = i / Math.max(perTree - 1, 1)
@@ -217,14 +217,14 @@ export default function Background() {
             anchorY: y,
             vx: 0,
             vy: 0,
-            radius: rand(profile.isCompact ? 0.9 : 0.8, profile.isCompact ? 1.4 : 1.6),
+            radius: rand(profile.isCompact ? 1.02 : 0.8, profile.isCompact ? 1.62 : 1.6),
             halo: 0,
             phase: Math.random() * Math.PI * 2,
             depth: depth + Math.random() * 0.05,
-            driftRadius: rand(profile.isCompact ? 5 : 14, profile.isCompact ? 14 : 40) * (0.4 + depth * 0.55),
+            driftRadius: rand(profile.isCompact ? 4 : 14, profile.isCompact ? 10 : 40) * (0.34 + depth * (profile.isCompact ? 0.36 : 0.55)),
             driftSpeed: rand(0.1, 0.28),
             swirlSpeed: rand(0.06, 0.2),
-            jitter: rand(profile.isCompact ? 0.8 : 4, profile.isCompact ? 2.6 : 12),
+            jitter: rand(profile.isCompact ? 0.35 : 4, profile.isCompact ? 1.2 : 12),
           })
 
           col.push(id)
@@ -286,17 +286,17 @@ export default function Background() {
       lastPointer.current.x = p.x
       lastPointer.current.y = p.y
 
-      clickDistortion.strength *= profile.isCompact ? 0.92 : 0.95
+      clickDistortion.strength *= profile.isCompact ? 0.94 : 0.95
 
       const pointerFactor = p.inViewport
-        ? clamp(p.velocity / (profile.isCompact ? 240 : 180), profile.isCompact ? 0.04 : 0.08, profile.isCompact ? 0.56 : 0.92)
-        : profile.isCompact ? 0.04 : 0.06
+        ? clamp(p.velocity / (profile.isCompact ? 260 : 180), profile.isCompact ? 0.03 : 0.08, profile.isCompact ? 0.44 : 0.92)
+        : profile.isCompact ? 0.03 : 0.06
       const influenceR = p.inViewport
-        ? (profile.isCompact ? 210 : 280) + p.velocity * (profile.isCompact ? 0.4 : 0.8)
-        : profile.isCompact ? 130 : 170
+        ? (profile.isCompact ? 180 : 280) + p.velocity * (profile.isCompact ? 0.22 : 0.8)
+        : profile.isCompact ? 118 : 170
 
       const spacing = profile.isCompact
-        ? clamp(w / 20.5, 18, 24)
+        ? clamp(w / 22, 18, 22)
         : profile.useSimpleGrid
           ? clamp(w / 34, 22, 30)
           : clamp(w / 44, 26, 34)
@@ -309,10 +309,10 @@ export default function Background() {
       const parallaxY = hasGyro ? gy * h * (profile.isCompact ? 0.03 : 0.06) : (p.inViewport && !profile.isLowPower ? (p.y - h / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
-      const gravR = p.inViewport && !profile.isLowPower ? (profile.isCompact ? 190 : 320) + p.velocity * (profile.isCompact ? 0.18 : 0.6) : 0
+      const gravR = p.inViewport && !profile.isLowPower ? (profile.isCompact ? 165 : 320) + p.velocity * (profile.isCompact ? 0.12 : 0.6) : 0
       const gravRSq = gravR * gravR || 1
-      const clickStrengthBase = profile.isCompact ? 0.58 : 0.8
-      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 210 : 300) * clickDistortion.strength : 0
+      const clickStrengthBase = profile.isCompact ? 0.72 : 0.8
+      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 240 : 300) * clickDistortion.strength : 0
 
       ctx.save()
       ctx.globalAlpha = profile.useSimpleGrid ? (profile.isCompact ? 0.74 : 0.72) : 0.9
@@ -484,18 +484,18 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.009 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.16 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.008 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.16 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.007 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.1 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.006 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.1 : 0.45)
 
         if (p.inViewport && !profile.isLowPower) {
           const ddx = p.x - node.x
           const ddy = p.y - node.y
           const dist = Math.hypot(ddx, ddy) || 0.001
           if (dist < influenceR) {
-            const force = (1 - dist / influenceR) * (profile.isCompact ? 0.24 + pointerFactor * 0.5 : 0.7 + pointerFactor * 1.2)
+            const force = (1 - dist / influenceR) * (profile.isCompact ? 0.18 + pointerFactor * 0.34 : 0.7 + pointerFactor * 1.2)
             node.vx -= (ddx / dist) * force
             node.vy -= (ddy / dist) * force
-            node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.22 : 0.45) + pointerFactor * (profile.isCompact ? 0.12 : 0.32))
+            node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.18 : 0.45) + pointerFactor * (profile.isCompact ? 0.1 : 0.32))
           }
         }
 
@@ -505,8 +505,8 @@ export default function Background() {
           node.vy += gy * (profile.isCompact ? 0.07 : 0.18)
         }
 
-        node.vx *= profile.isCompact ? 0.94 : 0.9
-        node.vy *= profile.isCompact ? 0.94 : 0.9
+        node.vx *= profile.isCompact ? 0.95 : 0.9
+        node.vy *= profile.isCompact ? 0.95 : 0.9
         node.x += node.vx
         node.y += node.vy
         node.x = clamp(node.x, 24, w - 24)
@@ -517,11 +517,11 @@ export default function Background() {
         const from = nodes[a]
         const to = nodes[b]
         if (!from || !to) return
-        const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.48 : 0.82)
+        const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.56 : 0.82)
         const hue = 180 + highlight * 60
-        const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.08 + highlight * 0.18 : 0.14 + highlight * 0.35
+        const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 + highlight * 0.22 : 0.14 + highlight * 0.35
         ctx.strokeStyle = `hsla(${hue}, 100%, ${profile.isCompact ? 62 + highlight * 8 : 50 + highlight * 15}%, ${alpha})`
-        ctx.lineWidth = profile.isLowPower ? 0.7 : profile.isCompact ? 0.38 + highlight * 0.44 : 0.5 + highlight * 1.2
+        ctx.lineWidth = profile.isLowPower ? 0.7 : profile.isCompact ? 0.46 + highlight * 0.58 : 0.5 + highlight * 1.2
         ctx.beginPath()
         ctx.moveTo(from.x, from.y)
         ctx.lineTo(to.x, to.y)
@@ -544,25 +544,25 @@ export default function Background() {
           ctx.arc(node.x, node.y, r * 1.35, 0, Math.PI * 2)
           ctx.fill()
         } else {
-          const gR = r * (profile.isCompact ? 1.55 + node.halo * 1.45 : 1.9 + node.halo * 2.6)
+          const gR = r * (profile.isCompact ? 1.7 + node.halo * 1.8 : 1.9 + node.halo * 2.6)
           const g = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, gR)
-          g.addColorStop(0, `hsla(${nodeHue}, 100%, 60%, ${profile.isCompact ? 0.2 + node.halo * 0.1 : 0.3 + node.halo * 0.2})`)
-          g.addColorStop(0.65, `hsla(${nodeHue}, 100%, 50%, ${profile.isCompact ? 0.12 + node.halo * 0.08 : 0.2 + node.halo * 0.18})`)
+          g.addColorStop(0, `hsla(${nodeHue}, 100%, 62%, ${profile.isCompact ? 0.24 + node.halo * 0.12 : 0.3 + node.halo * 0.2})`)
+          g.addColorStop(0.65, `hsla(${nodeHue}, 100%, 52%, ${profile.isCompact ? 0.16 + node.halo * 0.1 : 0.2 + node.halo * 0.18})`)
           g.addColorStop(1, 'rgba(0,10,20,0)')
           ctx.fillStyle = g
           ctx.beginPath()
           ctx.arc(node.x, node.y, gR, 0, Math.PI * 2)
           ctx.fill()
 
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, ${profile.isCompact ? 68 : 60}%, ${profile.isCompact ? 0.52 + node.halo * 0.12 : 0.6 + node.halo * 0.2})`
+          ctx.fillStyle = `hsla(${nodeHue}, 100%, ${profile.isCompact ? 70 : 60}%, ${profile.isCompact ? 0.62 + node.halo * 0.14 : 0.6 + node.halo * 0.2})`
           ctx.beginPath()
           ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
           ctx.fill()
 
-          ctx.strokeStyle = `hsla(${nodeHue}, 100%, 74%, ${profile.isCompact ? 0.08 + node.halo * 0.08 : 0.18 + node.halo * 0.25})`
-          ctx.lineWidth = profile.isCompact ? 0.3 : 0.45
+          ctx.strokeStyle = `hsla(${nodeHue}, 100%, 76%, ${profile.isCompact ? 0.12 + node.halo * 0.1 : 0.18 + node.halo * 0.25})`
+          ctx.lineWidth = profile.isCompact ? 0.38 : 0.45
           ctx.beginPath()
-          ctx.arc(node.x, node.y, r + (profile.isCompact ? 1 : 1.6) + node.halo * (profile.isCompact ? 1.6 : 3.4), 0, Math.PI * 2)
+          ctx.arc(node.x, node.y, r + (profile.isCompact ? 1.2 : 1.6) + node.halo * (profile.isCompact ? 1.9 : 3.4), 0, Math.PI * 2)
           ctx.stroke()
         }
       })
@@ -589,6 +589,7 @@ export default function Background() {
       pointer.current.x = x
       pointer.current.y = y
       pointer.current.inViewport = true
+      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 96 : 120)
       spawnClickEffect(x, y)
     }
 
