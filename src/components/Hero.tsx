@@ -1,13 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import ASCIIText from './ASCIIText'
 import DecryptedText from './DecryptedText'
 import Magnet from './Magnet'
 import useIsPhone from '../hooks/useIsPhone'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 export default function Hero() {
   const [showContent, setShowContent] = useState(false)
   const isPhone = useIsPhone()
+  const gyro = useGyroscope()
+  const eyebrowRef = useRef<HTMLParagraphElement>(null)
+  const titleRef = useRef<HTMLDivElement>(null)
+  const descRef = useRef<HTMLParagraphElement>(null)
+  const ctaRef = useRef<HTMLDivElement>(null)
+
+  // Gyroscope parallax: each layer moves at a different depth
+  useEffect(() => {
+    if (!isPhone || !gyro.permitted) return
+
+    return gyro.subscribe((gx, gy) => {
+      // Layers at different depths: eyebrow barely moves, CTA moves most
+      if (eyebrowRef.current) {
+        eyebrowRef.current.style.transform = `translate(${gx * 3}px, ${gy * 2}px)`
+      }
+      if (titleRef.current) {
+        titleRef.current.style.transform = `translate(${gx * 8}px, ${gy * 5}px)`
+      }
+      if (descRef.current) {
+        descRef.current.style.transform = `translate(${gx * 5}px, ${gy * 3}px)`
+      }
+      if (ctaRef.current) {
+        ctaRef.current.style.transform = `translate(${gx * 12}px, ${gy * 7}px)`
+      }
+    })
+  }, [isPhone, gyro])
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 300)
@@ -25,6 +52,7 @@ export default function Hero() {
         transition={{ duration: 0.6 }}
       >
         <motion.p
+          ref={eyebrowRef}
           className="hero__eyebrow"
           initial={{ opacity: 0, y: 20 }}
           animate={showContent ? { opacity: 1, y: 0 } : {}}
@@ -48,7 +76,7 @@ export default function Hero() {
           Building technology that solves real problems for real people
         </h1>
 
-        <div className="hero__title hero__title--centered" aria-hidden="true">
+        <div ref={titleRef} className="hero__title hero__title--centered" aria-hidden="true">
           {isPhone ? (
             <>
               <motion.span
@@ -131,6 +159,7 @@ export default function Hero() {
         </div>
 
         <motion.p
+          ref={descRef}
           className="hero__description hero__description--centered"
           initial={{ opacity: 0, y: 20 }}
           animate={showContent ? { opacity: 1, y: 0 } : {}}
@@ -141,6 +170,7 @@ export default function Hero() {
         </motion.p>
 
         <motion.div
+          ref={ctaRef}
           className="hero__cta hero__cta--centered"
           initial={{ opacity: 0, y: 20 }}
           animate={showContent ? { opacity: 1, y: 0 } : {}}
