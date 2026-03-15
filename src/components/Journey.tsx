@@ -282,7 +282,7 @@ const ProcessCard = memo(function ProcessCard({
     if (!el || !isPhone || !gyro.permitted) return
 
     return gyro.subscribe((gx, gy) => {
-      el.style.transform = `rotateX(${gy * -4}deg) rotateY(${gx * 4}deg)`
+      el.style.transform = `perspective(800px) rotateX(${gy * -8}deg) rotateY(${gx * 8}deg) translate(${gx * 6}px, ${gy * 4}px)`
     })
   }, [gyro, isPhone])
 

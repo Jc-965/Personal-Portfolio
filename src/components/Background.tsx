@@ -66,9 +66,9 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = isMobile ? 0.35 : 0.8
-      const clickRadius = isMobile ? 120 : 200
-      const clickForce = isMobile ? 1.5 : 3
+      clickDistortion.strength = isMobile ? 0.55 : 0.8
+      const clickRadius = isMobile ? 180 : 200
+      const clickForce = isMobile ? 2.2 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -346,10 +346,10 @@ export default function Background() {
           }
         }
 
-        // Gyroscope-driven drift: tilt phone to nudge nodes
+        // Gyroscope-driven drift: tilt phone to gently nudge nodes
         if (hasGyro) {
-          node.vx += gx * 0.6
-          node.vy += gy * 0.4
+          node.vx += gx * 0.25
+          node.vy += gy * 0.18
         }
 
         node.vx *= 0.9
@@ -424,6 +424,11 @@ export default function Background() {
       spawnClickEffect(e.clientX, e.clientY)
     }
 
+    const onTouch = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (t) spawnClickEffect(t.clientX, t.clientY)
+    }
+
     const handleVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(frameId)
@@ -444,6 +449,7 @@ export default function Background() {
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
     document.addEventListener('pointerdown', onClick, { passive: true })
+    document.addEventListener('touchstart', onTouch, { passive: true })
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
@@ -453,6 +459,7 @@ export default function Background() {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('pointerdown', onClick)
+      document.removeEventListener('touchstart', onTouch)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
