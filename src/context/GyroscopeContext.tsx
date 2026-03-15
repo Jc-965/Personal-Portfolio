@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useRef, useCallback, useState } f
 const LERP = 0.18
 const INPUT_SMOOTH = 0.25
 const MAX_TILT = 35
+const OUTPUT_SCALE = 0.72
 
 function lerpVal(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -64,8 +65,8 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
     if (!permitted) return
 
     const tick = () => {
-      current.current.x = lerpVal(current.current.x, target.current.x, LERP)
-      current.current.y = lerpVal(current.current.y, target.current.y, LERP)
+      current.current.x = lerpVal(current.current.x, target.current.x * OUTPUT_SCALE, LERP)
+      current.current.y = lerpVal(current.current.y, target.current.y * OUTPUT_SCALE, LERP)
       subscribers.current.forEach(cb => cb(current.current.x, current.current.y))
       rafId.current = requestAnimationFrame(tick)
     }
