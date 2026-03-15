@@ -54,6 +54,30 @@ function getSessionId(): string {
   return id
 }
 
+function getDerivedStarStats(stars: Star[]) {
+  let regularCount = 0
+  let totalCount = 0
+
+  stars.forEach(star => {
+    if (star.isMega) {
+      totalCount += star.mergedCount || 1
+    } else {
+      regularCount++
+      totalCount++
+    }
+  })
+
+  const mergeCount = stars.some(star => star.isMega)
+    ? Math.max(1, Math.floor(totalCount / MERGE_THRESHOLD))
+    : 0
+
+  return {
+    regularCount,
+    totalCount,
+    mergeCount,
+  }
+}
+
 // Calculate mega stars from all stars (mega stars weighted by mergedCount)
 function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
   if (stars.length < MEGA_STAR_COUNT) return []
@@ -202,6 +226,7 @@ export default function Constellation() {
   const [mergeCount, setMergeCount] = useState(0)
   const [filterError, setFilterError] = useState(false)
   const metaReceivedRef = useRef(false)
+  const metadataUnavailableRef = useRef(false)
   const localFallbackRef = useRef(false)
   const sessionId = useRef(getSessionId())
   const isPhone = useIsPhone()
@@ -306,28 +331,19 @@ export default function Constellation() {
     }
     starsRef.current = stars
 
-    let calculatedTotal = 0
-    let regularCount = 0
-    stars.forEach(s => {
-      if (s.isMega) {
-        calculatedTotal += s.mergedCount || 1
-      } else {
-        regularCount++
-        calculatedTotal++
-      }
-    })
-    setStarsSinceMerge(regularCount)
+    const derivedStats = getDerivedStarStats(stars)
+    setStarsSinceMerge(derivedStats.regularCount)
 
     const savedTotal = localStorage.getItem('constellation-totalStarsEver')
     if (savedTotal != null) {
       setTotalStarsEver(Number(savedTotal))
     } else {
-      setTotalStarsEver(calculatedTotal)
-      localStorage.setItem('constellation-totalStarsEver', String(calculatedTotal))
+      setTotalStarsEver(derivedStats.totalCount)
+      localStorage.setItem('constellation-totalStarsEver', String(derivedStats.totalCount))
     }
 
     const savedMergeCount = localStorage.getItem('constellation-mergeCount')
-    setMergeCount(savedMergeCount != null ? Number(savedMergeCount) : 0)
+    setMergeCount(savedMergeCount != null ? Number(savedMergeCount) : derivedStats.mergeCount)
 
     drawStars()
   }, [drawStars])
@@ -363,7 +379,15 @@ export default function Constellation() {
     if (db && !localFallbackRef.current) {
       const starsDbRef = dbRef(db, 'stars')
       const metaRef = dbRef(db, 'metadata')
-      const handleRemoteFailure = () => activateLocalFallback()
+      const handleStarsFailure = () => activateLocalFallback()
+      const handleMetadataFailure = () => {
+        metadataUnavailableRef.current = true
+        if (!metaReceivedRef.current) {
+          const derivedStats = getDerivedStarStats(starsRef.current)
+          setTotalStarsEver(derivedStats.totalCount)
+          setMergeCount(derivedStats.mergeCount)
+        }
+      }
 
       const unsubStars = onValue(
         starsDbRef,
@@ -373,32 +397,27 @@ export default function Constellation() {
             ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
             : []
           starsRef.current = starsList
+          const derivedStats = getDerivedStarStats(starsList)
 
-          let regularCount = 0
-          let calculatedTotal = 0
-          starsList.forEach(s => {
-            if (s.isMega) {
-              calculatedTotal += s.mergedCount || 1
-            } else {
-              regularCount++
-              calculatedTotal++
-            }
-          })
-          setStarsSinceMerge(regularCount)
+          setStarsSinceMerge(derivedStats.regularCount)
 
           if (!metaReceivedRef.current) {
-            setTotalStarsEver(calculatedTotal)
+            setTotalStarsEver(derivedStats.totalCount)
+            if (metadataUnavailableRef.current) {
+              setMergeCount(derivedStats.mergeCount)
+            }
           }
 
           drawStars()
         },
-        handleRemoteFailure
+        handleStarsFailure
       )
 
       const unsubMeta = onValue(
         metaRef,
         (snapshot) => {
           const data = snapshot.val()
+          metadataUnavailableRef.current = false
           if (data) {
             if (data.totalStarsEver != null) {
               metaReceivedRef.current = true
@@ -409,13 +428,14 @@ export default function Constellation() {
             }
           }
         },
-        handleRemoteFailure
+        handleMetadataFailure
       )
 
       // Initialize metadata fields if not yet set
       get(metaRef)
         .then(snap => {
           const data = snap.val()
+          metadataUnavailableRef.current = false
           const needsTotal = !data || data.totalStarsEver == null
           const needsMerge = !data || data.mergeCount == null
 
@@ -446,7 +466,7 @@ export default function Constellation() {
             }
           })
         })
-        .catch(handleRemoteFailure)
+        .catch(handleMetadataFailure)
 
       return () => { unsubStars(); unsubMeta() }
     } else {
@@ -520,7 +540,9 @@ export default function Constellation() {
       })
 
       // Track the merge
-      void update(dbRef(db, 'metadata'), { mergeCount: fbIncrement(1) }).catch(activateLocalFallback)
+      void update(dbRef(db, 'metadata'), { mergeCount: fbIncrement(1) }).catch(() => {
+        metadataUnavailableRef.current = true
+      })
     }
   }, [activateLocalFallback])
 
