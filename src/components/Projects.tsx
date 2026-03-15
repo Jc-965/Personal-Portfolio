@@ -113,7 +113,7 @@ const ProjectCard = memo(function ProjectCard({ project, index }: { project: Pro
   }, [gyro, isPhone])
 
   const handleMouse = (e: React.MouseEvent) => {
-    if (!cardRef.current) return
+    if (isPhone || !cardRef.current) return
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
       if (!cardRef.current) return

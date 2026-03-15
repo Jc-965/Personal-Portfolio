@@ -287,7 +287,7 @@ const ProcessCard = memo(function ProcessCard({
   }, [gyro, isPhone])
 
   const handleMouse = (e: React.MouseEvent) => {
-    if (!cardRef.current) return
+    if (isPhone || !cardRef.current) return
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
       if (!cardRef.current) return

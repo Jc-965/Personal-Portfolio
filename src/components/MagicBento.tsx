@@ -188,11 +188,13 @@ function InteractiveCard({
   const magnetTweenRef = useRef<gsap.core.Tween | null>(null)
   const gyro = useGyroscope()
   const { clearParticles, spawnParticles } = useParticles(cardRef, enableStars && !shouldDisableAnimations, particleCount, glowColor)
+  const allowTiltOnThisViewport = enableTilt && !isMobile
+  const allowMagnetismOnThisViewport = enableMagnetism && !isMobile
 
   // Gyroscope-driven tilt on mobile
   useEffect(() => {
     const el = cardRef.current
-    if (!el || !isMobile || !gyro.permitted || !enableTilt) return
+    if (!el || !isMobile || !gyro.permitted || !allowTiltOnThisViewport) return
 
     return gyro.subscribe((gx, gy) => {
       gsap.set(el, {
@@ -203,7 +205,7 @@ function InteractiveCard({
         transformPerspective: 800,
       })
     })
-  }, [isMobile, gyro, enableTilt])
+  }, [allowTiltOnThisViewport, isMobile, gyro])
 
   useEffect(() => {
     const el = cardRef.current
@@ -232,7 +234,7 @@ function InteractiveCard({
       const centerX = rect.width / 2
       const centerY = rect.height / 2
 
-      if (enableTilt) {
+      if (allowTiltOnThisViewport) {
         gsap.to(el, {
           rotateX: ((y - centerY) / centerY) * -8,
           rotateY: ((x - centerX) / centerX) * 8,
@@ -242,7 +244,7 @@ function InteractiveCard({
         })
       }
 
-      if (enableMagnetism) {
+      if (allowMagnetismOnThisViewport) {
         magnetTweenRef.current?.kill()
         magnetTweenRef.current = gsap.to(el, {
           x: (x - centerX) * 0.035,
@@ -301,7 +303,7 @@ function InteractiveCard({
       el.removeEventListener('click', handleClick)
       clearParticles()
     }
-  }, [clearParticles, clickEffect, enableMagnetism, enableStars, enableTilt, glowColor, shouldDisableAnimations, spawnParticles])
+  }, [allowMagnetismOnThisViewport, allowTiltOnThisViewport, clearParticles, clickEffect, enableStars, glowColor, shouldDisableAnimations, spawnParticles])
 
   const className = [
     'magic-bento-card',

@@ -4,12 +4,20 @@ const LERP = 0.18
 const INPUT_SMOOTH = 0.25
 const MAX_TILT = 35
 const OUTPUT_SCALE = 0.72
+const DISABLE_GYRO_ON_MOBILE = true
 
 function lerpVal(a: number, b: number, t: number) {
   return a + (b - a) * t
 }
 function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max)
+}
+
+function shouldDisableGyroOnMobile() {
+  if (typeof window === 'undefined') return false
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  const isMobileUa = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  return DISABLE_GYRO_ON_MOBILE && (isMobileUa || (isTouchDevice && window.innerWidth <= 1024))
 }
 
 export interface GyroValue {
@@ -40,7 +48,7 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
   const listenersAttached = useRef(false)
 
   const attachListeners = useCallback(() => {
-    if (listenersAttached.current) return
+    if (listenersAttached.current || shouldDisableGyroOnMobile()) return
 
     const handleOrientation = (e: DeviceOrientationEvent) => {
       const gamma = e.gamma ?? 0
@@ -78,7 +86,15 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
     const hasAPI = 'DeviceOrientationEvent' in window && isTouchDevice
-    setSupported(hasAPI)
+    const disabledOnMobile = shouldDisableGyroOnMobile()
+    setSupported(hasAPI && !disabledOnMobile)
+
+    if (disabledOnMobile) {
+      setPermitted(false)
+      current.current = { x: 0, y: 0 }
+      target.current = { x: 0, y: 0 }
+      return
+    }
 
     if (hasAPI && !(DeviceOrientationEvent as any).requestPermission) {
       setPermitted(true)
@@ -87,7 +103,7 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
   }, [attachListeners])
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!supported) return false
+    if (!supported || shouldDisableGyroOnMobile()) return false
     const DOE = DeviceOrientationEvent as any
     if (typeof DOE.requestPermission === 'function') {
       try {
