@@ -1,8 +1,9 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Code, Layers, BarChart3, TerminalSquare, Network } from 'lucide-react'
 import CardSwap, { Card } from './CardSwap'
 import useIsPhone from '../hooks/useIsPhone'
+import { useGyroscope } from '../context/GyroscopeContext'
 
 interface SkillGroup {
   id: string
@@ -56,6 +57,17 @@ export default function Toolkit() {
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
   const swapInView = useInView(swapRef, { margin: '-80px 0px' })
   const isPhone = useIsPhone()
+  const gyro = useGyroscope()
+
+  // Gyroscope tilt on the entire card stack on mobile
+  useEffect(() => {
+    const el = swapRef.current
+    if (!el || !isPhone || !gyro.permitted) return
+
+    return gyro.subscribe((gx, gy) => {
+      el.style.transform = `perspective(800px) rotateX(${gy * -5}deg) rotateY(${gx * 5}deg)`
+    })
+  }, [isPhone, gyro])
 
   return (
     <>

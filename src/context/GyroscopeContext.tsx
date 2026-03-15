@@ -68,9 +68,10 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
     return () => cancelAnimationFrame(rafId.current)
   }, [permitted])
 
-  // Auto-attach on Android / older iOS
+  // Auto-attach on Android / older iOS (only on touch devices to avoid desktop laptops)
   useEffect(() => {
-    const hasAPI = 'DeviceOrientationEvent' in window
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const hasAPI = 'DeviceOrientationEvent' in window && isTouchDevice
     setSupported(hasAPI)
 
     if (hasAPI && !(DeviceOrientationEvent as any).requestPermission) {
