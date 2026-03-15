@@ -66,14 +66,16 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = 0.8
+      clickDistortion.strength = isMobile ? 0.35 : 0.8
+      const clickRadius = isMobile ? 120 : 200
+      const clickForce = isMobile ? 1.5 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
         const ddy = node.y - cy
         const dist = Math.hypot(ddx, ddy) || 1
-        if (dist < 200) {
-          const force = (1 - dist / 200) * 3
+        if (dist < clickRadius) {
+          const force = (1 - dist / clickRadius) * clickForce
           node.vx += (ddx / dist) * force
           node.vy += (ddy / dist) * force
           node.halo = Math.min(1, node.halo + force * 0.2)
@@ -107,8 +109,8 @@ export default function Background() {
       nodes.length = 0
       edges.length = 0
       const branchSet = new Set<string>()
-      const treeCount = isLowEnd ? Math.max(3, Math.round(w / 400)) : Math.max(6, Math.round(w / 220))
-      const perTree = isLowEnd ? Math.round(clamp(h / 160, 6, 12)) : Math.round(clamp(h / 90, 14, 30))
+      const treeCount = isLowEnd ? Math.max(4, Math.round(w / 200)) : Math.max(6, Math.round(w / 220))
+      const perTree = isLowEnd ? Math.round(clamp(h / 120, 8, 18)) : Math.round(clamp(h / 90, 14, 30))
       const cols: number[][] = []
 
       const connect = (a: number, b: number) => {
@@ -208,7 +210,7 @@ export default function Background() {
       const pointerFactor = p.inViewport ? clamp(p.velocity / 180, 0.08, 0.92) : 0.06
       const influenceR = p.inViewport ? 280 + p.velocity * 0.8 : 170
 
-      const spacing = isLowEnd ? clamp(w / 28, 36, 50) : clamp(w / 44, 26, 34)
+      const spacing = isLowEnd ? clamp(w / 18, 20, 30) : clamp(w / 44, 26, 34)
       const gridDriftX = (time * 1.5) % spacing
       const gridDriftY = (time * 1.3) % spacing
       const gx = gyroRef.current.x

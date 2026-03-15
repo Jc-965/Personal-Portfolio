@@ -3380,7 +3380,7 @@ ul {
   .process-grid {
     --journey-meta-width: 0px;
     --journey-rail-width: 34px;
-    --journey-gap: 36px;
+    --journey-gap: 48px;
   }
 
   .process-grid__rail {
@@ -3800,7 +3800,7 @@ ul {
 
   .process-grid {
     --journey-rail-width: 24px;
-    --journey-gap: 40px;
+    --journey-gap: 56px;
   }
 
   .process-grid__rail {
@@ -4019,29 +4019,34 @@ ul {
     padding: 3px 7px;
   }
 
+  .project-card__corner {
+    width: 12px;
+    height: 12px;
+  }
+
   .project-card__corner--tl {
-    top: 10px;
-    left: 10px;
+    top: 6px;
+    left: 6px;
   }
 
   .project-card__corner--tr {
-    top: 10px;
-    right: 10px;
+    top: 6px;
+    right: 6px;
   }
 
   .project-card__corner--bl {
-    bottom: 10px;
-    left: 10px;
+    bottom: 6px;
+    left: 6px;
   }
 
   .project-card__corner--br {
-    bottom: 10px;
-    right: 10px;
+    bottom: 6px;
+    right: 6px;
   }
 
   .project-card:hover .project-card__corner {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
   }
 
   .magic-bento-card {
@@ -4127,7 +4132,7 @@ ul {
 
   .toolkit__swap-shell {
     width: 100%;
-    height: 340px;
+    height: 310px;
     margin-top: 56px;
     overflow: visible;
   }
