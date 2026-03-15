@@ -4,16 +4,25 @@ import { useGyroscope } from '../context/GyroscopeContext'
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const rand = (min: number, max: number) => Math.random() * (max - min) + min
 const MOBILE_BREAKPOINT = 768
+const LOW_POWER_THREADS = 4
 
 const getPerformanceProfile = () => {
   const width = window.innerWidth
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const isLowEnd = isMobile || navigator.hardwareConcurrency <= 4 || width < MOBILE_BREAKPOINT
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  const isMobileUa = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+  const isCompact = width < MOBILE_BREAKPOINT
+  const isLowPower = (navigator.hardwareConcurrency || 8) <= LOW_POWER_THREADS || (deviceMemory !== undefined && deviceMemory <= 4)
+  const useSimpleGrid = isTouch || isCompact || isLowPower
 
   return {
-    isMobile,
-    isLowEnd,
-    dpr: isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 2),
+    isTouch,
+    isMobile: isTouch || isMobileUa,
+    isCompact,
+    isLowPower,
+    useSimpleGrid,
+    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isTouch ? 1.5 : 2),
+    targetFps: isLowPower ? 36 : isTouch ? 48 : 60,
   }
 }
 
@@ -73,13 +82,14 @@ export default function Background() {
     let bgGradient: CanvasGradient
 
     const clickDistortion = { x: 0, y: 0, strength: 0 }
+    const lastInteraction = { x: 0, y: 0, time: 0 }
 
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = profile.isMobile ? 0.55 : 0.8
-      const clickRadius = profile.isMobile ? 180 : 200
-      const clickForce = profile.isMobile ? 2.2 : 3
+      clickDistortion.strength = profile.isTouch ? 0.78 : 0.8
+      const clickRadius = profile.isTouch ? 220 : 200
+      const clickForce = profile.isTouch ? 3.1 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -122,13 +132,16 @@ export default function Background() {
       h = window.innerHeight
       const nextProfile = getPerformanceProfile()
       const profileChanged =
-        nextProfile.isMobile !== profile.isMobile ||
-        nextProfile.isLowEnd !== profile.isLowEnd ||
+        nextProfile.isTouch !== profile.isTouch ||
+        nextProfile.isCompact !== profile.isCompact ||
+        nextProfile.isLowPower !== profile.isLowPower ||
+        nextProfile.useSimpleGrid !== profile.useSimpleGrid ||
         nextProfile.dpr !== profile.dpr
+        || nextProfile.targetFps !== profile.targetFps
 
       profile = nextProfile
       dpr = profile.dpr
-      frameInterval = profile.isLowEnd ? 1000 / 30 : 0
+      frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
       lastFrameTime = 0
       resizeCanvas()
 
@@ -162,8 +175,16 @@ export default function Background() {
       nodes.length = 0
       edges.length = 0
       const branchSet = new Set<string>()
-      const treeCount = profile.isLowEnd ? Math.max(3, Math.round(w / 280)) : Math.max(6, Math.round(w / 220))
-      const perTree = profile.isLowEnd ? Math.round(clamp(h / 180, 5, 10)) : Math.round(clamp(h / 90, 14, 30))
+      const treeCount = profile.isTouch
+        ? Math.max(profile.isLowPower ? 5 : 6, Math.round(w / (profile.isLowPower ? 88 : 74)))
+        : profile.isCompact
+          ? Math.max(6, Math.round(w / 140))
+          : Math.max(6, Math.round(w / 220))
+      const perTree = profile.isTouch
+        ? Math.round(clamp(h / (profile.isLowPower ? 92 : 82), profile.isLowPower ? 10 : 12, profile.isLowPower ? 18 : 24))
+        : profile.isCompact
+          ? Math.round(clamp(h / 88, 12, 20))
+          : Math.round(clamp(h / 90, 14, 30))
       const cols: number[][] = []
 
       const connect = (a: number, b: number) => {
@@ -177,8 +198,8 @@ export default function Background() {
 
       for (let t = 0; t < treeCount; t++) {
         const col: number[] = []
-        const baseX = ((t + 0.5) / treeCount) * w + rand(-48, 48)
-        const swing = rand(18, 32)
+        const baseX = ((t + 0.5) / treeCount) * w + rand(profile.isTouch ? -26 : -48, profile.isTouch ? 26 : 48)
+        const swing = rand(profile.isTouch ? 14 : 18, profile.isTouch ? 26 : 32)
         const wobble = rand(0.8, 1.8)
 
         for (let i = 0; i < perTree; i++) {
@@ -198,14 +219,14 @@ export default function Background() {
             anchorY: y,
             vx: 0,
             vy: 0,
-            radius: rand(0.8, 1.6),
+            radius: rand(profile.isTouch ? 1 : 0.8, profile.isTouch ? 1.85 : 1.6),
             halo: 0,
             phase: Math.random() * Math.PI * 2,
             depth: depth + Math.random() * 0.05,
-            driftRadius: rand(14, 40) * (0.4 + depth * 0.55),
+            driftRadius: rand(profile.isTouch ? 12 : 14, profile.isTouch ? 34 : 40) * (0.4 + depth * 0.55),
             driftSpeed: rand(0.1, 0.28),
             swirlSpeed: rand(0.06, 0.2),
-            jitter: rand(4, 12),
+            jitter: rand(profile.isTouch ? 3 : 4, profile.isTouch ? 8 : 12),
           })
 
           col.push(id)
@@ -245,12 +266,12 @@ export default function Background() {
     }
 
     let lastFrameTime = 0
-    let frameInterval = profile.isLowEnd ? 1000 / 30 : 0 // cap at 30fps on low-end viewports
+    let frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
 
     const animate = (now: number) => {
       frameId = requestAnimationFrame(animate)
 
-      if (profile.isLowEnd && now - lastFrameTime < frameInterval) return
+      if (frameInterval > 0 && now - lastFrameTime < frameInterval) return
       lastFrameTime = now
 
       ctx.clearRect(0, 0, w, h)
@@ -271,48 +292,47 @@ export default function Background() {
       const pointerFactor = p.inViewport ? clamp(p.velocity / 180, 0.08, 0.92) : 0.06
       const influenceR = p.inViewport ? 280 + p.velocity * 0.8 : 170
 
-      const spacing = profile.isMobile
-        ? clamp(w / 14, 20, 30)
-        : profile.isLowEnd
-          ? clamp(w / 12, 28, 40)
+      const spacing = profile.isTouch
+        ? clamp(w / 28, 12, 18)
+        : profile.isCompact
+          ? clamp(w / 22, 14, 22)
           : clamp(w / 44, 26, 34)
       const gridDriftX = (time * 1.5) % spacing
       const gridDriftY = (time * 1.3) % spacing
       const gx = gyroRef.current.x
       const gy = gyroRef.current.y
       const hasGyro = Math.abs(gx) > 0.001 || Math.abs(gy) > 0.001
-      const parallaxX = hasGyro ? gx * w * 0.08 : (p.inViewport && !profile.isLowEnd ? (p.x - w / 2) * 0.1 : 0)
-      const parallaxY = hasGyro ? gy * h * 0.06 : (p.inViewport && !profile.isLowEnd ? (p.y - h / 2) * 0.1 : 0)
+      const parallaxX = hasGyro ? gx * w * 0.08 : (p.inViewport && !profile.isLowPower ? (p.x - w / 2) * 0.1 : 0)
+      const parallaxY = hasGyro ? gy * h * 0.06 : (p.inViewport && !profile.isLowPower ? (p.y - h / 2) * 0.1 : 0)
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
-      const gravR = p.inViewport && !profile.isLowEnd ? 320 + p.velocity * 0.6 : 0
+      const gravR = p.inViewport && !profile.isLowPower ? 320 + p.velocity * 0.6 : 0
       const gravRSq = gravR * gravR || 1
-      const clickR = clickDistortion.strength > 0.01 ? 300 * clickDistortion.strength : 0
+      const clickR = clickDistortion.strength > 0.01 ? (profile.isTouch ? 340 : 300) * clickDistortion.strength : 0
 
       ctx.save()
-      ctx.globalAlpha = profile.isLowEnd ? 0.7 : 0.9
+      ctx.globalAlpha = profile.useSimpleGrid ? 0.82 : 0.9
 
-      if (profile.isLowEnd) {
-        // Fast path: single batch draw, no per-line distortion math
-        ctx.strokeStyle = `hsla(180, 100%, 50%, 0.12)`
-        ctx.lineWidth = 0.6
-
-        // Vertical lines
+      if (profile.useSimpleGrid) {
+        // Compact/touch viewports keep the grid crisp without the expensive per-point distortion path.
         ctx.beginPath()
         for (let x = -spacing; x < w + spacing; x += spacing) {
           const bx = x + offX
           ctx.moveTo(bx, -spacing + offY)
           ctx.lineTo(bx, h + spacing + offY)
         }
-        ctx.stroke()
-
-        // Horizontal lines
-        ctx.beginPath()
         for (let y = -spacing; y < h + spacing; y += spacing) {
           const by = y + offY
           ctx.moveTo(-spacing + offX, by)
           ctx.lineTo(w + spacing + offX, by)
         }
+
+        ctx.strokeStyle = `hsla(185, 100%, 50%, ${profile.isTouch ? 0.14 : 0.12})`
+        ctx.lineWidth = profile.isTouch ? 1.2 : 1
+        ctx.stroke()
+
+        ctx.strokeStyle = `hsla(186, 100%, 82%, ${profile.isTouch ? 0.22 : 0.16})`
+        ctx.lineWidth = 0.45
         ctx.stroke()
       } else {
         for (let x = -spacing; x < w + spacing; x += spacing) {
@@ -423,7 +443,7 @@ export default function Background() {
         node.vx += (node.baseX - node.x) * 0.016 + Math.sin(time * 1.2 + node.phase) * 0.45
         node.vy += (node.baseY - node.y) * 0.014 + Math.cos(time * 1 + node.phase) * 0.45
 
-        if (p.inViewport && !profile.isLowEnd) {
+        if (p.inViewport && !profile.isLowPower) {
           const ddx = p.x - node.x
           const ddy = p.y - node.y
           const dist = Math.hypot(ddx, ddy) || 0.001
@@ -453,11 +473,11 @@ export default function Background() {
         const from = nodes[a]
         const to = nodes[b]
         if (!from || !to) return
-        const highlight = Math.max(from.halo, to.halo) * (profile.isLowEnd ? 0.5 : 0.78)
+        const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : 0.82)
         const hue = 180 + highlight * 60
-        const alpha = profile.isLowEnd ? 0.15 : 0.12 + highlight * 0.35
+        const alpha = profile.isLowPower ? 0.18 : 0.14 + highlight * 0.35
         ctx.strokeStyle = `hsla(${hue}, 100%, ${50 + highlight * 15}%, ${alpha})`
-        ctx.lineWidth = profile.isLowEnd ? 0.5 : 0.4 + highlight * 1.2
+        ctx.lineWidth = profile.isLowPower ? 0.7 : 0.5 + highlight * 1.2
         ctx.beginPath()
         ctx.moveTo(from.x, from.y)
         ctx.lineTo(to.x, to.y)
@@ -467,10 +487,16 @@ export default function Background() {
       nodes.forEach(node => {
         const r = node.radius * (0.78 + node.depth * 0.26)
 
-        if (profile.isLowEnd) {
-          ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 60%, ${0.6 + node.halo * 0.2})`
+        if (profile.isLowPower) {
+          const glowRadius = r * 2.1
+          ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 58%, ${0.18 + node.halo * 0.18})`
           ctx.beginPath()
-          ctx.arc(node.x, node.y, r * 1.2, 0, Math.PI * 2)
+          ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 64%, ${0.72 + node.halo * 0.18})`
+          ctx.beginPath()
+          ctx.arc(node.x, node.y, r * 1.35, 0, Math.PI * 2)
           ctx.fill()
         } else {
           const gR = r * (1.9 + node.halo * 2.6)
@@ -508,13 +534,26 @@ export default function Background() {
       pointer.current.inViewport = false
     }
 
-    const onClick = (e: PointerEvent) => {
-      spawnClickEffect(e.clientX, e.clientY)
+    const triggerInteraction = (x: number, y: number) => {
+      const now = performance.now()
+      if (now - lastInteraction.time < 150 && Math.hypot(x - lastInteraction.x, y - lastInteraction.y) < 18) return
+
+      lastInteraction.x = x
+      lastInteraction.y = y
+      lastInteraction.time = now
+      pointer.current.x = x
+      pointer.current.y = y
+      pointer.current.inViewport = true
+      spawnClickEffect(x, y)
     }
 
-    const onTouch = (e: TouchEvent) => {
+    const onPointerDown = (e: PointerEvent) => {
+      triggerInteraction(e.clientX, e.clientY)
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0]
-      if (t) spawnClickEffect(t.clientX, t.clientY)
+      if (t) triggerInteraction(t.clientX, t.clientY)
     }
 
     const handleVisibility = () => {
@@ -538,8 +577,8 @@ export default function Background() {
     window.addEventListener('resize', debouncedResize)
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
-    document.addEventListener('pointerdown', onClick, { passive: true })
-    document.addEventListener('touchstart', onTouch, { passive: true })
+    document.addEventListener('pointerdown', onPointerDown, { passive: true })
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
@@ -548,8 +587,8 @@ export default function Background() {
       window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
-      document.removeEventListener('pointerdown', onClick)
-      document.removeEventListener('touchstart', onTouch)
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
