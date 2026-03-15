@@ -82,10 +82,10 @@ export default function Toolkit() {
       >
         {swapInView ? (
           <CardSwap
-            width={isPhone ? 280 : '100%'}
-            height={isPhone ? 180 : 300}
-            cardDistance={isPhone ? 25 : 50}
-            verticalDistance={isPhone ? 16 : 32}
+            width={isPhone ? 290 : '100%'}
+            height={isPhone ? 240 : 300}
+            cardDistance={isPhone ? 22 : 50}
+            verticalDistance={isPhone ? 14 : 32}
             delay={3000}
             pauseOnHover={!isPhone}
             skewAmount={isPhone ? 2 : 3}

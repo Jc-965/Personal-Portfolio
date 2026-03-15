@@ -49,54 +49,85 @@ export default function Hero() {
         </h1>
 
         <div className="hero__title hero__title--centered" aria-hidden="true">
-          <motion.div
-            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
-            initial={{ opacity: 0, y: 40, rotateX: -30 }}
-            animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <ASCIIText
-              text="Building technology"
-              enableWaves
-              asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 200 : 260}
-              textColor="#f8fbff"
-              planeBaseHeight={isPhone ? 4.5 : 6.2}
-              interactionMode="viewport"
-            />
-          </motion.div>
-          <motion.div
-            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-accent"
-            initial={{ opacity: 0, y: 40, rotateX: -30 }}
-            animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <ASCIIText
-              text="that solves real problems"
-              enableWaves
-              asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 200 : 260}
-              textColor="#7efcff"
-              planeBaseHeight={isPhone ? 4.5 : 6.2}
-              interactionMode="viewport"
-            />
-          </motion.div>
-          <motion.div
-            className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
-            initial={{ opacity: 0, y: 40, rotateX: -30 }}
-            animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <ASCIIText
-              text="for real people"
-              enableWaves
-              asciiFontSize={isPhone ? 3 : 4}
-              textFontSize={isPhone ? 200 : 260}
-              textColor="#f8fbff"
-              planeBaseHeight={isPhone ? 4.5 : 6.2}
-              interactionMode="viewport"
-            />
-          </motion.div>
+          {isPhone ? (
+            <>
+              <motion.span
+                className="hero__title-line hero__title-line--mobile"
+                initial={{ opacity: 0, y: 24 }}
+                animate={showContent ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.45, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                Building technology
+              </motion.span>
+              <motion.span
+                className="hero__title-line hero__title-line--mobile hero__title-line--mobile-accent"
+                initial={{ opacity: 0, y: 24 }}
+                animate={showContent ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.45, delay: 0.32, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                that solves real problems
+              </motion.span>
+              <motion.span
+                className="hero__title-line hero__title-line--mobile"
+                initial={{ opacity: 0, y: 24 }}
+                animate={showContent ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.45, delay: 0.44, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                for real people
+              </motion.span>
+            </>
+          ) : (
+            <>
+              <motion.div
+                className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
+                initial={{ opacity: 0, y: 40, rotateX: -30 }}
+                animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                <ASCIIText
+                  text="Building technology"
+                  enableWaves
+                  asciiFontSize={4}
+                  textFontSize={260}
+                  textColor="#f8fbff"
+                  planeBaseHeight={6.2}
+                  interactionMode="viewport"
+                />
+              </motion.div>
+              <motion.div
+                className="hero__title-line hero__title-line--ascii hero__title-line--ascii-accent"
+                initial={{ opacity: 0, y: 40, rotateX: -30 }}
+                animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                <ASCIIText
+                  text="that solves real problems"
+                  enableWaves
+                  asciiFontSize={4}
+                  textFontSize={260}
+                  textColor="#7efcff"
+                  planeBaseHeight={6.2}
+                  interactionMode="viewport"
+                />
+              </motion.div>
+              <motion.div
+                className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
+                initial={{ opacity: 0, y: 40, rotateX: -30 }}
+                animate={showContent ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                <ASCIIText
+                  text="for real people"
+                  enableWaves
+                  asciiFontSize={4}
+                  textFontSize={260}
+                  textColor="#f8fbff"
+                  planeBaseHeight={6.2}
+                  interactionMode="viewport"
+                />
+              </motion.div>
+            </>
+          )}
         </div>
 
         <motion.p

@@ -2,8 +2,9 @@ import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Smartphone, Clock, Music } from 'lucide-react'
 import MagicBento, { type MagicBentoItem } from './MagicBento'
+import useIsPhone from '../hooks/useIsPhone'
 
-const items: MagicBentoItem[] = [
+const desktopItems: MagicBentoItem[] = [
   {
     id: 'arcadia',
     icon: <Smartphone size={18} />,
@@ -12,7 +13,7 @@ const items: MagicBentoItem[] = [
     bullets: [
       'Helped develop a digital student ID system that improved check-ins for thousands of students.',
       'Worked closely with administrators to design features based on real student and faculty needs.',
-      'Managed finances and outreach efforts, expanding the club’s reach and project capacity.',
+      "Managed finances and outreach efforts, expanding the club's reach and project capacity.",
     ],
     stats: [
       { label: 'USERS', value: '2K+' },
@@ -66,7 +67,35 @@ const items: MagicBentoItem[] = [
   },
 ]
 
+const mobileItems: MagicBentoItem[] = [
+  {
+    ...desktopItems[0],
+    bullets: [
+      'Built a digital student ID system used by thousands of students.',
+      'Designed features with administrators based on real needs.',
+      'Managed finances and outreach for the club.',
+    ],
+  },
+  {
+    ...desktopItems[1],
+    bullets: [
+      'Built signage and a banner for a local school.',
+      'Organized volunteers and coordinated logistics.',
+      'Mentored younger Scouts on leadership.',
+    ],
+  },
+  {
+    ...desktopItems[2],
+    bullets: [
+      '200+ hours yearly in rehearsals and performances.',
+      'Led sectionals and coached younger players.',
+      'Performed with the Pasadena Symphony and Pops.',
+    ],
+  },
+]
+
 export default function BeyondBuild() {
+  const isPhone = useIsPhone()
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
@@ -87,7 +116,7 @@ export default function BeyondBuild() {
       </motion.header>
 
       <MagicBento
-        items={items}
+        items={isPhone ? mobileItems : desktopItems}
         textAutoHide
         enableStars={false}
         enableSpotlight
