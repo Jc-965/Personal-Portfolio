@@ -74,6 +74,8 @@ class AsciiFilter {
   mouse = { x: 0, y: 0 }
   cols = 0
   rows = 0
+  frameCount = 0
+  lastAsciiStr = ''
 
   constructor(renderer: THREE.WebGLRenderer, { fontSize, fontFamily, charset, invert }: AsciiFilterOptions = {}) {
     this.renderer = renderer
@@ -143,6 +145,11 @@ class AsciiFilter {
   render(scene: THREE.Scene, camera: THREE.Camera) {
     this.renderer.render(scene, camera)
 
+    // Only update ASCII every 3rd frame - the expensive getImageData + pixel loop
+    // is the biggest bottleneck and the visual difference is imperceptible
+    this.frameCount++
+    if (this.frameCount % 3 !== 0 && this.lastAsciiStr) return
+
     const w = this.canvas.width
     const h = this.canvas.height
     if (this.context) {
@@ -173,25 +180,29 @@ class AsciiFilter {
 
   asciify(ctx: CanvasRenderingContext2D, w: number, h: number) {
     const imgData = ctx.getImageData(0, 0, w, h).data
-    let str = ''
+    const charLen = this.charset.length - 1
+    const parts: string[] = []
     for (let y = 0; y < h; y++) {
+      const rowStart = y * 4 * w
       for (let x = 0; x < w; x++) {
-        const i = x * 4 + y * 4 * w
-        const [r, g, b, a] = [imgData[i], imgData[i + 1], imgData[i + 2], imgData[i + 3]]
+        const i = x * 4 + rowStart
+        const a = imgData[i + 3]
 
         if (a === 0) {
-          str += ' '
+          parts.push(' ')
           continue
         }
 
-        let gray = (0.3 * r + 0.6 * g + 0.1 * b) / 255
-        let idx = Math.floor((1 - gray) * (this.charset.length - 1))
-        if (this.invert) idx = this.charset.length - idx - 1
-        str += this.charset[idx]
+        const gray = (0.3 * imgData[i] + 0.6 * imgData[i + 1] + 0.1 * imgData[i + 2]) / 255
+        let idx = Math.floor((1 - gray) * charLen)
+        if (this.invert) idx = charLen - idx
+        parts.push(this.charset[idx])
       }
-      str += '\n'
+      parts.push('\n')
     }
-    this.pre.innerHTML = str
+    const str = parts.join('')
+    this.lastAsciiStr = str
+    this.pre.textContent = str
   }
 
   dispose() {
@@ -599,11 +610,15 @@ export default function ASCIIText({
         observeVisibility()
         asciiRef.current.load()
 
+        let resizeTimer: ReturnType<typeof setTimeout> | null = null
         ro = new ResizeObserver(entries => {
           if (!entries[0] || !asciiRef.current) return
           const { width: w, height: h } = entries[0].contentRect
           if (w > 0 && h > 0) {
-            asciiRef.current.setSize(w, h)
+            if (resizeTimer) clearTimeout(resizeTimer)
+            resizeTimer = setTimeout(() => {
+              asciiRef.current?.setSize(w, h)
+            }, 150)
           }
         })
         ro.observe(containerRef.current!)
