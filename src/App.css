@@ -3380,7 +3380,7 @@ ul {
   .process-grid {
     --journey-meta-width: 0px;
     --journey-rail-width: 34px;
-    --journey-gap: 48px;
+    --journey-gap: 60px;
   }
 
   .process-grid__rail {
@@ -3776,11 +3776,11 @@ ul {
   }
 
   .card-3d-wrap {
-    perspective: none;
+    perspective: 800px;
   }
 
   .card-3d-tilt {
-    transform: none !important;
+    transition: none;
   }
 
   .process-grid,
@@ -3800,7 +3800,11 @@ ul {
 
   .process-grid {
     --journey-rail-width: 24px;
-    --journey-gap: 56px;
+    --journey-gap: 72px;
+  }
+
+  .process-card__corner {
+    display: none;
   }
 
   .process-grid__rail {
@@ -4020,28 +4024,7 @@ ul {
   }
 
   .project-card__corner {
-    width: 12px;
-    height: 12px;
-  }
-
-  .project-card__corner--tl {
-    top: 6px;
-    left: 6px;
-  }
-
-  .project-card__corner--tr {
-    top: 6px;
-    right: 6px;
-  }
-
-  .project-card__corner--bl {
-    bottom: 6px;
-    left: 6px;
-  }
-
-  .project-card__corner--br {
-    bottom: 6px;
-    right: 6px;
+    display: none;
   }
 
   .project-card:hover .project-card__corner {
