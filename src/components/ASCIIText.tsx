@@ -49,6 +49,10 @@ function map(n: number, start: number, stop: number, start2: number, stop2: numb
 }
 
 const PX_RATIO = typeof window !== 'undefined' ? window.devicePixelRatio : 1
+const ASCII_IDLE_FRAME_INTERVAL_MS = 1000 / 24
+const ASCII_ACTIVE_WINDOW_MS = 140
+const ASCII_RESIZE_COOLDOWN_MS = 120
+const ASCII_RESIZE_DEBOUNCE_MS = 140
 
 interface AsciiFilterOptions {
   fontSize?: number
@@ -76,6 +80,9 @@ class AsciiFilter {
   rows = 0
   frameCount = 0
   lastAsciiStr = ''
+  lastRenderTime = 0
+  lastInputTime = 0
+  resizeCooldownUntil = 0
 
   constructor(renderer: THREE.WebGLRenderer, { fontSize, fontFamily, charset, invert }: AsciiFilterOptions = {}) {
     this.renderer = renderer
@@ -90,7 +97,7 @@ class AsciiFilter {
     this.domElement.appendChild(this.pre)
 
     this.canvas = document.createElement('canvas')
-    this.context = this.canvas.getContext('2d')
+    this.context = this.canvas.getContext('2d', { willReadFrequently: true })
     this.domElement.appendChild(this.canvas)
 
     this.deg = 0
@@ -111,11 +118,17 @@ class AsciiFilter {
   setSize(width: number, height: number) {
     this.width = width
     this.height = height
-    this.renderer.setSize(width, height)
+    this.renderer.setSize(width, height, false)
     this.reset()
+    this.pauseForResize()
 
     this.center = { x: width / 2, y: height / 2 }
     this.mouse = { x: this.center.x, y: this.center.y }
+  }
+
+  pauseForResize() {
+    this.resizeCooldownUntil = performance.now() + ASCII_RESIZE_COOLDOWN_MS
+    this.lastRenderTime = 0
   }
 
   reset() {
@@ -123,8 +136,8 @@ class AsciiFilter {
       this.context.font = `${this.fontSize}px ${this.fontFamily}`
       const charWidth = this.context.measureText('A').width
 
-      this.cols = Math.floor(this.width / (this.fontSize * (charWidth / this.fontSize)))
-      this.rows = Math.floor(this.height / this.fontSize)
+      this.cols = Math.max(1, Math.floor(this.width / (this.fontSize * (charWidth / this.fontSize))))
+      this.rows = Math.max(1, Math.floor(this.height / this.fontSize))
 
       this.canvas.width = this.cols
       this.canvas.height = this.rows
@@ -142,26 +155,31 @@ class AsciiFilter {
     }
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera) {
-    this.renderer.render(scene, camera)
+  render(scene: THREE.Scene, camera: THREE.Camera, now: number) {
+    this.hue()
 
-    // Only update ASCII every 3rd frame - the expensive getImageData + pixel loop
-    // is the biggest bottleneck and the visual difference is imperceptible
-    this.frameCount++
-    if (this.frameCount % 3 !== 0 && this.lastAsciiStr) return
+    if (now < this.resizeCooldownUntil) return
 
     const w = this.canvas.width
     const h = this.canvas.height
+    if (w <= 0 || h <= 0) return
+
+    const frameInterval = now - this.lastInputTime < ASCII_ACTIVE_WINDOW_MS ? 0 : ASCII_IDLE_FRAME_INTERVAL_MS
+    const canReuseFrame = frameInterval > 0 && this.lastAsciiStr && now - this.lastRenderTime < frameInterval
+    if (canReuseFrame) return
+
+    this.renderer.render(scene, camera)
     if (this.context) {
       this.context.clearRect(0, 0, w, h)
       this.context.drawImage(this.renderer.domElement, 0, 0, w, h)
       this.asciify(this.context, w, h)
-      this.hue()
+      this.lastRenderTime = now
     }
   }
 
   onMouseMove(e: MouseEvent) {
     this.mouse = { x: e.clientX * PX_RATIO, y: e.clientY * PX_RATIO }
+    this.lastInputTime = performance.now()
   }
 
   get dx() {
@@ -382,7 +400,7 @@ class CanvAscii {
   }
 
   setRenderer() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true })
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' })
     this.renderer.setPixelRatio(1)
     this.renderer.setClearColor(0x000000, 0)
 
@@ -462,17 +480,21 @@ class CanvAscii {
       }
 
       this.animationFrameId = requestAnimationFrame(animateFrame)
-      this.render(now * 0.001)
+      this.render(now * 0.001, now)
     }
 
     this.animationFrameId = requestAnimationFrame(animateFrame)
   }
 
-  render(time: number) {
+  render(time: number, now: number) {
     ;(this.mesh.material as THREE.ShaderMaterial).uniforms.uTime.value = Math.sin(time)
 
     this.updateRotation()
-    this.filter.render(this.scene, this.camera)
+    this.filter.render(this.scene, this.camera, now)
+  }
+
+  pauseForResize() {
+    this.filter.pauseForResize()
   }
 
   updateRotation() {
@@ -553,6 +575,7 @@ export default function ASCIIText({
     let sizeObserver: IntersectionObserver | null = null
     let visibilityObserver: IntersectionObserver | null = null
     let ro: ResizeObserver | null = null
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
 
     const observeVisibility = () => {
       if (!containerRef.current || visibilityObserver) return
@@ -610,15 +633,15 @@ export default function ASCIIText({
         observeVisibility()
         asciiRef.current.load()
 
-        let resizeTimer: ReturnType<typeof setTimeout> | null = null
         ro = new ResizeObserver(entries => {
           if (!entries[0] || !asciiRef.current) return
           const { width: w, height: h } = entries[0].contentRect
           if (w > 0 && h > 0) {
+            asciiRef.current.pauseForResize()
             if (resizeTimer) clearTimeout(resizeTimer)
             resizeTimer = setTimeout(() => {
               asciiRef.current?.setSize(w, h)
-            }, 150)
+            }, ASCII_RESIZE_DEBOUNCE_MS)
           }
         })
         ro.observe(containerRef.current!)
@@ -632,6 +655,7 @@ export default function ASCIIText({
       if (sizeObserver) sizeObserver.disconnect()
       if (visibilityObserver) visibilityObserver.disconnect()
       if (ro) ro.disconnect()
+      if (resizeTimer) clearTimeout(resizeTimer)
       if (asciiRef.current) {
         asciiRef.current.dispose()
         asciiRef.current = null
