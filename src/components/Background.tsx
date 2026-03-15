@@ -3,6 +3,19 @@ import { useGyroscope } from '../context/GyroscopeContext'
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const rand = (min: number, max: number) => Math.random() * (max - min) + min
+const MOBILE_BREAKPOINT = 768
+
+const getPerformanceProfile = () => {
+  const width = window.innerWidth
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const isLowEnd = isMobile || navigator.hardwareConcurrency <= 4 || width < MOBILE_BREAKPOINT
+
+  return {
+    isMobile,
+    isLowEnd,
+    dpr: isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 2),
+  }
+}
 
 interface Node {
   id: number
@@ -49,12 +62,10 @@ export default function Background() {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReduced) return
 
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const isLowEnd = isMobile || navigator.hardwareConcurrency <= 4 || window.innerWidth < 768
-
     let w = window.innerWidth
     let h = window.innerHeight
-    const dpr = isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 2)
+    let profile = getPerformanceProfile()
+    let dpr = profile.dpr
 
     const nodes: Node[] = []
     const edges: [number, number][] = []
@@ -66,9 +77,9 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = isMobile ? 0.55 : 0.8
-      const clickRadius = isMobile ? 180 : 200
-      const clickForce = isMobile ? 2.2 : 3
+      clickDistortion.strength = profile.isMobile ? 0.55 : 0.8
+      const clickRadius = profile.isMobile ? 180 : 200
+      const clickForce = profile.isMobile ? 2.2 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -109,9 +120,26 @@ export default function Background() {
       const oldH = h
       w = window.innerWidth
       h = window.innerHeight
+      const nextProfile = getPerformanceProfile()
+      const profileChanged =
+        nextProfile.isMobile !== profile.isMobile ||
+        nextProfile.isLowEnd !== profile.isLowEnd ||
+        nextProfile.dpr !== profile.dpr
+
+      profile = nextProfile
+      dpr = profile.dpr
+      frameInterval = profile.isLowEnd ? 1000 / 30 : 0
+      lastFrameTime = 0
       resizeCanvas()
 
-      if (!initialized || nodes.length === 0) {
+      const areaRatio = oldW > 0 && oldH > 0 ? (w * h) / (oldW * oldH) : 1
+      const significantResize =
+        Math.abs(w - oldW) > 160 ||
+        Math.abs(h - oldH) > 120 ||
+        areaRatio < 0.72 ||
+        areaRatio > 1.38
+
+      if (!initialized || nodes.length === 0 || profileChanged || significantResize) {
         initNodes()
         initialized = true
         return
@@ -134,8 +162,8 @@ export default function Background() {
       nodes.length = 0
       edges.length = 0
       const branchSet = new Set<string>()
-      const treeCount = isLowEnd ? Math.max(3, Math.round(w / 280)) : Math.max(6, Math.round(w / 220))
-      const perTree = isLowEnd ? Math.round(clamp(h / 180, 5, 10)) : Math.round(clamp(h / 90, 14, 30))
+      const treeCount = profile.isLowEnd ? Math.max(3, Math.round(w / 280)) : Math.max(6, Math.round(w / 220))
+      const perTree = profile.isLowEnd ? Math.round(clamp(h / 180, 5, 10)) : Math.round(clamp(h / 90, 14, 30))
       const cols: number[][] = []
 
       const connect = (a: number, b: number) => {
@@ -217,12 +245,12 @@ export default function Background() {
     }
 
     let lastFrameTime = 0
-    const frameInterval = isLowEnd ? 1000 / 30 : 0 // cap at 30fps on mobile
+    let frameInterval = profile.isLowEnd ? 1000 / 30 : 0 // cap at 30fps on low-end viewports
 
     const animate = (now: number) => {
       frameId = requestAnimationFrame(animate)
 
-      if (isLowEnd && now - lastFrameTime < frameInterval) return
+      if (profile.isLowEnd && now - lastFrameTime < frameInterval) return
       lastFrameTime = now
 
       ctx.clearRect(0, 0, w, h)
@@ -243,24 +271,28 @@ export default function Background() {
       const pointerFactor = p.inViewport ? clamp(p.velocity / 180, 0.08, 0.92) : 0.06
       const influenceR = p.inViewport ? 280 + p.velocity * 0.8 : 170
 
-      const spacing = isLowEnd ? clamp(w / 10, 34, 48) : clamp(w / 44, 26, 34)
+      const spacing = profile.isMobile
+        ? clamp(w / 14, 20, 30)
+        : profile.isLowEnd
+          ? clamp(w / 12, 28, 40)
+          : clamp(w / 44, 26, 34)
       const gridDriftX = (time * 1.5) % spacing
       const gridDriftY = (time * 1.3) % spacing
       const gx = gyroRef.current.x
       const gy = gyroRef.current.y
       const hasGyro = Math.abs(gx) > 0.001 || Math.abs(gy) > 0.001
-      const parallaxX = hasGyro ? gx * w * 0.08 : (p.inViewport && !isLowEnd ? (p.x - w / 2) * 0.1 : 0)
-      const parallaxY = hasGyro ? gy * h * 0.06 : (p.inViewport && !isLowEnd ? (p.y - h / 2) * 0.1 : 0)
+      const parallaxX = hasGyro ? gx * w * 0.08 : (p.inViewport && !profile.isLowEnd ? (p.x - w / 2) * 0.1 : 0)
+      const parallaxY = hasGyro ? gy * h * 0.06 : (p.inViewport && !profile.isLowEnd ? (p.y - h / 2) * 0.1 : 0)
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
-      const gravR = p.inViewport && !isLowEnd ? 320 + p.velocity * 0.6 : 0
+      const gravR = p.inViewport && !profile.isLowEnd ? 320 + p.velocity * 0.6 : 0
       const gravRSq = gravR * gravR || 1
       const clickR = clickDistortion.strength > 0.01 ? 300 * clickDistortion.strength : 0
 
       ctx.save()
-      ctx.globalAlpha = isLowEnd ? 0.7 : 0.9
+      ctx.globalAlpha = profile.isLowEnd ? 0.7 : 0.9
 
-      if (isLowEnd) {
+      if (profile.isLowEnd) {
         // Fast path: single batch draw, no per-line distortion math
         ctx.strokeStyle = `hsla(180, 100%, 50%, 0.12)`
         ctx.lineWidth = 0.6
@@ -391,7 +423,7 @@ export default function Background() {
         node.vx += (node.baseX - node.x) * 0.016 + Math.sin(time * 1.2 + node.phase) * 0.45
         node.vy += (node.baseY - node.y) * 0.014 + Math.cos(time * 1 + node.phase) * 0.45
 
-        if (p.inViewport && !isLowEnd) {
+        if (p.inViewport && !profile.isLowEnd) {
           const ddx = p.x - node.x
           const ddy = p.y - node.y
           const dist = Math.hypot(ddx, ddy) || 0.001
@@ -421,11 +453,11 @@ export default function Background() {
         const from = nodes[a]
         const to = nodes[b]
         if (!from || !to) return
-        const highlight = Math.max(from.halo, to.halo) * (isLowEnd ? 0.5 : 0.78)
+        const highlight = Math.max(from.halo, to.halo) * (profile.isLowEnd ? 0.5 : 0.78)
         const hue = 180 + highlight * 60
-        const alpha = isLowEnd ? 0.15 : 0.12 + highlight * 0.35
+        const alpha = profile.isLowEnd ? 0.15 : 0.12 + highlight * 0.35
         ctx.strokeStyle = `hsla(${hue}, 100%, ${50 + highlight * 15}%, ${alpha})`
-        ctx.lineWidth = isLowEnd ? 0.5 : 0.4 + highlight * 1.2
+        ctx.lineWidth = profile.isLowEnd ? 0.5 : 0.4 + highlight * 1.2
         ctx.beginPath()
         ctx.moveTo(from.x, from.y)
         ctx.lineTo(to.x, to.y)
@@ -435,7 +467,7 @@ export default function Background() {
       nodes.forEach(node => {
         const r = node.radius * (0.78 + node.depth * 0.26)
 
-        if (isLowEnd) {
+        if (profile.isLowEnd) {
           ctx.fillStyle = `hsla(${180 + node.halo * 60}, 100%, 60%, ${0.6 + node.halo * 0.2})`
           ctx.beginPath()
           ctx.arc(node.x, node.y, r * 1.2, 0, Math.PI * 2)
@@ -488,8 +520,10 @@ export default function Background() {
     const handleVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(frameId)
+        frameId = 0
       } else {
-        frameId = requestAnimationFrame(animate)
+        lastFrameTime = 0
+        if (!frameId) frameId = requestAnimationFrame(animate)
       }
     }
 
