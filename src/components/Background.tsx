@@ -14,7 +14,7 @@ const getPerformanceProfile = () => {
   const isCompact = width < MOBILE_BREAKPOINT
   const isActualMobile = isCompact && (isTouch || isMobileUa)
   const isLowPower = (navigator.hardwareConcurrency || 8) <= LOW_POWER_THREADS || (deviceMemory !== undefined && deviceMemory <= 4)
-  const useSimpleGrid = isLowPower
+  const useSimpleGrid = isLowPower || isActualMobile
 
   return {
     isTouch,
@@ -23,8 +23,8 @@ const getPerformanceProfile = () => {
     isActualMobile,
     isLowPower,
     useSimpleGrid,
-    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isActualMobile ? 1.45 : 2),
-    targetFps: isLowPower ? (isCompact ? 42 : 36) : isActualMobile ? 52 : 60,
+    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isActualMobile ? 1.28 : 2),
+    targetFps: isLowPower ? (isCompact ? 42 : 36) : isActualMobile ? 56 : 60,
   }
 }
 
@@ -235,8 +235,10 @@ export default function Background() {
       }
 
       if (profile.isCompact) {
-        const clusterCount = Math.max(4, Math.min(5, Math.round(w / 150)))
-        const trunkSegments = Math.round(clamp(h / 116, 8, 10))
+        const clusterCount = profile.isActualMobile ? 4 : Math.max(4, Math.min(5, Math.round(w / 150)))
+        const trunkSegments = profile.isActualMobile
+          ? Math.round(clamp(h / 148, 7, 8))
+          : Math.round(clamp(h / 116, 8, 10))
         const clusters: number[][] = []
 
         for (let c = 0; c < clusterCount; c++) {
@@ -255,7 +257,7 @@ export default function Background() {
           let x = clamp(baseX, 34, w - 34)
           let y = rootY
           let previousId: number | undefined
-          let branchBudget = Math.round(rand(1, 2.3))
+          let branchBudget = Math.round(rand(1, profile.isActualMobile ? 1.8 : 2.3))
 
           for (let i = 0; i < trunkSegments; i++) {
             const progress = i / Math.max(trunkSegments - 1, 1)
@@ -277,13 +279,13 @@ export default function Background() {
             previousId = trunkId
 
             const canBranch = i > 1 && i < trunkSegments - 1 && branchBudget > 0
-            if (!canBranch || Math.random() > 0.46) continue
+            if (!canBranch || Math.random() > (profile.isActualMobile ? 0.58 : 0.46)) continue
 
             branchBudget -= 1
             const branchDirection = edgeBias === 0
               ? (Math.random() > 0.5 ? 1 : -1)
               : (Math.random() > 0.2 ? edgeBias : -edgeBias)
-            const branchSegments = Math.round(rand(2, 3.2))
+            const branchSegments = Math.round(rand(2, profile.isActualMobile ? 2.8 : 3.2))
             let branchParent = trunkId
             let bx = x
             let by = y
@@ -312,7 +314,7 @@ export default function Background() {
           const next = clusters[i + 1]
           if (!current || !next) continue
 
-          const bridges = Math.round(rand(1, 2.4))
+          const bridges = Math.round(rand(1, profile.isActualMobile ? 1.6 : 2.4))
           for (let b = 0; b < bridges; b++) {
             const from = current[Math.floor(rand(1, Math.max(2, current.length - 2)))]
             if (from === undefined) continue
@@ -393,12 +395,7 @@ export default function Background() {
     let lastFrameTime = 0
     let frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
 
-    const animate = (now: number) => {
-      frameId = requestAnimationFrame(animate)
-
-      if (frameInterval > 0 && now - lastFrameTime < frameInterval) return
-      lastFrameTime = now
-
+    const drawFrame = (now: number) => {
       ctx.clearRect(0, 0, w, h)
 
       ctx.fillStyle = bgGradient
@@ -734,6 +731,14 @@ export default function Background() {
 
     }
 
+    const animate = (now: number) => {
+      frameId = requestAnimationFrame(animate)
+
+      if (frameInterval > 0 && now - lastFrameTime < frameInterval) return
+      lastFrameTime = now
+      drawFrame(now)
+    }
+
     const onMove = (e: PointerEvent) => {
       pointer.current.x = e.clientX
       pointer.current.y = e.clientY
@@ -756,6 +761,8 @@ export default function Background() {
       pointer.current.inViewport = true
       pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 260 : 120)
       spawnClickEffect(x, y)
+      lastFrameTime = 0
+      drawFrame(now)
     }
 
     const onPointerDown = (e: PointerEvent) => {
