@@ -12,6 +12,7 @@ const getPerformanceProfile = () => {
   const isMobileUa = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
   const isCompact = width < MOBILE_BREAKPOINT
+  const isActualMobile = isCompact && (isTouch || isMobileUa)
   const isLowPower = (navigator.hardwareConcurrency || 8) <= LOW_POWER_THREADS || (deviceMemory !== undefined && deviceMemory <= 4)
   const useSimpleGrid = isLowPower
 
@@ -19,10 +20,11 @@ const getPerformanceProfile = () => {
     isTouch,
     isMobile: isTouch || isMobileUa,
     isCompact,
+    isActualMobile,
     isLowPower,
     useSimpleGrid,
-    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : 2),
-    targetFps: isLowPower ? (isCompact ? 42 : 36) : 60,
+    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isActualMobile ? 1.45 : 2),
+    targetFps: isLowPower ? (isCompact ? 42 : 36) : isActualMobile ? 52 : 60,
   }
 }
 
@@ -73,6 +75,7 @@ export default function Background() {
 
     let w = window.innerWidth
     let h = window.innerHeight
+    let stableCompactHeight = h
     let profile = getPerformanceProfile()
     let dpr = profile.dpr
 
@@ -87,9 +90,9 @@ export default function Background() {
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
       clickDistortion.y = cy
-      clickDistortion.strength = profile.isCompact ? 0.98 : 0.8
-      const clickRadius = profile.isCompact ? 160 : 200
-      const clickForce = profile.isCompact ? 4.8 : 3
+      clickDistortion.strength = profile.isCompact ? 1.04 : 0.8
+      const clickRadius = profile.isCompact ? 176 : 200
+      const clickForce = profile.isCompact ? 5.8 : 3
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -99,13 +102,13 @@ export default function Background() {
           const force = (1 - dist / clickRadius) * clickForce
           const pushX = (ddx / dist) * force
           const pushY = (ddy / dist) * force
-          node.vx += pushX * (profile.isCompact ? 1.18 : 1)
-          node.vy += pushY * (profile.isCompact ? 1.18 : 1)
+          node.vx += pushX * (profile.isCompact ? 1.7 : 1)
+          node.vy += pushY * (profile.isCompact ? 1.7 : 1)
           if (profile.isCompact) {
-            node.x = clamp(node.x + pushX * 1.6, 24, w - 24)
-            node.y = clamp(node.y + pushY * 1.6, 24, h - 24)
+            node.x = clamp(node.x + pushX * 2.15, 24, w - 24)
+            node.y = clamp(node.y + pushY * 2.15, 24, h - 24)
           }
-          node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.34 : 0.2))
+          node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.44 : 0.2))
         }
       })
     }
@@ -134,12 +137,27 @@ export default function Background() {
     const resize = () => {
       const oldW = w
       const oldH = h
-      w = window.innerWidth
-      h = window.innerHeight
+      const nextW = window.innerWidth
+      const nextH = window.innerHeight
       const nextProfile = getPerformanceProfile()
+      const compactChromeShift =
+        nextProfile.isCompact &&
+        profile.isCompact &&
+        Math.abs(nextW - oldW) < 12 &&
+        Math.abs(nextH - stableCompactHeight) < 160
+
+      w = nextW
+      if (compactChromeShift) {
+        stableCompactHeight = Math.max(stableCompactHeight, nextH)
+        h = stableCompactHeight
+      } else {
+        h = nextH
+        stableCompactHeight = nextH
+      }
       const profileChanged =
         nextProfile.isTouch !== profile.isTouch ||
         nextProfile.isCompact !== profile.isCompact ||
+        nextProfile.isActualMobile !== profile.isActualMobile ||
         nextProfile.isLowPower !== profile.isLowPower ||
         nextProfile.useSimpleGrid !== profile.useSimpleGrid ||
         nextProfile.dpr !== profile.dpr
@@ -423,6 +441,7 @@ export default function Background() {
       const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 150 : 300) * clickDistortion.strength : 0
       const clickGridForce = profile.isCompact ? 34 : 30
       const clickAlphaBoost = profile.isCompact ? 0.43 : 0.3
+      const detailStep = profile.isActualMobile ? spacing * 0.82 : spacing / 2
 
       ctx.save()
       ctx.globalAlpha = profile.useSimpleGrid ? (profile.isCompact ? 0.74 : 0.72) : 0.9
@@ -523,7 +542,7 @@ export default function Background() {
           ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
           ctx.lineWidth = 0.8
           ctx.beginPath()
-          const step = spacing / 2
+          const step = detailStep
           const steps = Math.ceil((h + spacing * 2) / step)
           for (let s = 0; s <= steps; s++) {
             let drawX = bx
@@ -569,7 +588,7 @@ export default function Background() {
           ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
           ctx.lineWidth = 0.78
           ctx.beginPath()
-          const step = spacing / 2
+          const step = detailStep
           const steps = Math.ceil((w + spacing * 2) / step)
           for (let s = 0; s <= steps; s++) {
             let drawX = -spacing + s * step + offX
@@ -613,18 +632,18 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0062 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.025 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0056 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.025 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0105 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.018 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0092 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.018 : 0.45)
 
         if (p.inViewport && !profile.isLowPower) {
           const ddx = p.x - node.x
           const ddy = p.y - node.y
           const dist = Math.hypot(ddx, ddy) || 0.001
           if (dist < influenceR) {
-            const force = (1 - dist / influenceR) * (profile.isCompact ? 0.14 + pointerFactor * 0.26 : 0.7 + pointerFactor * 1.2)
+            const force = (1 - dist / influenceR) * (profile.isCompact ? 0.19 + pointerFactor * 0.34 : 0.7 + pointerFactor * 1.2)
             node.vx -= (ddx / dist) * force
             node.vy -= (ddy / dist) * force
-            node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.14 : 0.45) + pointerFactor * (profile.isCompact ? 0.06 : 0.32))
+            node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.22 : 0.45) + pointerFactor * (profile.isCompact ? 0.1 : 0.32))
           }
         }
 
@@ -634,8 +653,8 @@ export default function Background() {
           node.vy += gy * (profile.isCompact ? 0.07 : 0.18)
         }
 
-        node.vx *= profile.isCompact ? 0.91 : 0.9
-        node.vy *= profile.isCompact ? 0.91 : 0.9
+        node.vx *= profile.isCompact ? 0.84 : 0.9
+        node.vy *= profile.isCompact ? 0.84 : 0.9
         node.x += node.vx
         node.y += node.vy
         node.x = clamp(node.x, 24, w - 24)
@@ -672,6 +691,23 @@ export default function Background() {
           ctx.beginPath()
           ctx.arc(node.x, node.y, r * 1.35, 0, Math.PI * 2)
           ctx.fill()
+        } else if (profile.isActualMobile) {
+          const glowRadius = r * (2 + node.halo * 1.2)
+          ctx.fillStyle = `hsla(${nodeHue}, 100%, 58%, ${0.18 + node.halo * 0.12})`
+          ctx.beginPath()
+          ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = `hsla(${nodeHue}, 100%, 68%, ${0.68 + node.halo * 0.12})`
+          ctx.beginPath()
+          ctx.arc(node.x, node.y, r * 1.05, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.strokeStyle = `hsla(${nodeHue}, 100%, 78%, ${0.09 + node.halo * 0.08})`
+          ctx.lineWidth = 0.34
+          ctx.beginPath()
+          ctx.arc(node.x, node.y, r + 1 + node.halo * 1.5, 0, Math.PI * 2)
+          ctx.stroke()
         } else {
           const gR = r * (profile.isCompact ? 1.7 + node.halo * 1.8 : 1.9 + node.halo * 2.6)
           const g = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, gR)
@@ -718,7 +754,7 @@ export default function Background() {
       pointer.current.x = x
       pointer.current.y = y
       pointer.current.inViewport = true
-      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 190 : 120)
+      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 260 : 120)
       spawnClickEffect(x, y)
     }
 
