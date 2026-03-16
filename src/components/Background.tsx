@@ -257,10 +257,10 @@ export default function Background() {
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
-          driftRadius: rand(profile.isActualMobile ? 16 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 42 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.42 : 0.55)),
-          driftSpeed: rand(profile.isActualMobile ? 0.22 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.46 : profile.isCompact ? 0.18 : 0.28),
-          swirlSpeed: rand(profile.isActualMobile ? 0.16 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.38 : profile.isCompact ? 0.14 : 0.2),
-          jitter: rand(profile.isActualMobile ? 1.4 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 4 : profile.isCompact ? 0.32 : 12),
+          driftRadius: rand(profile.isActualMobile ? 28 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 64 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.42 : 0.55)),
+          driftSpeed: rand(profile.isActualMobile ? 0.28 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.54 : profile.isCompact ? 0.18 : 0.28),
+          swirlSpeed: rand(profile.isActualMobile ? 0.22 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.46 : profile.isCompact ? 0.14 : 0.2),
+          jitter: rand(profile.isActualMobile ? 3.5 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 9 : profile.isCompact ? 0.32 : 12),
         })
 
         return id
@@ -478,7 +478,7 @@ export default function Background() {
       lastPointer.current.x = p.x
       lastPointer.current.y = p.y
 
-      clickDistortion.strength *= profile.isCompact ? 0.79 : 0.95
+      clickDistortion.strength *= profile.isCompact ? 0.87 : 0.95
 
       const pointerFactor = pointerEngaged
         ? clamp(
@@ -508,7 +508,7 @@ export default function Background() {
       const gravR = pointerEngaged && !profile.isLowPower ? (profile.isCompact ? 150 : 320) + p.velocity * (profile.isCompact ? 0.1 : 0.6) : 0
       const gravRSq = gravR * gravR || 1
       const clickStrengthBase = profile.isCompact ? 0.98 : 0.8
-      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 150 : 300) * clickDistortion.strength : 0
+      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 210 : 300) * clickDistortion.strength : 0
       const clickGridForce = profile.isCompact ? 34 : 30
       const clickAlphaBoost = profile.isCompact ? 0.43 : 0.3
       const detailStep = profile.isActualMobile ? spacing * 0.82 : spacing / 2
@@ -547,32 +547,36 @@ export default function Background() {
             const bx = x + offX
             let alpha = 0.12
             let hue = 186
+            let lw = 0.82
             const distToClick = Math.abs(clickDistortion.x - bx)
             if (distToClick < clickR) {
               const proximity = 1 - distToClick / clickR
-              alpha += proximity * clickDistortion.strength * 0.28
-              hue = 186 + proximity * clickDistortion.strength * 30
+              alpha += proximity * clickDistortion.strength * 0.5
+              hue = 186 + proximity * clickDistortion.strength * 50
+              lw += proximity * clickDistortion.strength * 0.4
             }
             ctx.beginPath()
             drawSimpleGridLine(true, bx)
             ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
-            ctx.lineWidth = 0.82
+            ctx.lineWidth = lw
             ctx.stroke()
           }
           for (let y = -spacing; y < h + spacing; y += spacing) {
             const by = y + offY
             let alpha = 0.12
             let hue = 186
+            let lw = 0.82
             const distToClick = Math.abs(clickDistortion.y - by)
             if (distToClick < clickR) {
               const proximity = 1 - distToClick / clickR
-              alpha += proximity * clickDistortion.strength * 0.28
-              hue = 186 + proximity * clickDistortion.strength * 30
+              alpha += proximity * clickDistortion.strength * 0.5
+              hue = 186 + proximity * clickDistortion.strength * 50
+              lw += proximity * clickDistortion.strength * 0.4
             }
             ctx.beginPath()
             drawSimpleGridLine(false, by)
             ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
-            ctx.lineWidth = 0.82
+            ctx.lineWidth = lw
             ctx.stroke()
           }
         } else {
@@ -738,8 +742,8 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.019 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.04 : profile.isCompact ? 0.018 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.016 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.04 : profile.isCompact ? 0.018 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.019 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.22 : profile.isCompact ? 0.018 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.016 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.22 : profile.isCompact ? 0.018 : 0.45)
 
         if (pointerEngaged && !profile.isLowPower) {
           const ddx = p.x - node.x
