@@ -93,6 +93,27 @@ export default function Background() {
       clickDistortion.strength = profile.isCompact ? 1.04 : 0.8
       const clickRadius = profile.isCompact ? 176 : 200
       const clickForce = profile.isCompact ? 5.8 : 3
+      const touchedNodeIds = new Set<number>()
+
+      const applyImpulseToNode = (node: Node, strength: number, ddx: number, ddy: number, dist: number) => {
+        let unitX = ddx / dist
+        let unitY = ddy / dist
+
+        if (Math.abs(ddx) + Math.abs(ddy) < 0.5) {
+          const angle = Math.random() * Math.PI * 2
+          unitX = Math.cos(angle)
+          unitY = Math.sin(angle)
+        }
+
+        node.vx += unitX * strength * (profile.isCompact ? 1.7 : 1)
+        node.vy += unitY * strength * (profile.isCompact ? 1.7 : 1)
+        if (profile.isCompact) {
+          node.x = clamp(node.x + unitX * strength * 2.15, 24, w - 24)
+          node.y = clamp(node.y + unitY * strength * 2.15, 24, h - 24)
+        }
+        node.halo = Math.min(1, node.halo + strength * (profile.isCompact ? 0.44 : 0.2))
+        touchedNodeIds.add(node.id)
+      }
 
       nodes.forEach(node => {
         const ddx = node.x - cx
@@ -100,17 +121,27 @@ export default function Background() {
         const dist = Math.hypot(ddx, ddy) || 1
         if (dist < clickRadius) {
           const force = (1 - dist / clickRadius) * clickForce
-          const pushX = (ddx / dist) * force
-          const pushY = (ddy / dist) * force
-          node.vx += pushX * (profile.isCompact ? 1.7 : 1)
-          node.vy += pushY * (profile.isCompact ? 1.7 : 1)
-          if (profile.isCompact) {
-            node.x = clamp(node.x + pushX * 2.15, 24, w - 24)
-            node.y = clamp(node.y + pushY * 2.15, 24, h - 24)
-          }
-          node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.44 : 0.2))
+          applyImpulseToNode(node, force, ddx, ddy, dist)
         }
       })
+
+      if (profile.isActualMobile && touchedNodeIds.size < 7) {
+        const fallbackRadius = clickRadius * 1.9
+        const nearestNodes = nodes
+          .map(node => {
+            const ddx = node.x - cx
+            const ddy = node.y - cy
+            return { node, ddx, ddy, dist: Math.hypot(ddx, ddy) || 1 }
+          })
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 8)
+
+        nearestNodes.forEach(({ node, ddx, ddy, dist }) => {
+          if (touchedNodeIds.has(node.id) || dist > fallbackRadius) return
+          const force = Math.max(0.55, (1 - dist / fallbackRadius) * clickForce * 0.88)
+          applyImpulseToNode(node, force, ddx, ddy, dist)
+        })
+      }
     }
 
     const buildBgGradient = () => {
@@ -225,10 +256,10 @@ export default function Background() {
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
-          driftRadius: rand(profile.isCompact ? 1.6 : 14, profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.22 : 0.55)),
+          driftRadius: rand(profile.isActualMobile ? 2 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 5.8 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.24 : 0.55)),
           driftSpeed: rand(profile.isCompact ? 0.08 : 0.1, profile.isCompact ? 0.18 : 0.28),
           swirlSpeed: rand(profile.isCompact ? 0.05 : 0.06, profile.isCompact ? 0.14 : 0.2),
-          jitter: rand(profile.isCompact ? 0.08 : 4, profile.isCompact ? 0.32 : 12),
+          jitter: rand(profile.isActualMobile ? 0.11 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 0.42 : profile.isCompact ? 0.32 : 12),
         })
 
         return id
@@ -237,7 +268,7 @@ export default function Background() {
       if (profile.isCompact) {
         const clusterCount = profile.isActualMobile ? 4 : Math.max(4, Math.min(5, Math.round(w / 150)))
         const trunkSegments = profile.isActualMobile
-          ? Math.round(clamp(h / 148, 7, 8))
+          ? Math.round(clamp(h / 124, 9, 11))
           : Math.round(clamp(h / 116, 8, 10))
         const clusters: number[][] = []
 
@@ -250,7 +281,7 @@ export default function Background() {
             30,
             w - 30
           )
-          const rootY = h * rand(0.03, 0.09)
+          const rootY = h * rand(0.03, profile.isActualMobile ? 0.07 : 0.09)
           const lateralBias = edgeBias === 0
             ? rand(-0.18, 0.18)
             : rand(0.08, 0.24) * edgeBias
@@ -267,7 +298,14 @@ export default function Background() {
                 30,
                 w - 30
               )
-              y = clamp(y + rand(h * 0.075, h * 0.115), 36, h - 40)
+              y = clamp(
+                y + rand(
+                  h * (profile.isActualMobile ? 0.082 : 0.075),
+                  h * (profile.isActualMobile ? 0.12 : 0.115)
+                ),
+                36,
+                h - 40
+              )
             }
 
             const trunkId = addNode(x, y, 0.12 + progress * 0.82)
@@ -296,13 +334,39 @@ export default function Background() {
                 28,
                 w - 28
               )
-              by = clamp(by + rand(h * 0.04, h * 0.075), 36, h - 36)
+              by = clamp(
+                by + rand(
+                  h * (profile.isActualMobile ? 0.045 : 0.04),
+                  h * (profile.isActualMobile ? 0.082 : 0.075)
+                ),
+                36,
+                h - 36
+              )
               const branchDepth = clamp(0.16 + (i + j + 1) / (trunkSegments + branchSegments), 0, 1)
               const branchId = addNode(bx, by, branchDepth)
               cluster.push(branchId)
               connect(branchParent, branchId)
               if (j > 0 && Math.random() > 0.62) connect(trunkId, branchId)
               branchParent = branchId
+            }
+          }
+
+          if (profile.isActualMobile && previousId !== undefined && y < h * 0.86) {
+            let tailParent = previousId
+            let tailX = x
+            let tailY = y
+
+            while (tailY < h * 0.9) {
+              tailX = clamp(tailX + rand(-16, 16) + lateralBias * 14, 30, w - 30)
+              tailY = clamp(tailY + rand(h * 0.08, h * 0.115), 36, h - 34)
+              const tailDepth = clamp(0.72 + (tailY / h) * 0.3, 0, 1)
+              const tailId = addNode(tailX, tailY, tailDepth)
+              cluster.push(tailId)
+              connect(tailParent, tailId)
+              if (Math.random() > 0.58) {
+                connect(cluster[Math.max(0, cluster.length - 3)], tailId)
+              }
+              tailParent = tailId
             }
           }
 
@@ -629,8 +693,8 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0105 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isCompact ? 0.018 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0092 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isCompact ? 0.018 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0105 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.026 : profile.isCompact ? 0.018 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0092 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.026 : profile.isCompact ? 0.018 : 0.45)
 
         if (p.inViewport && !profile.isLowPower) {
           const ddx = p.x - node.x
@@ -751,7 +815,8 @@ export default function Background() {
 
     const triggerInteraction = (x: number, y: number) => {
       const now = performance.now()
-      if (now - lastInteraction.time < 150 && Math.hypot(x - lastInteraction.x, y - lastInteraction.y) < 18) return
+      const repeatWindow = profile.isActualMobile ? 90 : 150
+      if (now - lastInteraction.time < repeatWindow && Math.hypot(x - lastInteraction.x, y - lastInteraction.y) < 18) return
 
       lastInteraction.x = x
       lastInteraction.y = y
