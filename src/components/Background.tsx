@@ -50,7 +50,7 @@ interface Node {
 
 export default function Background() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pointer = useRef({ x: 0, y: 0, inViewport: false, velocity: 0 })
+  const pointer = useRef({ x: 0, y: 0, inViewport: false, velocity: 0, boostUntil: 0 })
   const lastPointer = useRef({ x: 0, y: 0 })
   const gyro = useGyroscope()
   const gyroRef = useRef({ x: 0, y: 0 })
@@ -86,6 +86,7 @@ export default function Background() {
 
     const clickDistortion = { x: 0, y: 0, strength: 0 }
     const lastInteraction = { x: 0, y: 0, time: 0 }
+    let interactionBurstEnd = 0
 
     const spawnClickEffect = (cx: number, cy: number) => {
       clickDistortion.x = cx
@@ -467,6 +468,9 @@ export default function Background() {
 
       const time = now * 0.0012
       const p = pointer.current
+      const boostRemaining = Math.max(0, p.boostUntil - now)
+      const boostProgress = boostRemaining > 0 ? clamp(boostRemaining / 220, 0, 1) : 0
+      const pointerEngaged = p.inViewport || boostRemaining > 0
       const dx = p.x - lastPointer.current.x
       const dy = p.y - lastPointer.current.y
       p.velocity = 0.18 * Math.hypot(dx, dy) + 0.82 * p.velocity
@@ -475,11 +479,15 @@ export default function Background() {
 
       clickDistortion.strength *= profile.isCompact ? 0.79 : 0.95
 
-      const pointerFactor = p.inViewport
-        ? clamp(p.velocity / (profile.isCompact ? 260 : 180), profile.isCompact ? 0.03 : 0.08, profile.isCompact ? 0.44 : 0.92)
+      const pointerFactor = pointerEngaged
+        ? clamp(
+            p.velocity / (profile.isCompact ? 260 : 180) + boostProgress * (profile.isActualMobile ? 0.38 : 0),
+            profile.isCompact ? 0.03 : 0.08,
+            profile.isCompact ? 0.44 : 0.92
+          )
         : profile.isCompact ? 0.03 : 0.06
-      const influenceR = p.inViewport
-        ? (profile.isCompact ? 180 : 280) + p.velocity * (profile.isCompact ? 0.22 : 0.8)
+      const influenceR = pointerEngaged
+        ? (profile.isCompact ? 180 : 280) + p.velocity * (profile.isCompact ? 0.22 : 0.8) + boostProgress * (profile.isActualMobile ? 28 : 0)
         : profile.isCompact ? 118 : 170
 
       const spacing = profile.isCompact
@@ -492,11 +500,11 @@ export default function Background() {
       const gx = gyroRef.current.x
       const gy = gyroRef.current.y
       const hasGyro = Math.abs(gx) > 0.001 || Math.abs(gy) > 0.001
-      const parallaxX = hasGyro ? gx * w * (profile.isCompact ? 0.04 : 0.08) : (p.inViewport && !profile.isLowPower ? (p.x - w / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
-      const parallaxY = hasGyro ? gy * h * (profile.isCompact ? 0.03 : 0.06) : (p.inViewport && !profile.isLowPower ? (p.y - h / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
+      const parallaxX = hasGyro ? gx * w * (profile.isCompact ? 0.04 : 0.08) : (pointerEngaged && !profile.isLowPower ? (p.x - w / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
+      const parallaxY = hasGyro ? gy * h * (profile.isCompact ? 0.03 : 0.06) : (pointerEngaged && !profile.isLowPower ? (p.y - h / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
       const offX = (gridDriftX + parallaxX) % spacing
       const offY = (gridDriftY + parallaxY) % spacing
-      const gravR = p.inViewport && !profile.isLowPower ? (profile.isCompact ? 150 : 320) + p.velocity * (profile.isCompact ? 0.1 : 0.6) : 0
+      const gravR = pointerEngaged && !profile.isLowPower ? (profile.isCompact ? 150 : 320) + p.velocity * (profile.isCompact ? 0.1 : 0.6) : 0
       const gravRSq = gravR * gravR || 1
       const clickStrengthBase = profile.isCompact ? 0.98 : 0.8
       const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 150 : 300) * clickDistortion.strength : 0
@@ -609,7 +617,7 @@ export default function Background() {
             let drawX = bx
             let drawY = -spacing + s * step + offY
 
-            if (p.inViewport) {
+            if (pointerEngaged) {
               const ddx = p.x - bx
               const ddy = p.y - drawY
               const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
@@ -655,7 +663,7 @@ export default function Background() {
             let drawX = -spacing + s * step + offX
             let drawY = by
 
-            if (p.inViewport) {
+            if (pointerEngaged) {
               const ddx = p.x - drawX
               const ddy = p.y - by
               const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
@@ -693,10 +701,10 @@ export default function Background() {
         node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
         node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
 
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.0105 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.026 : profile.isCompact ? 0.018 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.0092 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.026 : profile.isCompact ? 0.018 : 0.45)
+        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.019 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.04 : profile.isCompact ? 0.018 : 0.45)
+        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.016 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.04 : profile.isCompact ? 0.018 : 0.45)
 
-        if (p.inViewport && !profile.isLowPower) {
+        if (pointerEngaged && !profile.isLowPower) {
           const ddx = p.x - node.x
           const ddy = p.y - node.y
           const dist = Math.hypot(ddx, ddy) || 0.001
@@ -714,8 +722,8 @@ export default function Background() {
           node.vy += gy * (profile.isCompact ? 0.07 : 0.18)
         }
 
-        node.vx *= profile.isCompact ? 0.84 : 0.9
-        node.vy *= profile.isCompact ? 0.84 : 0.9
+        node.vx *= profile.isCompact ? 0.89 : 0.9
+        node.vy *= profile.isCompact ? 0.89 : 0.9
         node.x += node.vx
         node.y += node.vy
         node.x = clamp(node.x, 24, w - 24)
@@ -798,7 +806,7 @@ export default function Background() {
     const animate = (now: number) => {
       frameId = requestAnimationFrame(animate)
 
-      if (frameInterval > 0 && now - lastFrameTime < frameInterval) return
+      if (frameInterval > 0 && now > interactionBurstEnd && now - lastFrameTime < frameInterval) return
       lastFrameTime = now
       drawFrame(now)
     }
@@ -813,6 +821,11 @@ export default function Background() {
       pointer.current.inViewport = false
     }
 
+    const endInteraction = () => {
+      if (!profile.isActualMobile) return
+      pointer.current.inViewport = false
+    }
+
     const triggerInteraction = (x: number, y: number) => {
       const now = performance.now()
       const repeatWindow = profile.isActualMobile ? 90 : 150
@@ -823,9 +836,11 @@ export default function Background() {
       lastInteraction.time = now
       pointer.current.x = x
       pointer.current.y = y
-      pointer.current.inViewport = true
-      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isCompact ? 260 : 120)
+      pointer.current.inViewport = !profile.isActualMobile
+      pointer.current.boostUntil = profile.isActualMobile ? now + 220 : 0
+      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isActualMobile ? 320 : profile.isCompact ? 260 : 120)
       spawnClickEffect(x, y)
+      interactionBurstEnd = now + 400
       lastFrameTime = 0
       drawFrame(now)
     }
@@ -837,6 +852,14 @@ export default function Background() {
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0]
       if (t) triggerInteraction(t.clientX, t.clientY)
+    }
+
+    const onPointerUp = () => {
+      endInteraction()
+    }
+
+    const onTouchEnd = () => {
+      endInteraction()
     }
 
     const handleVisibility = () => {
@@ -861,7 +884,10 @@ export default function Background() {
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
     document.addEventListener('pointerdown', onPointerDown, { passive: true })
+    document.addEventListener('pointerup', onPointerUp, { passive: true })
     document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true })
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
@@ -871,7 +897,10 @@ export default function Background() {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('pointerup', onPointerUp)
       document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchcancel', onTouchEnd)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
