@@ -257,10 +257,10 @@ export default function Background() {
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
-          driftRadius: rand(profile.isActualMobile ? 10 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 28 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.34 : 0.55)),
-          driftSpeed: rand(profile.isActualMobile ? 0.18 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.38 : profile.isCompact ? 0.18 : 0.28),
-          swirlSpeed: rand(profile.isActualMobile ? 0.12 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.32 : profile.isCompact ? 0.14 : 0.2),
-          jitter: rand(profile.isActualMobile ? 0.8 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 2.5 : profile.isCompact ? 0.32 : 12),
+          driftRadius: rand(profile.isActualMobile ? 16 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 42 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.42 : 0.55)),
+          driftSpeed: rand(profile.isActualMobile ? 0.22 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.46 : profile.isCompact ? 0.18 : 0.28),
+          swirlSpeed: rand(profile.isActualMobile ? 0.16 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.38 : profile.isCompact ? 0.14 : 0.2),
+          jitter: rand(profile.isActualMobile ? 1.4 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 4 : profile.isCompact ? 0.32 : 12),
         })
 
         return id
@@ -466,10 +466,6 @@ export default function Background() {
       ctx.fillStyle = bgGradient
       ctx.fillRect(0, 0, w, h)
 
-      if (clickDistortion.strength > 0.01 && profile.isCompact) {
-        ctx.fillStyle = `hsla(192, 100%, 50%, ${clickDistortion.strength * 0.06})`
-        ctx.fillRect(0, 0, w, h)
-      }
 
       const time = now * 0.0012
       const p = pointer.current
@@ -544,17 +540,53 @@ export default function Background() {
           }
         }
 
-        ctx.beginPath()
-        for (let x = -spacing; x < w + spacing; x += spacing) {
-          drawSimpleGridLine(true, x + offX)
-        }
-        for (let y = -spacing; y < h + spacing; y += spacing) {
-          drawSimpleGridLine(false, y + offY)
-        }
+        const hasClick = clickR > 0 && profile.isCompact
 
-        ctx.strokeStyle = `hsla(186, 100%, 56%, ${profile.isCompact ? 0.12 : 0.09})`
-        ctx.lineWidth = profile.isCompact ? 0.82 : 0.82
-        ctx.stroke()
+        if (hasClick) {
+          for (let x = -spacing; x < w + spacing; x += spacing) {
+            const bx = x + offX
+            let alpha = 0.12
+            let hue = 186
+            const distToClick = Math.abs(clickDistortion.x - bx)
+            if (distToClick < clickR) {
+              const proximity = 1 - distToClick / clickR
+              alpha += proximity * clickDistortion.strength * 0.28
+              hue = 186 + proximity * clickDistortion.strength * 30
+            }
+            ctx.beginPath()
+            drawSimpleGridLine(true, bx)
+            ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
+            ctx.lineWidth = 0.82
+            ctx.stroke()
+          }
+          for (let y = -spacing; y < h + spacing; y += spacing) {
+            const by = y + offY
+            let alpha = 0.12
+            let hue = 186
+            const distToClick = Math.abs(clickDistortion.y - by)
+            if (distToClick < clickR) {
+              const proximity = 1 - distToClick / clickR
+              alpha += proximity * clickDistortion.strength * 0.28
+              hue = 186 + proximity * clickDistortion.strength * 30
+            }
+            ctx.beginPath()
+            drawSimpleGridLine(false, by)
+            ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
+            ctx.lineWidth = 0.82
+            ctx.stroke()
+          }
+        } else {
+          ctx.beginPath()
+          for (let x = -spacing; x < w + spacing; x += spacing) {
+            drawSimpleGridLine(true, x + offX)
+          }
+          for (let y = -spacing; y < h + spacing; y += spacing) {
+            drawSimpleGridLine(false, y + offY)
+          }
+          ctx.strokeStyle = `hsla(186, 100%, 56%, ${profile.isCompact ? 0.12 : 0.09})`
+          ctx.lineWidth = 0.82
+          ctx.stroke()
+        }
 
         if (!profile.isCompact) {
           const majorSpacing = spacing * 5
