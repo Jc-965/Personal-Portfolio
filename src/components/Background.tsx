@@ -257,10 +257,10 @@ export default function Background() {
           halo: 0,
           phase: Math.random() * Math.PI * 2,
           depth: depth + Math.random() * 0.05,
-          driftRadius: rand(profile.isActualMobile ? 2 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 5.8 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.24 : 0.55)),
-          driftSpeed: rand(profile.isCompact ? 0.08 : 0.1, profile.isCompact ? 0.18 : 0.28),
-          swirlSpeed: rand(profile.isCompact ? 0.05 : 0.06, profile.isCompact ? 0.14 : 0.2),
-          jitter: rand(profile.isActualMobile ? 0.11 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 0.42 : profile.isCompact ? 0.32 : 12),
+          driftRadius: rand(profile.isActualMobile ? 5 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 14 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.24 : 0.55)),
+          driftSpeed: rand(profile.isActualMobile ? 0.12 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.26 : profile.isCompact ? 0.18 : 0.28),
+          swirlSpeed: rand(profile.isActualMobile ? 0.08 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.22 : profile.isCompact ? 0.14 : 0.2),
+          jitter: rand(profile.isActualMobile ? 0.3 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 1.1 : profile.isCompact ? 0.32 : 12),
         })
 
         return id
@@ -295,7 +295,7 @@ export default function Background() {
             const progress = i / Math.max(trunkSegments - 1, 1)
             if (i > 0) {
               x = clamp(
-                x + rand(-22, 22) + lateralBias * (18 + progress * 26) + Math.sin(progress * Math.PI * 2 + c) * 8,
+                x + rand(profile.isActualMobile ? -34 : -22, profile.isActualMobile ? 34 : 22) + lateralBias * (18 + progress * 26) + Math.sin(progress * Math.PI * 2 + c) * (profile.isActualMobile ? 14 : 8),
                 30,
                 w - 30
               )
@@ -303,7 +303,7 @@ export default function Background() {
                 y + rand(
                   h * (profile.isActualMobile ? 0.082 : 0.075),
                   h * (profile.isActualMobile ? 0.12 : 0.115)
-                ),
+                ) + rand(profile.isActualMobile ? -8 : 0, profile.isActualMobile ? 8 : 0),
                 36,
                 h - 40
               )
@@ -570,7 +570,7 @@ export default function Background() {
           ctx.stroke()
         }
 
-        if (clickR > 0 && !profile.isCompact) {
+        if (clickR > 0) {
           const pulseProgress = 1 - clamp(clickDistortion.strength / clickStrengthBase, 0, 1)
           const pulseRadius = (profile.isCompact ? 28 : 44) + pulseProgress * (profile.isCompact ? 132 : 188)
           const pulse = ctx.createRadialGradient(
@@ -581,15 +581,15 @@ export default function Background() {
             clickDistortion.y,
             pulseRadius
           )
-          pulse.addColorStop(0, `hsla(184, 100%, 68%, ${clickDistortion.strength * 0.24})`)
-          pulse.addColorStop(0.58, `hsla(212, 100%, 62%, ${clickDistortion.strength * 0.12})`)
+          pulse.addColorStop(0, `hsla(184, 100%, 68%, ${clickDistortion.strength * (profile.isCompact ? 0.3 : 0.24)})`)
+          pulse.addColorStop(0.58, `hsla(212, 100%, 62%, ${clickDistortion.strength * (profile.isCompact ? 0.16 : 0.12)})`)
           pulse.addColorStop(1, 'rgba(0, 0, 0, 0)')
           ctx.fillStyle = pulse
           ctx.beginPath()
           ctx.arc(clickDistortion.x, clickDistortion.y, pulseRadius, 0, Math.PI * 2)
           ctx.fill()
 
-          ctx.strokeStyle = `hsla(188, 100%, 74%, ${clickDistortion.strength * 0.42})`
+          ctx.strokeStyle = `hsla(188, 100%, 74%, ${clickDistortion.strength * (profile.isCompact ? 0.5 : 0.42)})`
           ctx.lineWidth = profile.isCompact ? 1.1 : 1.2
           ctx.beginPath()
           ctx.arc(clickDistortion.x, clickDistortion.y, pulseRadius * 0.82, 0, Math.PI * 2)
