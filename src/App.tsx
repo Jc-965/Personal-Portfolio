@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
@@ -11,9 +11,15 @@ import Footer from './components/Footer'
 import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 
+const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
+
 function App() {
   const [isLoading, setIsLoading] = useState(true)
+  const [sketchbookOpen, setSketchbookOpen] = useState(false)
   const onLoadingComplete = useCallback(() => setIsLoading(false), [])
+
+  const openSketchbook = useCallback(() => setSketchbookOpen(true), [])
+  const closeSketchbook = useCallback(() => setSketchbookOpen(false), [])
 
   return (
     <GyroscopeProvider>
@@ -48,11 +54,17 @@ function App() {
               <LazySection id="skills" className="section toolkit" load={() => import('./components/Toolkit')} />
               <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
             </main>
-            <Footer />
+            <Footer onOpenSketchbook={openSketchbook} />
             <GyroPrompt />
           </motion.div>
         )}
       </AnimatePresence>
+
+      {sketchbookOpen && (
+        <Suspense fallback={null}>
+          <SketchbookOverlay onClose={closeSketchbook} />
+        </Suspense>
+      )}
     </GyroscopeProvider>
   )
 }

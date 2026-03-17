@@ -69,6 +69,7 @@ body {
     );
   will-change: transform;
   backface-visibility: hidden;
+  transition: opacity 0.5s ease;
 }
 
 /* Hide default cursor when custom cursor is active */
@@ -4419,4 +4420,465 @@ ul {
 @keyframes gyro-pulse {
   0%, 100% { opacity: 0.7; transform: rotate(0deg); }
   50% { opacity: 1; transform: rotate(15deg); }
+}
+
+/* ===== Sketchbook Mode — hides portfolio UI ===== */
+
+.sketchbook-mode .cursor-canvas,
+.sketchbook-mode .target-cursor {
+  display: none !important;
+}
+
+.sketchbook-mode .vintage-overlay {
+  opacity: 0 !important;
+}
+
+.sketchbook-mode .nav {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.sketchbook-mode .sketchbook-trigger {
+  display: none !important;
+}
+
+/* ===== Sketchbook Portal Overlay ===== */
+
+.sketchbook-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  overflow: hidden;
+}
+
+.sketchbook-overlay--exiting {
+  animation: sketchbook-exit 0.6s ease forwards;
+}
+
+@keyframes sketchbook-exit {
+  to { opacity: 0; transform: scale(1.02); }
+}
+
+/* Paper texture background */
+.sketchbook-overlay__paper {
+  position: absolute;
+  inset: 0;
+  background-color: #f5f0e8;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(180, 160, 130, 0.025) 3px,
+      rgba(180, 160, 130, 0.025) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 5px,
+      rgba(180, 160, 130, 0.015) 5px,
+      rgba(180, 160, 130, 0.015) 6px
+    ),
+    radial-gradient(
+      ellipse at 25% 40%,
+      rgba(200, 185, 160, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 75% 60%,
+      rgba(200, 185, 160, 0.06) 0%,
+      transparent 50%
+    );
+}
+
+/* Entry animation canvas */
+.sketchbook-entry-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+/* Footer easter egg trigger — bottom right of viewport */
+.sketchbook-trigger {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 100;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.3s ease, transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+  line-height: 1;
+}
+
+.sketchbook-trigger:hover {
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  transform: rotate(-15deg) scale(1.15);
+}
+
+/* ===== Sketchbook Scene ===== */
+
+.sketchbook-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.sketchbook-scene--visible {
+  opacity: 1;
+}
+
+.sketchbook-canvas-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.sketchbook-canvas-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ---- Geometric cursor ---- */
+.sketch-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 200010;
+  transform: translate(-14px, -14px);
+  transition: opacity 0.12s ease;
+}
+
+.sketch-cursor__shape {
+  width: 28px;
+  height: 28px;
+  position: relative;
+  transition: transform 0.15s ease;
+}
+
+/* Default: diamond + crosshair */
+.sketch-cursor--default .sketch-cursor__shape::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(30, 25, 18, 0.7);
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(255, 252, 245, 0.15);
+  transition: all 0.15s ease;
+}
+
+.sketch-cursor--default .sketch-cursor__shape::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(rgba(30, 25, 18, 0.55), rgba(30, 25, 18, 0.55)) center top / 1.5px 6px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.55), rgba(30, 25, 18, 0.55)) center bottom / 1.5px 6px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.55), rgba(30, 25, 18, 0.55)) left center / 6px 1.5px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.55), rgba(30, 25, 18, 0.55)) right center / 6px 1.5px no-repeat;
+}
+
+/* Grab: open hand — larger diamond, pulsing */
+.sketch-cursor--grab .sketch-cursor__shape::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid rgba(80, 140, 80, 0.8);
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(80, 140, 80, 0.1);
+  animation: cursor-pulse 1s ease-in-out infinite;
+}
+
+.sketch-cursor--grab .sketch-cursor__shape::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(rgba(80, 140, 80, 0.6), rgba(80, 140, 80, 0.6)) center top / 1.5px 6px no-repeat,
+    linear-gradient(rgba(80, 140, 80, 0.6), rgba(80, 140, 80, 0.6)) center bottom / 1.5px 6px no-repeat,
+    linear-gradient(rgba(80, 140, 80, 0.6), rgba(80, 140, 80, 0.6)) left center / 6px 1.5px no-repeat,
+    linear-gradient(rgba(80, 140, 80, 0.6), rgba(80, 140, 80, 0.6)) right center / 6px 1.5px no-repeat;
+}
+
+/* Grabbing: closed — filled diamond */
+.sketch-cursor--grabbing .sketch-cursor__shape::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid rgba(180, 100, 40, 0.85);
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(180, 100, 40, 0.3);
+}
+
+.sketch-cursor--grabbing .sketch-cursor__shape::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(rgba(180, 100, 40, 0.6), rgba(180, 100, 40, 0.6)) center top / 2px 6px no-repeat,
+    linear-gradient(rgba(180, 100, 40, 0.6), rgba(180, 100, 40, 0.6)) center bottom / 2px 6px no-repeat,
+    linear-gradient(rgba(180, 100, 40, 0.6), rgba(180, 100, 40, 0.6)) left center / 6px 2px no-repeat,
+    linear-gradient(rgba(180, 100, 40, 0.6), rgba(180, 100, 40, 0.6)) right center / 6px 2px no-repeat;
+}
+
+@keyframes cursor-pulse {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.15); }
+}
+
+/* ---- Ink splat click effect ---- */
+.ink-splat {
+  position: fixed;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 200005;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(30, 25, 18, 0.25) 0%,
+    rgba(30, 25, 18, 0.08) 40%,
+    transparent 70%
+  );
+  animation: ink-splat-anim 0.8s ease-out forwards;
+}
+
+@keyframes ink-splat-anim {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+}
+
+/* ---- Sketch-style buttons ---- */
+.sketch-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.sketch-btn {
+  padding: 10px 18px;
+  border: 2.5px solid rgba(30, 25, 18, 0.7);
+  border-radius: 3px;
+  background: rgba(255, 252, 245, 0.92);
+  color: rgba(30, 25, 18, 0.85);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow:
+    2px 2px 0 rgba(30, 25, 18, 0.15),
+    -1px -1px 0 rgba(30, 25, 18, 0.05),
+    inset 0 0 0 1px rgba(30, 25, 18, 0.04);
+  transform: rotate(-0.5deg);
+  position: relative;
+}
+
+.sketch-btn::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1.5px solid rgba(30, 25, 18, 0.12);
+  border-radius: 4px;
+  transform: rotate(0.8deg);
+  pointer-events: none;
+}
+
+.sketch-btn:hover {
+  background: rgba(255, 252, 245, 1);
+  color: rgba(20, 15, 8, 1);
+  border-color: rgba(20, 15, 8, 0.85);
+  transform: rotate(-0.5deg) scale(1.04);
+}
+
+.sketch-btn:active {
+  transform: rotate(-0.5deg) scale(0.97);
+}
+
+.sketch-btn--icon {
+  width: 40px;
+  padding: 10px 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transform: rotate(0.5deg);
+}
+
+.sketch-btn--icon:hover {
+  transform: rotate(0.5deg) scale(1.06);
+}
+
+/* Back to portfolio button */
+.sketch-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  transform: rotate(0.3deg) !important;
+}
+
+/* WASD controls hint */
+.sketch-wasd-hint {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(30, 25, 18, 0.45);
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  background: rgba(255, 252, 245, 0.6);
+  border: 1.5px solid rgba(30, 25, 18, 0.15);
+  border-radius: 2px;
+}
+
+.sketch-wasd-hint span {
+  font-weight: 700;
+  color: rgba(30, 25, 18, 0.7);
+  border: 1px solid rgba(30, 25, 18, 0.25);
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(255, 252, 245, 0.8);
+}
+
+/* ---- Sketch counter ---- */
+.sketch-counter {
+  position: absolute;
+  bottom: 28px;
+  right: 28px;
+  z-index: 5;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-style: italic;
+  color: rgba(30, 25, 18, 0.65);
+  letter-spacing: 0.1em;
+  padding: 8px 16px;
+  border: 2px solid rgba(30, 25, 18, 0.3);
+  background: rgba(255, 252, 245, 0.85);
+  transform: rotate(0.8deg);
+  box-shadow: 1.5px 1.5px 0 rgba(30, 25, 18, 0.1);
+}
+
+/* ---- Section label (bottom left) ---- */
+.sketchbook-label {
+  position: absolute;
+  bottom: 28px;
+  left: 28px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px;
+  background: rgba(255, 252, 245, 0.88);
+  border: 2px solid rgba(30, 25, 18, 0.35);
+  border-radius: 2px;
+  transform: rotate(-0.6deg);
+  box-shadow: 2px 2px 0 rgba(30, 25, 18, 0.08);
+}
+
+.sketchbook-label__text {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(30, 25, 18, 0.75);
+  letter-spacing: 0.25em;
+  text-transform: lowercase;
+}
+
+.sketchbook-label__sub {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(30, 25, 18, 0.5);
+  letter-spacing: 0.06em;
+}
+
+/* Navbar transition */
+.nav {
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .sketchbook-label {
+    left: 14px;
+    bottom: 14px;
+    padding: 8px 12px;
+  }
+
+  .sketch-counter {
+    right: 14px;
+    bottom: 14px;
+    font-size: 0.62rem;
+  }
+
+  .sketchbook-label__text {
+    font-size: 0.82rem;
+  }
+
+  .sketch-cursor {
+    display: none;
+  }
+
+  .sketch-controls {
+    top: 14px;
+    right: 14px;
+  }
+
+  .sketch-btn {
+    padding: 6px 10px;
+    font-size: 0.6rem;
+  }
+
+  .sketch-wasd-hint {
+    display: none;
+  }
+
+  .sketch-back-btn {
+    top: 14px;
+    left: 14px;
+  }
 }

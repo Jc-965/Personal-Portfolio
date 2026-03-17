@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { initializeApp } from 'firebase/app'
-import { getDatabase, ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get, type Database } from 'firebase/database'
+import { ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get } from 'firebase/database'
+import { getFirebase } from '../utils/firebase'
 import useIsPhone from '../hooks/useIsPhone'
 
 interface Star {
@@ -187,30 +187,6 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
   return megaStars
 }
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
-
-let firebaseApp: ReturnType<typeof initializeApp> | null = null
-let database: Database | null = null
-
-function getFirebase() {
-  if (!firebaseApp) {
-    try {
-      firebaseApp = initializeApp(firebaseConfig)
-      database = getDatabase(firebaseApp)
-    } catch (e) {
-      console.warn('Firebase init failed:', e)
-    }
-  }
-  return database
-}
 
 export default function Constellation() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
