@@ -3,7 +3,11 @@ import { AnimatePresence } from 'framer-motion'
 import { Github, Linkedin, Mail } from 'lucide-react'
 import EmailPopup from './EmailPopup'
 
-export default function Footer() {
+interface FooterProps {
+  onOpenSketchbook: () => void
+}
+
+export default function Footer({ onOpenSketchbook }: FooterProps) {
   const [showEmail, setShowEmail] = useState(false)
   const closeEmail = useCallback(() => setShowEmail(false), [])
 
@@ -48,6 +52,15 @@ export default function Footer() {
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       >
         cd ~/ &uarr;
+      </button>
+
+      {/* Easter egg — fixed position sketchbook trigger */}
+      <button
+        className="sketchbook-trigger"
+        onClick={onOpenSketchbook}
+        aria-label="Open sketchbook"
+      >
+        &#x270E;
       </button>
 
       <AnimatePresence>
