@@ -10,39 +10,32 @@ uniform float uTime;
 
 void main() {
   vec3 lightDir = normalize(vec3(0.4, 0.8, 0.3));
-  float diffuse = dot(vNormal, lightDir) * 0.5 + 0.5;
-  float steepness = 1.0 - abs(vNormal.y);
+  vec3 n = normalize(vNormal);
+  float diffuse = dot(n, lightDir) * 0.5 + 0.5;
+  float steepness = 1.0 - abs(n.y);
 
-  // Bold, saturated landscape colors — need to survive sketch post-processing
   vec3 color;
   float h = vHeight;
 
-  if (h < -2.0) {
-    // Deep water — strong blue
-    color = vec3(0.18, 0.38, 0.62);
-  } else if (h < -0.5) {
-    // Shallow water to shore
-    float t = smoothstep(-2.0, -0.5, h);
-    color = mix(vec3(0.22, 0.45, 0.68), vec3(0.50, 0.58, 0.38), t);
-  } else if (h < 1.5) {
-    // Beach / low grass — warm sandy to green
-    float t = smoothstep(-0.5, 1.5, h);
-    color = mix(vec3(0.60, 0.55, 0.35), vec3(0.30, 0.55, 0.20), t);
-  } else if (h < 4.0) {
-    // Lush grasslands — vivid greens
-    float t = smoothstep(1.5, 4.0, h);
-    color = mix(vec3(0.28, 0.52, 0.18), vec3(0.35, 0.48, 0.16), t);
-  } else if (h < 7.0) {
-    // Hills — green to warm ochre/brown
-    float t = smoothstep(4.0, 7.0, h);
-    color = mix(vec3(0.38, 0.48, 0.20), vec3(0.60, 0.45, 0.25), t);
-  } else if (h < 11.0) {
-    // High terrain — rocky brown/gray
-    float t = smoothstep(7.0, 11.0, h);
-    color = mix(vec3(0.55, 0.45, 0.30), vec3(0.70, 0.66, 0.58), t);
+  if (h < -1.5) {
+    color = vec3(0.17, 0.44, 0.71);
+  } else if (h < -0.3) {
+    float t = smoothstep(-1.5, -0.3, h);
+    color = mix(vec3(0.24, 0.52, 0.74), vec3(0.42, 0.58, 0.32), t);
+  } else if (h < 0.5) {
+    float t = smoothstep(-0.3, 0.5, h);
+    color = mix(vec3(0.56, 0.54, 0.32), vec3(0.30, 0.58, 0.22), t);
+  } else if (h < 3.5) {
+    float t = smoothstep(0.5, 3.5, h);
+    color = mix(vec3(0.24, 0.60, 0.22), vec3(0.20, 0.52, 0.18), t);
+  } else if (h < 5.5) {
+    float t = smoothstep(3.5, 5.5, h);
+    color = mix(vec3(0.30, 0.50, 0.22), vec3(0.55, 0.45, 0.28), t);
+  } else if (h < 7.5) {
+    float t = smoothstep(5.5, 7.5, h);
+    color = mix(vec3(0.55, 0.44, 0.30), vec3(0.68, 0.62, 0.52), t);
   } else {
-    // Peaks — snow
-    color = vec3(0.90, 0.88, 0.84);
+    color = vec3(0.82, 0.80, 0.76);
   }
 
   // Steep slopes — darker rocky appearance
@@ -51,7 +44,7 @@ void main() {
   }
 
   // Strong lighting for visible terrain shape
-  color *= (0.45 + diffuse * 0.60);
+  color *= (0.55 + diffuse * 0.62);
 
   gl_FragColor = vec4(color, 1.0);
 }

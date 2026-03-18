@@ -4,20 +4,26 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { terrainVertexShader } from './shaders/terrainVertex'
 import { terrainFragmentShader } from './shaders/terrainFragment'
-import { useTerrainDeformation } from './useTerrainDeformation'
+import type { BrushMode } from './useTerrainDeformation'
 
 interface TerrainProps {
   mouseRef: React.RefObject<{ x: number; y: number; active: boolean }>
   scrollProgress: React.RefObject<number>
   meshRef?: React.RefObject<THREE.Mesh | null>
+  brushEnabled?: boolean
+  brushMode?: BrushMode
+  brushStrength?: number
+  deformation: {
+    getTexture: () => THREE.DataTexture
+    applyBrush: (u: number, v: number, mode: BrushMode, strengthMul?: number) => void
+    update: () => void
+  }
 }
 
-export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMeshRef }: TerrainProps) {
+export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMeshRef, brushEnabled = true, brushMode = 'raise', brushStrength = 0.3, deformation }: TerrainProps) {
   const internalMeshRef = useRef<THREE.Mesh>(null)
   const { raycaster, camera } = useThree()
-  const deformation = useTerrainDeformation()
 
-  // Forward ref to parent if provided
   useEffect(() => {
     if (externalMeshRef && 'current' in externalMeshRef) {
       (externalMeshRef as React.MutableRefObject<THREE.Mesh | null>).current = internalMeshRef.current
@@ -37,30 +43,35 @@ export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMes
     side: THREE.DoubleSide,
   }), [uniforms])
 
+  useEffect(() => {
+    return () => { material.dispose() }
+  }, [material])
+
   const lastRaycast = useRef(0)
+  const _mouseVec = useRef(new THREE.Vector2())
 
   useFrame(({ clock }) => {
     uniforms.uTime.value = clock.getElapsedTime()
     deformation.update()
 
     const now = clock.getElapsedTime()
-    if (mouseRef.current?.active && now - lastRaycast.current > 0.016 && internalMeshRef.current) {
+    if (brushEnabled && mouseRef.current?.active && now - lastRaycast.current > 0.016 && internalMeshRef.current) {
       lastRaycast.current = now
-      const mouse = new THREE.Vector2(
+      _mouseVec.current.set(
         mouseRef.current.x * 2 - 1,
         -(mouseRef.current.y * 2 - 1)
       )
-      raycaster.setFromCamera(mouse, camera)
+      raycaster.setFromCamera(_mouseVec.current, camera)
       const intersects = raycaster.intersectObject(internalMeshRef.current)
       if (intersects.length > 0 && intersects[0].uv) {
-        deformation.applyBrush(intersects[0].uv.x, intersects[0].uv.y)
+        deformation.applyBrush(intersects[0].uv.x, intersects[0].uv.y, brushMode, brushStrength)
       }
     }
   })
 
   return (
     <mesh ref={internalMeshRef} rotation={[-Math.PI / 2, 0, 0]} material={material}>
-      <planeGeometry args={[90, 90, 180, 180]} />
+      <planeGeometry args={[140, 140, 220, 220]} />
     </mesh>
   )
 }

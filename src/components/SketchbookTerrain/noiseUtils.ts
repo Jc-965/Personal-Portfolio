@@ -81,9 +81,9 @@ export function fbm(x: number, z: number): number {
 
 // Must match the GLSL terrain vertex shader
 export function getTerrainHeight(x: number, z: number): number {
-  let h = fbm(x * 0.04 + 1.0, z * 0.04 + 1.0) * 12.0
-  h += cnoise(x * 0.08, z * 0.08) * 4.0
-  h += cnoise(x * 0.2, z * 0.2) * 1.5
-  h += cnoise(x * 0.5, z * 0.5) * 0.4
+  let h = fbm(x * 0.04 + 1.0, z * 0.04 + 1.0) * 7.0
+  h += cnoise(x * 0.08, z * 0.08) * 2.5
+  h += cnoise(x * 0.2, z * 0.2) * 1.0
+  h += cnoise(x * 0.5, z * 0.5) * 0.3
   return h
 }

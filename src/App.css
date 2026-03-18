@@ -72,9 +72,11 @@ body {
   transition: opacity 0.5s ease;
 }
 
-/* Hide default cursor when custom cursor is active */
+/* Hide default cursor — injected <style> tag in Cursor.tsx takes priority; this is a fallback */
 .has-custom-cursor,
-.has-custom-cursor * {
+.has-custom-cursor *,
+.has-custom-cursor *::before,
+.has-custom-cursor *::after {
   cursor: none !important;
 }
 
@@ -3227,6 +3229,129 @@ ul {
   outline-offset: 3px;
 }
 
+.footer__social-link--sketch {
+  min-width: 52px;
+  border-color: rgba(180, 160, 120, 0.35);
+  border-style: solid;
+  border-width: 1.5px;
+  color: #e8d8b8;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(180, 160, 120, 0.06) 0,
+      rgba(180, 160, 120, 0.06) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(135deg, rgba(35, 30, 22, 0.95), rgba(25, 20, 15, 0.98));
+  box-shadow:
+    inset 0 0 8px rgba(180, 160, 120, 0.06),
+    1px 1px 0 rgba(180, 160, 120, 0.1);
+}
+
+.footer__social-link--sketch .footer__social-text--sketch {
+  letter-spacing: 0.14em;
+}
+
+.footer__social-link--sketch:hover {
+  border-color: rgba(255, 216, 150, 0.55);
+  color: #ffe7bf;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 220, 165, 0.08),
+    3px 3px 0 rgba(255, 216, 150, 0.16),
+    5px 5px 0 rgba(0, 0, 0, 0.26);
+}
+
+.footer__social-link--sketch-glitch {
+  animation: sketch-trigger-glitch 2.4s steps(1, end) infinite;
+}
+
+.sketch-glitch-text {
+  position: relative;
+  display: inline-block;
+  font-size: 1.15rem;
+  font-weight: 400;
+  font-family: 'Segoe Script', 'Comic Sans MS', 'Caveat', cursive;
+  font-style: italic;
+  color: #e8d8b8;
+  -webkit-text-stroke: 0.5px rgba(180, 160, 120, 0.6);
+  text-shadow:
+    0.5px 0.3px 0 rgba(60, 45, 25, 0.5),
+    -0.3px 0.5px 0 rgba(60, 45, 25, 0.3),
+    0.8px -0.2px 0 rgba(60, 45, 25, 0.2),
+    -0.2px -0.6px 0 rgba(60, 45, 25, 0.15),
+    1.2px 0.8px 1px rgba(40, 30, 15, 0.12);
+  filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='r'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' seed='2' stitchTiles='stitch'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='1.5'/%3E%3C/filter%3E%3C/svg%3E#r");
+}
+
+.sketch-glitch-text::before,
+.sketch-glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-text-stroke: 0.4px rgba(180, 160, 120, 0.3);
+}
+
+.sketch-glitch-text::before {
+  color: rgba(0, 255, 255, 0.45);
+  animation: sketch-glitch-r 2.4s steps(1, end) infinite;
+  clip-path: inset(0 0 50% 0);
+  text-shadow:
+    0.6px 0.2px 0 rgba(0, 200, 200, 0.3),
+    -0.4px 0.4px 0 rgba(0, 200, 200, 0.15);
+}
+
+.sketch-glitch-text::after {
+  color: rgba(255, 120, 180, 0.4);
+  animation: sketch-glitch-b 2.4s steps(1, end) infinite;
+  clip-path: inset(50% 0 0 0);
+  text-shadow:
+    -0.5px 0.3px 0 rgba(200, 80, 140, 0.3),
+    0.4px -0.3px 0 rgba(200, 80, 140, 0.15);
+}
+
+@keyframes sketch-trigger-glitch {
+  0%, 82%, 100% {
+    transform: translate(0, 0);
+  }
+  84% {
+    transform: translate(-2px, 1px) skewX(-2deg);
+  }
+  86% {
+    transform: translate(2px, -1px) skewX(3deg);
+  }
+  88% {
+    transform: translate(-1px, 2px) skewX(-1deg);
+  }
+  90% {
+    transform: translate(1px, -1px);
+  }
+  92% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes sketch-glitch-r {
+  0%, 82%, 92%, 100% {
+    transform: translate(0, 0);
+  }
+  84% { transform: translate(2px, -1px); }
+  86% { transform: translate(-3px, 1px); }
+  88% { transform: translate(1px, 1px); }
+}
+
+@keyframes sketch-glitch-b {
+  0%, 82%, 92%, 100% {
+    transform: translate(0, 0);
+  }
+  85% { transform: translate(-2px, 1px); }
+  87% { transform: translate(3px, -1px); }
+  89% { transform: translate(-1px, -1px); }
+}
+
 .back-to-top {
   background: none;
   border: 1px solid var(--border-card);
@@ -4443,6 +4568,84 @@ ul {
   display: none !important;
 }
 
+.sketchbook-mode.sketchbook-seen .sketchbook-overlay__paper {
+  filter: saturate(1.05) contrast(1.02);
+}
+
+.sketchbook-mode.sketchbook-seen .sketch-btn {
+  border-color: rgba(30, 25, 18, 0.7);
+  color: rgba(30, 25, 18, 0.85);
+  background: rgba(255, 252, 245, 0.92);
+  box-shadow:
+    2px 2px 0 rgba(30, 25, 18, 0.15),
+    -1px -1px 0 rgba(30, 25, 18, 0.05),
+    inset 0 0 0 1px rgba(30, 25, 18, 0.04);
+}
+
+.sketchbook-mode.sketchbook-seen .sketch-wasd-hint {
+  border-color: rgba(30, 25, 18, 0.15);
+  color: rgba(30, 25, 18, 0.45);
+  background: rgba(255, 252, 245, 0.6);
+}
+
+html.sketchbook-returning::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 150000;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(18, 20, 26, 0.45) 0%, rgba(8, 9, 12, 0.8) 72%, rgba(2, 2, 4, 0.95) 100%);
+  animation: sketchbook-return-flash 0.9s ease forwards;
+}
+
+.sketchbook-returning .vintage-overlay {
+  animation: sketchbook-return-overlay 0.85s ease both;
+}
+
+.sketchbook-returning .nav {
+  animation: sketchbook-return-ui 0.75s ease both;
+}
+
+.sketchbook-returning .cursor-canvas,
+.sketchbook-returning .target-cursor {
+  animation: sketchbook-return-ui 0.68s ease both;
+}
+
+@keyframes sketchbook-return-flash {
+  0% { opacity: 0.85; }
+  35% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+@keyframes sketchbook-return-overlay {
+  0% {
+    opacity: 0.1;
+    filter: saturate(0.55) contrast(0.9) brightness(0.75);
+  }
+  45% {
+    opacity: 1;
+    filter: saturate(0.8) contrast(1.05) brightness(0.95);
+  }
+  100% {
+    opacity: 1;
+    filter: saturate(1) contrast(1) brightness(1);
+  }
+}
+
+@keyframes sketchbook-return-ui {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    filter: blur(1.2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 /* ===== Sketchbook Portal Overlay ===== */
 
 .sketchbook-overlay {
@@ -4450,46 +4653,103 @@ ul {
   inset: 0;
   z-index: 200000;
   overflow: hidden;
+  cursor: none !important;
 }
 
-.sketchbook-overlay--exiting {
-  animation: sketchbook-exit 0.6s ease forwards;
+.sketchbook-overlay,
+.sketchbook-overlay *,
+.sketchbook-overlay *::before,
+.sketchbook-overlay *::after {
+  cursor: none !important;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
-@keyframes sketchbook-exit {
-  to { opacity: 0; transform: scale(1.02); }
+html.sketchbook-mode,
+html.sketchbook-mode *,
+html.sketchbook-mode body {
+  cursor: none !important;
+}
+
+html.sketchbook-returning,
+html.sketchbook-returning * {
+  cursor: none !important;
+}
+
+.sketchbook-exit-fade {
+  cursor: none !important;
+}
+
+.sketchbook-exit-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #0a0a0e;
+  opacity: 0;
+  transition: opacity 0.55s ease-in;
+  pointer-events: none;
 }
 
 /* Paper texture background */
 .sketchbook-overlay__paper {
   position: absolute;
   inset: 0;
-  background-color: #f5f0e8;
+  background-color: #f4efe5;
   background-image:
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 3px,
-      rgba(180, 160, 130, 0.025) 3px,
-      rgba(180, 160, 130, 0.025) 4px
+      rgba(180, 165, 140, 0.018) 3px,
+      rgba(180, 165, 140, 0.018) 4px
     ),
     repeating-linear-gradient(
       90deg,
       transparent,
       transparent 5px,
-      rgba(180, 160, 130, 0.015) 5px,
-      rgba(180, 160, 130, 0.015) 6px
-    ),
-    radial-gradient(
-      ellipse at 25% 40%,
-      rgba(200, 185, 160, 0.08) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 75% 60%,
-      rgba(200, 185, 160, 0.06) 0%,
-      transparent 50%
+      rgba(180, 165, 140, 0.012) 5px,
+      rgba(180, 165, 140, 0.012) 6px
     );
+  box-shadow:
+    inset 0 0 120px rgba(84, 62, 42, 0.06),
+    inset 0 0 30px rgba(255, 250, 240, 0.2);
+}
+
+.sketchbook-overlay__paper::before,
+.sketchbook-overlay__paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sketchbook-overlay__paper::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 50%,
+      rgba(255, 252, 245, 0.15) 0%,
+      transparent 60%
+    );
+  opacity: 0.4;
+}
+
+.sketchbook-overlay__paper::after {
+  background:
+    repeating-linear-gradient(
+      85deg,
+      rgba(140, 120, 95, 0.04) 0,
+      rgba(140, 120, 95, 0.04) 1px,
+      transparent 1px,
+      transparent 28px
+    ),
+    repeating-linear-gradient(
+      -80deg,
+      rgba(140, 120, 95, 0.025) 0,
+      rgba(140, 120, 95, 0.025) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+  opacity: 0.15;
 }
 
 /* Entry animation canvas */
@@ -4501,33 +4761,15 @@ ul {
   z-index: 10;
 }
 
-/* Footer easter egg trigger — bottom right of viewport */
-.sketchbook-trigger {
+/* Exit animation canvas */
+.sketchbook-exit-canvas {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 100;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.3s ease, transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
-  line-height: 1;
-}
-
-.sketchbook-trigger:hover {
-  color: rgba(255, 255, 255, 0.6);
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  transform: rotate(-15deg) scale(1.15);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999999;
+  pointer-events: all;
+  cursor: none !important;
 }
 
 /* ===== Sketchbook Scene ===== */
@@ -4537,6 +4779,7 @@ ul {
   inset: 0;
   opacity: 0;
   transition: opacity 0.8s ease;
+  cursor: none !important;
 }
 
 .sketchbook-scene--visible {
@@ -4547,11 +4790,13 @@ ul {
   position: absolute;
   inset: 0;
   z-index: 0;
+  cursor: none !important;
 }
 
 .sketchbook-canvas-wrapper canvas {
   width: 100% !important;
   height: 100% !important;
+  cursor: none !important;
 }
 
 /* ---- Geometric cursor ---- */
@@ -4664,25 +4909,49 @@ ul {
 /* ---- Ink splat click effect ---- */
 .ink-splat {
   position: fixed;
-  width: 30px;
-  height: 30px;
+  width: 52px;
+  height: 52px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 200005;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(30, 25, 18, 0.25) 0%,
-    rgba(30, 25, 18, 0.08) 40%,
-    transparent 70%
+    rgba(30, 25, 18, 0.35) 0%,
+    rgba(30, 25, 18, 0.16) 35%,
+    rgba(30, 25, 18, 0.04) 64%,
+    transparent 82%
   );
-  animation: ink-splat-anim 0.8s ease-out forwards;
+  box-shadow:
+    0 0 0 1px rgba(30, 25, 18, 0.12) inset,
+    0 0 12px rgba(30, 25, 18, 0.18);
+  animation: ink-splat-anim 0.9s cubic-bezier(0.15, 0.72, 0.21, 1) forwards;
+}
+
+.ink-splat--pick {
+  background: radial-gradient(
+    circle,
+    rgba(88, 143, 76, 0.45) 0%,
+    rgba(88, 143, 76, 0.22) 38%,
+    rgba(88, 143, 76, 0.08) 66%,
+    transparent 86%
+  );
+}
+
+.ink-splat--drop {
+  background: radial-gradient(
+    circle,
+    rgba(180, 108, 56, 0.48) 0%,
+    rgba(180, 108, 56, 0.24) 40%,
+    rgba(180, 108, 56, 0.08) 68%,
+    transparent 88%
+  );
 }
 
 @keyframes ink-splat-anim {
-  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
-  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  40% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.82; }
+  100% { transform: translate(-50%, -50%) scale(2.15); opacity: 0; }
 }
 
 /* ---- Sketch-style buttons ---- */
@@ -4706,7 +4975,7 @@ ul {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: lowercase;
-  cursor: pointer;
+  cursor: none;
   transition: all 0.15s ease;
   box-shadow:
     2px 2px 0 rgba(30, 25, 18, 0.15),
@@ -4737,6 +5006,23 @@ ul {
   transform: rotate(-0.5deg) scale(0.97);
 }
 
+.sketch-btn:focus-visible,
+.sketch-btn:focus {
+  outline: none;
+  box-shadow:
+    2px 2px 0 rgba(30, 25, 18, 0.15),
+    -1px -1px 0 rgba(30, 25, 18, 0.05),
+    inset 0 0 0 1px rgba(30, 25, 18, 0.04);
+}
+
+.sketchbook-scene *:focus-visible,
+.sketchbook-scene *:focus,
+.sketchbook-overlay *:focus-visible,
+.sketchbook-overlay *:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+
 .sketch-btn--icon {
   width: 40px;
   padding: 10px 0;
@@ -4750,6 +5036,110 @@ ul {
   transform: rotate(0.5deg) scale(1.06);
 }
 
+/* ---- Brush controls ---- */
+.sketch-brush-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sketch-brush-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 252, 245, 0.85);
+  border: 2px solid rgba(30, 25, 18, 0.3);
+  border-radius: 2px;
+  box-shadow: 1.5px 1.5px 0 rgba(30, 25, 18, 0.08);
+  position: relative;
+  z-index: 15;
+}
+
+.sketch-brush-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 3px;
+  background: rgba(30, 25, 18, 0.15);
+  border-radius: 0;
+  outline: none;
+  border: none;
+  cursor: none !important;
+  position: relative;
+}
+
+.sketch-brush-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: rgba(30, 25, 18, 0.15);
+  border-bottom: 1px solid rgba(30, 25, 18, 0.1);
+}
+
+.sketch-brush-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background: rgba(30, 25, 18, 0.55);
+  border: 2px solid rgba(255, 252, 245, 0.95);
+  border-radius: 1px;
+  transform: rotate(45deg);
+  cursor: none !important;
+  box-shadow: 0.5px 0.5px 0 rgba(30, 25, 18, 0.15);
+}
+
+.sketch-brush-slider::-moz-range-track {
+  height: 3px;
+  background: rgba(30, 25, 18, 0.15);
+  border: none;
+}
+
+.sketch-brush-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: rgba(30, 25, 18, 0.55);
+  border: 2px solid rgba(255, 252, 245, 0.95);
+  border-radius: 1px;
+  transform: rotate(45deg);
+  cursor: none !important;
+}
+
+.sketch-brush-slider-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(30, 25, 18, 0.5);
+  min-width: 28px;
+  text-align: right;
+  letter-spacing: 0.04em;
+}
+
+.sketch-btn--brush-toggle {
+  transform: rotate(0.3deg);
+}
+
+.sketch-btn--brush-toggle.sketch-btn--active {
+  background: rgba(40, 35, 25, 0.88);
+  color: rgba(255, 252, 245, 0.95);
+  border-color: rgba(40, 35, 25, 0.9);
+}
+
+.sketch-btn--brush-toggle.sketch-btn--active:hover {
+  background: rgba(50, 45, 30, 0.95);
+  color: rgba(255, 252, 245, 1);
+}
+
+.sketch-btn--brush-mode {
+  transform: rotate(-0.3deg);
+  min-width: 70px;
+  text-align: center;
+}
+
 /* Back to portfolio button */
 .sketch-back-btn {
   position: absolute;
@@ -4757,6 +5147,47 @@ ul {
   left: 20px;
   z-index: 10;
   transform: rotate(0.3deg) !important;
+}
+
+/* UI visibility layer */
+.sketch-ui-layer {
+  transition: opacity 0.3s ease;
+}
+
+.sketch-ui-layer--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sketch-btn--hide-ui {
+  width: 34px;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sketch-btn--hide-ui:hover {
+  transform: none;
+}
+
+.sketch-btn--hide-ui:active {
+  transform: none;
+}
+
+.sketch-brush-controls__hideable {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  transition: opacity 0.3s ease;
+}
+
+.sketch-brush-controls__hideable--hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* WASD controls hint */
@@ -4880,5 +5311,13 @@ ul {
   .sketch-back-btn {
     top: 14px;
     left: 14px;
+  }
+
+  .sketch-brush-controls {
+    bottom: 14px;
+  }
+
+  .sketch-btn--brush-mode {
+    min-width: 55px;
   }
 }

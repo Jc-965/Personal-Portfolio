@@ -112,9 +112,8 @@ export default function TargetCursor({
   useEffect(() => {
     if (isMobile || !cursorRef.current) return
 
-    const originalCursor = document.body.style.cursor
     if (hideDefaultCursor) {
-      document.body.style.cursor = 'none'
+      document.body.style.setProperty('cursor', 'none', 'important')
     }
 
     const cursor = cursorRef.current
@@ -359,7 +358,11 @@ export default function TargetCursor({
         cleanupTarget(activeTarget)
       }
       spinTl.current?.kill()
-      document.body.style.cursor = originalCursor
+      if (document.documentElement.classList.contains('has-custom-cursor')) {
+        document.body.style.setProperty('cursor', 'none', 'important')
+      } else {
+        document.body.style.removeProperty('cursor')
+      }
       targetCornerPositionsRef.current = null
       activeStrengthRef.current.current = 0
     }
