@@ -1,8 +1,9 @@
 /* eslint-disable react/no-unknown-property */
-import { useRef, type ComponentType } from 'react'
+import { useRef, useEffect, type ComponentType } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer, wrapEffect } from '@react-three/postprocessing'
 import { Effect } from 'postprocessing'
+import type { EffectComposer as EffectComposerImpl } from 'postprocessing'
 import * as THREE from 'three'
 import { sketchFragmentShader } from './shaders/sketchEffect'
 
@@ -37,16 +38,25 @@ function SketchEffect() {
     const h = size.height * dpr
     if (res.x !== w || res.y !== h) res.set(w, h)
 
-    // Always fully in sketch mode
     u.get('uScrollProgress')!.value = 1.0
   })
+
+  useEffect(() => {
+    return () => { effectRef.current?.dispose() }
+  }, [])
 
   return <WrappedSketchEffect ref={effectRef} />
 }
 
 export default function SketchPostProcessing() {
+  const composerRef = useRef<EffectComposerImpl>(null)
+
+  useEffect(() => {
+    return () => { composerRef.current?.dispose() }
+  }, [])
+
   return (
-    <EffectComposer>
+    <EffectComposer ref={composerRef}>
       <SketchEffect />
     </EffectComposer>
   )

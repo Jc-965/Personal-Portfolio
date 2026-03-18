@@ -52,33 +52,45 @@ float fbm(vec2 p) {
   return value;
 }
 
+float terrainHeight(vec2 tc) {
+  float h = fbm(tc * 0.04 + 1.0) * 7.0;
+  h += cnoise(tc * 0.08) * 2.5;
+  h += cnoise(tc * 0.2) * 1.0;
+  h += cnoise(tc * 0.5) * 0.3;
+  return h;
+}
+
+float terrainHeightCoarse(vec2 tc) {
+  float h = fbm(tc * 0.04 + 1.0) * 7.0;
+  h += cnoise(tc * 0.08) * 2.5;
+  return h;
+}
+
 void main() {
   vUv = uv;
   vec3 pos = position;
 
-  // Terrain height — large-scale rolling hills with fine detail
-  float h = fbm(pos.xz * 0.04 + 1.0) * 12.0;    // Big rolling hills
-  h += cnoise(pos.xz * 0.08) * 4.0;               // Medium features
-  h += cnoise(pos.xz * 0.2) * 1.5;                // Small ridges
-  h += cnoise(pos.xz * 0.5) * 0.4;                // Fine detail
-  // Gentle time animation
-  h += cnoise(pos.xz * 0.03 + uTime * 0.005) * 1.0;
+  vec2 tc = vec2(pos.x, -pos.y);
 
-  // Mouse deformation
-  float deform = texture2D(uDeformationMap, uv).r;
-  h += (deform - 0.5) * 2.0 * uDeformStrength;
+  float h = terrainHeight(tc);
+  h += cnoise(tc * 0.03 + uTime * 0.005) * 1.0;
 
-  pos.y = h;
+  float deformRaw = texture2D(uDeformationMap, uv).r;
+  float deform = (deformRaw - 0.502) * (255.0 / 12.8);
+  h += deform * uDeformStrength;
+
+  pos.z = h;
   vHeight = h;
   vWorldPosition = (modelMatrix * vec4(pos, 1.0)).xyz;
 
-  // Compute normals from heightfield neighbors
   float eps = 0.8;
-  float hL = fbm((pos.xz + vec2(-eps, 0.0)) * 0.04 + 1.0) * 12.0 + cnoise((pos.xz + vec2(-eps, 0.0)) * 0.08) * 4.0;
-  float hR = fbm((pos.xz + vec2(eps, 0.0)) * 0.04 + 1.0) * 12.0 + cnoise((pos.xz + vec2(eps, 0.0)) * 0.08) * 4.0;
-  float hD = fbm((pos.xz + vec2(0.0, -eps)) * 0.04 + 1.0) * 12.0 + cnoise((pos.xz + vec2(0.0, -eps)) * 0.08) * 4.0;
-  float hU = fbm((pos.xz + vec2(0.0, eps)) * 0.04 + 1.0) * 12.0 + cnoise((pos.xz + vec2(0.0, eps)) * 0.08) * 4.0;
-  vNormal = normalize(vec3(hL - hR, 2.0 * eps, hD - hU));
+  float hL = terrainHeightCoarse(tc + vec2(-eps, 0.0));
+  float hR = terrainHeightCoarse(tc + vec2(eps, 0.0));
+  float hD = terrainHeightCoarse(tc + vec2(0.0, -eps));
+  float hU = terrainHeightCoarse(tc + vec2(0.0, eps));
+
+  vec3 localNormal = normalize(vec3(hL - hR, hD - hU, 2.0 * eps));
+  vNormal = normalize((modelMatrix * vec4(localNormal, 0.0)).xyz);
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 }

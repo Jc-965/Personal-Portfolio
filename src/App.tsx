@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense } from 'react'
+import { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
@@ -16,10 +16,67 @@ const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/Sket
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
+  const [hasSeenSketchbook, setHasSeenSketchbook] = useState(false)
+  const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
+  const returnTimerRef = useRef<number | null>(null)
   const onLoadingComplete = useCallback(() => setIsLoading(false), [])
 
-  const openSketchbook = useCallback(() => setSketchbookOpen(true), [])
-  const closeSketchbook = useCallback(() => setSketchbookOpen(false), [])
+  const openSketchbook = useCallback(() => {
+    setIsSketchbookReturning(false)
+    if (returnTimerRef.current !== null) {
+      window.clearTimeout(returnTimerRef.current)
+      returnTimerRef.current = null
+    }
+    setHasSeenSketchbook(true)
+    localStorage.setItem('sketchbook-visited', '1')
+    setSketchbookOpen(true)
+  }, [])
+  const [sketchbookExiting, setSketchbookExiting] = useState(false)
+  const closeSketchbook = useCallback(() => {
+    setSketchbookExiting(true)
+    document.documentElement.classList.add('sketchbook-returning')
+  }, [])
+  const onExitAnimationDone = useCallback(() => {
+    setSketchbookExiting(false)
+    setSketchbookOpen(false)
+    setIsSketchbookReturning(true)
+    if (returnTimerRef.current !== null) {
+      window.clearTimeout(returnTimerRef.current)
+    }
+    returnTimerRef.current = window.setTimeout(() => {
+      setIsSketchbookReturning(false)
+      returnTimerRef.current = null
+    }, 900)
+  }, [])
+
+  useEffect(() => {
+    const seen = localStorage.getItem('sketchbook-visited') === '1'
+    setHasSeenSketchbook(seen)
+  }, [])
+
+  useEffect(() => {
+    if (hasSeenSketchbook) {
+      document.documentElement.classList.add('sketchbook-seen')
+    } else {
+      document.documentElement.classList.remove('sketchbook-seen')
+    }
+    return () => document.documentElement.classList.remove('sketchbook-seen')
+  }, [hasSeenSketchbook])
+
+  useEffect(() => {
+    if (isSketchbookReturning) {
+      document.documentElement.classList.add('sketchbook-returning')
+    } else {
+      document.documentElement.classList.remove('sketchbook-returning')
+    }
+    return () => {
+      document.documentElement.classList.remove('sketchbook-returning')
+      if (returnTimerRef.current !== null) {
+        window.clearTimeout(returnTimerRef.current)
+        returnTimerRef.current = null
+      }
+    }
+  }, [isSketchbookReturning])
 
   return (
     <GyroscopeProvider>
@@ -54,15 +111,15 @@ function App() {
               <LazySection id="skills" className="section toolkit" load={() => import('./components/Toolkit')} />
               <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
             </main>
-            <Footer onOpenSketchbook={openSketchbook} />
+            <Footer onOpenSketchbook={openSketchbook} hasSeenSketchbook={hasSeenSketchbook} />
             <GyroPrompt />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {sketchbookOpen && (
+      {(sketchbookOpen || sketchbookExiting) && (
         <Suspense fallback={null}>
-          <SketchbookOverlay onClose={closeSketchbook} />
+          <SketchbookOverlay onClose={closeSketchbook} isExiting={sketchbookExiting} onExitAnimationDone={onExitAnimationDone} />
         </Suspense>
       )}
     </GyroscopeProvider>

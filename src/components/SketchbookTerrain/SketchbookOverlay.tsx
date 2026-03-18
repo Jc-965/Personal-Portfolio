@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import EntryAnimation from './EntryAnimation'
+import ExitAnimation from './ExitAnimation'
 
 const SketchbookScene = lazy(() => import('./SketchbookScene'))
 
@@ -8,57 +9,71 @@ type Phase = 'entering' | 'active' | 'exiting'
 
 interface SketchbookOverlayProps {
   onClose: () => void
+  isExiting?: boolean
+  onExitAnimationDone?: () => void
 }
 
-export default function SketchbookOverlay({ onClose }: SketchbookOverlayProps) {
+export default function SketchbookOverlay({ onClose, isExiting, onExitAnimationDone }: SketchbookOverlayProps) {
   const [phase, setPhase] = useState<Phase>('entering')
+  const hasTriggeredExit = useRef(false)
 
-  const onAnimationComplete = useCallback(() => {
+  const onEntryComplete = useCallback(() => {
     setPhase('active')
   }, [])
 
-  const handleClose = useCallback(() => {
-    setPhase('exiting')
-    setTimeout(onClose, 600)
-  }, [onClose])
+  const onExitComplete = useCallback(() => {
+    onExitAnimationDone?.()
+  }, [onExitAnimationDone])
 
-  // Lock body scroll, add sketchbook-mode class
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.add('sketchbook-mode')
     document.body.style.overflow = 'hidden'
+    document.body.style.setProperty('cursor', 'none', 'important')
+    document.documentElement.style.setProperty('cursor', 'none', 'important')
 
     return () => {
       document.documentElement.classList.remove('sketchbook-mode')
       document.body.style.overflow = ''
+      if (document.documentElement.classList.contains('has-custom-cursor')) {
+        document.body.style.setProperty('cursor', 'none', 'important')
+      } else {
+        document.body.style.removeProperty('cursor')
+        document.documentElement.style.removeProperty('cursor')
+      }
     }
   }, [])
 
-  // Escape key to close
+  useEffect(() => {
+    if (isExiting && !hasTriggeredExit.current) {
+      hasTriggeredExit.current = true
+      setPhase('exiting')
+    }
+  }, [isExiting])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase === 'active') handleClose()
+      if (e.key === 'Escape' && phase === 'active' && !isExiting) onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase, handleClose])
+  }, [phase, onClose, isExiting])
 
   const content = (
-    <div
-      className={`sketchbook-overlay ${phase === 'exiting' ? 'sketchbook-overlay--exiting' : ''}`}
-    >
-      {/* Paper background */}
+    <div className="sketchbook-overlay">
       <div className="sketchbook-overlay__paper" />
 
-      {/* Entry animation */}
       {phase === 'entering' && (
-        <EntryAnimation onComplete={onAnimationComplete} />
+        <EntryAnimation onComplete={onEntryComplete} />
       )}
 
-      {/* 3D scene — only mounts after animation */}
       {(phase === 'active' || phase === 'exiting') && (
         <Suspense fallback={null}>
-          <SketchbookScene onClose={handleClose} />
+          <SketchbookScene onClose={onClose} />
         </Suspense>
+      )}
+
+      {phase === 'exiting' && (
+        <ExitAnimation onComplete={onExitComplete} />
       )}
     </div>
   )

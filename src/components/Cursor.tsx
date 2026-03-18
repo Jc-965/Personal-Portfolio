@@ -19,6 +19,37 @@ export default function Cursor() {
 
     document.documentElement.classList.add('has-custom-cursor')
 
+    const cursorStyleTag = document.createElement('style')
+    cursorStyleTag.setAttribute('data-cursor-hide', '')
+    cursorStyleTag.textContent = `
+      html.has-custom-cursor, html.has-custom-cursor *,
+      html.has-custom-cursor *::before, html.has-custom-cursor *::after {
+        cursor: none !important;
+      }
+    `
+    document.head.appendChild(cursorStyleTag)
+
+    document.documentElement.style.setProperty('cursor', 'none', 'important')
+    document.body.style.setProperty('cursor', 'none', 'important')
+
+    let guardFrame = 0
+    const cursorGuardTick = () => {
+      document.body.style.setProperty('cursor', 'none', 'important')
+      document.documentElement.style.setProperty('cursor', 'none', 'important')
+      document.querySelectorAll<HTMLElement>('canvas, [style*="cursor"]').forEach(el => {
+        el.style.setProperty('cursor', 'none', 'important')
+      })
+      guardFrame = requestAnimationFrame(cursorGuardTick)
+    }
+    guardFrame = requestAnimationFrame(cursorGuardTick)
+
+    const bodyObserver = new MutationObserver(() => {
+      if (document.body.style.cursor !== 'none') {
+        document.body.style.setProperty('cursor', 'none', 'important')
+      }
+    })
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style'] })
+
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -309,6 +340,13 @@ export default function Cursor() {
       if (resizeTimer) clearTimeout(resizeTimer)
       resizeTimer = setTimeout(resize, 150)
     }
+    const forceCursorNone = (e: Event) => {
+      const el = e.target as HTMLElement
+      if (el && el.style && el.style.cursor !== 'none') {
+        el.style.setProperty('cursor', 'none', 'important')
+      }
+    }
+
     window.addEventListener('resize', debouncedResize)
     document.addEventListener('mousemove', onMove, { passive: true })
     document.addEventListener('mouseleave', onLeave, { passive: true })
@@ -317,10 +355,13 @@ export default function Cursor() {
     document.addEventListener('mouseover', onOver, { passive: true })
     document.addEventListener('mouseout', onOut, { passive: true })
     document.addEventListener('visibilitychange', handleVisibility)
+    document.addEventListener('pointerover', forceCursorNone, { passive: true, capture: true })
 
     return () => {
       cancelAnimationFrame(frame)
       frame = 0
+      cancelAnimationFrame(guardFrame)
+      bodyObserver.disconnect()
       if (resizeTimer) clearTimeout(resizeTimer)
       window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('mousemove', onMove)
@@ -330,7 +371,11 @@ export default function Cursor() {
       document.removeEventListener('mouseover', onOver)
       document.removeEventListener('mouseout', onOut)
       document.removeEventListener('visibilitychange', handleVisibility)
+      document.removeEventListener('pointerover', forceCursorNone, { capture: true } as EventListenerOptions)
       document.documentElement.classList.remove('has-custom-cursor')
+      document.documentElement.style.removeProperty('cursor')
+      document.body.style.removeProperty('cursor')
+      cursorStyleTag.remove()
     }
   }, [])
 
