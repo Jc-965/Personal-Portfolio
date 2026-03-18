@@ -12,10 +12,12 @@ import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
+const SketchPortfolioOverlay = lazy(() => import('./components/SketchbookTerrain/SketchPortfolioOverlay'))
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
+  const [secretPortfolioOpen, setSecretPortfolioOpen] = useState(false)
   const [hasSeenSketchbook, setHasSeenSketchbook] = useState(false)
   const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
   const returnTimerRef = useRef<number | null>(null)
@@ -31,8 +33,15 @@ function App() {
     localStorage.setItem('sketchbook-visited', '1')
     setSketchbookOpen(true)
   }, [])
+  const openSecretPortfolio = useCallback(() => {
+    setSecretPortfolioOpen(true)
+  }, [])
+  const closeSecretPortfolio = useCallback(() => {
+    setSecretPortfolioOpen(false)
+  }, [])
   const [sketchbookExiting, setSketchbookExiting] = useState(false)
   const closeSketchbook = useCallback(() => {
+    setSecretPortfolioOpen(false)
     setSketchbookExiting(true)
     document.documentElement.classList.add('sketchbook-returning')
   }, [])
@@ -119,7 +128,17 @@ function App() {
 
       {(sketchbookOpen || sketchbookExiting) && (
         <Suspense fallback={null}>
-          <SketchbookOverlay onClose={closeSketchbook} isExiting={sketchbookExiting} onExitAnimationDone={onExitAnimationDone} />
+          <SketchbookOverlay
+            onClose={closeSketchbook}
+            isExiting={sketchbookExiting}
+            onExitAnimationDone={onExitAnimationDone}
+            onOpenSecretPortfolio={openSecretPortfolio}
+          />
+        </Suspense>
+      )}
+      {secretPortfolioOpen && (
+        <Suspense fallback={null}>
+          <SketchPortfolioOverlay onClose={closeSecretPortfolio} />
         </Suspense>
       )}
     </GyroscopeProvider>
