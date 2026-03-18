@@ -72,7 +72,7 @@ body {
   transition: opacity 0.5s ease;
 }
 
-/* Hide default cursor — injected <style> tag in Cursor.tsx takes priority; this is a fallback */
+/* Hide default cursor when custom cursor is active */
 .has-custom-cursor,
 .has-custom-cursor *,
 .has-custom-cursor *::before,
@@ -4442,19 +4442,40 @@ ul {
   .footer__socials {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .footer__social-link {
     width: 100%;
     min-width: 0;
-    font-size: 0.72rem;
-    padding: 8px 10px;
+    min-height: 52px;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.54rem;
+    letter-spacing: 0.08em;
+    padding: 7px 4px;
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 255, 255, 0.03),
+      1px 1px 0 rgba(0, 255, 255, 0.12),
+      2px 2px 0 rgba(0, 0, 0, 0.28);
+  }
+
+  .footer__social-link svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .footer__social-text {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: none;
   }
 
   .footer__social-link:last-child {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .back-to-top {
@@ -4775,6 +4796,8 @@ html.sketchbook-returning * {
 /* ===== Sketchbook Scene ===== */
 
 .sketchbook-scene {
+  --sketch-ui-scale: 1;
+  --sketch-bottom-ui-scale: 1;
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -4791,12 +4814,15 @@ html.sketchbook-returning * {
   inset: 0;
   z-index: 0;
   cursor: none !important;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .sketchbook-canvas-wrapper canvas {
   width: 100% !important;
   height: 100% !important;
   cursor: none !important;
+  touch-action: none;
 }
 
 /* ---- Geometric cursor ---- */
@@ -4808,11 +4834,32 @@ html.sketchbook-returning * {
   transition: opacity 0.12s ease;
 }
 
+.sketch-cursor::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(30, 25, 18, 0.32);
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(0.55);
+  opacity: 0;
+}
+
 .sketch-cursor__shape {
   width: 28px;
   height: 28px;
   position: relative;
   transition: transform 0.15s ease;
+}
+
+.sketch-cursor--clicking::before {
+  animation: sketch-cursor-click-ring 0.32s ease-out forwards;
+}
+
+.sketch-cursor--clicking .sketch-cursor__shape {
+  transform: scale(0.84);
 }
 
 /* Default: diamond + crosshair */
@@ -4906,6 +4953,17 @@ html.sketchbook-returning * {
   50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.15); }
 }
 
+@keyframes sketch-cursor-click-ring {
+  0% {
+    opacity: 0.82;
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.45);
+  }
+}
+
 /* ---- Ink splat click effect ---- */
 .ink-splat {
   position: fixed;
@@ -4962,9 +5020,14 @@ html.sketchbook-returning * {
   z-index: 10;
   display: flex;
   gap: 10px;
+  transform: scale(var(--sketch-ui-scale));
+  transform-origin: top right;
 }
 
 .sketch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px 18px;
   border: 2.5px solid rgba(30, 25, 18, 0.7);
   border-radius: 3px;
@@ -4973,16 +5036,20 @@ html.sketchbook-returning * {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.12em;
   text-transform: lowercase;
+  text-align: center;
+  white-space: nowrap;
   cursor: none;
   transition: all 0.15s ease;
   box-shadow:
     2px 2px 0 rgba(30, 25, 18, 0.15),
     -1px -1px 0 rgba(30, 25, 18, 0.05),
     inset 0 0 0 1px rgba(30, 25, 18, 0.04);
-  transform: rotate(-0.5deg);
+  transform: none;
   position: relative;
+  flex-shrink: 0;
 }
 
 .sketch-btn::before {
@@ -4991,7 +5058,7 @@ html.sketchbook-returning * {
   inset: -1px;
   border: 1.5px solid rgba(30, 25, 18, 0.12);
   border-radius: 4px;
-  transform: rotate(0.8deg);
+  transform: none;
   pointer-events: none;
 }
 
@@ -4999,11 +5066,11 @@ html.sketchbook-returning * {
   background: rgba(255, 252, 245, 1);
   color: rgba(20, 15, 8, 1);
   border-color: rgba(20, 15, 8, 0.85);
-  transform: rotate(-0.5deg) scale(1.04);
+  transform: scale(1.04);
 }
 
 .sketch-btn:active {
-  transform: rotate(-0.5deg) scale(0.97);
+  transform: scale(0.97);
 }
 
 .sketch-btn:focus-visible,
@@ -5029,11 +5096,521 @@ html.sketchbook-returning * {
   text-align: center;
   font-size: 0.95rem;
   font-weight: 700;
-  transform: rotate(0.5deg);
+  transform: none;
 }
 
 .sketch-btn--icon:hover {
-  transform: rotate(0.5deg) scale(1.06);
+  transform: scale(1.06);
+}
+
+.sketch-btn--photo {
+  min-width: 88px;
+}
+
+.sketch-btn:disabled {
+  opacity: 0.62;
+  transform: none !important;
+  pointer-events: none;
+}
+
+.sketch-capture-handoff {
+  position: absolute;
+  inset: 0;
+  z-index: 33;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.68), rgba(247, 239, 227, 0.38)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.58), transparent 58%);
+}
+
+.sketch-capture-handoff::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(246, 240, 229, 0.34), rgba(244, 236, 223, 0.48)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.34), transparent 56%);
+  backdrop-filter: blur(0);
+  -webkit-backdrop-filter: blur(0);
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    backdrop-filter 0.12s ease,
+    -webkit-backdrop-filter 0.12s ease;
+}
+
+.sketch-capture-handoff--mask {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(247, 239, 227, 0.94)),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.9), rgba(255, 248, 232, 0.5) 56%, rgba(255, 248, 232, 0) 100%);
+}
+
+.sketch-capture-handoff--preview {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.3), rgba(247, 239, 227, 0.18)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.34), transparent 58%);
+}
+
+.sketch-capture-handoff--capturing::after,
+.sketch-capture-handoff--preview::after,
+.sketch-capture-handoff--frozen::after {
+  opacity: 1;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.sketch-capture-handoff__still {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  filter: saturate(0.94) contrast(0.98) brightness(0.99);
+  animation: sketch-capture-still-in 0.24s ease-out both;
+  transition:
+    filter 0.14s ease,
+    transform 0.32s ease;
+}
+
+.sketch-capture-handoff--frozen .sketch-capture-handoff__still {
+  filter: blur(8px) saturate(0.9) contrast(0.96) brightness(1.02);
+  transform: scale(1.03);
+}
+
+.sketch-capture-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 1) 0%, rgba(255, 252, 245, 0.985) 18%, rgba(255, 248, 232, 0.58) 48%, rgba(255, 248, 232, 0.18) 74%, rgba(255, 248, 232, 0) 100%);
+  animation: sketch-capture-flash-pop 1.34s cubic-bezier(0.12, 0.84, 0.16, 1) both;
+}
+
+.sketch-photo-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 34;
+  border: 0;
+  padding: 0;
+  background: rgba(242, 236, 225, 0.52);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: sketch-photo-backdrop-in 2.15s cubic-bezier(0.16, 0.8, 0.22, 1) both;
+}
+
+.sketch-photo-sheet-shell {
+  position: absolute;
+  inset: 26px 22px 24px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: sketch-photo-sheet-shell-in 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.sketch-photo-sheet-shell::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: min(720px, 68vw);
+  height: 132px;
+  transform: translate(-50%, -38%);
+  background:
+    radial-gradient(ellipse at center, rgba(255, 255, 255, 0.72) 0%, rgba(255, 249, 241, 0.44) 28%, rgba(244, 235, 219, 0.22) 46%, rgba(244, 235, 219, 0) 76%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  filter: blur(9px);
+  opacity: 0;
+  animation: sketch-photo-processing-cloud 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.sketch-photo-sheet-shell::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: min(980px, calc(100vw - 88px));
+  height: 30%;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.36), transparent 72%),
+    repeating-linear-gradient(180deg, rgba(120, 102, 75, 0.08) 0 2px, transparent 2px 18px);
+  filter: blur(24px);
+  opacity: 0;
+  animation: sketch-photo-sheet-processing 2.3s ease both;
+}
+
+.sketch-photo-sheet {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  width: min(1040px, calc(100vw - 44px));
+  max-height: calc(100vh - 52px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+  border-radius: 30px 30px 24px 24px;
+  border: 2px solid rgba(30, 25, 18, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(250, 243, 231, 0.96)),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 46%);
+  box-shadow:
+    0 28px 80px rgba(30, 25, 18, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.45) inset;
+  transform-origin: 50% 0%;
+  overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  animation: sketch-photo-sheet-in 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.sketch-photo-sheet::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.sketch-photo-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.48) 26%, rgba(255, 255, 255, 0.06) 52%, rgba(255, 255, 255, 0) 100%),
+    repeating-linear-gradient(180deg, rgba(112, 94, 68, 0.05) 0 2px, transparent 2px 17px);
+  opacity: 0;
+  transform: translateY(-22%);
+  animation: sketch-photo-sheet-process-pass 2.3s cubic-bezier(0.18, 0.78, 0.24, 1) both;
+}
+
+.sketch-photo-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sketch-photo-sheet__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sketch-photo-sheet__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: rgba(30, 25, 18, 0.46);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.sketch-photo-sheet__title {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(30, 25, 18, 0.82);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+
+.sketch-photo-sheet__sub {
+  max-width: 560px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: rgba(30, 25, 18, 0.5);
+  letter-spacing: 0.03em;
+}
+
+.sketch-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sketch-photo-card {
+  --card-tilt: 0deg;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 2px solid rgba(30, 25, 18, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(248, 239, 226, 0.94)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.7), transparent 55%);
+  box-shadow:
+    8px 10px 24px rgba(30, 25, 18, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.32) inset;
+  transform: rotate(var(--card-tilt));
+  transform-origin: center;
+}
+
+.sketch-photo-card--selected {
+  border-color: rgba(30, 25, 18, 0.34);
+  box-shadow:
+    0 0 0 2px rgba(30, 25, 18, 0.08),
+    10px 12px 26px rgba(30, 25, 18, 0.12);
+}
+
+.sketch-photo-card__frame {
+  padding: 12px 12px 20px;
+  border: 0;
+  border-radius: 16px 16px 12px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 12px 26px rgba(30, 25, 18, 0.08),
+    0 0 0 1px rgba(30, 25, 18, 0.06) inset;
+  overflow: hidden;
+  cursor: none !important;
+}
+
+.sketch-photo-card__image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  border: 1px solid rgba(30, 25, 18, 0.08);
+  border-radius: 8px;
+  background: rgba(243, 237, 228, 0.95);
+}
+
+.sketch-photo-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sketch-photo-card__tag {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: rgba(30, 25, 18, 0.42);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sketch-photo-card__title {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: rgba(30, 25, 18, 0.8);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+
+.sketch-photo-card__note {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1.55;
+  color: rgba(30, 25, 18, 0.52);
+  letter-spacing: 0.03em;
+}
+
+.sketch-photo-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sketch-photo-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 116px;
+  z-index: 36;
+  padding: 10px 16px;
+  transform: translateX(-50%);
+  border: 2px solid rgba(30, 25, 18, 0.22);
+  background: rgba(255, 252, 245, 0.94);
+  color: rgba(30, 25, 18, 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  box-shadow: 0 16px 36px rgba(30, 25, 18, 0.12);
+  animation: sketch-photo-toast-in 0.28s ease both;
+}
+
+@keyframes sketch-capture-flash-pop {
+  0% {
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  58% {
+    opacity: 0.98;
+  }
+  88% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes sketch-capture-still-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.008);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sketch-photo-backdrop-in {
+  0% {
+    opacity: 0;
+  }
+  36% {
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes sketch-photo-sheet-shell-in {
+  0% {
+    transform: translateY(-16vh);
+  }
+  34% {
+    transform: translateY(-11vh);
+  }
+  56% {
+    transform: translateY(-6vh);
+  }
+  82% {
+    transform: translateY(2.8vh);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sketch-photo-processing-cloud {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.84);
+  }
+  18% {
+    opacity: 0.42;
+    transform: translate(-50%, -38%) scale(0.92);
+  }
+  42% {
+    opacity: 0.66;
+    transform: translate(-50%, -22%) scale(1);
+  }
+  64% {
+    opacity: 0.5;
+    transform: translate(-50%, -18%) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8%) scale(1.1);
+  }
+}
+
+@keyframes sketch-photo-sheet-processing {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16%);
+  }
+  20% {
+    opacity: 0.14;
+  }
+  42% {
+    opacity: 0.34;
+    transform: translateX(-50%) translateY(2%);
+  }
+  64% {
+    opacity: 0.22;
+    transform: translateX(-50%) translateY(16%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(28%);
+  }
+}
+
+@keyframes sketch-photo-sheet-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-58vh) scale(0.93);
+    filter: drop-shadow(0 36px 72px rgba(30, 25, 18, 0.08));
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(-50vh) scale(0.936);
+  }
+  32% {
+    opacity: 1;
+    transform: translateY(-34vh) scale(0.946);
+    filter: drop-shadow(0 30px 64px rgba(30, 25, 18, 0.1));
+  }
+  52% {
+    opacity: 1;
+    transform: translateY(-18vh) scale(0.956);
+    filter: drop-shadow(0 22px 52px rgba(30, 25, 18, 0.12));
+  }
+  66% {
+    opacity: 1;
+    transform: translateY(-4vh) scale(0.968);
+    filter: drop-shadow(0 20px 44px rgba(30, 25, 18, 0.13));
+  }
+  86% {
+    opacity: 1;
+    transform: translateY(3.8vh) scale(1.01);
+    filter: drop-shadow(0 24px 54px rgba(30, 25, 18, 0.16));
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 28px 80px rgba(30, 25, 18, 0.18));
+  }
+}
+
+@keyframes sketch-photo-sheet-process-pass {
+  0% {
+    opacity: 0;
+    transform: translateY(-26%);
+  }
+  24% {
+    opacity: 0;
+    transform: translateY(-24%);
+  }
+  42% {
+    opacity: 0.28;
+    transform: translateY(-6%);
+  }
+  58% {
+    opacity: 0.38;
+    transform: translateY(12%);
+  }
+  72% {
+    opacity: 0.14;
+    transform: translateY(22%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(28%);
+  }
+}
+
+@keyframes sketch-photo-toast-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 /* ---- Brush controls ---- */
@@ -5041,7 +5618,8 @@ html.sketchbook-returning * {
   position: absolute;
   bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--sketch-bottom-ui-scale));
+  transform-origin: bottom center;
   z-index: 15;
   display: flex;
   gap: 8px;
@@ -5059,6 +5637,15 @@ html.sketchbook-returning * {
   box-shadow: 1.5px 1.5px 0 rgba(30, 25, 18, 0.08);
   position: relative;
   z-index: 15;
+}
+
+.sketch-brush-slider-name {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: rgba(30, 25, 18, 0.52);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  white-space: nowrap;
 }
 
 .sketch-brush-slider {
@@ -5120,7 +5707,9 @@ html.sketchbook-returning * {
 }
 
 .sketch-btn--brush-toggle {
-  transform: rotate(0.3deg);
+  transform: none;
+  min-width: 118px;
+  white-space: nowrap;
 }
 
 .sketch-btn--brush-toggle.sketch-btn--active {
@@ -5135,8 +5724,8 @@ html.sketchbook-returning * {
 }
 
 .sketch-btn--brush-mode {
-  transform: rotate(-0.3deg);
-  min-width: 70px;
+  transform: none;
+  min-width: 84px;
   text-align: center;
 }
 
@@ -5146,7 +5735,8 @@ html.sketchbook-returning * {
   top: 20px;
   left: 20px;
   z-index: 10;
-  transform: rotate(0.3deg) !important;
+  transform: scale(var(--sketch-ui-scale)) !important;
+  transform-origin: top left;
 }
 
 /* UI visibility layer */
@@ -5195,7 +5785,8 @@ html.sketchbook-returning * {
   position: absolute;
   top: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--sketch-ui-scale));
+  transform-origin: top center;
   z-index: 10;
   font-family: var(--font-mono);
   font-size: 0.6rem;
@@ -5216,6 +5807,13 @@ html.sketchbook-returning * {
   background: rgba(255, 252, 245, 0.8);
 }
 
+.sketch-wasd-hint--mobile {
+  white-space: normal;
+  max-width: min(280px, calc(100vw - 44px));
+  line-height: 1.45;
+  text-align: center;
+}
+
 /* ---- Sketch counter ---- */
 .sketch-counter {
   position: absolute;
@@ -5224,14 +5822,49 @@ html.sketchbook-returning * {
   z-index: 5;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  font-style: italic;
+  font-style: normal;
   color: rgba(30, 25, 18, 0.65);
   letter-spacing: 0.1em;
   padding: 8px 16px;
   border: 2px solid rgba(30, 25, 18, 0.3);
   background: rgba(255, 252, 245, 0.85);
-  transform: rotate(0.8deg);
+  transform: scale(var(--sketch-bottom-ui-scale));
+  transform-origin: bottom right;
   box-shadow: 1.5px 1.5px 0 rgba(30, 25, 18, 0.1);
+}
+
+.sketch-counter__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: none;
+}
+
+.sketch-counter--arming {
+  border-color: rgba(30, 25, 18, 0.48);
+  box-shadow:
+    1.5px 1.5px 0 rgba(30, 25, 18, 0.1),
+    inset 0 0 0 1px rgba(30, 25, 18, 0.08);
+}
+
+.sketch-counter__button:hover {
+  color: rgba(18, 13, 8, 0.88);
+}
+
+.sketch-counter__button:active {
+  transform: translateY(1px);
+}
+
+.sketch-counter__label {
+  display: inline-flex;
 }
 
 /* ---- Section label (bottom left) ---- */
@@ -5244,10 +5877,12 @@ html.sketchbook-returning * {
   flex-direction: column;
   gap: 6px;
   padding: 12px 18px;
+  max-width: min(320px, calc(100vw - 56px));
   background: rgba(255, 252, 245, 0.88);
   border: 2px solid rgba(30, 25, 18, 0.35);
   border-radius: 2px;
-  transform: rotate(-0.6deg);
+  transform: scale(var(--sketch-bottom-ui-scale));
+  transform-origin: bottom left;
   box-shadow: 2px 2px 0 rgba(30, 25, 18, 0.08);
 }
 
@@ -5265,6 +5900,1368 @@ html.sketchbook-returning * {
   font-size: 0.6rem;
   color: rgba(30, 25, 18, 0.5);
   letter-spacing: 0.06em;
+  line-height: 1.45;
+}
+
+@media (max-width: 1500px), (max-height: 920px) {
+  .sketchbook-scene {
+    --sketch-ui-scale: 0.94;
+    --sketch-bottom-ui-scale: 0.9;
+  }
+}
+
+@media (max-width: 1320px), (max-height: 840px) {
+  .sketchbook-scene {
+    --sketch-ui-scale: 0.88;
+    --sketch-bottom-ui-scale: 0.82;
+  }
+}
+
+@media (max-width: 1180px), (max-height: 760px) {
+  .sketchbook-scene {
+    --sketch-ui-scale: 0.82;
+    --sketch-bottom-ui-scale: 0.74;
+  }
+}
+
+/* ===== Secret Sketch Portfolio ===== */
+
+.sketch-secret-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000020;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 22px;
+  scroll-behavior: smooth;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.42), transparent 35%),
+    radial-gradient(circle at 80% 14%, rgba(225, 202, 160, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(246, 239, 228, 0.98), rgba(237, 227, 211, 0.98));
+}
+
+.sketch-secret-overlay,
+.sketch-secret-overlay *,
+.sketch-secret-overlay *::before,
+.sketch-secret-overlay *::after {
+  box-sizing: border-box;
+  cursor: none !important;
+}
+
+.sketch-secret-overlay--entering .sketch-secret-shell,
+.sketch-secret-overlay--exiting .sketch-secret-shell {
+  pointer-events: none;
+}
+
+.sketch-secret-overlay::before,
+.sketch-secret-overlay::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sketch-secret-overlay::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 24px,
+      rgba(120, 103, 78, 0.025) 24px,
+      rgba(120, 103, 78, 0.025) 25px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 29px,
+      rgba(120, 103, 78, 0.018) 29px,
+      rgba(120, 103, 78, 0.018) 30px
+    );
+  opacity: 0.6;
+}
+
+.sketch-secret-overlay::after {
+  inset: 16px;
+  border: 1px solid rgba(52, 39, 24, 0.14);
+  border-radius: 26px;
+  box-shadow:
+    inset 0 0 160px rgba(82, 60, 38, 0.06),
+    inset 0 0 34px rgba(255, 251, 244, 0.22);
+}
+
+.sketch-secret-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sketch-secret-transition__veil,
+.sketch-secret-transition__paper {
+  position: absolute;
+  inset: 0;
+}
+
+.sketch-secret-transition__veil {
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.32), transparent 58%),
+    rgba(245, 238, 225, 0.24);
+}
+
+.sketch-secret-transition__paper {
+  inset: -8vh -3vw;
+  opacity: 0;
+  border-radius: 42px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(243, 233, 218, 0.98));
+  box-shadow:
+    0 26px 90px rgba(44, 31, 18, 0.18),
+    inset 0 0 0 1px rgba(58, 43, 26, 0.1),
+    inset 0 0 160px rgba(123, 99, 70, 0.08);
+}
+
+.sketch-secret-overlay--entering .sketch-secret-transition__veil {
+  animation: sketch-secret-veil-in 1.18s ease both;
+}
+
+.sketch-secret-overlay--entering .sketch-secret-transition__paper {
+  animation: sketch-secret-paper-sweep-in 1.18s cubic-bezier(0.18, 0.88, 0.22, 1) both;
+}
+
+.sketch-secret-overlay--exiting .sketch-secret-transition__veil {
+  animation: sketch-secret-veil-out 0.86s ease both;
+}
+
+.sketch-secret-overlay--exiting .sketch-secret-transition__paper {
+  animation: sketch-secret-paper-sweep-out 0.86s cubic-bezier(0.18, 0.88, 0.22, 1) both;
+}
+
+.sketch-secret-shell {
+  position: relative;
+  z-index: 2;
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding-bottom: 42px;
+  opacity: 1;
+  transform: none;
+}
+
+.sketch-secret-overlay--entering .sketch-secret-shell {
+  animation: sketch-secret-shell-in 0.88s 0.42s cubic-bezier(0.16, 0.86, 0.24, 1) both;
+}
+
+.sketch-secret-overlay--exiting .sketch-secret-shell {
+  animation: sketch-secret-shell-out 0.32s ease both;
+}
+
+.sketch-secret-masthead {
+  position: sticky;
+  top: 14px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 15px 18px;
+  margin-bottom: 24px;
+  border: 2px solid rgba(34, 25, 15, 0.26);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.92), rgba(247, 240, 229, 0.9));
+  box-shadow:
+    0 24px 70px rgba(74, 55, 34, 0.08),
+    0 8px 0 rgba(34, 25, 15, 0.05);
+  backdrop-filter: blur(18px);
+}
+
+.sketch-secret-masthead__stamp {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(48, 37, 24, 0.54);
+}
+
+.sketch-secret-masthead__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.sketch-secret-masthead__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  appearance: none;
+  border: 1px solid rgba(32, 24, 15, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.72);
+  color: rgba(44, 33, 21, 0.64);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.sketch-secret-masthead__link:hover {
+  color: rgba(24, 18, 10, 0.86);
+  border-color: rgba(24, 18, 10, 0.34);
+  background: rgba(255, 252, 246, 0.92);
+  transform: translateY(-1px);
+}
+
+.sketch-secret-masthead__close {
+  white-space: nowrap;
+}
+
+.sketch-secret-layout {
+  display: grid;
+  gap: 24px;
+}
+
+.sketch-secret-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.92fr);
+  gap: 22px;
+}
+
+.sketch-secret-hero__sheet,
+.sketch-secret-section,
+.sketch-secret-note {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid rgba(37, 28, 17, 0.24);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 254, 250, 0.94), rgba(246, 238, 227, 0.92));
+  box-shadow:
+    0 24px 64px rgba(74, 55, 34, 0.08),
+    0 8px 0 rgba(34, 25, 15, 0.05);
+}
+
+.sketch-secret-hero__sheet::before,
+.sketch-secret-section::before,
+.sketch-secret-note::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(112, 87, 56, 0.07), rgba(112, 87, 56, 0.07)) 42px 0 / 1px 100% no-repeat,
+    radial-gradient(circle at 42px 52px, rgba(121, 101, 75, 0.12) 0 5px, transparent 5px),
+    radial-gradient(circle at 42px 124px, rgba(121, 101, 75, 0.12) 0 5px, transparent 5px),
+    radial-gradient(circle at 42px 196px, rgba(121, 101, 75, 0.12) 0 5px, transparent 5px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.sketch-secret-hero__sheet {
+  padding: 38px 42px 38px 72px;
+  transform: rotate(-0.65deg);
+}
+
+.sketch-secret-hero__eyebrow,
+.sketch-secret-section__eyebrow,
+.sketch-secret-note__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(77, 60, 40, 0.5);
+}
+
+.sketch-secret-hero__title {
+  margin: 18px 0 18px;
+  max-width: 14ch;
+  font-size: clamp(2.75rem, 5.2vw, 5.45rem);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+  color: rgba(24, 18, 10, 0.92);
+}
+
+.sketch-secret-hero__lede {
+  max-width: 56ch;
+  margin: 0;
+  color: rgba(53, 41, 26, 0.72);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.sketch-secret-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.sketch-secret-note-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.sketch-secret-note {
+  padding: 26px 24px 24px 62px;
+}
+
+.sketch-secret-note--facts {
+  transform: rotate(1deg);
+}
+
+.sketch-secret-note--thoughts {
+  transform: rotate(-1.2deg);
+}
+
+.sketch-secret-facts {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-facts__row {
+  display: grid;
+  gap: 6px;
+}
+
+.sketch-secret-facts__row span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(71, 55, 36, 0.46);
+}
+
+.sketch-secret-facts__row strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(28, 21, 12, 0.82);
+}
+
+.sketch-secret-note__list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(48, 37, 23, 0.74);
+  line-height: 1.75;
+}
+
+.sketch-secret-note__list li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.sketch-secret-note__list li::before {
+  content: '//';
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(84, 63, 40, 0.48);
+}
+
+.sketch-secret-section {
+  padding: 30px 32px 34px 58px;
+}
+
+.sketch-secret-section__heading {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 420px);
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+
+.sketch-secret-section__title {
+  margin: 10px 0 0;
+  font-size: clamp(1.8rem, 2.6vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: rgba(23, 17, 10, 0.9);
+}
+
+.sketch-secret-section__note {
+  margin: 0;
+  color: rgba(60, 46, 29, 0.64);
+  font-size: 0.94rem;
+  line-height: 1.75;
+}
+
+.sketch-secret-project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sketch-secret-project-card {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  min-height: 100%;
+  padding: 24px 24px 22px;
+  border: 1.5px solid rgba(36, 27, 16, 0.18);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(246, 239, 229, 0.92));
+  box-shadow:
+    0 18px 42px rgba(74, 55, 34, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+  transform: rotate(var(--folio-tilt));
+}
+
+.sketch-secret-project-card::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 18px;
+  height: 3px;
+  background: rgba(var(--folio-accent), 0.4);
+  box-shadow: 0 8px 0 rgba(var(--folio-accent), 0.14);
+}
+
+.sketch-secret-project-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: start;
+  padding-top: 14px;
+}
+
+.sketch-secret-project-card__tag {
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(74, 57, 38, 0.48);
+}
+
+.sketch-secret-project-card__title {
+  margin: 10px 0 0;
+  font-size: 1.34rem;
+  letter-spacing: -0.04em;
+  color: rgba(25, 18, 10, 0.9);
+}
+
+.sketch-secret-project-card__pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(var(--folio-accent), 0.35);
+  box-shadow:
+    0 0 0 4px rgba(var(--folio-accent), 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.sketch-secret-project-card__summary {
+  margin: 0;
+  color: rgba(48, 37, 23, 0.76);
+  line-height: 1.78;
+}
+
+.sketch-secret-project-card__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(34, 26, 16, 0.72);
+  line-height: 1.72;
+}
+
+.sketch-secret-project-card__list li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.sketch-secret-project-card__list li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-mono);
+  color: rgba(66, 50, 32, 0.5);
+}
+
+.sketch-secret-timeline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sketch-secret-timeline__card {
+  position: relative;
+  padding: 22px 22px 22px 54px;
+  border: 1.5px solid rgba(36, 27, 16, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 251, 246, 0.84);
+  box-shadow: 0 14px 34px rgba(74, 55, 34, 0.06);
+}
+
+.sketch-secret-timeline__card::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background:
+    linear-gradient(180deg, rgba(63, 49, 31, 0.38), rgba(63, 49, 31, 0.08));
+}
+
+.sketch-secret-timeline__pid,
+.sketch-secret-timeline__period {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.sketch-secret-timeline__pid {
+  margin-bottom: 10px;
+  color: rgba(79, 61, 39, 0.44);
+}
+
+.sketch-secret-timeline__period {
+  margin-bottom: 8px;
+  color: rgba(82, 62, 39, 0.54);
+}
+
+.sketch-secret-timeline__title {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: -0.03em;
+  color: rgba(25, 18, 10, 0.88);
+}
+
+.sketch-secret-timeline__role {
+  margin: 8px 0 0;
+  color: rgba(43, 33, 22, 0.72);
+  font-weight: 600;
+}
+
+.sketch-secret-timeline__summary {
+  margin: 10px 0 0;
+  color: rgba(52, 40, 26, 0.68);
+  line-height: 1.72;
+}
+
+.sketch-secret-tool-grid,
+.sketch-secret-life-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sketch-secret-tool-card,
+.sketch-secret-life-card {
+  position: relative;
+  padding: 22px 22px 22px 26px;
+  border: 1.5px solid rgba(36, 27, 16, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 251, 246, 0.84);
+  box-shadow: 0 14px 34px rgba(74, 55, 34, 0.06);
+}
+
+.sketch-secret-tool-card::before,
+.sketch-secret-life-card::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 34px;
+  height: 1px;
+  background: rgba(70, 54, 34, 0.26);
+}
+
+.sketch-secret-tool-card__title,
+.sketch-secret-life-card__title {
+  margin: 14px 0 0;
+  font-size: 1.04rem;
+  letter-spacing: -0.03em;
+  color: rgba(24, 18, 10, 0.88);
+  text-transform: lowercase;
+}
+
+.sketch-secret-tool-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.sketch-secret-tool-card__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(36, 27, 16, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.82);
+  color: rgba(46, 36, 22, 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.sketch-secret-life-card__summary {
+  margin: 16px 0 0;
+  color: rgba(50, 38, 24, 0.7);
+  line-height: 1.76;
+}
+
+.sketch-secret-section--contact {
+  padding-right: 58px;
+}
+
+.sketch-secret-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) auto;
+  gap: 28px;
+  align-items: center;
+}
+
+.sketch-secret-contact__text {
+  margin: 16px 0 0;
+  max-width: 58ch;
+  color: rgba(52, 40, 26, 0.72);
+  line-height: 1.85;
+}
+
+.sketch-secret-contact__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.sketch-secret-cursor {
+  position: fixed;
+  z-index: 1000030;
+  pointer-events: none;
+  transform: translate(-18px, -18px);
+  transition: opacity 0.12s ease;
+}
+
+.sketch-secret-cursor::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid rgba(30, 25, 18, 0.28);
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(0.5);
+  opacity: 0;
+}
+
+.sketch-secret-cursor__shape {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  transition: transform 0.16s ease;
+}
+
+.sketch-secret-cursor__shape::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 2px solid rgba(30, 25, 18, 0.72);
+  transform: rotate(45deg);
+  background: rgba(255, 252, 245, 0.12);
+}
+
+.sketch-secret-cursor__shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(30, 25, 18, 0.48), rgba(30, 25, 18, 0.48)) center top / 1.5px 8px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.48), rgba(30, 25, 18, 0.48)) center bottom / 1.5px 8px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.48), rgba(30, 25, 18, 0.48)) left center / 8px 1.5px no-repeat,
+    linear-gradient(rgba(30, 25, 18, 0.48), rgba(30, 25, 18, 0.48)) right center / 8px 1.5px no-repeat;
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape::before {
+  border-color: rgba(86, 120, 67, 0.88);
+  background: rgba(86, 120, 67, 0.14);
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape::after {
+  background:
+    linear-gradient(rgba(86, 120, 67, 0.58), rgba(86, 120, 67, 0.58)) center top / 1.5px 8px no-repeat,
+    linear-gradient(rgba(86, 120, 67, 0.58), rgba(86, 120, 67, 0.58)) center bottom / 1.5px 8px no-repeat,
+    linear-gradient(rgba(86, 120, 67, 0.58), rgba(86, 120, 67, 0.58)) left center / 8px 1.5px no-repeat,
+    linear-gradient(rgba(86, 120, 67, 0.58), rgba(86, 120, 67, 0.58)) right center / 8px 1.5px no-repeat;
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape {
+  transform: scale(1.08);
+}
+
+.sketch-secret-cursor--clicking::before {
+  animation: sketch-secret-cursor-ring 0.34s ease-out forwards;
+}
+
+.sketch-secret-cursor--clicking .sketch-secret-cursor__shape {
+  transform: scale(0.84);
+}
+
+@keyframes sketch-secret-cursor-ring {
+  0% {
+    opacity: 0.82;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.52);
+  }
+}
+
+@keyframes sketch-secret-veil-in {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  35% {
+    opacity: 0.92;
+    backdrop-filter: blur(20px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(2px);
+  }
+}
+
+@keyframes sketch-secret-veil-out {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  40% {
+    opacity: 0.9;
+    backdrop-filter: blur(18px);
+  }
+  100% {
+    opacity: 0.08;
+    backdrop-filter: blur(1px);
+  }
+}
+
+@keyframes sketch-secret-paper-sweep-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-118%) rotate(-1.4deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 1;
+    transform: translateY(-2%) rotate(-0.35deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(118%) rotate(1.05deg);
+  }
+}
+
+@keyframes sketch-secret-paper-sweep-out {
+  0% {
+    opacity: 0;
+    transform: translateY(118%) rotate(1deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  54% {
+    opacity: 1;
+    transform: translateY(0%) rotate(0.25deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-118%) rotate(-1.3deg);
+  }
+}
+
+@keyframes sketch-secret-shell-in {
+  0% {
+    opacity: 0;
+    transform: translateY(58px) scale(0.985);
+    filter: blur(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes sketch-secret-shell-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.992);
+    filter: blur(8px);
+  }
+}
+
+/* ===== Secret Sketch Portfolio Redesign Overrides ===== */
+
+.sketch-secret-entry-canvas,
+.sketch-secret-exit-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 8;
+  cursor: none !important;
+}
+
+.sketch-secret-overlay {
+  padding: 26px;
+  background:
+    radial-gradient(circle at 15% 12%, rgba(255, 248, 234, 0.9), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(222, 197, 159, 0.24), transparent 18%),
+    radial-gradient(circle at 50% 120%, rgba(160, 133, 97, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(245, 236, 222, 0.98), rgba(233, 222, 204, 0.98));
+}
+
+.sketch-secret-overlay::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 27px,
+      rgba(122, 101, 70, 0.045) 27px 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 33px,
+      rgba(122, 101, 70, 0.022) 33px 34px
+    ),
+    radial-gradient(circle at 8% 22%, rgba(121, 99, 68, 0.08) 0 2px, transparent 2px),
+    radial-gradient(circle at 88% 72%, rgba(121, 99, 68, 0.08) 0 2px, transparent 2px);
+  opacity: 0.65;
+}
+
+.sketch-secret-overlay::after {
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 220px rgba(76, 55, 31, 0.11),
+    inset 0 0 32px rgba(255, 252, 246, 0.3);
+}
+
+.sketch-secret-shell {
+  width: min(1540px, 100%);
+  padding: 4px 8px 68px;
+}
+
+.sketch-secret-overlay--entering .sketch-secret-shell,
+.sketch-secret-overlay--exiting .sketch-secret-shell {
+  pointer-events: none;
+}
+
+.sketch-secret-masthead {
+  top: 10px;
+  grid-template-columns: auto 1fr auto;
+  gap: 18px;
+  padding: 16px 18px;
+  margin-bottom: 28px;
+  border: 1.5px solid rgba(52, 39, 24, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.92), rgba(246, 237, 222, 0.9)),
+    repeating-linear-gradient(0deg, rgba(118, 96, 65, 0.045) 0 1px, transparent 1px 24px);
+  box-shadow:
+    0 24px 80px rgba(66, 48, 27, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+    inset 0 -18px 28px rgba(98, 78, 48, 0.05);
+}
+
+.sketch-secret-masthead::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 14px;
+  height: 3px;
+  background:
+    linear-gradient(90deg, rgba(58, 44, 27, 0.34), rgba(58, 44, 27, 0.06) 24%, transparent 24% 76%, rgba(58, 44, 27, 0.06) 76%, rgba(58, 44, 27, 0.34));
+  opacity: 0.7;
+}
+
+.sketch-secret-masthead__stamp {
+  color: rgba(61, 45, 24, 0.58);
+}
+
+.sketch-secret-masthead__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sketch-secret-masthead__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px dashed rgba(78, 59, 35, 0.32);
+  border-radius: 999px;
+  color: rgba(76, 58, 35, 0.58);
+  font-family: 'Segoe Script', 'Caveat', cursive;
+  font-size: 0.9rem;
+  line-height: 1;
+  background: rgba(255, 251, 244, 0.62);
+  transform: rotate(-2.5deg);
+}
+
+.sketch-secret-layout {
+  gap: 34px;
+}
+
+.sketch-secret-hero {
+  grid-template-columns: minmax(0, 1.28fr) minmax(330px, 0.9fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.sketch-secret-sideboard {
+  display: grid;
+  gap: 18px;
+}
+
+.sketch-secret-hero__sheet,
+.sketch-secret-section,
+.sketch-secret-note {
+  overflow: visible;
+  border: 1.5px solid rgba(51, 38, 23, 0.22);
+  border-radius: 26px 24px 28px 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(244, 235, 220, 0.94)),
+    repeating-linear-gradient(0deg, rgba(115, 94, 66, 0.04) 0 1px, transparent 1px 26px);
+  box-shadow:
+    0 28px 72px rgba(72, 52, 30, 0.1),
+    0 10px 0 rgba(52, 39, 24, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.54);
+}
+
+.sketch-secret-hero__sheet::before,
+.sketch-secret-section::before,
+.sketch-secret-note::before {
+  background:
+    linear-gradient(90deg, rgba(112, 87, 56, 0.1), rgba(112, 87, 56, 0.1)) 48px 0 / 1px 100% no-repeat,
+    radial-gradient(circle at 48px 58px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    radial-gradient(circle at 48px 132px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    radial-gradient(circle at 48px 206px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 14%, transparent 82%, rgba(124, 98, 67, 0.08));
+  opacity: 0.56;
+}
+
+.sketch-secret-hero__sheet {
+  padding: 42px 42px 38px 84px;
+  transform: rotate(-0.9deg);
+}
+
+.sketch-secret-paper-tape {
+  position: absolute;
+  top: -10px;
+  width: 120px;
+  height: 34px;
+  border: 1px solid rgba(148, 125, 90, 0.22);
+  background:
+    linear-gradient(180deg, rgba(249, 237, 197, 0.82), rgba(235, 219, 182, 0.72));
+  box-shadow:
+    0 6px 18px rgba(91, 72, 43, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  opacity: 0.92;
+}
+
+.sketch-secret-paper-tape--left {
+  left: 72px;
+  transform: rotate(-7deg);
+}
+
+.sketch-secret-paper-tape--right {
+  right: 88px;
+  transform: rotate(8deg);
+}
+
+.sketch-secret-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sketch-secret-hero__stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1.5px solid rgba(123, 41, 34, 0.26);
+  border-radius: 12px;
+  color: rgba(123, 41, 34, 0.56);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  background: rgba(255, 247, 242, 0.56);
+}
+
+.sketch-secret-hero__title {
+  max-width: 12ch;
+  margin: 22px 0 16px;
+  font-size: clamp(3.3rem, 6vw, 6rem);
+  line-height: 0.92;
+}
+
+.sketch-secret-hero__lede {
+  max-width: 54ch;
+  font-size: 1.02rem;
+  line-height: 1.86;
+}
+
+.sketch-secret-hero__doodles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.sketch-secret-hero__doodle {
+  padding: 10px 14px;
+  border: 1px dashed rgba(76, 58, 35, 0.28);
+  border-radius: 14px;
+  color: rgba(70, 53, 32, 0.72);
+  font-family: 'Segoe Script', 'Caveat', cursive;
+  font-size: 1.08rem;
+  background: rgba(255, 251, 246, 0.58);
+  box-shadow: 0 10px 18px rgba(82, 61, 35, 0.05);
+}
+
+.sketch-secret-hero__doodle:nth-child(1) {
+  transform: rotate(-3deg);
+}
+
+.sketch-secret-hero__doodle:nth-child(2) {
+  transform: rotate(2.4deg);
+}
+
+.sketch-secret-hero__doodle:nth-child(3) {
+  transform: rotate(-1.4deg);
+}
+
+.sketch-secret-note {
+  padding: 26px 26px 24px 66px;
+}
+
+.sketch-secret-note--facts {
+  transform: rotate(1.1deg);
+}
+
+.sketch-secret-note--thoughts {
+  transform: rotate(-1.35deg);
+}
+
+.sketch-secret-note--kit {
+  transform: rotate(0.75deg);
+}
+
+.sketch-secret-facts__row strong {
+  line-height: 1.45;
+}
+
+.sketch-secret-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-kit-grid__item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(76, 58, 35, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 251, 245, 0.66);
+}
+
+.sketch-secret-kit-grid__item span {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(78, 60, 38, 0.46);
+}
+
+.sketch-secret-kit-grid__item strong {
+  font-size: 0.86rem;
+  color: rgba(33, 25, 15, 0.82);
+}
+
+.sketch-secret-section {
+  padding: 34px 34px 36px 64px;
+}
+
+.sketch-secret-section__heading {
+  margin-bottom: 28px;
+}
+
+.sketch-secret-section__title {
+  margin-top: 12px;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.sketch-secret-section--projects {
+  transform: rotate(0.35deg);
+}
+
+.sketch-secret-project-grid {
+  gap: 22px;
+}
+
+.sketch-secret-project-card {
+  gap: 16px;
+  padding: 28px 24px 24px;
+  border: 1.5px solid rgba(39, 29, 18, 0.2);
+  border-radius: 22px 18px 24px 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(246, 238, 225, 0.94)),
+    repeating-linear-gradient(0deg, rgba(111, 90, 61, 0.03) 0 1px, transparent 1px 21px);
+  box-shadow:
+    0 20px 46px rgba(74, 55, 34, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58);
+}
+
+.sketch-secret-project-card__sheet-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid rgba(67, 52, 32, 0.2);
+  color: rgba(65, 50, 31, 0.54);
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: rgba(255, 253, 249, 0.74);
+}
+
+.sketch-secret-project-card__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sketch-secret-project-card__fact {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(68, 52, 31, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 251, 244, 0.62);
+}
+
+.sketch-secret-project-card__fact span {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(72, 56, 36, 0.46);
+}
+
+.sketch-secret-project-card__fact strong {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(33, 25, 15, 0.78);
+}
+
+.sketch-secret-section--journey {
+  transform: rotate(-0.22deg);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(242, 233, 219, 0.94)),
+    repeating-linear-gradient(90deg, rgba(110, 88, 58, 0.055) 0 1px, transparent 1px 108px),
+    repeating-linear-gradient(0deg, rgba(110, 88, 58, 0.032) 0 1px, transparent 1px 28px);
+}
+
+.sketch-secret-timeline {
+  gap: 18px;
+}
+
+.sketch-secret-timeline__card {
+  padding: 24px 24px 22px 58px;
+  border-radius: 18px 20px 16px 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.86), rgba(247, 239, 226, 0.82));
+}
+
+.sketch-secret-timeline__track {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 3px 8px;
+  width: fit-content;
+  border: 1px dashed rgba(75, 57, 35, 0.22);
+  border-radius: 999px;
+  color: rgba(76, 58, 35, 0.54);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.sketch-secret-section--toolkit {
+  transform: rotate(0.2deg);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.95), rgba(243, 235, 224, 0.93)),
+    radial-gradient(circle at top right, rgba(232, 219, 193, 0.36), transparent 28%);
+}
+
+.sketch-secret-tool-grid {
+  gap: 20px;
+}
+
+.sketch-secret-tool-card,
+.sketch-secret-life-card {
+  border-radius: 22px 18px 20px 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(245, 237, 226, 0.92)),
+    repeating-linear-gradient(0deg, rgba(108, 87, 58, 0.03) 0 1px, transparent 1px 20px);
+}
+
+.sketch-secret-tool-card__title,
+.sketch-secret-life-card__title {
+  margin-top: 18px;
+}
+
+.sketch-secret-tool-card__note {
+  margin: 14px 0 0;
+  color: rgba(57, 43, 26, 0.65);
+  line-height: 1.72;
+}
+
+.sketch-secret-tool-card__tags {
+  margin-top: 16px;
+}
+
+.sketch-secret-tool-card__tag {
+  border-radius: 12px;
+  background: rgba(255, 252, 247, 0.92);
+}
+
+.sketch-secret-section--beyond {
+  transform: rotate(-0.28deg);
+}
+
+.sketch-secret-life-grid {
+  gap: 22px;
+}
+
+.sketch-secret-life-card {
+  padding-top: 26px;
+}
+
+.sketch-secret-life-card__caption {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid rgba(72, 56, 35, 0.18);
+  color: rgba(74, 57, 37, 0.48);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: rgba(255, 253, 249, 0.76);
+}
+
+.sketch-secret-section--contact {
+  padding-right: 34px;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.96), rgba(243, 234, 222, 0.94)),
+    radial-gradient(circle at 88% 24%, rgba(228, 210, 181, 0.26), transparent 18%);
+}
+
+.sketch-secret-contact {
+  grid-template-columns: minmax(0, 1.16fr) minmax(280px, 0.84fr);
+  align-items: stretch;
+}
+
+.sketch-secret-contact__postcard {
+  position: relative;
+  padding: 30px 30px 30px 6px;
+}
+
+.sketch-secret-contact__postcard::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  width: 84px;
+  height: 84px;
+  border: 1px dashed rgba(123, 41, 34, 0.24);
+  border-radius: 14px;
+  opacity: 0.55;
+}
+
+.sketch-secret-contact__actions {
+  align-content: start;
+  padding: 26px;
+  border: 1.5px dashed rgba(72, 56, 35, 0.24);
+  border-radius: 20px;
+  background: rgba(255, 251, 245, 0.66);
+}
+
+.sketch-secret-cursor::before {
+  border-color: rgba(57, 44, 27, 0.22);
+}
+
+.sketch-secret-cursor__shape::before {
+  border-color: rgba(57, 44, 27, 0.7);
+  background: rgba(255, 251, 244, 0.16);
+}
+
+.sketch-secret-cursor__shape::after {
+  background:
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) center top / 1.5px 8px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) center bottom / 1.5px 8px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) left center / 8px 1.5px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) right center / 8px 1.5px no-repeat;
 }
 
 /* Navbar transition */
@@ -5274,50 +7271,285 @@ html.sketchbook-returning * {
 
 /* Mobile */
 @media (max-width: 640px) {
+  .sketchbook-scene {
+    --sketch-ui-scale: 1;
+    --sketch-bottom-ui-scale: 1;
+  }
+
   .sketchbook-label {
     left: 14px;
-    bottom: 14px;
+    bottom: 88px;
     padding: 8px 12px;
+    max-width: min(220px, calc(100vw - 28px));
+    transform: none;
   }
 
   .sketch-counter {
     right: 14px;
-    bottom: 14px;
+    bottom: 88px;
     font-size: 0.62rem;
+    transform: none;
   }
 
   .sketchbook-label__text {
     font-size: 0.82rem;
   }
 
+  .sketchbook-label__sub {
+    line-height: 1.45;
+  }
+
   .sketch-cursor {
     display: none;
+  }
+
+  .sketch-secret-overlay {
+    padding: 14px;
+  }
+
+  .sketch-secret-overlay::after {
+    inset: 8px;
+    border-radius: 18px;
+  }
+
+  .sketch-secret-masthead {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    padding: 14px;
+  }
+
+  .sketch-secret-masthead__nav {
+    justify-content: start;
+  }
+
+  .sketch-secret-masthead__close {
+    width: 100%;
+  }
+
+  .sketch-secret-hero,
+  .sketch-secret-project-grid,
+  .sketch-secret-timeline,
+  .sketch-secret-tool-grid,
+  .sketch-secret-life-grid,
+  .sketch-secret-contact {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-hero__sheet,
+  .sketch-secret-note,
+  .sketch-secret-section {
+    padding-left: 54px;
+  }
+
+  .sketch-secret-hero__sheet {
+    padding-top: 30px;
+    padding-right: 24px;
+    padding-bottom: 30px;
+  }
+
+  .sketch-secret-note,
+  .sketch-secret-section {
+    padding-top: 24px;
+    padding-right: 20px;
+    padding-bottom: 24px;
+  }
+
+  .sketch-secret-section__heading {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-section--contact {
+    padding-right: 20px;
+  }
+
+  .sketch-secret-contact__actions {
+    justify-content: flex-start;
   }
 
   .sketch-controls {
     top: 14px;
     right: 14px;
+    gap: 6px;
+    transform: none;
   }
 
   .sketch-btn {
-    padding: 6px 10px;
-    font-size: 0.6rem;
+    padding: 8px 12px;
+    font-size: 0.58rem;
+  }
+
+  .sketch-btn--photo {
+    min-width: 74px;
   }
 
   .sketch-wasd-hint {
-    display: none;
+    top: 64px;
+    display: block;
+    max-width: calc(100vw - 28px);
+    padding: 6px 10px;
+    font-size: 0.55rem;
+    line-height: 1.45;
+    transform: translateX(-50%);
   }
 
   .sketch-back-btn {
     top: 14px;
     left: 14px;
+    transform: none !important;
   }
 
   .sketch-brush-controls {
     bottom: 14px;
+    left: 14px;
+    right: 14px;
+    transform: none;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .sketch-brush-controls__hideable {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .sketch-brush-slider-wrap {
+    width: min(210px, calc(100vw - 28px));
+    justify-content: space-between;
+  }
+
+  .sketch-brush-slider {
+    width: clamp(88px, 34vw, 140px);
   }
 
   .sketch-btn--brush-mode {
-    min-width: 55px;
+    min-width: 68px;
+  }
+
+  .sketch-photo-sheet {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 28px);
+    padding: 14px;
+  }
+
+  .sketch-photo-sheet__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sketch-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-photo-card {
+    transform: none;
+  }
+
+  .sketch-photo-card:nth-child(2) {
+    animation-delay: 0s;
+  }
+
+  .sketch-photo-card__actions {
+    flex-wrap: wrap;
+  }
+
+  .sketch-photo-toast {
+    width: min(280px, calc(100vw - 24px));
+    bottom: 142px;
+    text-align: center;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 640px) {
+  .sketch-secret-shell {
+    padding: 0 0 34px;
+  }
+
+  .sketch-secret-masthead {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .sketch-secret-masthead__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sketch-secret-masthead__badge {
+    justify-content: center;
+  }
+
+  .sketch-secret-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-hero__sheet,
+  .sketch-secret-note,
+  .sketch-secret-section {
+    padding: 26px 18px 22px 54px;
+    border-radius: 20px;
+    transform: none;
+  }
+
+  .sketch-secret-paper-tape {
+    width: 86px;
+    height: 28px;
+  }
+
+  .sketch-secret-paper-tape--left {
+    left: 30px;
+  }
+
+  .sketch-secret-paper-tape--right {
+    right: 30px;
+  }
+
+  .sketch-secret-hero__meta {
+    align-items: flex-start;
+  }
+
+  .sketch-secret-hero__stamp {
+    font-size: 0.5rem;
+    letter-spacing: 0.18em;
+  }
+
+  .sketch-secret-hero__title {
+    max-width: none;
+    font-size: clamp(2.5rem, 11vw, 3.5rem);
+  }
+
+  .sketch-secret-hero__doodles {
+    gap: 10px;
+  }
+
+  .sketch-secret-hero__doodle {
+    font-size: 0.94rem;
+  }
+
+  .sketch-secret-kit-grid,
+  .sketch-secret-project-card__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-project-card,
+  .sketch-secret-timeline__card,
+  .sketch-secret-tool-card,
+  .sketch-secret-life-card {
+    transform: none;
+  }
+
+  .sketch-secret-contact {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .sketch-secret-contact__postcard {
+    padding: 12px 0 0;
+  }
+
+  .sketch-secret-contact__actions {
+    padding: 18px;
+    justify-content: flex-start;
   }
 }

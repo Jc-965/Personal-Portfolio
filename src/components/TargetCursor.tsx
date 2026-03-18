@@ -21,19 +21,6 @@ const wrapperStyle = {
   transform: 'translate(-50%, -50%)',
 } as const
 
-const dotStyle = {
-  position: 'absolute',
-  left: '50%',
-  top: '50%',
-  width: 4,
-  height: 4,
-  background: '#ffffff',
-  borderRadius: '50%',
-  boxShadow: '0 0 12px rgba(0, 255, 255, 0.45)',
-  transform: 'translate(-50%, -50%)',
-  willChange: 'transform',
-} as const
-
 const cornerBaseStyle = {
   position: 'absolute',
   left: '50%',
@@ -79,7 +66,6 @@ export default function TargetCursor({
   const cursorRef = useRef<HTMLDivElement>(null)
   const cornersRef = useRef<NodeListOf<HTMLDivElement> | null>(null)
   const spinTl = useRef<gsap.core.Timeline | null>(null)
-  const dotRef = useRef<HTMLDivElement>(null)
   const targetCornerPositionsRef = useRef<{ x: number; y: number }[] | null>(null)
   const tickerFnRef = useRef<(() => void) | null>(null)
   const activeStrengthRef = useRef({ current: 0 })
@@ -112,8 +98,9 @@ export default function TargetCursor({
   useEffect(() => {
     if (isMobile || !cursorRef.current) return
 
+    const originalCursor = document.body.style.cursor
     if (hideDefaultCursor) {
-      document.body.style.setProperty('cursor', 'none', 'important')
+      document.body.style.cursor = 'none'
     }
 
     const cursor = cursorRef.current
@@ -191,7 +178,6 @@ export default function TargetCursor({
       if (!isStillOverTarget) {
         currentLeaveHandler?.()
       } else if (targetCornerPositionsRef.current && cornersRef.current) {
-        // Update corner positions when scrolling so they track the element
         const rect = activeTarget.getBoundingClientRect()
         const { borderWidth, cornerSize } = constants
         targetCornerPositionsRef.current = [
@@ -204,15 +190,26 @@ export default function TargetCursor({
     }
 
     const mouseDownHandler = () => {
-      if (!dotRef.current || !cursorRef.current) return
-      gsap.to(dotRef.current, { scale: 0.7, duration: 0.3 })
-      gsap.to(cursorRef.current, { scale: 0.9, duration: 0.2 })
+      if (!cursorRef.current) return
+      const corners = cornersRef.current ? Array.from(cornersRef.current) : []
+
+      gsap.killTweensOf(cursorRef.current)
+      if (corners.length > 0) gsap.killTweensOf(corners)
+
+      gsap.to(cursorRef.current, { scale: 0.84, duration: 0.14, ease: 'power2.out', overwrite: 'auto' })
+
+      if (corners.length > 0) {
+        gsap.fromTo(
+          corners,
+          { scale: 1 },
+          { scale: 0.78, duration: 0.14, ease: 'power2.out', yoyo: true, repeat: 1, overwrite: 'auto' },
+        )
+      }
     }
 
     const mouseUpHandler = () => {
-      if (!dotRef.current || !cursorRef.current) return
-      gsap.to(dotRef.current, { scale: 1, duration: 0.3 })
-      gsap.to(cursorRef.current, { scale: 1, duration: 0.2 })
+      if (!cursorRef.current) return
+      gsap.to(cursorRef.current, { scale: 1, duration: 0.24, ease: 'power3.out', overwrite: 'auto' })
     }
 
     const enterHandler = (e: MouseEvent) => {
@@ -358,11 +355,7 @@ export default function TargetCursor({
         cleanupTarget(activeTarget)
       }
       spinTl.current?.kill()
-      if (document.documentElement.classList.contains('has-custom-cursor')) {
-        document.body.style.setProperty('cursor', 'none', 'important')
-      } else {
-        document.body.style.removeProperty('cursor')
-      }
+      document.body.style.cursor = originalCursor
       targetCornerPositionsRef.current = null
       activeStrengthRef.current.current = 0
     }
@@ -383,8 +376,7 @@ export default function TargetCursor({
   if (isMobile) return null
 
   return (
-    <div ref={cursorRef} aria-hidden="true" style={wrapperStyle}>
-      <div ref={dotRef} style={dotStyle} />
+    <div ref={cursorRef} className="target-cursor" aria-hidden="true" style={wrapperStyle}>
       {cornerStyles.map((cornerStyle, index) => (
         <div
           key={index}

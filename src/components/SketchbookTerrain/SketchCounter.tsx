@@ -2,8 +2,15 @@ import { useState, useEffect } from 'react'
 import { ref as dbRef, get, update, increment as fbIncrement } from 'firebase/database'
 import { getFirebase } from '../../utils/firebase'
 
-export default function SketchCounter() {
+const SECRET_TRIGGER_CLICKS = 5
+
+interface SketchCounterProps {
+  onSecretTrigger?: () => void
+}
+
+export default function SketchCounter({ onSecretTrigger }: SketchCounterProps) {
   const [count, setCount] = useState<number | null>(null)
+  const [secretClicks, setSecretClicks] = useState(0)
 
   useEffect(() => {
     const db = getFirebase()
@@ -31,11 +38,44 @@ export default function SketchCounter() {
       })
   }, [])
 
+  useEffect(() => {
+    if (!onSecretTrigger || secretClicks < SECRET_TRIGGER_CLICKS) return
+    onSecretTrigger()
+    setSecretClicks(0)
+  }, [onSecretTrigger, secretClicks])
+
   if (count === null) return null
 
+  const registerSecretClick = () => {
+    if (!onSecretTrigger) return
+    setSecretClicks(prev => Math.min(prev + 1, SECRET_TRIGGER_CLICKS))
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    registerSecretClick()
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    event.stopPropagation()
+    registerSecretClick()
+  }
+
   return (
-    <div className="sketch-counter">
-      sketch #{count.toLocaleString()}
+    <div className={`sketch-counter ${secretClicks > 0 ? 'sketch-counter--arming' : ''}`}>
+      <button
+        type="button"
+        className="sketch-counter__button"
+        onPointerDown={handlePointerDown}
+        onKeyDown={handleKeyDown}
+        aria-label="Sketch number"
+      >
+        <span className="sketch-counter__label">sketch #{count.toLocaleString()}</span>
+      </button>
     </div>
   )
 }

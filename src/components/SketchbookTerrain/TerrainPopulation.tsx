@@ -503,68 +503,6 @@ function Animals({ isMobile, animalsRef, carriedRef, getDeformOffset }: {
   )
 }
 
-function River() {
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = []
-    const rand = seededRandom(99999)
-
-    let x = -60
-    let z = (rand() - 0.5) * 20
-
-    for (let i = 0; i < 75; i++) {
-      const h = getTerrainHeight(x, z)
-      points.push(new THREE.Vector3(x, Math.min(h, -0.3) + 0.15, z))
-      x += 1.65
-      z += (rand() - 0.5) * 2.8
-      z = Math.max(-60, Math.min(60, z))
-    }
-
-    const curve = new THREE.CatmullRomCurve3(points)
-    return new THREE.TubeGeometry(curve, 80, 0.6, 5, false)
-  }, [])
-
-  useEffect(() => {
-    return () => { geometry.dispose() }
-  }, [geometry])
-
-  return (
-    <mesh geometry={geometry}>
-      <meshStandardMaterial color="#3a6a90" transparent opacity={0.75} roughness={0.15} />
-    </mesh>
-  )
-}
-
-function Trail() {
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = []
-    const rand = seededRandom(11111)
-
-    let x = (rand() - 0.5) * 60
-    let z = -60
-
-    for (let i = 0; i < 75; i++) {
-      const h = getTerrainHeight(x, z)
-      points.push(new THREE.Vector3(x, h + 0.15, z))
-      z += 1.6
-      x += (rand() - 0.5) * 2.8
-      x = Math.max(-60, Math.min(60, x))
-    }
-
-    const curve = new THREE.CatmullRomCurve3(points)
-    return new THREE.TubeGeometry(curve, 75, 0.45, 4, false)
-  }, [])
-
-  useEffect(() => {
-    return () => { geometry.dispose() }
-  }, [geometry])
-
-  return (
-    <mesh geometry={geometry}>
-      <meshStandardMaterial color="#9a8a72" roughness={1.0} />
-    </mesh>
-  )
-}
-
 interface TerrainPopulationProps {
   isMobile: boolean
   getDeformOffset?: (worldX: number, worldZ: number) => number
@@ -579,8 +517,6 @@ export default function TerrainPopulation({ isMobile, getDeformOffset, animalsRe
       <Grass isMobile={isMobile} />
       <Structures isMobile={isMobile} />
       <Animals isMobile={isMobile} animalsRef={animalsRef} carriedRef={carriedRef} getDeformOffset={getDeformOffset} />
-      <River />
-      <Trail />
     </group>
   )
 }

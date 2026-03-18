@@ -11,9 +11,15 @@ interface SketchbookOverlayProps {
   onClose: () => void
   isExiting?: boolean
   onExitAnimationDone?: () => void
+  onOpenSecretPortfolio?: () => void
 }
 
-export default function SketchbookOverlay({ onClose, isExiting, onExitAnimationDone }: SketchbookOverlayProps) {
+export default function SketchbookOverlay({
+  onClose,
+  isExiting,
+  onExitAnimationDone,
+  onOpenSecretPortfolio,
+}: SketchbookOverlayProps) {
   const [phase, setPhase] = useState<Phase>('entering')
   const hasTriggeredExit = useRef(false)
 
@@ -34,12 +40,8 @@ export default function SketchbookOverlay({ onClose, isExiting, onExitAnimationD
     return () => {
       document.documentElement.classList.remove('sketchbook-mode')
       document.body.style.overflow = ''
-      if (document.documentElement.classList.contains('has-custom-cursor')) {
-        document.body.style.setProperty('cursor', 'none', 'important')
-      } else {
-        document.body.style.removeProperty('cursor')
-        document.documentElement.style.removeProperty('cursor')
-      }
+      document.body.style.removeProperty('cursor')
+      document.documentElement.style.removeProperty('cursor')
     }
   }, [])
 
@@ -68,7 +70,7 @@ export default function SketchbookOverlay({ onClose, isExiting, onExitAnimationD
 
       {(phase === 'active' || phase === 'exiting') && (
         <Suspense fallback={null}>
-          <SketchbookScene onClose={onClose} />
+          <SketchbookScene onClose={onClose} onOpenSecretPortfolio={onOpenSecretPortfolio} />
         </Suspense>
       )}
 
