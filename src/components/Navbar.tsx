@@ -63,6 +63,7 @@ export default function Navbar() {
           <a
             key={l.href}
             href={l.href}
+            data-target-cursor="off"
             className={active === l.href ? 'is-active' : ''}
             onClick={() => handleClick(l.href)}
           >

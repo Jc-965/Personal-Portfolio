@@ -18,13 +18,12 @@ const wrapperStyle = {
   pointerEvents: 'none',
   zIndex: 100000,
   mixBlendMode: 'screen',
-  transform: 'translate(-50%, -50%)',
 } as const
 
 const cornerBaseStyle = {
   position: 'absolute',
-  left: '50%',
-  top: '50%',
+  left: 0,
+  top: 0,
   width: 12,
   height: 12,
   border: '2px solid rgba(0, 255, 255, 0.95)',
@@ -35,22 +34,18 @@ const cornerBaseStyle = {
 
 const cornerStyles = [
   {
-    transform: 'translate(-150%, -150%)',
     borderRight: 'none',
     borderBottom: 'none',
   },
   {
-    transform: 'translate(50%, -150%)',
     borderLeft: 'none',
     borderBottom: 'none',
   },
   {
-    transform: 'translate(50%, 50%)',
     borderLeft: 'none',
     borderTop: 'none',
   },
   {
-    transform: 'translate(-150%, 50%)',
     borderRight: 'none',
     borderTop: 'none',
   },
@@ -69,6 +64,7 @@ export default function TargetCursor({
   const targetCornerPositionsRef = useRef<{ x: number; y: number }[] | null>(null)
   const tickerFnRef = useRef<(() => void) | null>(null)
   const activeStrengthRef = useRef({ current: 0 })
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
 
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return true
@@ -82,44 +78,26 @@ export default function TargetCursor({
 
   const constants = useMemo(() => ({ borderWidth: 2, cornerSize: 12 }), [])
 
-  const quickXRef = useRef<gsap.QuickToFunc | null>(null)
-  const quickYRef = useRef<gsap.QuickToFunc | null>(null)
-
   const moveCursor = useCallback((x: number, y: number) => {
     if (!cursorRef.current) return
-    if (!quickXRef.current || !quickYRef.current) {
-      quickXRef.current = gsap.quickTo(cursorRef.current, 'x', { duration: 0.1, ease: 'power3.out' })
-      quickYRef.current = gsap.quickTo(cursorRef.current, 'y', { duration: 0.1, ease: 'power3.out' })
-    }
-    quickXRef.current(x)
-    quickYRef.current(y)
+    gsap.set(cursorRef.current, { x, y })
   }, [])
 
   useEffect(() => {
     if (isMobile || !cursorRef.current) return
 
+    const cursor = cursorRef.current
     const originalCursor = document.body.style.cursor
+    cornersRef.current = cursor.querySelectorAll<HTMLDivElement>('.target-cursor-corner')
+
+    let activeTarget: Element | null = null
+    let resumeTimeout: ReturnType<typeof setTimeout> | null = null
+
     if (hideDefaultCursor) {
       document.body.style.cursor = 'none'
     }
 
-    const cursor = cursorRef.current
-    cornersRef.current = cursor.querySelectorAll<HTMLDivElement>('.target-cursor-corner')
-
-    let activeTarget: Element | null = null
-    let currentLeaveHandler: (() => void) | null = null
-    let resumeTimeout: ReturnType<typeof setTimeout> | null = null
-
-    const cleanupTarget = (target: Element) => {
-      if (currentLeaveHandler) {
-        target.removeEventListener('mouseleave', currentLeaveHandler)
-      }
-      currentLeaveHandler = null
-    }
-
     gsap.set(cursor, {
-      xPercent: -50,
-      yPercent: -50,
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
     })
@@ -133,15 +111,79 @@ export default function TargetCursor({
       })
     }
 
+    const getCornerResetPositions = () => {
+      const { cornerSize } = constants
+
+      return [
+        { x: -cornerSize * 1.5, y: -cornerSize * 1.5 },
+        { x: cornerSize * 0.5, y: -cornerSize * 1.5 },
+        { x: cornerSize * 0.5, y: cornerSize * 0.5 },
+        { x: -cornerSize * 1.5, y: cornerSize * 0.5 },
+      ]
+    }
+
+    const getTargetCornerPositions = (target: Element) => {
+      const rect = target.getBoundingClientRect()
+      const { borderWidth, cornerSize } = constants
+
+      return [
+        { x: rect.left - borderWidth, y: rect.top - borderWidth },
+        { x: rect.right + borderWidth - cornerSize, y: rect.top - borderWidth },
+        { x: rect.right + borderWidth - cornerSize, y: rect.bottom + borderWidth - cornerSize },
+        { x: rect.left - borderWidth, y: rect.bottom + borderWidth - cornerSize },
+      ]
+    }
+
+    const getPointerPosition = () => {
+      if (lastPointerRef.current) return lastPointerRef.current
+
+      return {
+        x: gsap.getProperty(cursorRef.current, 'x') as number,
+        y: gsap.getProperty(cursorRef.current, 'y') as number,
+      }
+    }
+
+    const scheduleSpinResume = () => {
+      if (resumeTimeout) {
+        clearTimeout(resumeTimeout)
+      }
+
+      resumeTimeout = setTimeout(() => {
+        if (!activeTarget && cursorRef.current && spinTl.current) {
+          const currentRotation = gsap.getProperty(cursorRef.current, 'rotation') as number
+          const normalizedRotation = currentRotation % 360
+
+          spinTl.current.kill()
+          spinTl.current = gsap.timeline({ repeat: -1 }).to(cursorRef.current, {
+            rotation: '+=360',
+            duration: spinDuration,
+            ease: 'none',
+          })
+
+          gsap.to(cursorRef.current, {
+            rotation: normalizedRotation + 360,
+            duration: spinDuration * (1 - normalizedRotation / 360),
+            ease: 'none',
+            onComplete: () => {
+              spinTl.current?.restart()
+            },
+          })
+        }
+
+        resumeTimeout = null
+      }, 50)
+    }
+
     createSpinTimeline()
 
     const tickerFn = () => {
-      if (!targetCornerPositionsRef.current || !cursorRef.current || !cornersRef.current) return
+      if (!cursorRef.current || !cornersRef.current || !activeTarget) return
       const strength = activeStrengthRef.current.current
       if (strength === 0) return
 
-      const cursorX = gsap.getProperty(cursorRef.current, 'x') as number
-      const cursorY = gsap.getProperty(cursorRef.current, 'y') as number
+      targetCornerPositionsRef.current = getTargetCornerPositions(activeTarget)
+
+      const { x: cursorX, y: cursorY } = getPointerPosition()
 
       Array.from(cornersRef.current).forEach((corner, i) => {
         const currentX = gsap.getProperty(corner, 'x') as number
@@ -164,28 +206,107 @@ export default function TargetCursor({
 
     tickerFnRef.current = tickerFn
 
-    const moveHandler = (e: MouseEvent) => moveCursor(e.clientX, e.clientY)
+    const deactivateTarget = (skipSpinResume = false) => {
+      if (!cornersRef.current) return
+
+      activeTarget = null
+      targetCornerPositionsRef.current = null
+      gsap.ticker.remove(tickerFnRef.current!)
+      gsap.set(activeStrengthRef.current, { current: 0, overwrite: true })
+
+      const corners = Array.from(cornersRef.current)
+      const positions = getCornerResetPositions()
+      corners.forEach((corner, index) => {
+        gsap.killTweensOf(corner)
+        gsap.to(corner, {
+          x: positions[index].x,
+          y: positions[index].y,
+          opacity: 0,
+          duration: 0.18,
+          ease: 'power3.out',
+          overwrite: 'auto',
+        })
+      })
+
+      if (!skipSpinResume) {
+        scheduleSpinResume()
+      }
+    }
+
+    const activateTarget = (target: Element) => {
+      if (!cursorRef.current || !cornersRef.current) return
+
+      if (resumeTimeout) {
+        clearTimeout(resumeTimeout)
+        resumeTimeout = null
+      }
+
+      const isStartingHover = activeTarget === null
+      activeTarget = target
+      targetCornerPositionsRef.current = getTargetCornerPositions(target)
+
+      const corners = Array.from(cornersRef.current)
+      const { x: cursorX, y: cursorY } = getPointerPosition()
+
+      if (isStartingHover) {
+        corners.forEach(corner => gsap.killTweensOf(corner))
+        gsap.killTweensOf(cursorRef.current, 'rotation')
+        spinTl.current?.pause()
+        gsap.set(cursorRef.current, { rotation: 0 })
+        gsap.to(corners, { opacity: 1, duration: 0.12, overwrite: 'auto' })
+        gsap.ticker.add(tickerFnRef.current!)
+        gsap.to(activeStrengthRef.current, {
+          current: 1,
+          duration: hoverDuration,
+          ease: 'power2.out',
+        })
+      }
+
+      corners.forEach((corner, i) => {
+        gsap.to(corner, {
+          x: targetCornerPositionsRef.current![i].x - cursorX,
+          y: targetCornerPositionsRef.current![i].y - cursorY,
+          duration: isStartingHover ? 0.2 : 0.12,
+          ease: 'power2.out',
+          overwrite: 'auto',
+        })
+      })
+    }
+
+    const resolveTargetAtPoint = (x: number, y: number) => (
+      document.elementFromPoint(x, y)?.closest(targetSelector) ?? null
+    )
+
+    const resolveTargetFromLastPoint = () => {
+      if (!lastPointerRef.current) return null
+      return resolveTargetAtPoint(lastPointerRef.current.x, lastPointerRef.current.y)
+    }
+
+    const syncTarget = (candidate: Element | null) => {
+      if (candidate) {
+        activateTarget(candidate)
+        return
+      }
+
+      if (activeTarget) {
+        deactivateTarget()
+      }
+    }
+
+    const moveHandler = (e: MouseEvent) => {
+      lastPointerRef.current = { x: e.clientX, y: e.clientY }
+      moveCursor(e.clientX, e.clientY)
+      syncTarget(resolveTargetAtPoint(e.clientX, e.clientY))
+    }
+
     const scrollHandler = () => {
-      if (!activeTarget || !cursorRef.current) return
+      syncTarget(resolveTargetFromLastPoint())
+    }
 
-      const mouseX = gsap.getProperty(cursorRef.current, 'x') as number
-      const mouseY = gsap.getProperty(cursorRef.current, 'y') as number
-      const elementUnderMouse = document.elementFromPoint(mouseX, mouseY)
-      const isStillOverTarget =
-        elementUnderMouse &&
-        (elementUnderMouse === activeTarget || elementUnderMouse.closest(targetSelector) === activeTarget)
-
-      if (!isStillOverTarget) {
-        currentLeaveHandler?.()
-      } else if (targetCornerPositionsRef.current && cornersRef.current) {
-        const rect = activeTarget.getBoundingClientRect()
-        const { borderWidth, cornerSize } = constants
-        targetCornerPositionsRef.current = [
-          { x: rect.left - borderWidth, y: rect.top - borderWidth },
-          { x: rect.right + borderWidth - cornerSize, y: rect.top - borderWidth },
-          { x: rect.right + borderWidth - cornerSize, y: rect.bottom + borderWidth - cornerSize },
-          { x: rect.left - borderWidth, y: rect.bottom + borderWidth - cornerSize },
-        ]
+    const pageLeaveHandler = () => {
+      lastPointerRef.current = null
+      if (activeTarget) {
+        deactivateTarget()
       }
     }
 
@@ -212,150 +333,33 @@ export default function TargetCursor({
       gsap.to(cursorRef.current, { scale: 1, duration: 0.24, ease: 'power3.out', overwrite: 'auto' })
     }
 
-    const enterHandler = (e: MouseEvent) => {
-      const directTarget = e.target as Element
-      const allTargets: Element[] = []
-      let current: Element | null = directTarget
-
-      while (current && current !== document.body) {
-        if (current.matches(targetSelector)) {
-          allTargets.push(current)
-        }
-        current = current.parentElement
-      }
-
-      const target = allTargets[0] || null
-      if (!target || !cursorRef.current || !cornersRef.current) return
-      if (activeTarget === target) return
-
-      if (activeTarget) {
-        cleanupTarget(activeTarget)
-      }
-      if (resumeTimeout) {
-        clearTimeout(resumeTimeout)
-        resumeTimeout = null
-      }
-
-      activeTarget = target
-
-      const corners = Array.from(cornersRef.current)
-      corners.forEach(corner => gsap.killTweensOf(corner))
-      gsap.killTweensOf(cursorRef.current, 'rotation')
-      spinTl.current?.pause()
-      gsap.set(cursorRef.current, { rotation: 0 })
-      gsap.to(corners, { opacity: 1, duration: 0.12, overwrite: 'auto' })
-
-      const rect = target.getBoundingClientRect()
-      const { borderWidth, cornerSize } = constants
-      const cursorX = gsap.getProperty(cursorRef.current, 'x') as number
-      const cursorY = gsap.getProperty(cursorRef.current, 'y') as number
-
-      targetCornerPositionsRef.current = [
-        { x: rect.left - borderWidth, y: rect.top - borderWidth },
-        { x: rect.right + borderWidth - cornerSize, y: rect.top - borderWidth },
-        { x: rect.right + borderWidth - cornerSize, y: rect.bottom + borderWidth - cornerSize },
-        { x: rect.left - borderWidth, y: rect.bottom + borderWidth - cornerSize },
-      ]
-
-      gsap.ticker.add(tickerFnRef.current!)
-      gsap.to(activeStrengthRef.current, {
-        current: 1,
-        duration: hoverDuration,
-        ease: 'power2.out',
-      })
-
-      corners.forEach((corner, i) => {
-        gsap.to(corner, {
-          x: targetCornerPositionsRef.current![i].x - cursorX,
-          y: targetCornerPositionsRef.current![i].y - cursorY,
-          duration: 0.2,
-          ease: 'power2.out',
-        })
-      })
-
-      const leaveHandler = () => {
-        gsap.ticker.remove(tickerFnRef.current!)
-        targetCornerPositionsRef.current = null
-        gsap.set(activeStrengthRef.current, { current: 0, overwrite: true })
-        activeTarget = null
-
-        if (cornersRef.current) {
-          const resetCorners = Array.from(cornersRef.current)
-          const positions = [
-            { x: -cornerSize * 1.5, y: -cornerSize * 1.5 },
-            { x: cornerSize * 0.5, y: -cornerSize * 1.5 },
-            { x: cornerSize * 0.5, y: cornerSize * 0.5 },
-            { x: -cornerSize * 1.5, y: cornerSize * 0.5 },
-          ]
-
-          gsap.killTweensOf(resetCorners)
-          const tl = gsap.timeline()
-          resetCorners.forEach((corner, index) => {
-            tl.to(
-              corner,
-              {
-                x: positions[index].x,
-                y: positions[index].y,
-                opacity: 0,
-                duration: 0.18,
-                ease: 'power3.out',
-              },
-              0,
-            )
-          })
-        }
-
-        resumeTimeout = setTimeout(() => {
-          if (!activeTarget && cursorRef.current && spinTl.current) {
-            const currentRotation = gsap.getProperty(cursorRef.current, 'rotation') as number
-            const normalizedRotation = currentRotation % 360
-
-            spinTl.current.kill()
-            spinTl.current = gsap.timeline({ repeat: -1 }).to(cursorRef.current, {
-              rotation: '+=360',
-              duration: spinDuration,
-              ease: 'none',
-            })
-
-            gsap.to(cursorRef.current, {
-              rotation: normalizedRotation + 360,
-              duration: spinDuration * (1 - normalizedRotation / 360),
-              ease: 'none',
-              onComplete: () => {
-                spinTl.current?.restart()
-              },
-            })
-          }
-          resumeTimeout = null
-        }, 50)
-
-        cleanupTarget(target)
-      }
-
-      currentLeaveHandler = leaveHandler
-      target.addEventListener('mouseleave', leaveHandler)
-    }
-
     window.addEventListener('mousemove', moveHandler)
-    window.addEventListener('mouseover', enterHandler as EventListener)
     window.addEventListener('scroll', scrollHandler, { passive: true })
     window.addEventListener('mousedown', mouseDownHandler)
     window.addEventListener('mouseup', mouseUpHandler)
+    window.addEventListener('blur', pageLeaveHandler)
+    document.addEventListener('mouseleave', pageLeaveHandler)
 
     return () => {
       if (tickerFnRef.current) {
         gsap.ticker.remove(tickerFnRef.current)
       }
       window.removeEventListener('mousemove', moveHandler)
-      window.removeEventListener('mouseover', enterHandler as EventListener)
       window.removeEventListener('scroll', scrollHandler)
       window.removeEventListener('mousedown', mouseDownHandler)
       window.removeEventListener('mouseup', mouseUpHandler)
+      window.removeEventListener('blur', pageLeaveHandler)
+      document.removeEventListener('mouseleave', pageLeaveHandler)
+      if (resumeTimeout) {
+        clearTimeout(resumeTimeout)
+      }
       if (activeTarget) {
-        cleanupTarget(activeTarget)
+        deactivateTarget(true)
       }
       spinTl.current?.kill()
-      document.body.style.cursor = originalCursor
+      if (hideDefaultCursor) {
+        document.body.style.cursor = originalCursor
+      }
       targetCornerPositionsRef.current = null
       activeStrengthRef.current.current = 0
     }

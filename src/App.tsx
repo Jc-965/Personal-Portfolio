@@ -95,9 +95,9 @@ function App() {
       <Cursor />
       {!isLoading && (
         <TargetCursor
-          targetSelector="a, button, input, textarea, [data-cursor]"
+          targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
           spinDuration={2}
-          hideDefaultCursor={false}
+          hideDefaultCursor
           parallaxOn
           hoverDuration={0.2}
         />

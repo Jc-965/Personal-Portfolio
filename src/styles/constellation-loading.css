@@ -1,0 +1,545 @@
+
+/* ============================================================================
+   CONSTELLATION
+   ============================================================================ */
+
+.constellation__stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+}
+
+.constellation__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.constellation__stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.constellation__stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.constellation__stat-divider {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.constellation__intro {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+.constellation__delete-hint {
+  color: var(--accent-red);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.constellation {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: rgba(6, 10, 20, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: crosshair;
+  margin-bottom: 16px;
+}
+
+.constellation__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.constellation__ripple {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 2px solid var(--accent-cyan);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: ripple 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    width: 120px;
+    height: 120px;
+    opacity: 0;
+  }
+}
+
+.constellation__tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.constellation__tooltip.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.constellation__tooltip-count {
+  color: var(--accent-magenta);
+  font-weight: 600;
+}
+
+.constellation__controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.constellation__color-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.constellation__color-picker button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: var(--btn-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.constellation__color-picker button:hover {
+  transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.constellation__color-picker button.active {
+  border-color: white;
+  box-shadow: 0 0 10px var(--btn-color);
+  transform: scale(1.1);
+}
+
+.constellation__message {
+  flex: 1;
+  min-width: 200px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.constellation__message::placeholder {
+  color: var(--text-muted);
+}
+
+.constellation__message:focus {
+  border-color: rgba(0, 255, 255, 0.3);
+}
+
+.constellation__message.is-error {
+  border-color: rgba(255, 51, 102, 0.5);
+}
+
+.constellation__input-wrap {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+
+.constellation__filter-error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-red);
+}
+
+/* ============================================================================
+   LOADING SCREEN
+   ============================================================================ */
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(0, 88, 112, 0.18) 0%, rgba(0, 34, 48, 0.12) 28%, rgba(0, 0, 0, 0.92) 68%, #000000 100%),
+    radial-gradient(circle at 80% 18%, rgba(0, 255, 255, 0.04) 0%, transparent 32%),
+    var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+
+.loading-screen__dither {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.4;
+  filter: brightness(0.72) contrast(1.12) saturate(1.35);
+}
+
+.loading-screen__grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+.loading-screen__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 500px;
+  padding: 0 24px;
+  pointer-events: none;
+}
+
+.loading-screen__terminal {
+  width: 100%;
+  background: rgba(6, 10, 22, 0.94);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.loading-screen__terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.loading-screen__terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.loading-screen__terminal-dot:nth-child(1) { background: #ff5f57; }
+.loading-screen__terminal-dot:nth-child(2) { background: #ffbd2e; }
+.loading-screen__terminal-dot:nth-child(3) { background: #28c840; }
+
+.loading-screen__terminal-title {
+  margin-left: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.loading-screen__terminal-body {
+  padding: 16px;
+  min-height: 165px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.loading-screen__log {
+  color: var(--text-secondary);
+}
+
+.loading-screen__log:last-of-type {
+  color: var(--accent-green);
+}
+
+.loading-screen__cursor {
+  color: var(--accent-cyan);
+  animation: blink 1s step-end infinite;
+}
+
+.loading-screen__progress-section {
+  width: 100%;
+}
+
+.loading-screen__label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.loading-screen__percent {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.loading-screen__bar {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.loading-screen__bar-fill {
+  height: 100%;
+  background: var(--accent-cyan);
+  border-radius: 1px;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+}
+
+/* ============================================================================
+   HERO - CENTERED VARIANT
+   ============================================================================ */
+
+.hero__content--centered {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero__title--centered {
+  text-align: center;
+  perspective: 1000px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero__title--centered .hero__title-line {
+  transform-style: preserve-3d;
+}
+
+.hero__description--centered {
+  text-align: center;
+  max-width: 650px;
+}
+
+.hero__cta--centered {
+  justify-content: center;
+}
+
+.hero__status--centered {
+  justify-content: center;
+}
+
+/* ============================================================================
+   3D CARD EFFECTS - Perspective containers & tilt hover
+   ============================================================================ */
+
+/* Perspective wrapper for 3D tilt cards */
+.card-3d-wrap {
+  perspective: 1000px;
+}
+
+/* Tilt container - handles the 3D rotation */
+.card-3d-tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .card-3d-wrap {
+    perspective: none;
+  }
+
+  .card-3d-tilt,
+  .magic-bento-card {
+    transform: none !important;
+    transition: none;
+    will-change: auto;
+  }
+}
+
+/* Process cards (Journey) - 3D tilt hover */
+.process-card {
+  transition: box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.3s ease;
+}
+
+.card-3d-tilt:hover .process-card {
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.45),
+    0 0 50px color-mix(in srgb, var(--process-accent) 15%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glowing border effect */
+.process-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    transparent 0%,
+    color-mix(in srgb, var(--process-accent) 30%, transparent) 50%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card-3d-tilt:hover .process-card::after {
+  opacity: 1;
+}
+
+/* Project cards - interactive 3D tilt */
+.project-card {
+  transition: box-shadow 0.4s ease, border-color 0.3s ease;
+}
+
+.card-3d-tilt:hover .project-card {
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.45),
+    0 0 60px color-mix(in srgb, var(--project-accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Glowing border effect on hover */
+.project-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    transparent 0%,
+    color-mix(in srgb, var(--project-accent) 30%, transparent) 50%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card-3d-tilt:hover .project-card::after {
+  opacity: 1;
+}
+
+/* Mosaic cards (Beyond Build) - 3D tilt hover */
+.mosaic-card {
+  transition: box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.3s ease;
+}
+
+.card-3d-tilt:hover .mosaic-card {
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.45),
+    0 0 50px color-mix(in srgb, var(--mosaic-accent) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glowing border effect */
+.mosaic-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    transparent 0%,
+    color-mix(in srgb, var(--mosaic-accent) 30%, transparent) 50%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card-3d-tilt:hover .mosaic-card::after {
+  opacity: 1;
+}
+
+/* Skill cards (Toolkit) - 3D tilt hover */
+.skill-card {
+  transition: box-shadow 0.35s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.3s ease;
+}
+
+.card-3d-tilt:hover .skill-card {
+  box-shadow:
+    0 22px 45px rgba(0, 0, 0, 0.4),
+    0 0 40px color-mix(in srgb, var(--skill-accent) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glowing border effect */
+.skill-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    transparent 0%,
+    color-mix(in srgb, var(--skill-accent) 30%, transparent) 50%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card-3d-tilt:hover .skill-card::after {
+  opacity: 1;
+}
+
+
+
