@@ -59,7 +59,7 @@ void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
   edgeLine = clamp(edgeLine, 0.0, 1.0);
 
   // --- Paper texture ---
-  vec3 paper = vec3(0.94, 0.90, 0.83);
+  vec3 paper = vec3(0.94, 0.91, 0.85);
   float grain = vnoise(uv * 400.0) * 0.018;
   paper -= grain;
   // Subtle fiber texture
@@ -74,9 +74,9 @@ void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
   // --- Colored pencil fill ---
   float lum = dot(sceneColor.rgb, vec3(0.299, 0.587, 0.114));
   // Boost saturation for colored pencil pop
-  vec3 saturated = mix(vec3(lum), sceneColor.rgb, 1.35);
+  vec3 saturated = mix(vec3(lum), sceneColor.rgb, 1.24);
   // Keep colors bright — pencil on paper look
-  vec3 pencilFill = saturated * 0.88 + 0.12;
+  vec3 pencilFill = saturated * 0.9 + 0.1;
 
   // --- Pencil stroke texture (colored pencil grain) ---
   vec2 screenPx = uv * uResolution;
@@ -94,18 +94,24 @@ void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
   pencilFill = mix(pencilFill, pencilFill * 0.92, hatch2 * hatchAmount * 0.5);
 
   // --- Blend fill with paper ---
-  // Only sky/far background bleeds to paper; terrain and objects keep their color
-  float isBackground = smoothstep(0.72, 0.92, lum) * (1.0 - smoothstep(0.0, 0.2, edge));
-  vec3 result = mix(pencilFill, paper, isBackground * 0.5);
+  // Preserve mist, water blues, and summit whites so the distance does not flatten back to paper white
+  float isBackground = smoothstep(0.66, 0.94, lum) * (1.0 - smoothstep(0.0, 0.18, edge));
+  float waterBias = smoothstep(0.03, 0.18, sceneColor.b - max(sceneColor.r, sceneColor.g) * 0.9);
+  float snowBias = smoothstep(0.8, 0.96, min(sceneColor.r, min(sceneColor.g, sceneColor.b)));
+  vec3 skyPaperTint = mix(paper, vec3(0.84, 0.89, 0.9), 0.42);
+  vec3 skyPaper = mix(skyPaperTint, sceneColor.rgb, 0.84);
+  vec3 result = mix(pencilFill, skyPaper, isBackground * 0.34);
+  result = mix(result, sceneColor.rgb, isBackground * 0.08 + waterBias * 0.12 + snowBias * 0.08);
+  result = mix(result, result * vec3(0.985, 1.0, 1.02), smoothstep(0.56, 0.92, lum) * 0.14);
 
   // --- Draw pencil outlines ---
   vec3 inkColor = vec3(0.18, 0.15, 0.12);
-  result = mix(result, inkColor, edgeLine * 0.72);
+  result = mix(result, inkColor, edgeLine * 0.66);
 
   // --- Gentle vignette ---
   vec2 vigUv = uv * (1.0 - uv);
   float vig = pow(vigUv.x * vigUv.y * 16.0, 0.08);
-  result = mix(result, result * vig, 0.4);
+  result = mix(result, result * vig, 0.28);
 
   // --- Scroll transition ---
   vec3 finalColor = mix(sceneColor.rgb, result, uScrollProgress);

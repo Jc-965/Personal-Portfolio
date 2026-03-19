@@ -11,6 +11,7 @@ interface TerrainProps {
   scrollProgress: React.RefObject<number>
   meshRef?: React.RefObject<THREE.Mesh | null>
   brushEnabled?: boolean
+  brushActiveRef?: React.RefObject<boolean>
   brushMode?: BrushMode
   brushStrength?: number
   deformation: {
@@ -20,7 +21,16 @@ interface TerrainProps {
   }
 }
 
-export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMeshRef, brushEnabled = true, brushMode = 'raise', brushStrength = 0.3, deformation }: TerrainProps) {
+export default function Terrain({
+  mouseRef,
+  scrollProgress,
+  meshRef: externalMeshRef,
+  brushEnabled = true,
+  brushActiveRef,
+  brushMode = 'raise',
+  brushStrength = 0.3,
+  deformation,
+}: TerrainProps) {
   const internalMeshRef = useRef<THREE.Mesh>(null)
   const { raycaster, camera } = useThree()
 
@@ -55,7 +65,13 @@ export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMes
     deformation.update()
 
     const now = clock.getElapsedTime()
-    if (brushEnabled && mouseRef.current?.active && now - lastRaycast.current > 0.016 && internalMeshRef.current) {
+    if (
+      brushEnabled &&
+      (brushActiveRef?.current ?? true) &&
+      mouseRef.current?.active &&
+      now - lastRaycast.current > 0.016 &&
+      internalMeshRef.current
+    ) {
       lastRaycast.current = now
       _mouseVec.current.set(
         mouseRef.current.x * 2 - 1,
@@ -71,7 +87,7 @@ export default function Terrain({ mouseRef, scrollProgress, meshRef: externalMes
 
   return (
     <mesh ref={internalMeshRef} rotation={[-Math.PI / 2, 0, 0]} material={material}>
-      <planeGeometry args={[140, 140, 220, 220]} />
+      <planeGeometry args={[124, 124, 148, 148]} />
     </mesh>
   )
 }

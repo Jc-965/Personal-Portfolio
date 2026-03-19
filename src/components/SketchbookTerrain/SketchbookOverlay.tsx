@@ -12,6 +12,7 @@ interface SketchbookOverlayProps {
   isExiting?: boolean
   onExitAnimationDone?: () => void
   onOpenSecretPortfolio?: () => void
+  showTutorialOnStart?: boolean
 }
 
 export default function SketchbookOverlay({
@@ -19,6 +20,7 @@ export default function SketchbookOverlay({
   isExiting,
   onExitAnimationDone,
   onOpenSecretPortfolio,
+  showTutorialOnStart = false,
 }: SketchbookOverlayProps) {
   const [phase, setPhase] = useState<Phase>('entering')
   const hasTriggeredExit = useRef(false)
@@ -70,7 +72,11 @@ export default function SketchbookOverlay({
 
       {(phase === 'active' || phase === 'exiting') && (
         <Suspense fallback={null}>
-          <SketchbookScene onClose={onClose} onOpenSecretPortfolio={onOpenSecretPortfolio} />
+          <SketchbookScene
+            onClose={onClose}
+            onOpenSecretPortfolio={onOpenSecretPortfolio}
+            showTutorialOnStart={showTutorialOnStart}
+          />
         </Suspense>
       )}
 

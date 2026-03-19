@@ -6,9 +6,10 @@ const SECRET_TRIGGER_CLICKS = 5
 
 interface SketchCounterProps {
   onSecretTrigger?: () => void
+  className?: string
 }
 
-export default function SketchCounter({ onSecretTrigger }: SketchCounterProps) {
+export default function SketchCounter({ onSecretTrigger, className = '' }: SketchCounterProps) {
   const [count, setCount] = useState<number | null>(null)
   const [secretClicks, setSecretClicks] = useState(0)
 
@@ -66,15 +67,15 @@ export default function SketchCounter({ onSecretTrigger }: SketchCounterProps) {
   }
 
   return (
-    <div className={`sketch-counter ${secretClicks > 0 ? 'sketch-counter--arming' : ''}`}>
+    <div className={`sketch-counter ${className}`.trim()}>
       <button
         type="button"
         className="sketch-counter__button"
         onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
-        aria-label="Sketch number"
+        aria-label="Field folio number"
       >
-        <span className="sketch-counter__label">sketch #{count.toLocaleString()}</span>
+        <span className="sketch-counter__label">field folio #{count.toLocaleString()}</span>
       </button>
     </div>
   )

@@ -18,18 +18,18 @@ const notebookFacts = [
 const designNotes = [
   'I care about software that feels intentional, not generic.',
   'The strongest projects here solve a practical problem first and then earn their style.',
-  'This hidden folio is the same portfolio re-drafted as paper, graphite, and margin notes.',
+  'This folio reads like a field notebook lifted from the sketch terrain after walking the site.',
 ]
 
 const fieldKit = [
-  { label: 'paper mode', value: 'draft fast, refine slow' },
+  { label: 'notebook mode', value: 'draft in the field, refine at the desk' },
   { label: 'favorite surface', value: 'product systems' },
   { label: 'default tool', value: 'mobile + full-stack' },
   { label: 'quality bar', value: 'useful before flashy' },
 ]
 
 const marginFragments = [
-  'ship the useful thing first',
+  'follow the ridge to the notes',
   'tape the idea to the wall',
   'make the system readable',
 ]
@@ -291,7 +291,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
       {(phase === 'active' || phase === 'exiting') && (
       <div className="sketch-secret-shell">
         <header className="sketch-secret-masthead">
-          <span className="sketch-secret-masthead__stamp">hidden folio / unlocked from sketchbook</span>
+          <span className="sketch-secret-masthead__stamp">field notebook / lifted from the graphite forest</span>
           <nav className="sketch-secret-masthead__nav" aria-label="Sketch portfolio sections">
             <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-projects')}>projects</button>
             <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-journey')}>journey</button>
@@ -300,9 +300,9 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
             <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-contact')}>contact</button>
           </nav>
           <div className="sketch-secret-masthead__actions">
-            <span className="sketch-secret-masthead__badge">paper pass</span>
+            <span className="sketch-secret-masthead__badge">terrain notes</span>
             <button className="sketch-btn sketch-secret-masthead__close" type="button" onClick={requestClose}>
-              return to sketch
+              return to ridge
             </button>
           </div>
         </header>
@@ -313,19 +313,20 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
               <span className="sketch-secret-paper-tape sketch-secret-paper-tape--left" aria-hidden="true" />
               <span className="sketch-secret-paper-tape sketch-secret-paper-tape--right" aria-hidden="true" />
               <div className="sketch-secret-hero__meta">
-                <span className="sketch-secret-hero__eyebrow">Jesse Chen // Carnegie Mellon SCS</span>
-                <span className="sketch-secret-hero__stamp">folio unlocked</span>
+                <span className="sketch-secret-hero__eyebrow">Jesse Chen // field notebook recovered from the sketch terrain</span>
+                <span className="sketch-secret-hero__stamp">notes unsealed</span>
               </div>
               <h1 className="sketch-secret-hero__title">
-                Building technology that still feels drafted by hand.
+                A field notebook pulled from the graphite forest.
               </h1>
               <p className="sketch-secret-hero__lede">
                 First-year CS student focused on products that solve meaningful problems without losing personality.
-                This is the portfolio re-rendered as margin notes, taped-up sheets, and a more obsessive sketch language.
+                The public site is the clean overlook. This hidden pass is the terrain archive underneath it:
+                taped sheets, margin notes, and the projects reframed like observations taken in the field.
               </p>
               <div className="sketch-secret-hero__actions">
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-projects')}>browse project sheets</button>
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-journey')}>read the build log</button>
+                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-projects')}>open project sheets</button>
+                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-journey')}>follow the build log</button>
               </div>
               <div className="sketch-secret-hero__doodles" aria-hidden="true">
                 {marginFragments.map(fragment => (
@@ -379,7 +380,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                 <h2 className="sketch-secret-section__title">Selected builds</h2>
               </div>
               <p className="sketch-secret-section__note">
-                Products, systems, and interactive work pulled into a more paper-heavy archive view.
+                Products, systems, and interactive work refiled as pages from the notebook hidden in the terrain.
               </p>
             </div>
 
@@ -429,7 +430,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                 <h2 className="sketch-secret-section__title">Journey</h2>
               </div>
               <p className="sketch-secret-section__note">
-                A chronological strip of the teams, products, and systems shaping how I build.
+                A chronological trail of the teams, products, and systems shaping how I build.
               </p>
             </div>
 
@@ -454,7 +455,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                 <h2 className="sketch-secret-section__title">Toolkit</h2>
               </div>
               <p className="sketch-secret-section__note">
-                The stack behind the sketches: languages, frameworks, and systems that keep the work grounded.
+                The stack packed into the field bag: languages, frameworks, and systems that keep the work grounded.
               </p>
             </div>
 
@@ -480,7 +481,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                 <h2 className="sketch-secret-section__title">Beyond the build</h2>
               </div>
               <p className="sketch-secret-section__note">
-                Leadership, performance, and community work that still shows up in how I collaborate.
+                Leadership, performance, and community work that still shows up in how I navigate teams.
               </p>
             </div>
 
@@ -499,10 +500,10 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
             <div className="sketch-secret-contact">
               <article className="sketch-secret-contact__postcard">
                 <span className="sketch-secret-section__eyebrow">contact + exit</span>
-                <h2 className="sketch-secret-section__title">Leave a note or head back to the terrain</h2>
+                <h2 className="sketch-secret-section__title">Pack the notebook away or step back into the terrain</h2>
                 <p className="sketch-secret-contact__text">
-                  The public portfolio stays clean and polished. This one is the rougher graphite pass underneath it.
-                  Reach out through the usual channels, or drop back into sketch and keep sculpting.
+                  The public portfolio stays like the overlook. This one is the rougher notebook tucked underneath it.
+                  Reach out through the usual channels, or close the folio and head back to the hills.
                 </p>
               </article>
 
@@ -519,7 +520,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                   </a>
                 ))}
                 <button className="sketch-btn" type="button" onClick={requestClose}>
-                  back to terrain
+                  return to terrain
                 </button>
               </div>
             </div>
