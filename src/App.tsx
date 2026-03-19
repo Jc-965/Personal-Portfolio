@@ -19,20 +19,23 @@ function App() {
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
   const [secretPortfolioOpen, setSecretPortfolioOpen] = useState(false)
   const [hasSeenSketchbook, setHasSeenSketchbook] = useState(false)
+  const [showSketchbookTutorial, setShowSketchbookTutorial] = useState(false)
   const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
   const returnTimerRef = useRef<number | null>(null)
   const onLoadingComplete = useCallback(() => setIsLoading(false), [])
 
   const openSketchbook = useCallback(() => {
+    const seen = hasSeenSketchbook || localStorage.getItem('sketchbook-visited') === '1'
     setIsSketchbookReturning(false)
     if (returnTimerRef.current !== null) {
       window.clearTimeout(returnTimerRef.current)
       returnTimerRef.current = null
     }
+    setShowSketchbookTutorial(!seen)
     setHasSeenSketchbook(true)
     localStorage.setItem('sketchbook-visited', '1')
     setSketchbookOpen(true)
-  }, [])
+  }, [hasSeenSketchbook])
   const openSecretPortfolio = useCallback(() => {
     setSecretPortfolioOpen(true)
   }, [])
@@ -133,6 +136,7 @@ function App() {
             isExiting={sketchbookExiting}
             onExitAnimationDone={onExitAnimationDone}
             onOpenSecretPortfolio={openSecretPortfolio}
+            showTutorialOnStart={showSketchbookTutorial}
           />
         </Suspense>
       )}

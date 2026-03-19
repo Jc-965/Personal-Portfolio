@@ -6,7 +6,7 @@ const DEFORM_SIZE = 128
 export const DEFAULT_DECAY_AMOUNT = 0.5
 const MAX_DECAY_STEP = 0.01
 const ENCODE_SCALE = 12.8
-const TERRAIN_WORLD_SIZE = 140
+const TERRAIN_WORLD_SIZE = 124
 const TERRAIN_HALF_SIZE = TERRAIN_WORLD_SIZE * 0.5
 const DEFORM_WORLD_STRENGTH = 5.0
 
@@ -230,8 +230,8 @@ export function useTerrainDeformation({
   }, [])
 
   const getDeformOffset = useCallback((worldX: number, worldZ: number): number => {
-    const u = (worldX + 70) / 140
-    const v = (-worldZ + 70) / 140
+    const u = (worldX + TERRAIN_HALF_SIZE) / TERRAIN_WORLD_SIZE
+    const v = (-worldZ + TERRAIN_HALF_SIZE) / TERRAIN_WORLD_SIZE
     if (u < 0 || u > 1 || v < 0 || v > 1) return 0
     const px = Math.floor(u * (DEFORM_SIZE - 1))
     const py = Math.floor(v * (DEFORM_SIZE - 1))

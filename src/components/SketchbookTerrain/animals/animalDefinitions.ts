@@ -133,34 +133,38 @@ export function createTasmanianDevilGeometry(): THREE.BufferGeometry {
 // CMU Scotty Terrier: boxy body, distinctive beard, perky ears, short legs
 export function createScottyGeometry(): THREE.BufferGeometry {
   return mergeGeos([
-    box(0, 0.3, 0, 0.65, 0.35, 0.3),       // boxy body
-    box(-0.1, 0.24, 0, 0.4, 0.22, 0.32),    // hindquarters
-    box(0.32, 0.38, 0, 0.3, 0.28, 0.25),    // head
-    box(0.48, 0.32, 0, 0.14, 0.22, 0.2),    // beard/muzzle
-    sphere(0.56, 0.38, 0, 0.04, 3),          // nose
-    sphere(0.38, 0.48, 0.08, 0.03, 3),       // eye R
-    sphere(0.38, 0.48, -0.08, 0.03, 3),      // eye L
-    // Short stubby legs
-    cylinder(-0.18, 0.06, 0.1, 0.05, 0.18),
-    cylinder(-0.18, 0.06, -0.1, 0.05, 0.18),
-    cylinder(0.18, 0.06, 0.1, 0.05, 0.18),
-    cylinder(0.18, 0.06, -0.1, 0.05, 0.18),
-    // Paws
-    box(-0.18, -0.02, 0.1, 0.07, 0.04, 0.06),
-    box(-0.18, -0.02, -0.1, 0.07, 0.04, 0.06),
-    box(0.18, -0.02, 0.1, 0.07, 0.04, 0.06),
-    box(0.18, -0.02, -0.1, 0.07, 0.04, 0.06),
-    // Perky triangular ears
-    box(0.3, 0.58, 0.08, 0.05, 0.12, 0.05),
-    box(0.3, 0.58, -0.08, 0.05, 0.12, 0.05),
-    // Tail (upright, curved)
-    cylinder(-0.32, 0.45, 0, 0.03, 0.22),
-    sphere(-0.32, 0.57, 0, 0.035, 3),        // tail tip
-    // Eyebrows (bushier)
-    box(0.42, 0.48, 0.06, 0.08, 0.04, 0.05),
-    box(0.42, 0.48, -0.06, 0.08, 0.04, 0.05),
-    // Collar
-    box(0.22, 0.36, 0, 0.06, 0.06, 0.28),
+    box(-0.02, 0.33, 0, 0.74, 0.34, 0.32),   // long barrel body
+    box(-0.18, 0.28, 0, 0.32, 0.2, 0.34),    // rear tuck
+    box(0.14, 0.31, 0, 0.3, 0.22, 0.3),      // chest
+    sphere(-0.22, 0.38, 0, 0.12, 4),         // haunch volume
+    sphere(0.16, 0.39, 0, 0.11, 4),          // shoulder volume
+    box(0.32, 0.46, 0, 0.31, 0.28, 0.24),    // skull
+    box(0.48, 0.41, 0, 0.18, 0.12, 0.16),    // upper muzzle
+    box(0.46, 0.31, 0, 0.22, 0.15, 0.21),    // lower jaw + beard core
+    box(0.38, 0.24, 0.09, 0.12, 0.11, 0.07), // beard fringe R
+    box(0.38, 0.24, -0.09, 0.12, 0.11, 0.07),// beard fringe L
+    sphere(0.57, 0.42, 0, 0.045, 4),         // nose
+    sphere(0.39, 0.5, 0.085, 0.03, 3),       // eye R
+    sphere(0.39, 0.5, -0.085, 0.03, 3),      // eye L
+    box(0.3, 0.54, 0.09, 0.12, 0.035, 0.05), // eyebrow R
+    box(0.3, 0.54, -0.09, 0.12, 0.035, 0.05),// eyebrow L
+    box(0.22, 0.63, 0.11, 0.06, 0.17, 0.04), // ear R
+    box(0.22, 0.63, -0.11, 0.06, 0.17, 0.04),// ear L
+    box(0.14, 0.39, 0, 0.05, 0.08, 0.28),    // collar
+    sphere(0.02, 0.18, 0.12, 0.08, 4),       // front shoulder fluff R
+    sphere(0.02, 0.18, -0.12, 0.08, 4),      // front shoulder fluff L
+    sphere(-0.18, 0.16, 0.12, 0.08, 4),      // rear thigh R
+    sphere(-0.18, 0.16, -0.12, 0.08, 4),     // rear thigh L
+    cylinder(0.05, 0.07, 0.12, 0.048, 0.2),  // front leg R
+    cylinder(0.05, 0.07, -0.12, 0.048, 0.2), // front leg L
+    cylinder(-0.2, 0.07, 0.12, 0.05, 0.2),   // rear leg R
+    cylinder(-0.2, 0.07, -0.12, 0.05, 0.2),  // rear leg L
+    box(0.05, -0.03, 0.12, 0.1, 0.04, 0.08), // paw R front
+    box(0.05, -0.03, -0.12, 0.1, 0.04, 0.08),// paw L front
+    box(-0.2, -0.03, 0.12, 0.1, 0.04, 0.08), // paw R rear
+    box(-0.2, -0.03, -0.12, 0.1, 0.04, 0.08),// paw L rear
+    cylinder(-0.35, 0.47, 0, 0.03, 0.24),    // upright tail
+    sphere(-0.35, 0.6, 0, 0.04, 3),          // tail tip
   ])
 }
 

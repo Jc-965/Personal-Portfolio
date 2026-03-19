@@ -1,11 +1,17 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
-import SketchbookCanvas, { type SketchbookCanvasCaptureSet, type SketchbookCanvasHandle } from './SketchbookCanvas'
+import SketchbookCanvas, {
+  type SketchbookCanvasCaptureSet,
+  type SketchbookCanvasHandle,
+  type SketchbookInteractionMode,
+} from './SketchbookCanvas'
 import SketchCounter from './SketchCounter'
+import SketchbookTutorial from './SketchbookTutorial'
 import useTouchDevice from '../../hooks/useTouchDevice'
 
 interface SketchbookSceneProps {
   onClose: () => void
   onOpenSecretPortfolio?: () => void
+  showTutorialOnStart?: boolean
 }
 
 type CaptureVariant = keyof SketchbookCanvasCaptureSet
@@ -37,12 +43,19 @@ const createCaptureFilename = (variant: CaptureVariant) => {
   return `sketchbook-${variant}-${stamp}.png`
 }
 
-export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: SketchbookSceneProps) {
+export default function SketchbookScene({
+  onClose,
+  onOpenSecretPortfolio,
+  showTutorialOnStart = false,
+}: SketchbookSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<SketchbookCanvasHandle | null>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
+  const [interactionMode, setInteractionMode] = useState<SketchbookInteractionMode>('sculpt')
   const [cursorState, setCursorState] = useState<'default' | 'grab' | 'grabbing'>('default')
   const [cursorClicking, setCursorClicking] = useState(false)
+  const [cursorOverUi, setCursorOverUi] = useState(false)
+  const [tutorialOpen, setTutorialOpen] = useState(showTutorialOnStart)
   const [inkSplats, setInkSplats] = useState<{ id: number; x: number; y: number; kind: 'ambient' | 'pick' | 'drop' }[]>([])
   const splatIdRef = useRef(0)
   const clickResetRef = useRef<number | null>(null)
@@ -52,6 +65,8 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
   const [captureStillImage, setCaptureStillImage] = useState<string | null>(null)
   const [selectedCapture, setSelectedCapture] = useState<CaptureVariant>('current')
   const [captureNotice, setCaptureNotice] = useState('')
+  const [sculptEnabled, setSculptEnabled] = useState(false)
+  const [explorePointerLocked, setExplorePointerLocked] = useState(false)
   const isTouchDevice = useTouchDevice()
 
   const spawnSplat = useCallback((x: number, y: number, kind: 'ambient' | 'pick' | 'drop') => {
@@ -62,26 +77,47 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
     }, 900)
   }, [])
 
+  const setCursorPosition = useCallback((clientX: number, clientY: number) => {
+    if (!cursorRef.current) return
+    cursorRef.current.style.left = `${clientX}px`
+    cursorRef.current.style.top = `${clientY}px`
+    cursorRef.current.style.opacity = '1'
+  }, [])
+
+  const centerCursor = useCallback(() => {
+    setCursorPosition(window.innerWidth * 0.5, window.innerHeight * 0.5)
+  }, [setCursorPosition])
+
+  const isSketchCursorUiTarget = useCallback((target: EventTarget | null) => {
+    const element = target instanceof Element ? target : null
+    return Boolean(
+      element?.closest(
+        '.sketch-tutorial, .sketch-tutorial-shell, .sketch-tutorial-backdrop, .sketch-ui-surface, .sketch-back-btn, .sketch-btn, .sketch-photo-sheet, .sketch-photo-sheet-backdrop, .sketch-counter, .sketch-counter__button, .sketch-photo-card__frame, button, input, a, [role="button"]',
+      ),
+    )
+  }, [])
+
   // Custom cursor tracking
   const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isTouchDevice || !cursorRef.current) return
-    cursorRef.current.style.left = `${e.clientX}px`
-    cursorRef.current.style.top = `${e.clientY}px`
-    cursorRef.current.style.opacity = '1'
-  }, [isTouchDevice])
+    if (isTouchDevice) return
+    setCursorPosition(e.clientX, e.clientY)
+    const nextCursorOverUi = isSketchCursorUiTarget(e.target)
+    setCursorOverUi(current => (current === nextCursorOverUi ? current : nextCursorOverUi))
+  }, [isSketchCursorUiTarget, isTouchDevice, setCursorPosition])
 
   const onMouseLeave = useCallback(() => {
     if (isTouchDevice) return
     if (cursorRef.current) cursorRef.current.style.opacity = '0'
+    setCursorOverUi(false)
   }, [isTouchDevice])
 
   // Click effect — ink splat
   const onClick = useCallback((e: React.MouseEvent) => {
-    if (captureState !== 'idle') return
+    if (captureState !== 'idle' || interactionMode !== 'sculpt' || !sculptEnabled) return
     // Don't splat on buttons
-    if ((e.target as HTMLElement).closest('.sketch-btn, .sketch-back-btn, .sketch-controls, .sketch-photo-sheet, .sketch-counter, .sketch-counter__button')) return
+    if ((e.target as HTMLElement).closest('.sketch-ui-surface, .sketch-btn, .sketch-back-btn, .sketch-photo-sheet, .sketch-counter, .sketch-counter__button')) return
     spawnSplat(e.clientX, e.clientY, 'ambient')
-  }, [captureState, spawnSplat])
+  }, [captureState, interactionMode, sculptEnabled, spawnSplat])
 
   // Cursor state callback from canvas (for animal hovering)
   const onCursorChange = useCallback((state: 'default' | 'grab' | 'grabbing') => {
@@ -111,6 +147,22 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (interactionMode === 'sculpt' && sculptEnabled) return
+    setCursorState('default')
+    setCursorClicking(false)
+  }, [interactionMode, sculptEnabled])
+
+  useEffect(() => {
+    setTutorialOpen(showTutorialOnStart)
+  }, [showTutorialOnStart])
+
+  useEffect(() => {
+    if (isTouchDevice || !explorePointerLocked || interactionMode !== 'explore') return
+    setCursorOverUi(false)
+    centerCursor()
+  }, [centerCursor, explorePointerLocked, interactionMode, isTouchDevice])
 
   // Prevent browser drag/select that causes default cursor to flash
   useEffect(() => {
@@ -202,13 +254,25 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
       setCursorClicking(false)
       clickResetRef.current = null
     }, 220)
-  }, [isTouchDevice])
+  }, [interactionMode, isTouchDevice, sculptEnabled])
+
+  const uiToggleLabel = uiHidden ? 'show ui' : 'hide ui'
+  const allowNativeExploreCursor = interactionMode === 'explore' && !explorePointerLocked
+  const helpText = interactionMode === 'explore'
+    ? (isTouchDevice
+        ? 'drag look · walk the field'
+        : explorePointerLocked
+          ? 'move mouse look · wasd walk · z/c tilt · esc cursor'
+          : 'cursor free · click field to look')
+    : sculptEnabled
+      ? (isTouchDevice ? 'drag terrain · pinch zoom · tap explore' : 'drag terrain · scroll zoom · z/c tilt')
+      : (isTouchDevice ? 'drag view · tap sculpt on to edit' : 'drag view · scroll zoom · z/c tilt')
 
   return (
     <div
       ref={containerRef}
-      className={`sketchbook-scene ${visible ? 'sketchbook-scene--visible' : ''}`}
-      style={{ cursor: 'none' }}
+      className={`sketchbook-scene sketchbook-scene--${interactionMode} ${allowNativeExploreCursor ? 'sketchbook-scene--cursor-free' : ''} ${visible ? 'sketchbook-scene--visible' : ''}`}
+      style={{ cursor: allowNativeExploreCursor ? 'auto' : 'none' }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
       onMouseDown={triggerCursorClick}
@@ -218,27 +282,42 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
         ref={canvasRef}
         onCursorChange={onCursorChange}
         onInteraction={onInteraction}
+        onInteractionModeChange={setInteractionMode}
+        onSculptEnabledChange={setSculptEnabled}
+        onExplorePointerLockChange={setExplorePointerLocked}
         uiHidden={uiHidden}
-        onToggleUI={() => setUiHidden(h => !h)}
-        onCaptureRequest={onCaptureRequest}
-        captureBusy={captureState === 'capturing'}
+        interactionBlocked={tutorialOpen}
       />
 
-      <div className={`sketch-ui-layer ${uiHidden ? 'sketch-ui-layer--hidden' : ''}`}>
-        <SketchCounter onSecretTrigger={onOpenSecretPortfolio} />
-
-        <div className="sketchbook-label">
-          <span className="sketchbook-label__text">sketchbook</span>
-          <span className="sketchbook-label__sub">
-            {isTouchDevice
-              ? 'drag to look or sculpt · pinch to zoom · tap animals'
-              : 'wasd to move · scroll to zoom · click animals'}
-          </span>
-        </div>
-
-        <button className="sketch-btn sketch-back-btn" onClick={onClose}>
-          &larr; back to portfolio
+      <div className="sketch-ui-toggle">
+        <button
+          className="sketch-btn sketch-btn--hide-ui"
+          onClick={() => setUiHidden(hidden => !hidden)}
+          title={uiToggleLabel}
+        >
+          {uiToggleLabel}
         </button>
+      </div>
+
+      <button className={`sketch-btn sketch-back-btn ${uiHidden ? 'sketch-ui-hidden' : ''}`} onClick={onClose}>
+        &larr; back to portfolio
+      </button>
+
+      <div className={`sketch-photo-stack sketch-ui-surface ${uiHidden ? 'sketch-photo-stack--hidden' : ''}`}>
+        <button
+          className="sketch-btn sketch-btn--photo"
+          onClick={onCaptureRequest}
+          disabled={captureState === 'capturing'}
+          title="Capture the current view and a recommended angle"
+        >
+          {captureState === 'capturing' ? 'developing' : 'photo'}
+        </button>
+        <SketchCounter className="sketch-photo-stack__counter" onSecretTrigger={onOpenSecretPortfolio} />
+      </div>
+
+      <div className={`sketch-world-help sketch-ui-surface ${uiHidden ? 'sketch-world-help--hidden' : ''}`}>
+        <span className="sketch-world-help__title">sketchbook</span>
+        <span className="sketch-world-help__body">{helpText}</span>
       </div>
 
       {captureState !== 'idle' && (
@@ -319,6 +398,10 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
         </div>
       )}
 
+      {tutorialOpen && (
+        <SketchbookTutorial onClose={() => setTutorialOpen(false)} />
+      )}
+
       {/* Ink splat effects */}
       {inkSplats.map(s => (
         <div
@@ -329,10 +412,10 @@ export default function SketchbookScene({ onClose, onOpenSecretPortfolio }: Sket
       ))}
 
       {/* Custom geometric cursor */}
-      {!isTouchDevice && (
+      {!isTouchDevice && interactionMode !== 'explore' && (
         <div
           ref={cursorRef}
-          className={`sketch-cursor sketch-cursor--${cursorState} ${cursorClicking ? 'sketch-cursor--clicking' : ''}`}
+          className={`sketch-cursor sketch-cursor--${cursorOverUi ? 'default' : cursorState} ${cursorClicking ? 'sketch-cursor--clicking' : ''}`}
           style={{ opacity: 0 }}
         >
           <div className="sketch-cursor__shape" />
