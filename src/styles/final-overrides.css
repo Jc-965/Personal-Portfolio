@@ -1,0 +1,1156 @@
+/* ===== Secret Sketch Portfolio Final Override ===== */
+
+.sketch-secret-entry-canvas,
+.sketch-secret-exit-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 8;
+  cursor: none !important;
+}
+
+.sketch-secret-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000020;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px;
+  scroll-behavior: smooth;
+  --secret-paper: rgba(247, 239, 225, 0.96);
+  --secret-paper-strong: rgba(255, 252, 246, 0.92);
+  --secret-ink: rgba(31, 24, 16, 0.92);
+  --secret-ink-soft: rgba(68, 54, 36, 0.72);
+  --secret-line: rgba(88, 69, 44, 0.18);
+  --secret-line-strong: rgba(72, 55, 35, 0.28);
+  --secret-shadow: 0 28px 86px rgba(70, 49, 28, 0.1);
+  --secret-serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --secret-script: 'Caveat', 'Segoe Script', cursive;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255, 249, 238, 0.88), transparent 22%),
+    radial-gradient(circle at 82% 14%, rgba(224, 198, 158, 0.34), transparent 18%),
+    radial-gradient(circle at 50% 110%, rgba(156, 128, 90, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(246, 238, 223, 0.985), rgba(231, 220, 201, 0.985));
+}
+
+.sketch-secret-overlay,
+.sketch-secret-overlay *,
+.sketch-secret-overlay *::before,
+.sketch-secret-overlay *::after {
+  box-sizing: border-box;
+  cursor: none !important;
+}
+
+.sketch-secret-overlay::before,
+.sketch-secret-overlay::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sketch-secret-overlay::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 27px,
+      rgba(122, 101, 70, 0.045) 27px 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 33px,
+      rgba(122, 101, 70, 0.022) 33px 34px
+    ),
+    radial-gradient(circle at 8% 22%, rgba(121, 99, 68, 0.08) 0 2px, transparent 2px),
+    radial-gradient(circle at 88% 72%, rgba(121, 99, 68, 0.08) 0 2px, transparent 2px),
+    radial-gradient(circle at 70% 34%, rgba(139, 114, 77, 0.08), transparent 22%);
+  opacity: 0.65;
+}
+
+.sketch-secret-overlay::after {
+  box-shadow:
+    inset 0 0 220px rgba(76, 55, 31, 0.11),
+    inset 0 0 32px rgba(255, 252, 246, 0.3);
+}
+
+.sketch-secret-shell {
+  position: relative;
+  z-index: 2;
+  width: min(1540px, 100%);
+  margin: 0 auto;
+  padding: 4px 8px 68px;
+}
+
+.sketch-secret-overlay .sketch-btn {
+  color: var(--secret-ink);
+  border-color: rgba(61, 47, 30, 0.32);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.94), rgba(242, 233, 218, 0.92));
+  box-shadow:
+    0 8px 0 rgba(42, 32, 20, 0.08),
+    0 16px 28px rgba(74, 55, 34, 0.08);
+}
+
+.sketch-secret-overlay .sketch-btn:hover {
+  color: rgba(18, 14, 9, 0.96);
+  border-color: rgba(41, 32, 20, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 252, 0.96), rgba(246, 238, 225, 0.94));
+}
+
+.sketch-secret-toolbar {
+  position: sticky;
+  top: 10px;
+  z-index: 7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 4px 18px;
+  margin-bottom: 28px;
+  backdrop-filter: blur(12px);
+}
+
+.sketch-secret-toolbar__stamp {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid rgba(62, 48, 30, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 251, 244, 0.7);
+  color: rgba(61, 45, 24, 0.58);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.sketch-secret-toolbar__cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sketch-secret-toolbar__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px dashed rgba(78, 59, 35, 0.34);
+  border-radius: 999px;
+  color: rgba(76, 58, 35, 0.58);
+  font-family: var(--secret-script);
+  font-size: 1.02rem;
+  line-height: 1;
+  background: rgba(255, 251, 244, 0.62);
+  transform: rotate(-2.1deg);
+}
+
+.sketch-secret-toolbar__close {
+  white-space: nowrap;
+}
+
+.sketch-secret-cover {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.28fr) minmax(340px, 0.72fr);
+  align-items: start;
+  gap: 28px;
+  margin-bottom: 34px;
+}
+
+.sketch-secret-manifesto,
+.sketch-secret-mini-note,
+.sketch-secret-wayfinder,
+.sketch-secret-zone,
+.sketch-secret-journal-note,
+.sketch-secret-tool-swarm {
+  position: relative;
+  overflow: visible;
+  border: 1.5px solid rgba(51, 38, 23, 0.22);
+  border-radius: 26px 24px 28px 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(244, 235, 220, 0.94)),
+    repeating-linear-gradient(0deg, rgba(115, 94, 66, 0.04) 0 1px, transparent 1px 26px);
+  box-shadow:
+    var(--secret-shadow),
+    0 10px 0 rgba(52, 39, 24, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.54);
+}
+
+.sketch-secret-manifesto::before,
+.sketch-secret-mini-note::before,
+.sketch-secret-wayfinder::before,
+.sketch-secret-zone::before,
+.sketch-secret-journal-note::before,
+.sketch-secret-tool-swarm::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(112, 87, 56, 0.1), rgba(112, 87, 56, 0.1)) 48px 0 / 1px 100% no-repeat,
+    radial-gradient(circle at 48px 58px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    radial-gradient(circle at 48px 132px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    radial-gradient(circle at 48px 206px, rgba(121, 101, 75, 0.12) 0 4px, transparent 4px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 14%, transparent 82%, rgba(124, 98, 67, 0.08));
+  opacity: 0.52;
+  pointer-events: none;
+}
+
+.sketch-secret-manifesto {
+  padding: 54px 54px 56px 92px;
+  min-height: 700px;
+  transform: rotate(-1deg);
+}
+
+.sketch-secret-paper-tape {
+  position: absolute;
+  top: -12px;
+  width: 148px;
+  height: 42px;
+  border: 1px solid rgba(148, 125, 90, 0.22);
+  background:
+    linear-gradient(180deg, rgba(249, 237, 197, 0.82), rgba(235, 219, 182, 0.72));
+  box-shadow:
+    0 8px 20px rgba(91, 72, 43, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  opacity: 0.94;
+}
+
+.sketch-secret-paper-tape--left {
+  left: 70px;
+  transform: rotate(-8deg);
+}
+
+.sketch-secret-paper-tape--right {
+  right: 80px;
+  transform: rotate(7deg);
+}
+
+.sketch-secret-manifesto__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sketch-secret-manifesto__eyebrow,
+.sketch-secret-zone__eyebrow,
+.sketch-secret-mini-note__label,
+.sketch-secret-wayfinder__label,
+.sketch-secret-journal-note__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(77, 60, 40, 0.56);
+}
+
+.sketch-secret-manifesto__stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border: 1.5px solid rgba(123, 41, 34, 0.24);
+  border-radius: 14px;
+  color: rgba(123, 41, 34, 0.56);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  background: rgba(255, 247, 242, 0.58);
+}
+
+.sketch-secret-manifesto__title {
+  max-width: 11ch;
+  margin: 28px 0 18px;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 7.4vw, 7.2rem);
+  line-height: 0.86;
+  letter-spacing: -0.08em;
+  color: var(--secret-ink);
+  text-wrap: balance;
+}
+
+.sketch-secret-manifesto__lede {
+  max-width: 54ch;
+  margin: 0;
+  color: rgba(53, 41, 26, 0.76);
+  font-size: 1rem;
+  line-height: 1.9;
+}
+
+.sketch-secret-manifesto__actions {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: 14px;
+  width: fit-content;
+  margin-top: 30px;
+}
+
+.sketch-secret-manifesto__scribbles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  width: fit-content;
+  margin-top: 28px;
+}
+
+.sketch-secret-manifesto__scribble {
+  padding: 10px 14px;
+  border: 1px dashed rgba(76, 58, 35, 0.28);
+  border-radius: 14px;
+  color: rgba(70, 53, 32, 0.72);
+  font-family: var(--secret-script);
+  font-size: 1.18rem;
+  background: rgba(255, 251, 246, 0.58);
+  box-shadow: 0 10px 18px rgba(82, 61, 35, 0.05);
+}
+
+.sketch-secret-manifesto__scribble:nth-child(1) {
+  transform: rotate(-3deg);
+}
+
+.sketch-secret-manifesto__scribble:nth-child(2) {
+  transform: rotate(2.2deg);
+}
+
+.sketch-secret-manifesto__scribble:nth-child(3) {
+  transform: rotate(-1.4deg);
+}
+
+.sketch-secret-manifesto__crosshair {
+  position: absolute;
+  right: clamp(80px, 14vw, 180px);
+  top: 48%;
+  width: 46px;
+  height: 46px;
+  transform: translate(50%, -50%);
+  opacity: 0.45;
+}
+
+.sketch-secret-manifesto__crosshair::before,
+.sketch-secret-manifesto__crosshair::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(71, 58, 38, 0.6), rgba(71, 58, 38, 0.6)) center / 1px 100% no-repeat,
+    linear-gradient(rgba(71, 58, 38, 0.6), rgba(71, 58, 38, 0.6)) center / 100% 1px no-repeat;
+}
+
+.sketch-secret-manifesto__crosshair::after {
+  inset: 12px;
+  border: 2px solid rgba(71, 58, 38, 0.74);
+  transform: rotate(45deg);
+  background: none;
+}
+
+.sketch-secret-cover__rail {
+  display: grid;
+  gap: 18px;
+}
+
+.sketch-secret-wayfinder {
+  padding: 26px 24px 24px 68px;
+  transform: rotate(1.2deg);
+}
+
+.sketch-secret-wayfinder__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-waypoint {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 15px 14px;
+  border: 1px dashed rgba(68, 52, 31, 0.3);
+  border-radius: 18px;
+  background: rgba(255, 252, 247, 0.72);
+  color: var(--secret-ink);
+  transform: rotate(var(--waypoint-rotate));
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.sketch-secret-waypoint:hover {
+  transform: rotate(var(--waypoint-rotate)) translateY(-2px);
+  border-color: rgba(45, 35, 22, 0.42);
+  background: rgba(255, 254, 249, 0.92);
+}
+
+.sketch-secret-waypoint__code {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(75, 58, 37, 0.5);
+}
+
+.sketch-secret-waypoint__label {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: rgba(29, 22, 15, 0.9);
+}
+
+.sketch-secret-mini-note {
+  padding: 24px 24px 22px 68px;
+}
+
+.sketch-secret-mini-note--facts {
+  transform: rotate(-1deg);
+}
+
+.sketch-secret-mini-note--kit {
+  transform: rotate(1deg);
+}
+
+.sketch-secret-mini-note__rows {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-mini-note__row {
+  display: grid;
+  gap: 6px;
+}
+
+.sketch-secret-mini-note__row span,
+.sketch-secret-kit-grid__item span {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(78, 60, 38, 0.46);
+}
+
+.sketch-secret-mini-note__row strong,
+.sketch-secret-kit-grid__item strong {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgba(33, 25, 15, 0.82);
+}
+
+.sketch-secret-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-kit-grid__item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(76, 58, 35, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 251, 245, 0.66);
+}
+
+.sketch-secret-board {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.sketch-secret-zone {
+  scroll-margin-top: 112px;
+  padding: 34px 34px 36px 64px;
+}
+
+.sketch-secret-zone__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 380px);
+  gap: 20px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+
+.sketch-secret-zone__title {
+  margin-top: 12px;
+  font-family: var(--secret-serif);
+  font-size: clamp(2.35rem, 4vw, 3.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+  color: rgba(23, 17, 10, 0.9);
+}
+
+.sketch-secret-zone__note {
+  margin: 0;
+  color: rgba(60, 46, 29, 0.66);
+  font-size: 0.94rem;
+  line-height: 1.8;
+}
+
+.sketch-secret-zone--survey {
+  grid-column: span 7;
+  transform: rotate(-0.18deg);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(242, 233, 219, 0.94)),
+    repeating-linear-gradient(90deg, rgba(110, 88, 58, 0.055) 0 1px, transparent 1px 108px),
+    repeating-linear-gradient(0deg, rgba(110, 88, 58, 0.032) 0 1px, transparent 1px 28px);
+}
+
+.sketch-secret-survey__board {
+  position: relative;
+  min-height: 860px;
+  overflow: hidden;
+  border: 1px solid rgba(61, 47, 30, 0.18);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.82), rgba(243, 234, 220, 0.8)),
+    repeating-linear-gradient(90deg, rgba(102, 81, 54, 0.07) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(0deg, rgba(102, 81, 54, 0.04) 0 1px, transparent 1px 34px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 0 60px rgba(120, 96, 64, 0.06);
+}
+
+.sketch-secret-survey__board::before {
+  content: '';
+  position: absolute;
+  inset: 28px;
+  border: 1px dashed rgba(84, 67, 43, 0.18);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.sketch-secret-survey__label {
+  position: absolute;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(76, 58, 35, 0.46);
+}
+
+.sketch-secret-survey__label--north {
+  top: 18px;
+  left: 28px;
+}
+
+.sketch-secret-survey__label--measure {
+  right: 28px;
+  bottom: 18px;
+}
+
+.sketch-secret-plot {
+  position: absolute;
+  top: var(--plot-top);
+  left: var(--plot-left);
+  width: var(--plot-width);
+  display: grid;
+  gap: 8px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(48, 37, 23, 0.18);
+  border-radius: 16px 18px 14px 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(246, 238, 226, 0.94));
+  box-shadow:
+    0 16px 34px rgba(74, 55, 34, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transform: rotate(var(--plot-rotate));
+}
+
+.sketch-secret-plot::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 12px;
+  height: 1px;
+  background: rgba(70, 54, 34, 0.18);
+}
+
+.sketch-secret-plot__id,
+.sketch-secret-plot__track,
+.sketch-secret-plot__period {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sketch-secret-plot__id,
+.sketch-secret-plot__track {
+  width: fit-content;
+  padding: 4px 6px;
+  border: 1px dashed rgba(70, 54, 34, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 252, 248, 0.76);
+}
+
+.sketch-secret-plot__id {
+  color: rgba(73, 57, 36, 0.46);
+}
+
+.sketch-secret-plot__track {
+  color: rgba(66, 89, 113, 0.72);
+}
+
+.sketch-secret-plot__title {
+  margin: 6px 0 0;
+  font-size: 1.1rem;
+  letter-spacing: -0.04em;
+  color: rgba(24, 18, 10, 0.9);
+}
+
+.sketch-secret-plot__role {
+  margin: 0;
+  color: rgba(43, 33, 22, 0.76);
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.sketch-secret-plot__summary {
+  margin: 0;
+  color: rgba(52, 40, 26, 0.68);
+  line-height: 1.64;
+}
+
+.sketch-secret-plot__period {
+  margin-top: 4px;
+  color: rgba(82, 62, 39, 0.52);
+}
+
+.sketch-secret-zone--specimens {
+  grid-column: span 5;
+  margin-top: 72px;
+  transform: rotate(0.28deg);
+}
+
+.sketch-secret-zone--specimens .sketch-secret-zone__heading,
+.sketch-secret-zone--journal .sketch-secret-zone__heading,
+.sketch-secret-zone--arsenal .sketch-secret-zone__heading {
+  grid-template-columns: 1fr;
+}
+
+.sketch-secret-zone--specimens .sketch-secret-zone__title,
+.sketch-secret-zone--journal .sketch-secret-zone__title,
+.sketch-secret-zone--arsenal .sketch-secret-zone__title {
+  max-width: 8ch;
+  font-size: clamp(2rem, 3.2vw, 3rem);
+}
+
+.sketch-secret-specimen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.sketch-secret-specimen {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 26px 22px 22px;
+  border: 1.5px solid rgba(39, 29, 18, 0.2);
+  border-radius: 22px 18px 24px 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(246, 238, 225, 0.94)),
+    repeating-linear-gradient(0deg, rgba(111, 90, 61, 0.03) 0 1px, transparent 1px 21px);
+  box-shadow:
+    0 20px 46px rgba(74, 55, 34, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58);
+  transform: rotate(var(--specimen-rotate));
+}
+
+.sketch-secret-specimen::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 14px;
+  height: 3px;
+  background: rgba(var(--specimen-accent), 0.42);
+  box-shadow: 0 8px 0 rgba(var(--specimen-accent), 0.14);
+}
+
+.sketch-secret-specimen__sheet,
+.sketch-secret-specimen__tag {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sketch-secret-specimen__sheet {
+  width: fit-content;
+  padding: 4px 6px;
+  border: 1px solid rgba(67, 52, 32, 0.2);
+  color: rgba(65, 50, 31, 0.54);
+  background: rgba(255, 253, 249, 0.74);
+}
+
+.sketch-secret-specimen__tag {
+  color: rgba(73, 57, 36, 0.5);
+}
+
+.sketch-secret-specimen__title {
+  margin: 2px 0 0;
+  font-size: 1.34rem;
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  color: rgba(25, 18, 10, 0.9);
+}
+
+.sketch-secret-specimen__summary {
+  margin: 0;
+  color: rgba(48, 37, 23, 0.76);
+  line-height: 1.68;
+}
+
+.sketch-secret-specimen__chips {
+  display: grid;
+  gap: 10px;
+}
+
+.sketch-secret-specimen__chips span {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 10px;
+  border: 1px dashed rgba(68, 52, 31, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 251, 244, 0.72);
+  color: rgba(46, 36, 22, 0.74);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.sketch-secret-specimen__fragments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sketch-secret-specimen__fragment {
+  display: inline-flex;
+  padding: 10px 12px;
+  border: 1px dashed rgba(68, 52, 31, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 252, 247, 0.84);
+  color: rgba(34, 26, 16, 0.72);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.sketch-secret-zone--journal {
+  grid-column: span 5;
+  margin-top: -34px;
+  transform: rotate(-0.36deg);
+}
+
+.sketch-secret-journal-grid {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 18px;
+}
+
+.sketch-secret-journal-note {
+  padding: 24px 22px 24px 66px;
+}
+
+.sketch-secret-journal-note--principles {
+  transform: rotate(-1.2deg);
+}
+
+.sketch-secret-journal-note--life {
+  transform: rotate(1deg);
+}
+
+.sketch-secret-journal-note--margins {
+  grid-column: 1 / -1;
+  transform: rotate(-0.5deg);
+}
+
+.sketch-secret-journal-note__list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sketch-secret-journal-note__list li {
+  color: rgba(50, 39, 24, 0.78);
+  font-family: var(--secret-script);
+  font-size: 1.3rem;
+  line-height: 1.24;
+}
+
+.sketch-secret-life-fragments {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sketch-secret-life-fragment {
+  display: grid;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border: 1px dashed rgba(72, 56, 35, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 251, 246, 0.68);
+}
+
+.sketch-secret-life-fragment span {
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(74, 57, 37, 0.48);
+}
+
+.sketch-secret-life-fragment strong {
+  font-size: 1rem;
+  line-height: 1.1;
+  color: rgba(24, 18, 10, 0.88);
+}
+
+.sketch-secret-life-fragment p {
+  margin: 0;
+  color: rgba(50, 38, 24, 0.7);
+  line-height: 1.72;
+}
+
+.sketch-secret-margin-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.sketch-secret-margin-cloud__item {
+  padding: 10px 14px;
+  border: 1px dashed rgba(76, 58, 35, 0.28);
+  border-radius: 14px;
+  color: rgba(70, 53, 32, 0.72);
+  font-family: var(--secret-script);
+  font-size: 1.12rem;
+  background: rgba(255, 251, 246, 0.58);
+}
+
+.sketch-secret-zone--arsenal {
+  grid-column: span 7;
+  transform: rotate(0.18deg);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.95), rgba(243, 235, 224, 0.93)),
+    radial-gradient(circle at top right, rgba(232, 219, 193, 0.36), transparent 28%);
+}
+
+.sketch-secret-arsenal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sketch-secret-tool-swarm {
+  padding: 24px 22px 22px 66px;
+  transform: rotate(var(--swarm-rotate));
+}
+
+.sketch-secret-tool-swarm__name {
+  display: inline-flex;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid rgba(72, 56, 35, 0.18);
+  color: rgba(76, 58, 35, 0.54);
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: rgba(255, 253, 249, 0.76);
+}
+
+.sketch-secret-tool-swarm__note {
+  margin: 14px 0 0;
+  color: rgba(57, 43, 26, 0.65);
+  line-height: 1.72;
+}
+
+.sketch-secret-tool-swarm__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.sketch-secret-tool-swarm__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(36, 27, 16, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 252, 247, 0.92);
+  color: rgba(46, 36, 22, 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.sketch-secret-zone--dispatch {
+  grid-column: 1 / -1;
+  padding-right: 34px;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.96), rgba(243, 234, 222, 0.94)),
+    radial-gradient(circle at 88% 24%, rgba(228, 210, 181, 0.26), transparent 18%);
+}
+
+.sketch-secret-dispatch {
+  display: grid;
+  grid-template-columns: minmax(0, 1.16fr) minmax(280px, 0.84fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.sketch-secret-dispatch__note {
+  position: relative;
+  padding: 8px 0 8px 6px;
+}
+
+.sketch-secret-dispatch__note::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  width: 84px;
+  height: 84px;
+  border: 1px dashed rgba(123, 41, 34, 0.24);
+  border-radius: 14px;
+  opacity: 0.55;
+}
+
+.sketch-secret-dispatch__text {
+  margin: 16px 0 0;
+  max-width: 58ch;
+  color: rgba(52, 40, 26, 0.72);
+  line-height: 1.85;
+}
+
+.sketch-secret-dispatch__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  gap: 12px;
+  padding: 26px;
+  border: 1.5px dashed rgba(72, 56, 35, 0.24);
+  border-radius: 20px;
+  background: rgba(255, 251, 245, 0.66);
+}
+
+.sketch-secret-cursor {
+  position: fixed;
+  z-index: 1000030;
+  pointer-events: none;
+  transform: translate(-18px, -18px);
+  transition: opacity 0.12s ease;
+}
+
+.sketch-secret-cursor::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid rgba(57, 44, 27, 0.22);
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(0.5);
+  opacity: 0;
+}
+
+.sketch-secret-cursor__shape {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  transition: transform 0.16s ease;
+}
+
+.sketch-secret-cursor__shape::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 2px solid rgba(57, 44, 27, 0.7);
+  transform: rotate(45deg);
+  background: rgba(255, 251, 244, 0.16);
+}
+
+.sketch-secret-cursor__shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) center top / 1.5px 8px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) center bottom / 1.5px 8px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) left center / 8px 1.5px no-repeat,
+    linear-gradient(rgba(57, 44, 27, 0.44), rgba(57, 44, 27, 0.44)) right center / 8px 1.5px no-repeat;
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape::before {
+  border-color: rgba(101, 73, 30, 0.9);
+  background: rgba(163, 128, 68, 0.16);
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape::after {
+  background:
+    linear-gradient(rgba(101, 73, 30, 0.58), rgba(101, 73, 30, 0.58)) center top / 1.5px 8px no-repeat,
+    linear-gradient(rgba(101, 73, 30, 0.58), rgba(101, 73, 30, 0.58)) center bottom / 1.5px 8px no-repeat,
+    linear-gradient(rgba(101, 73, 30, 0.58), rgba(101, 73, 30, 0.58)) left center / 8px 1.5px no-repeat,
+    linear-gradient(rgba(101, 73, 30, 0.58), rgba(101, 73, 30, 0.58)) right center / 8px 1.5px no-repeat;
+}
+
+.sketch-secret-cursor--hover .sketch-secret-cursor__shape {
+  transform: scale(1.08);
+}
+
+@media (max-width: 1100px) {
+  .sketch-secret-cover,
+  .sketch-secret-zone__heading,
+  .sketch-secret-dispatch {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-board {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-zone--survey,
+  .sketch-secret-zone--specimens,
+  .sketch-secret-zone--journal,
+  .sketch-secret-zone--arsenal,
+  .sketch-secret-zone--dispatch {
+    grid-column: auto;
+    margin-top: 0;
+  }
+
+  .sketch-secret-toolbar {
+    align-items: flex-start;
+  }
+
+  .sketch-secret-manifesto__crosshair {
+    right: 70px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sketch-secret-overlay {
+    padding: 14px;
+  }
+
+  .sketch-secret-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-top: 0;
+  }
+
+  .sketch-secret-toolbar__badge {
+    font-size: 0.94rem;
+  }
+
+  .sketch-secret-manifesto,
+  .sketch-secret-mini-note,
+  .sketch-secret-wayfinder,
+  .sketch-secret-zone,
+  .sketch-secret-journal-note,
+  .sketch-secret-tool-swarm {
+    border-radius: 20px;
+    padding-left: 54px;
+    padding-right: 20px;
+  }
+
+  .sketch-secret-manifesto {
+    min-height: auto;
+    padding-top: 34px;
+    padding-bottom: 34px;
+  }
+
+  .sketch-secret-manifesto__title {
+    font-size: clamp(3.1rem, 18vw, 5rem);
+  }
+
+  .sketch-secret-manifesto__actions,
+  .sketch-secret-wayfinder__grid,
+  .sketch-secret-kit-grid,
+  .sketch-secret-specimen-grid,
+  .sketch-secret-journal-grid,
+  .sketch-secret-arsenal-grid,
+  .sketch-secret-dispatch {
+    grid-template-columns: 1fr;
+  }
+
+  .sketch-secret-manifesto__crosshair {
+    display: none;
+  }
+
+  .sketch-secret-paper-tape {
+    width: 88px;
+    height: 26px;
+    top: -7px;
+  }
+
+  .sketch-secret-paper-tape--left {
+    left: 24px;
+  }
+
+  .sketch-secret-paper-tape--right {
+    right: 24px;
+  }
+
+  .sketch-secret-survey__board {
+    min-height: auto;
+    display: grid;
+    gap: 16px;
+    padding: 52px 16px 18px;
+  }
+
+  .sketch-secret-survey__label {
+    position: static;
+  }
+
+  .sketch-secret-plot {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+    transform: none;
+  }
+
+  .sketch-secret-journal-note--margins {
+    grid-column: auto;
+  }
+
+  .sketch-secret-dispatch__actions {
+    justify-content: flex-start;
+    padding: 18px;
+  }
+}

@@ -1,0 +1,171 @@
+/* ============================================================================
+   TOOLKIT - SKILL CARDS
+   ============================================================================ */
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.toolkit__swap-shell {
+  position: relative;
+  width: min(100%, 720px);
+  height: 384px;
+  margin: 18px auto 0;
+  overflow: visible;
+}
+
+.toolkit__swap-shell .card-swap-container {
+  top: 150px;
+  left: 12px;
+  right: 80px;
+  bottom: auto;
+  width: auto !important;
+  transform: none;
+  perspective: 1100px;
+}
+
+.skill-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.35s ease;
+  contain: layout style paint;
+}
+
+.toolkit__swap-shell .skill-card.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-card);
+  background: rgba(8, 12, 30, 0.94);
+}
+
+.skill-card:hover {
+  border-color: color-mix(in srgb, var(--skill-accent) 35%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--skill-accent) 12%, transparent);
+}
+
+/* Terminal bar */
+.skill-card__terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.skill-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.skill-card__dot:nth-child(1) { background: #ff5f57; }
+.skill-card__dot:nth-child(2) { background: #ffbd2e; }
+.skill-card__dot:nth-child(3) { background: #28c840; }
+
+.skill-card__terminal-title {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.skill-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 12px;
+}
+
+.skill-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 25%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--skill-accent);
+}
+
+.skill-card__title {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skill-card__count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--skill-accent);
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.skill-card__tags {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-card--swap .skill-card__tags {
+  flex: 1;
+  align-content: flex-start;
+  overflow-y: auto;
+}
+
+.skill-card__tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  transition: all 0.25s ease;
+}
+
+.skill-card:hover .skill-card__tag {
+  border-color: color-mix(in srgb, var(--skill-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--skill-accent) 5%, transparent);
+}
+
+.skill-card__tag:hover {
+  color: var(--skill-accent);
+  border-color: var(--skill-accent);
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--skill-accent) 20%, transparent);
+}
+
+/* Status line */
+.skill-card__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.skill-card__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  animation: pulse 2s infinite;
+}

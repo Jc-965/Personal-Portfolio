@@ -77,6 +77,7 @@ type ExploreState = {
   z: number
   yaw: number
   pitch: number
+  elevationOffset: number
   initialized: boolean
   perchIndex: number
 }
@@ -116,10 +117,14 @@ const EXPLORE_MARGIN = 7
 const EXPLORE_EYE_HEIGHT = 2.45
 const EXPLORE_STEP_HEIGHT = 2.2
 const EXPLORE_LOOK_SENSITIVITY = 0.0025
-const EXPLORE_ROTATE_SPEED = 1.4
+const EXPLORE_ROTATE_SPEED = 2.2
 const EXPLORE_MOVE_SPEED = 12.4
+const EXPLORE_VERTICAL_SPEED = 8.9
+const EXPLORE_MIN_ELEVATION_OFFSET = -1.45
+const EXPLORE_MAX_ELEVATION_OFFSET = 24
 const EXPLORE_PERCH_DIRECTION_STEPS = 20
 const EXPLORE_PERCH_LOOK_DISTANCES = [28, 38, 50, 60] as const
+const SURVEY_LOOK_DISTANCE = 24
 const RECOMMENDED_CAPTURE_VIEW = {
   pos: [18, 15, 26],
   look: [-2, 4, -10],
@@ -139,9 +144,10 @@ const BRUSH_LABELS: Record<BrushMode, string> = {
   noise: 'roughen',
 }
 
-const SURVEY_DRAG_YAW_SENSITIVITY = 0.0062
-const SURVEY_DRAG_PITCH_SENSITIVITY = 0.0038
-const clampSurveyPitch = (value: number) => clamp(value, -0.42, 0.28)
+const SURVEY_DRAG_YAW_SENSITIVITY = 0.0025
+const SURVEY_DRAG_PITCH_SENSITIVITY = 0.0025
+const SURVEY_ROTATE_SPEED = 2.05
+const clampSurveyPitch = (value: number) => clamp(value, -1.28, 1.05)
 
 const describeBrushStrength = (value: number) => {
   if (value < 0.18) return 'fine'
@@ -162,6 +168,7 @@ const createExploreState = (): ExploreState => ({
   z: RESOLVED_EXPLORE_PERCHES[DEFAULT_PERCH_INDEX].z,
   yaw: RESOLVED_EXPLORE_PERCHES[DEFAULT_PERCH_INDEX].yaw,
   pitch: RESOLVED_EXPLORE_PERCHES[DEFAULT_PERCH_INDEX].pitch,
+  elevationOffset: 0,
   initialized: false,
   perchIndex: DEFAULT_PERCH_INDEX,
 })
@@ -172,7 +179,12 @@ const clampTerrainBounds = (value: number, margin = RECOMMENDED_CAPTURE_MARGIN) 
   TERRAIN_HALF_SIZE - margin,
 )
 
-const clampExplorePitch = (value: number) => clamp(value, -1.1, 0.55)
+const clampExplorePitch = (value: number) => clamp(value, -1.24, 0.7)
+
+const directionToYawPitch = (direction: THREE.Vector3) => ({
+  yaw: Math.atan2(direction.x, -direction.z),
+  pitch: Math.asin(clamp(direction.y, -1, 1)),
+})
 
 const shortestAngleDistance = (a: number, b: number) => {
   const delta = Math.atan2(Math.sin(a - b), Math.cos(a - b))
@@ -629,14 +641,10 @@ function CameraController({
   const lookTarget = useRef(new THREE.Vector3())
   const currentLook = useRef(new THREE.Vector3(...SURVEY_VIEWS[0].look))
   const surveyOffset = useRef(new THREE.Vector3(0, 0, 0))
-  const surveyLookOffset = useRef(new THREE.Vector3(0, 0, 0))
-  const surveyYaw = useRef(0)
-  const surveyBaseLook = useRef(new THREE.Vector3())
-  const surveyRawLook = useRef(new THREE.Vector3())
   const surveyBasePosition = useRef(new THREE.Vector3())
-  const surveyOrbitVector = useRef(new THREE.Vector3())
-  const surveyTranslationDelta = useRef(new THREE.Vector3())
-  const surveyRotation = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
+  const surveyRawLook = useRef(new THREE.Vector3())
+  const surveyBaseDirection = useRef(new THREE.Vector3())
+  const surveyLookDirection = useRef(new THREE.Vector3())
   const lastModeRef = useRef<SketchbookInteractionMode>(interactionMode)
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
@@ -664,15 +672,27 @@ function CameraController({
         state.z = perch.z
         state.yaw = perch.yaw
         state.pitch = perch.pitch
+        state.elevationOffset = 0
         state.initialized = true
         state.perchIndex = perchIndex
       }
 
-      const exploreTiltSpeed = EXPLORE_ROTATE_SPEED * delta * 0.78
       if (keys.has('q') || keys.has('arrowleft')) state.yaw += EXPLORE_ROTATE_SPEED * delta
       if (keys.has('e') || keys.has('arrowright')) state.yaw -= EXPLORE_ROTATE_SPEED * delta
-      if (keys.has('z')) state.pitch = clampExplorePitch(state.pitch + exploreTiltSpeed)
-      if (keys.has('c')) state.pitch = clampExplorePitch(state.pitch - exploreTiltSpeed)
+      if (keys.has('r')) {
+        state.elevationOffset = clamp(
+          state.elevationOffset + EXPLORE_VERTICAL_SPEED * delta,
+          EXPLORE_MIN_ELEVATION_OFFSET,
+          EXPLORE_MAX_ELEVATION_OFFSET,
+        )
+      }
+      if (keys.has('c')) {
+        state.elevationOffset = clamp(
+          state.elevationOffset - EXPLORE_VERTICAL_SPEED * delta,
+          EXPLORE_MIN_ELEVATION_OFFSET,
+          EXPLORE_MAX_ELEVATION_OFFSET,
+        )
+      }
 
       let moveForward = 0
       let moveStrafe = 0
@@ -720,7 +740,7 @@ function CameraController({
 
       const groundY = sampleTerrainHeight(state.x, state.z)
       const headBob = movementMagnitude > 0.001 ? Math.sin(clock.getElapsedTime() * 7.5) * 0.055 : 0
-      target.current.set(state.x, groundY + EXPLORE_EYE_HEIGHT + headBob, state.z)
+      target.current.set(state.x, groundY + EXPLORE_EYE_HEIGHT + state.elevationOffset + headBob, state.z)
 
       const gyroYawBias = isMobile ? gyroRef.current.x * 0.14 : 0
       const gyroPitchBias = isMobile ? -gyroRef.current.y * 0.08 : 0
@@ -748,7 +768,7 @@ function CameraController({
 
     const surveyView = SURVEY_VIEWS[viewIndex % SURVEY_VIEWS.length]
     const moveSpeed = 35 * delta
-    const rotateSpeed = 1.1 * delta
+    const rotateSpeed = SURVEY_ROTATE_SPEED * delta
 
     if (keys.size > 0) {
       camera.getWorldDirection(forward.current)
@@ -759,65 +779,56 @@ function CameraController({
       if (keys.has('w') || keys.has('arrowup')) {
         move.current.copy(forward.current).multiplyScalar(moveSpeed)
         surveyOffset.current.add(move.current)
-        surveyLookOffset.current.add(move.current)
       }
       if (keys.has('s') || keys.has('arrowdown')) {
         move.current.copy(forward.current).multiplyScalar(-moveSpeed)
         surveyOffset.current.add(move.current)
-        surveyLookOffset.current.add(move.current)
       }
       if (keys.has('a') || keys.has('arrowleft')) {
         move.current.copy(right.current).multiplyScalar(-moveSpeed)
         surveyOffset.current.add(move.current)
-        surveyLookOffset.current.add(move.current)
       }
       if (keys.has('d') || keys.has('arrowright')) {
         move.current.copy(right.current).multiplyScalar(moveSpeed)
         surveyOffset.current.add(move.current)
-        surveyLookOffset.current.add(move.current)
       }
-      const surveyTiltSpeed = rotateSpeed * 0.82
-      if (keys.has('q')) surveyYaw.current -= rotateSpeed
-      if (keys.has('e')) surveyYaw.current += rotateSpeed
-      if (keys.has('z')) surveyOrbitRef.current.pitch = clampSurveyPitch(surveyOrbitRef.current.pitch + surveyTiltSpeed)
-      if (keys.has('c')) surveyOrbitRef.current.pitch = clampSurveyPitch(surveyOrbitRef.current.pitch - surveyTiltSpeed)
+      if (keys.has('q')) surveyOrbitRef.current.yaw -= rotateSpeed
+      if (keys.has('e')) surveyOrbitRef.current.yaw += rotateSpeed
       if (keys.has('r')) {
         surveyOffset.current.y += moveSpeed * 0.6
-        surveyLookOffset.current.y += moveSpeed * 0.6
       }
-      if (keys.has('f')) {
+      if (keys.has('c')) {
         surveyOffset.current.y -= moveSpeed * 0.6
-        surveyLookOffset.current.y -= moveSpeed * 0.6
       }
     }
 
     const zoomFactor = 1 / zoom
-    const orbitYaw = surveyYaw.current + surveyOrbitRef.current.yaw + (isMobile ? gyroRef.current.x * 0.18 : 0)
-    const orbitPitch = clampSurveyPitch(
-      surveyOrbitRef.current.pitch + (isMobile ? -gyroRef.current.y * 0.08 : 0),
-    )
-
-    surveyRawLook.current.set(
-      surveyView.look[0],
-      surveyView.look[1],
-      surveyView.look[2],
-    )
-    surveyBaseLook.current.copy(surveyRawLook.current).add(surveyLookOffset.current)
     surveyBasePosition.current.set(
       surveyView.pos[0] * zoomFactor,
       surveyView.pos[1] * zoomFactor,
       surveyView.pos[2] * zoomFactor,
     )
-    surveyOrbitVector.current.copy(surveyBasePosition.current).sub(surveyRawLook.current)
-    surveyRotation.current.set(orbitPitch, orbitYaw, 0)
-    surveyOrbitVector.current.applyEuler(surveyRotation.current)
-    surveyTranslationDelta.current.subVectors(surveyOffset.current, surveyLookOffset.current)
+    surveyRawLook.current.set(
+      surveyView.look[0],
+      surveyView.look[1],
+      surveyView.look[2],
+    )
+    surveyBaseDirection.current.copy(surveyRawLook.current).sub(surveyBasePosition.current).normalize()
 
-    target.current
-      .copy(surveyBaseLook.current)
-      .add(surveyOrbitVector.current)
-      .add(surveyTranslationDelta.current)
-    lookTarget.current.copy(surveyBaseLook.current)
+    const baseLook = directionToYawPitch(surveyBaseDirection.current)
+    const lookYaw = baseLook.yaw + surveyOrbitRef.current.yaw + (isMobile ? gyroRef.current.x * 0.18 : 0)
+    const lookPitch = clampSurveyPitch(
+      baseLook.pitch + surveyOrbitRef.current.pitch + (isMobile ? -gyroRef.current.y * 0.08 : 0),
+    )
+
+    surveyLookDirection.current.set(
+      Math.sin(lookYaw) * Math.cos(lookPitch),
+      Math.sin(lookPitch),
+      -Math.cos(lookYaw) * Math.cos(lookPitch),
+    )
+
+    target.current.copy(surveyBasePosition.current).add(surveyOffset.current)
+    lookTarget.current.copy(target.current).addScaledVector(surveyLookDirection.current, SURVEY_LOOK_DISTANCE)
 
     if (modeChanged) {
       current.current.copy(target.current)
@@ -1189,7 +1200,7 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
         return
       }
 
-      if (['w', 'a', 's', 'd', 'q', 'e', 'z', 'c', 'r', 'f', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+      if (['w', 'a', 's', 'd', 'q', 'e', 'c', 'r', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
         event.preventDefault()
         keysRef.current.add(key)
       }
@@ -1397,19 +1408,23 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
       touchStateRef.current.mode = (interactionMode === 'sculpt' && sculptEnabled) || Boolean(carriedRef.current) ? 'brush' : 'look'
 
       if (touchStateRef.current.mode === 'brush') {
+        brushActiveRef.current = true
         updatePointerFromClient(touch.clientX, touch.clientY, true)
       } else {
+        brushActiveRef.current = false
         mouseRef.current.active = false
       }
     }
 
     const onTouchStart = (event: TouchEvent) => {
       if (isSketchUiTarget(event.target)) return
+      event.preventDefault()
 
       if (event.touches.length >= 2) {
         touchStateRef.current.mode = 'pinch'
         touchStateRef.current.startDistance = getTouchDistance(event.touches)
         touchStateRef.current.startZoom = zoomRef.current
+        brushActiveRef.current = false
         mouseRef.current.active = false
         return
       }
@@ -1426,6 +1441,7 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
         if (interactionMode !== 'sculpt') return
 
         event.preventDefault()
+        brushActiveRef.current = false
         const distance = getTouchDistance(event.touches)
         if (!touchStateRef.current.startDistance) {
           touchStateRef.current.startDistance = distance
@@ -1448,11 +1464,13 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
       event.preventDefault()
       if ((interactionMode === 'sculpt' && sculptEnabled) || carriedRef.current) {
         touchStateRef.current.mode = 'brush'
+        brushActiveRef.current = true
         updatePointerFromClient(touch.clientX, touch.clientY, true)
         return
       }
 
       touchStateRef.current.mode = 'look'
+      brushActiveRef.current = false
       const dx = (touch.clientX - touchStateRef.current.startX) / element.clientWidth
       const dy = (touch.clientY - touchStateRef.current.startY) / element.clientHeight
       if (interactionMode === 'explore') {
@@ -1470,6 +1488,7 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
         touchStateRef.current.mode = 'pinch'
         touchStateRef.current.startDistance = getTouchDistance(event.touches)
         touchStateRef.current.startZoom = zoomRef.current
+        brushActiveRef.current = false
         mouseRef.current.active = false
         return
       }
@@ -1481,11 +1500,12 @@ const SketchbookCanvas = forwardRef<SketchbookCanvasHandle, SketchbookCanvasProp
 
       touchStateRef.current.mode = 'idle'
       touchStateRef.current.startDistance = 0
+      brushActiveRef.current = false
       mouseRef.current.active = false
       if (!carriedRef.current) emitCursorChange('default')
     }
 
-    element.addEventListener('touchstart', onTouchStart, { passive: true })
+    element.addEventListener('touchstart', onTouchStart, { passive: false })
     element.addEventListener('touchmove', onTouchMove, { passive: false })
     element.addEventListener('touchend', onTouchEnd)
     element.addEventListener('touchcancel', onTouchEnd)

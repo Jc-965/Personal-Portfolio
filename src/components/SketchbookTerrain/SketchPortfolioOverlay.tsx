@@ -46,7 +46,7 @@ const projectSheets = [
     ],
     artifact: 'care flows that survive bad connectivity',
     constraint: 'health products need trust, not friction',
-    tilt: '-1.2deg',
+    tilt: '-2.4deg',
     accent: '106, 165, 175',
   },
   {
@@ -60,7 +60,7 @@ const projectSheets = [
     ],
     artifact: 'anonymous networking with safer reveal logic',
     constraint: 'social risk had to feel controlled',
-    tilt: '1.4deg',
+    tilt: '1.8deg',
     accent: '76, 139, 255',
   },
   {
@@ -74,7 +74,7 @@ const projectSheets = [
     ],
     artifact: 'map-first civic discovery on Android',
     constraint: 'location needs clarity, not clutter',
-    tilt: '-0.8deg',
+    tilt: '-1.1deg',
     accent: '179, 142, 93',
   },
   {
@@ -88,7 +88,7 @@ const projectSheets = [
     ],
     artifact: 'narrative atmosphere built from interaction',
     constraint: 'the web experience had to feel ritualistic',
-    tilt: '1.1deg',
+    tilt: '2.3deg',
     accent: '156, 127, 174',
   },
 ]
@@ -190,6 +190,27 @@ const contactLinks = [
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/jessechen2/' },
 ]
 
+const waypoints = [
+  { id: 'sketch-secret-cover', code: 'hinge 00', label: 'cover sheet' },
+  { id: 'sketch-secret-survey', code: 'grid 14', label: 'survey board' },
+  { id: 'sketch-secret-specimens', code: 'drawer 28', label: 'specimen cabinet' },
+  { id: 'sketch-secret-journal', code: 'drift 41', label: 'field journal' },
+  { id: 'sketch-secret-arsenal', code: 'kit 52', label: 'tool legend' },
+  { id: 'sketch-secret-dispatch', code: 'exit 99', label: 'dispatch' },
+]
+
+const journeyLayouts = [
+  { top: '10%', left: '6%', width: '39%', rotate: '-2.2deg' },
+  { top: '15%', left: '52%', width: '38%', rotate: '1.8deg' },
+  { top: '39%', left: '12%', width: '34%', rotate: '-0.9deg' },
+  { top: '45%', left: '50%', width: '31%', rotate: '2.2deg' },
+  { top: '68%', left: '8%', width: '36%', rotate: '-1.5deg' },
+  { top: '72%', left: '53%', width: '37%', rotate: '1.2deg' },
+]
+
+const toolTilts = ['-1.6deg', '0.9deg', '-0.8deg', '1.4deg']
+const waypointTilts = ['-3deg', '2deg', '-1.4deg', '2.6deg', '-2.2deg', '1.2deg']
+
 export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverlayProps) {
   const cursorRef = useRef<HTMLDivElement>(null)
   const clickResetRef = useRef<number | null>(null)
@@ -279,7 +300,7 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
       className={`sketch-secret-overlay sketch-secret-overlay--${phase}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Hidden sketch portfolio"
+      aria-label="Secret graphite board"
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
@@ -289,78 +310,92 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
       )}
 
       {(phase === 'active' || phase === 'exiting') && (
-      <div className="sketch-secret-shell">
-        <header className="sketch-secret-masthead">
-          <span className="sketch-secret-masthead__stamp">field notebook / lifted from the graphite forest</span>
-          <nav className="sketch-secret-masthead__nav" aria-label="Sketch portfolio sections">
-            <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-projects')}>projects</button>
-            <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-journey')}>journey</button>
-            <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-toolkit')}>toolkit</button>
-            <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-beyond')}>beyond</button>
-            <button className="sketch-secret-masthead__link" type="button" onClick={() => scrollToSection('sketch-secret-contact')}>contact</button>
-          </nav>
-          <div className="sketch-secret-masthead__actions">
-            <span className="sketch-secret-masthead__badge">terrain notes</span>
-            <button className="sketch-btn sketch-secret-masthead__close" type="button" onClick={requestClose}>
-              return to ridge
-            </button>
-          </div>
-        </header>
+        <div className="sketch-secret-shell">
+          <header className="sketch-secret-toolbar">
+            <span className="sketch-secret-toolbar__stamp">graphite archive // private field folio</span>
+            <div className="sketch-secret-toolbar__cluster">
+              <span className="sketch-secret-toolbar__badge">messy board / sketchbook / surreal journal</span>
+              <button className="sketch-btn sketch-secret-toolbar__close" type="button" onClick={requestClose}>
+                return to ridge
+              </button>
+            </div>
+          </header>
 
-        <main className="sketch-secret-layout">
-          <section className="sketch-secret-hero" id="sketch-secret-top">
-            <article className="sketch-secret-hero__sheet">
+          <section className="sketch-secret-cover" id="sketch-secret-cover">
+            <article className="sketch-secret-manifesto">
               <span className="sketch-secret-paper-tape sketch-secret-paper-tape--left" aria-hidden="true" />
               <span className="sketch-secret-paper-tape sketch-secret-paper-tape--right" aria-hidden="true" />
-              <div className="sketch-secret-hero__meta">
-                <span className="sketch-secret-hero__eyebrow">Jesse Chen // field notebook recovered from the sketch terrain</span>
-                <span className="sketch-secret-hero__stamp">notes unsealed</span>
+
+              <div className="sketch-secret-manifesto__meta">
+                <span className="sketch-secret-manifesto__eyebrow">
+                  Jesse Chen // field notebook recovered from the sketch terrain
+                </span>
+                <span className="sketch-secret-manifesto__stamp">notes unsealed</span>
               </div>
-              <h1 className="sketch-secret-hero__title">
-                A field notebook pulled from the graphite forest.
+
+              <h1 className="sketch-secret-manifesto__title">
+                The portfolio, pulled apart into a graphite atlas.
               </h1>
-              <p className="sketch-secret-hero__lede">
+
+              <p className="sketch-secret-manifesto__lede">
                 First-year CS student focused on products that solve meaningful problems without losing personality.
-                The public site is the clean overlook. This hidden pass is the terrain archive underneath it:
-                taped sheets, margin notes, and the projects reframed like observations taken in the field.
+                The public site stays clean and legible. This hidden pass redraws the same work as a dramatic board
+                of evidence: site coordinates, torn studies, handwritten fragments, and field notes left half-finished.
               </p>
-              <div className="sketch-secret-hero__actions">
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-projects')}>open project sheets</button>
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-journey')}>follow the build log</button>
+
+              <div className="sketch-secret-manifesto__actions">
+                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-survey')}>
+                  walk the survey grid
+                </button>
+                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-specimens')}>
+                  open the specimen drawer
+                </button>
               </div>
-              <div className="sketch-secret-hero__doodles" aria-hidden="true">
+
+              <div className="sketch-secret-manifesto__scribbles" aria-hidden="true">
                 {marginFragments.map(fragment => (
-                  <div key={fragment} className="sketch-secret-hero__doodle">
+                  <span key={fragment} className="sketch-secret-manifesto__scribble">
                     {fragment}
-                  </div>
+                  </span>
                 ))}
               </div>
+
+              <div className="sketch-secret-manifesto__crosshair" aria-hidden="true" />
             </article>
 
-            <div className="sketch-secret-sideboard">
-              <article className="sketch-secret-note sketch-secret-note--facts">
-                <span className="sketch-secret-note__label">field notes</span>
-                <div className="sketch-secret-facts">
+            <div className="sketch-secret-cover__rail">
+              <aside className="sketch-secret-wayfinder" aria-label="Exploratory wayfinder">
+                <span className="sketch-secret-wayfinder__label">wayfinder</span>
+                <div className="sketch-secret-wayfinder__grid">
+                  {waypoints.map((waypoint, index) => (
+                    <button
+                      key={waypoint.id}
+                      className="sketch-secret-waypoint"
+                      type="button"
+                      style={{ '--waypoint-rotate': waypointTilts[index] } as CSSProperties}
+                      onClick={() => scrollToSection(waypoint.id)}
+                    >
+                      <span className="sketch-secret-waypoint__code">{waypoint.code}</span>
+                      <strong className="sketch-secret-waypoint__label">{waypoint.label}</strong>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <aside className="sketch-secret-mini-note sketch-secret-mini-note--facts">
+                <span className="sketch-secret-mini-note__label">observed constants</span>
+                <div className="sketch-secret-mini-note__rows">
                   {notebookFacts.map(fact => (
-                    <div key={fact.label} className="sketch-secret-facts__row">
+                    <div key={fact.label} className="sketch-secret-mini-note__row">
                       <span>{fact.label}</span>
                       <strong>{fact.value}</strong>
                     </div>
                   ))}
                 </div>
-              </article>
+              </aside>
 
-              <article className="sketch-secret-note sketch-secret-note--thoughts">
-                <span className="sketch-secret-note__label">working principles</span>
-                <ul className="sketch-secret-note__list">
-                  {designNotes.map(note => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </article>
-
-              <article className="sketch-secret-note sketch-secret-note--kit">
-                <span className="sketch-secret-note__label">field kit</span>
+              <aside className="sketch-secret-mini-note sketch-secret-mini-note--kit">
+                <span className="sketch-secret-mini-note__label">field kit</span>
                 <div className="sketch-secret-kit-grid">
                   {fieldKit.map(item => (
                     <div key={item.label} className="sketch-secret-kit-grid__item">
@@ -369,164 +404,218 @@ export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverl
                     </div>
                   ))}
                 </div>
-              </article>
+              </aside>
             </div>
           </section>
 
-          <section className="sketch-secret-section sketch-secret-section--projects" id="sketch-secret-projects">
-            <div className="sketch-secret-section__heading">
-              <div>
-                <span className="sketch-secret-section__eyebrow">project sheets</span>
-                <h2 className="sketch-secret-section__title">Selected builds</h2>
+          <main className="sketch-secret-board">
+            <section className="sketch-secret-zone sketch-secret-zone--survey" id="sketch-secret-survey">
+              <div className="sketch-secret-zone__heading">
+                <div>
+                  <span className="sketch-secret-zone__eyebrow">architectural drawing board</span>
+                  <h2 className="sketch-secret-zone__title">The build trail plotted like a site survey</h2>
+                </div>
+                <p className="sketch-secret-zone__note">
+                  Roles, teams, and time spans are drafted as coordinates instead of resume blocks. This is the cleanest
+                  read in the hidden folio, but it still behaves like a marked-up plan.
+                </p>
               </div>
-              <p className="sketch-secret-section__note">
-                Products, systems, and interactive work refiled as pages from the notebook hidden in the terrain.
-              </p>
-            </div>
 
-            <div className="sketch-secret-project-grid">
-              {projectSheets.map((project, index) => (
-                <article
-                  key={project.name}
-                  className="sketch-secret-project-card"
-                  style={{
-                    '--folio-tilt': project.tilt,
-                    '--folio-accent': project.accent,
-                  } as CSSProperties}
-                >
-                  <span className="sketch-secret-project-card__sheet-number">sheet {String(index + 1).padStart(2, '0')}</span>
-                  <div className="sketch-secret-project-card__header">
-                    <div>
-                      <span className="sketch-secret-project-card__tag">{project.tag}</span>
-                      <h3 className="sketch-secret-project-card__title">{project.name}</h3>
+              <div className="sketch-secret-survey__board">
+                <span className="sketch-secret-survey__label sketch-secret-survey__label--north">
+                  northing // active trail
+                </span>
+                <span className="sketch-secret-survey__label sketch-secret-survey__label--measure">
+                  scale shifts / roles blur / systems persist
+                </span>
+
+                {journeyEntries.map((entry, index) => {
+                  const layout = journeyLayouts[index]
+
+                  return (
+                    <article
+                      key={entry.pid}
+                      className="sketch-secret-plot"
+                      style={{
+                        '--plot-top': layout.top,
+                        '--plot-left': layout.left,
+                        '--plot-width': layout.width,
+                        '--plot-rotate': layout.rotate,
+                      } as CSSProperties}
+                    >
+                      <span className="sketch-secret-plot__id">{entry.pid}</span>
+                      <span className="sketch-secret-plot__track">{entry.track}</span>
+                      <h3 className="sketch-secret-plot__title">{entry.title}</h3>
+                      <p className="sketch-secret-plot__role">{entry.role}</p>
+                      <p className="sketch-secret-plot__summary">{entry.summary}</p>
+                      <span className="sketch-secret-plot__period">{entry.period}</span>
+                    </article>
+                  )
+                })}
+              </div>
+            </section>
+
+            <section className="sketch-secret-zone sketch-secret-zone--specimens" id="sketch-secret-specimens">
+              <div className="sketch-secret-zone__heading">
+                <div>
+                  <span className="sketch-secret-zone__eyebrow">artist sketchbook</span>
+                  <h2 className="sketch-secret-zone__title">Project studies pinned as torn specimens</h2>
+                </div>
+                <p className="sketch-secret-zone__note">
+                  The projects stop pretending to be polished case studies here. They turn into fragments, marks,
+                  constraints, and useful artifacts taped onto the same page.
+                </p>
+              </div>
+
+              <div className="sketch-secret-specimen-grid">
+                {projectSheets.map((project, index) => (
+                  <article
+                    key={project.name}
+                    className="sketch-secret-specimen"
+                    style={{
+                      '--specimen-rotate': project.tilt,
+                      '--specimen-accent': project.accent,
+                    } as CSSProperties}
+                  >
+                    <span className="sketch-secret-specimen__sheet">
+                      study {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="sketch-secret-specimen__tag">{project.tag}</span>
+                    <h3 className="sketch-secret-specimen__title">{project.name}</h3>
+                    <p className="sketch-secret-specimen__summary">{project.summary}</p>
+
+                    <div className="sketch-secret-specimen__chips">
+                      <span>artifact // {project.artifact}</span>
+                      <span>constraint // {project.constraint}</span>
                     </div>
-                    <span className="sketch-secret-project-card__pin" aria-hidden="true" />
-                  </div>
-                  <p className="sketch-secret-project-card__summary">{project.summary}</p>
-                  <div className="sketch-secret-project-card__facts">
-                    <div className="sketch-secret-project-card__fact">
-                      <span>artifact</span>
-                      <strong>{project.artifact}</strong>
+
+                    <div className="sketch-secret-specimen__fragments">
+                      {project.bullets.map(bullet => (
+                        <span key={bullet} className="sketch-secret-specimen__fragment">
+                          {bullet}
+                        </span>
+                      ))}
                     </div>
-                    <div className="sketch-secret-project-card__fact">
-                      <span>constraint</span>
-                      <strong>{project.constraint}</strong>
-                    </div>
-                  </div>
-                  <ul className="sketch-secret-project-card__list">
-                    {project.bullets.map(bullet => (
-                      <li key={bullet}>{bullet}</li>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="sketch-secret-zone sketch-secret-zone--journal" id="sketch-secret-journal">
+              <div className="sketch-secret-zone__heading">
+                <div>
+                  <span className="sketch-secret-zone__eyebrow">surreal field journal</span>
+                  <h2 className="sketch-secret-zone__title">Margins, habits, and life outside the clean grid</h2>
+                </div>
+                <p className="sketch-secret-zone__note">
+                  The same portfolio facts loosen into handwriting here. Principles read like observations, and outside
+                  work shows up as weather, residue, and side-notes rather than credentials.
+                </p>
+              </div>
+
+              <div className="sketch-secret-journal-grid">
+                <article className="sketch-secret-journal-note sketch-secret-journal-note--principles">
+                  <span className="sketch-secret-journal-note__label">working principles</span>
+                  <ul className="sketch-secret-journal-note__list">
+                    {designNotes.map(note => (
+                      <li key={note}>{note}</li>
                     ))}
                   </ul>
                 </article>
-              ))}
-            </div>
-          </section>
 
-          <section className="sketch-secret-section sketch-secret-section--journey" id="sketch-secret-journey">
-            <div className="sketch-secret-section__heading">
-              <div>
-                <span className="sketch-secret-section__eyebrow">build log</span>
-                <h2 className="sketch-secret-section__title">Journey</h2>
-              </div>
-              <p className="sketch-secret-section__note">
-                A chronological trail of the teams, products, and systems shaping how I build.
-              </p>
-            </div>
-
-            <div className="sketch-secret-timeline">
-              {journeyEntries.map(entry => (
-                <article key={entry.pid} className="sketch-secret-timeline__card">
-                  <span className="sketch-secret-timeline__pid">{entry.pid}</span>
-                  <span className="sketch-secret-timeline__track">{entry.track}</span>
-                  <span className="sketch-secret-timeline__period">{entry.period}</span>
-                  <h3 className="sketch-secret-timeline__title">{entry.title}</h3>
-                  <p className="sketch-secret-timeline__role">{entry.role}</p>
-                  <p className="sketch-secret-timeline__summary">{entry.summary}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="sketch-secret-section sketch-secret-section--toolkit" id="sketch-secret-toolkit">
-            <div className="sketch-secret-section__heading">
-              <div>
-                <span className="sketch-secret-section__eyebrow">tool roll</span>
-                <h2 className="sketch-secret-section__title">Toolkit</h2>
-              </div>
-              <p className="sketch-secret-section__note">
-                The stack packed into the field bag: languages, frameworks, and systems that keep the work grounded.
-              </p>
-            </div>
-
-            <div className="sketch-secret-tool-grid">
-              {skillGroups.map(group => (
-                <article key={group.name} className="sketch-secret-tool-card">
-                  <h3 className="sketch-secret-tool-card__title">{group.name}</h3>
-                  <p className="sketch-secret-tool-card__note">{group.note}</p>
-                  <div className="sketch-secret-tool-card__tags">
-                    {group.items.map(item => (
-                      <span key={item} className="sketch-secret-tool-card__tag">{item}</span>
+                <article className="sketch-secret-journal-note sketch-secret-journal-note--life">
+                  <span className="sketch-secret-journal-note__label">outside the terminal</span>
+                  <div className="sketch-secret-life-fragments">
+                    {lifeNotes.map(note => (
+                      <div key={note.title} className="sketch-secret-life-fragment">
+                        <span>{note.caption}</span>
+                        <strong>{note.title}</strong>
+                        <p>{note.summary}</p>
+                      </div>
                     ))}
                   </div>
                 </article>
-              ))}
-            </div>
-          </section>
 
-          <section className="sketch-secret-section sketch-secret-section--beyond" id="sketch-secret-beyond">
-            <div className="sketch-secret-section__heading">
-              <div>
-                <span className="sketch-secret-section__eyebrow">outside the terminal</span>
-                <h2 className="sketch-secret-section__title">Beyond the build</h2>
-              </div>
-              <p className="sketch-secret-section__note">
-                Leadership, performance, and community work that still shows up in how I navigate teams.
-              </p>
-            </div>
-
-            <div className="sketch-secret-life-grid">
-              {lifeNotes.map(note => (
-                <article key={note.title} className="sketch-secret-life-card">
-                  <span className="sketch-secret-life-card__caption">{note.caption}</span>
-                  <h3 className="sketch-secret-life-card__title">{note.title}</h3>
-                  <p className="sketch-secret-life-card__summary">{note.summary}</p>
+                <article className="sketch-secret-journal-note sketch-secret-journal-note--margins">
+                  <span className="sketch-secret-journal-note__label">margin fragments</span>
+                  <div className="sketch-secret-margin-cloud">
+                    {marginFragments.map(fragment => (
+                      <span key={fragment} className="sketch-secret-margin-cloud__item">
+                        {fragment}
+                      </span>
+                    ))}
+                  </div>
                 </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="sketch-secret-section sketch-secret-section--contact" id="sketch-secret-contact">
-            <div className="sketch-secret-contact">
-              <article className="sketch-secret-contact__postcard">
-                <span className="sketch-secret-section__eyebrow">contact + exit</span>
-                <h2 className="sketch-secret-section__title">Pack the notebook away or step back into the terrain</h2>
-                <p className="sketch-secret-contact__text">
-                  The public portfolio stays like the overlook. This one is the rougher notebook tucked underneath it.
-                  Reach out through the usual channels, or close the folio and head back to the hills.
-                </p>
-              </article>
-
-              <div className="sketch-secret-contact__actions">
-                {contactLinks.map(link => (
-                  <a
-                    key={link.label}
-                    className="sketch-btn"
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-                <button className="sketch-btn" type="button" onClick={requestClose}>
-                  return to terrain
-                </button>
               </div>
-            </div>
-          </section>
-        </main>
-      </div>
+            </section>
+
+            <section className="sketch-secret-zone sketch-secret-zone--arsenal" id="sketch-secret-arsenal">
+              <div className="sketch-secret-zone__heading">
+                <div>
+                  <span className="sketch-secret-zone__eyebrow">tool legend</span>
+                  <h2 className="sketch-secret-zone__title">The kit rendered as swarms, stamps, and labels</h2>
+                </div>
+                <p className="sketch-secret-zone__note">
+                  Languages, frameworks, data tooling, and systems gear are packed like an annotated supply table rather
+                  than a tidy skills list.
+                </p>
+              </div>
+
+              <div className="sketch-secret-arsenal-grid">
+                {skillGroups.map((group, index) => (
+                  <article
+                    key={group.name}
+                    className="sketch-secret-tool-swarm"
+                    style={{ '--swarm-rotate': toolTilts[index] } as CSSProperties}
+                  >
+                    <span className="sketch-secret-tool-swarm__name">{group.name}</span>
+                    <p className="sketch-secret-tool-swarm__note">{group.note}</p>
+                    <div className="sketch-secret-tool-swarm__tags">
+                      {group.items.map(item => (
+                        <span key={item} className="sketch-secret-tool-swarm__tag">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="sketch-secret-zone sketch-secret-zone--dispatch" id="sketch-secret-dispatch">
+              <div className="sketch-secret-dispatch">
+                <article className="sketch-secret-dispatch__note">
+                  <span className="sketch-secret-zone__eyebrow">dispatch</span>
+                  <h2 className="sketch-secret-zone__title">Pack the graphite away or keep the line open</h2>
+                  <p className="sketch-secret-dispatch__text">
+                    The public portfolio stays on the overlook. This hidden one remains the rougher board underneath it.
+                    Reach out through the usual channels, or close the folio and step back into the terrain.
+                  </p>
+                </article>
+
+                <div className="sketch-secret-dispatch__actions">
+                  {contactLinks.map(link => (
+                    <a
+                      key={link.label}
+                      className="sketch-btn"
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                  <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-cover')}>
+                    back to cover
+                  </button>
+                  <button className="sketch-btn" type="button" onClick={requestClose}>
+                    return to terrain
+                  </button>
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
       )}
 
       {phase === 'exiting' && (

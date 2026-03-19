@@ -260,13 +260,13 @@ export default function SketchbookScene({
   const allowNativeExploreCursor = interactionMode === 'explore' && !explorePointerLocked
   const helpText = interactionMode === 'explore'
     ? (isTouchDevice
-        ? 'drag look · walk the field'
+        ? 'drag look · walk the field · tap sculpt to switch modes'
         : explorePointerLocked
-          ? 'move mouse look · wasd walk · z/c tilt · esc cursor'
-          : 'cursor free · click field to look')
+          ? 'move mouse look · wasd walk · q/e turn · r/c rise-fall · tab switch modes · esc cursor'
+          : 'cursor free · click field to look · tab switch modes')
     : sculptEnabled
-      ? (isTouchDevice ? 'drag terrain · pinch zoom · tap explore' : 'drag terrain · scroll zoom · z/c tilt')
-      : (isTouchDevice ? 'drag view · tap sculpt on to edit' : 'drag view · scroll zoom · z/c tilt')
+      ? (isTouchDevice ? 'drag terrain · pinch zoom · tap explore to switch modes' : 'drag terrain · scroll zoom · q/e turn · r/c rise-fall · tab switch modes')
+      : (isTouchDevice ? 'drag look · tap sculpt on to edit · tap explore to switch modes' : 'drag look · scroll zoom · q/e turn · r/c rise-fall · tab switch modes')
 
   return (
     <div
