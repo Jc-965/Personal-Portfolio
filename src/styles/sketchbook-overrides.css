@@ -805,7 +805,8 @@
   transform: translateY(10px);
 }
 
-.sketch-photo-stack .sketch-btn--photo {
+.sketch-photo-stack .sketch-btn--photo,
+.sketch-photo-stack .sketch-btn--guide {
   min-width: 100%;
 }
 
@@ -893,12 +894,8 @@
   }
 
   .sketch-tutorial {
-    width: min(940px, calc(100vw - 32px));
+    width: min(600px, calc(100vw - 32px));
     max-height: calc(100vh - 32px);
-  }
-
-  .sketch-tutorial__body {
-    grid-template-columns: 1fr;
   }
 
   .sketch-tutorial__progress {
@@ -964,7 +961,6 @@
     font-size: 0.86rem;
   }
 
-  .sketch-tutorial__description,
   .sketch-tutorial__panel-body,
   .sketch-tutorial__note-body {
     font-size: 0.56rem;
@@ -974,21 +970,12 @@
     padding: 12px;
   }
 
+  .sketch-tutorial-photo__scene {
+    aspect-ratio: 1.7 / 1;
+  }
+
   .sketch-tutorial-photo__callout {
     display: none;
-  }
-
-  .sketch-tutorial-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .sketch-tutorial-strip__thumb {
-    grid-template-columns: 82px 1fr;
-    align-items: center;
-  }
-
-  .sketch-tutorial-strip__image {
-    aspect-ratio: 1.2 / 1;
   }
 
   .sketch-tutorial__panel {
@@ -1063,7 +1050,8 @@
     gap: 8px;
   }
 
-  .sketch-photo-stack .sketch-btn--photo {
+  .sketch-photo-stack .sketch-btn--photo,
+  .sketch-photo-stack .sketch-btn--guide {
     min-width: 82px;
   }
 
@@ -1135,4 +1123,3 @@
     width: 262px;
   }
 }
-

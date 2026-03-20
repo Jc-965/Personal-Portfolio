@@ -184,6 +184,13 @@ export default function SketchbookScene({
     setSelectedCapture('current')
   }, [])
 
+  const openTutorial = useCallback(() => {
+    if (captureState === 'preview') {
+      closePreview()
+    }
+    setTutorialOpen(true)
+  }, [captureState, closePreview])
+
   const onCaptureRequest = useCallback(async () => {
     if (!canvasRef.current || captureState !== 'idle') return
 
@@ -304,6 +311,14 @@ export default function SketchbookScene({
       </button>
 
       <div className={`sketch-photo-stack sketch-ui-surface ${uiHidden ? 'sketch-photo-stack--hidden' : ''}`}>
+        <button
+          className="sketch-btn sketch-btn--guide"
+          onClick={openTutorial}
+          disabled={captureState === 'capturing'}
+          title="Reopen the sketchbook tutorial"
+        >
+          guide
+        </button>
         <button
           className="sketch-btn sketch-btn--photo"
           onClick={onCaptureRequest}

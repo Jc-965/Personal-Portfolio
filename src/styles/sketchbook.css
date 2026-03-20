@@ -58,8 +58,7 @@ html.sketchbook-returning::before {
   animation: sketchbook-return-ui 0.75s ease both;
 }
 
-.sketchbook-returning .cursor-canvas,
-.sketchbook-returning .target-cursor {
+.sketchbook-returning .cursor-canvas {
   animation: sketchbook-return-ui 0.68s ease both;
 }
 
@@ -937,7 +936,7 @@ html.sketchbook-returning * {
 
 .sketch-tutorial-shell {
   position: absolute;
-  inset: 22px;
+  inset: 24px;
   z-index: 38;
   display: flex;
   align-items: center;
@@ -955,21 +954,21 @@ html.sketchbook-returning * {
   --tutorial-front-ridge: rgba(76, 92, 71, 0.96);
   --tutorial-path: rgba(232, 216, 180, 0.8);
   pointer-events: auto;
-  width: min(1080px, calc(100vw - 48px));
-  max-height: calc(100vh - 44px);
-  padding: 20px;
+  width: min(660px, calc(100vw - 48px));
+  max-height: calc(100vh - 56px);
+  padding: 16px;
   display: grid;
-  gap: 18px;
+  gap: 12px;
   overflow: auto;
   border: 2px solid rgba(30, 25, 18, 0.18);
-  border-radius: 30px 30px 24px 24px;
+  border-radius: 24px 24px 20px 20px;
   background:
     linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(246, 239, 227, 0.96)),
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 46%);
   box-shadow:
     0 30px 84px rgba(30, 25, 18, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.48) inset;
-  animation: sketch-photo-sheet-in 0.48s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: sketch-tutorial-fade-in 0.26s ease both;
 }
 
 .sketch-tutorial::-webkit-scrollbar {
@@ -1014,19 +1013,21 @@ html.sketchbook-returning * {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 12px;
 }
 
 .sketch-tutorial__copy {
   display: grid;
-  gap: 6px;
+  gap: 5px;
+  max-width: 560px;
 }
 
 .sketch-tutorial__eyebrow,
 .sketch-tutorial__progress-label,
 .sketch-tutorial__step-tag,
 .sketch-tutorial-strip__step,
-.sketch-tutorial__note-label {
+.sketch-tutorial__note-label,
+.sketch-tutorial__controls-label {
   font-family: var(--font-mono);
   font-size: 0.56rem;
   letter-spacing: 0.22em;
@@ -1037,21 +1038,20 @@ html.sketchbook-returning * {
 .sketch-tutorial__title,
 .sketch-tutorial__panel-title {
   font-family: var(--font-mono);
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: lowercase;
   color: rgba(30, 25, 18, 0.82);
 }
 
-.sketch-tutorial__description,
 .sketch-tutorial__panel-body,
 .sketch-tutorial__note-body {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  line-height: 1.62;
-  letter-spacing: 0.03em;
-  color: rgba(47, 36, 22, 0.58);
+  font-size: 0.66rem;
+  line-height: 1.68;
+  letter-spacing: 0.02em;
+  color: rgba(47, 36, 22, 0.64);
 }
 
 .sketch-tutorial__progress {
@@ -1059,7 +1059,7 @@ html.sketchbook-returning * {
   display: grid;
   gap: 4px;
   justify-items: end;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid rgba(76, 60, 40, 0.12);
   border-radius: 14px 11px 15px 10px;
   background:
@@ -1069,7 +1069,7 @@ html.sketchbook-returning * {
 
 .sketch-tutorial__progress-index {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: rgba(38, 29, 18, 0.74);
@@ -1077,45 +1077,42 @@ html.sketchbook-returning * {
 
 .sketch-tutorial__body {
   display: grid;
-  grid-template-columns: minmax(0, 1.14fr) minmax(280px, 0.86fr);
-  gap: 18px;
-  align-items: stretch;
+  gap: 10px;
 }
 
 .sketch-tutorial__graphic {
-  display: grid;
-  gap: 12px;
+  min-height: 0;
 }
 
 .sketch-tutorial-photo {
   position: relative;
   min-height: 0;
-  padding: 16px 18px 18px;
+  padding: 10px;
   border: 1.5px solid rgba(76, 60, 40, 0.14);
-  border-radius: 26px 24px 20px 20px;
+  border-radius: 20px 20px 16px 16px;
   background:
     linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(244, 236, 223, 0.92)),
     repeating-linear-gradient(0deg, rgba(122, 95, 67, 0.03) 0 1px, transparent 1px 16px);
   box-shadow:
-    0 18px 34px rgba(30, 25, 18, 0.08),
+    0 14px 28px rgba(30, 25, 18, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.42);
 }
 
 .sketch-tutorial-photo__frame {
   position: relative;
-  padding: 12px;
-  border-radius: 22px 22px 16px 16px;
+  padding: 8px;
+  border-radius: 16px 16px 13px 13px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 238, 226, 0.84));
   box-shadow:
-    0 16px 30px rgba(30, 25, 18, 0.1),
+    0 12px 24px rgba(30, 25, 18, 0.08),
     0 0 0 1px rgba(30, 25, 18, 0.06) inset;
 }
 
 .sketch-tutorial-photo__mat {
   position: relative;
-  padding: 10px 10px 14px;
-  border-radius: 16px;
+  padding: 7px 7px 9px;
+  border-radius: 12px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.92), rgba(248, 239, 226, 0.9));
   box-shadow: 0 0 0 1px rgba(30, 25, 18, 0.05) inset;
@@ -1123,7 +1120,7 @@ html.sketchbook-returning * {
 
 .sketch-tutorial-photo__scene {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 2.4 / 1;
   overflow: hidden;
   border-radius: 12px;
   background: var(--tutorial-sky);
@@ -1305,10 +1302,10 @@ html.sketchbook-returning * {
 }
 
 .sketch-tutorial-photo__caption {
-  margin-top: 10px;
+  margin-top: 8px;
   font-family: var(--font-mono);
-  font-size: 0.54rem;
-  letter-spacing: 0.16em;
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(64, 48, 29, 0.54);
 }
@@ -1446,40 +1443,54 @@ html.sketchbook-returning * {
 .sketch-tutorial__panel {
   display: grid;
   align-content: start;
-  gap: 12px;
-  padding: 18px;
+  gap: 7px;
+  padding: 11px 12px;
   border: 1px solid rgba(76, 60, 40, 0.12);
-  border-radius: 22px 18px 23px 18px;
+  border-radius: 18px 16px 19px 16px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.92), rgba(244, 236, 223, 0.86)),
     repeating-linear-gradient(0deg, rgba(122, 95, 67, 0.03) 0 1px, transparent 1px 16px);
   box-shadow:
-    0 18px 36px rgba(30, 25, 18, 0.08),
+    0 12px 24px rgba(30, 25, 18, 0.07),
     inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+}
+
+.sketch-tutorial__panel-head {
+  display: grid;
+  gap: 6px;
+}
+
+.sketch-tutorial__panel-body {
+  color: rgba(40, 31, 21, 0.78);
+}
+
+.sketch-tutorial__controls-block {
+  display: grid;
+  gap: 7px;
 }
 
 .sketch-tutorial__controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .sketch-tutorial__control-chip {
-  padding: 7px 10px;
+  padding: 5px 9px;
   border: 1px solid rgba(76, 60, 40, 0.12);
   border-radius: 999px;
   background: rgba(255, 253, 248, 0.82);
   color: rgba(38, 29, 18, 0.76);
   font-family: var(--font-mono);
-  font-size: 0.56rem;
-  letter-spacing: 0.08em;
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
   text-transform: lowercase;
 }
 
 .sketch-tutorial__note {
   display: grid;
-  gap: 6px;
-  padding: 12px 13px;
+  gap: 5px;
+  padding: 8px 10px;
   border: 1px solid rgba(76, 60, 40, 0.1);
   border-radius: 16px 13px 17px 12px;
   background:
@@ -1489,27 +1500,8 @@ html.sketchbook-returning * {
 .sketch-tutorial__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.sketch-tutorial__dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sketch-tutorial__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(76, 60, 40, 0.18);
-  transition: transform 0.18s ease, background 0.18s ease;
-}
-
-.sketch-tutorial__dot.is-active {
-  background: var(--tutorial-accent);
-  transform: scale(1.15);
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .sketch-tutorial__actions {
@@ -1676,6 +1668,17 @@ html.sketchbook-returning * {
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: drop-shadow(0 28px 80px rgba(30, 25, 18, 0.18));
+  }
+}
+
+@keyframes sketch-tutorial-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -2012,4 +2015,3 @@ html.sketchbook-returning * {
     --sketch-bottom-ui-scale: 0.74;
   }
 }
-

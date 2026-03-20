@@ -87,6 +87,7 @@ export default function TargetCursor({
     if (isMobile || !cursorRef.current) return
 
     const cursor = cursorRef.current
+    const root = document.documentElement
     const originalCursor = document.body.style.cursor
     cornersRef.current = cursor.querySelectorAll<HTMLDivElement>('.target-cursor-corner')
 
@@ -277,6 +278,8 @@ export default function TargetCursor({
       document.elementFromPoint(x, y)?.closest(targetSelector) ?? null
     )
 
+    const isSketchbookActive = () => root.classList.contains('sketchbook-mode')
+
     const resolveTargetFromLastPoint = () => {
       if (!lastPointerRef.current) return null
       return resolveTargetAtPoint(lastPointerRef.current.x, lastPointerRef.current.y)
@@ -294,14 +297,35 @@ export default function TargetCursor({
     }
 
     const moveHandler = (e: MouseEvent) => {
+      if (isSketchbookActive()) {
+        lastPointerRef.current = null
+        if (activeTarget) {
+          deactivateTarget()
+        }
+        return
+      }
+
       lastPointerRef.current = { x: e.clientX, y: e.clientY }
       moveCursor(e.clientX, e.clientY)
       syncTarget(resolveTargetAtPoint(e.clientX, e.clientY))
     }
 
     const scrollHandler = () => {
+      if (isSketchbookActive()) return
       syncTarget(resolveTargetFromLastPoint())
     }
+
+    const syncSketchbookState = () => {
+      if (!isSketchbookActive()) return
+      lastPointerRef.current = null
+      if (activeTarget) {
+        deactivateTarget()
+      }
+    }
+
+    const classObserver = new MutationObserver(syncSketchbookState)
+    classObserver.observe(root, { attributes: true, attributeFilter: ['class'] })
+    syncSketchbookState()
 
     const pageLeaveHandler = () => {
       lastPointerRef.current = null
@@ -350,6 +374,7 @@ export default function TargetCursor({
       window.removeEventListener('mouseup', mouseUpHandler)
       window.removeEventListener('blur', pageLeaveHandler)
       document.removeEventListener('mouseleave', pageLeaveHandler)
+      classObserver.disconnect()
       if (resumeTimeout) {
         clearTimeout(resumeTimeout)
       }

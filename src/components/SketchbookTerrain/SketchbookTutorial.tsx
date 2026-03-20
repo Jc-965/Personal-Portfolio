@@ -21,9 +21,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'survey',
     eyebrow: 'step 1',
     title: 'survey the field and sculpt the terrain',
-    body: 'Start in sculpt view. Drag to turn your camera, scroll to zoom, use Q and E to rotate, then use R and C to raise or lower the camera before flipping sculpt on to push, pull, and smooth the paper landscape.',
-    featureLabel: 'field note',
-    featureBody: 'Cycle viewpoints for quick compositions, tune brush strength, and let decay ease sharp edits back into softer hills.',
+    body: 'Start in Sculpt mode. Drag to look around, scroll to zoom, use Q and E to rotate, and use R and C to move up or down. Turn Sculpt on when you want to raise, lower, or smooth the terrain.',
+    featureLabel: 'quick tip',
+    featureBody: 'Use the survey viewpoints first, then adjust brush strength and decay once you find a shape you like.',
     graphicCaption: 'survey view + live sculpt controls',
     controls: ['drag look', 'scroll zoom', 'q/e rotate', 'r/c move', 'tab switch mode', 'sculpt on'],
     callouts: [
@@ -36,9 +36,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'explore',
     eyebrow: 'step 2',
     title: 'switch to explore and walk the sketch',
-    body: 'Hit explore, click the field to capture your view, then move with WASD. Use the mouse or Q and E to turn, R and C to move vertically, tab to switch modes, and escape when you want the cursor back.',
-    featureLabel: 'field note',
-    featureBody: 'Perches jump you to curated locations, so you can scout the scene quickly before dropping into first-person movement.',
+    body: 'Switch to Explore. Click the scene to lock your view, move with WASD, and use the mouse to look around. Q and E turn, R and C move vertically, Tab changes modes, and Escape frees the cursor.',
+    featureLabel: 'quick tip',
+    featureBody: 'Use the perch jumps to scout the scene quickly before moving around manually.',
     graphicCaption: 'first-person roam with pinned perches',
     controls: ['explore mode', 'click to look', 'wasd walk', 'q/e rotate', 'r/c move', 'tab switch mode', 'esc release'],
     callouts: [
@@ -51,9 +51,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'capture',
     eyebrow: 'step 3',
     title: 'capture a clean postcard when you find a frame',
-    body: 'Use photo to generate both your live framing and a recommended angle. Hide UI for a cleaner composition, then save or copy either shot from the contact sheet.',
-    featureLabel: 'field note',
-    featureBody: 'The photo sheet always keeps two takes ready: the exact camera you composed and a cleaner postcard picked from the terrain.',
+    body: 'Press Photo to capture two images: your exact view and a cleaner recommended angle. Hide the UI if you want a cleaner frame, then save or copy the shot you want from the contact sheet.',
+    featureLabel: 'quick tip',
+    featureBody: 'The photo sheet always keeps both versions ready so you can compare before saving.',
     graphicCaption: 'contact-sheet export with clean ui toggle',
     controls: ['photo', 'save or copy', 'hide ui', 'back to portfolio'],
     callouts: [
@@ -78,15 +78,11 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
           role="dialog"
           aria-modal="true"
           aria-labelledby="sketch-tutorial-title"
-          aria-describedby="sketch-tutorial-description"
         >
           <header className="sketch-tutorial__header">
             <div className="sketch-tutorial__copy">
               <span className="sketch-tutorial__eyebrow">field guide</span>
               <h2 id="sketch-tutorial-title" className="sketch-tutorial__title">how the sketchbook works</h2>
-              <p id="sketch-tutorial-description" className="sketch-tutorial__description">
-                A quick three-step walkthrough before you head into the terrain.
-              </p>
             </div>
             <div className="sketch-tutorial__progress">
               <span className="sketch-tutorial__progress-label">{step.eyebrow}</span>
@@ -124,34 +120,22 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
                   </span>
                 ))}
               </div>
-
-              <div className="sketch-tutorial-strip">
-                {TUTORIAL_STEPS.map((item, index) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`sketch-tutorial-strip__thumb ${index === stepIndex ? 'is-active' : ''}`}
-                    onClick={() => setStepIndex(index)}
-                  >
-                    <span className={`sketch-tutorial-strip__image sketch-tutorial-strip__image--${item.id}`} />
-                    <span className="sketch-tutorial-strip__meta">
-                      <span className="sketch-tutorial-strip__step">{item.eyebrow}</span>
-                      <span className="sketch-tutorial-strip__label">{item.title}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="sketch-tutorial__panel">
-              <span className="sketch-tutorial__step-tag">{step.eyebrow}</span>
-              <h3 className="sketch-tutorial__panel-title">{step.title}</h3>
+              <div className="sketch-tutorial__panel-head">
+                <span className="sketch-tutorial__step-tag">{step.eyebrow}</span>
+                <h3 className="sketch-tutorial__panel-title">{step.title}</h3>
+              </div>
               <p className="sketch-tutorial__panel-body">{step.body}</p>
 
-              <div className="sketch-tutorial__controls">
-                {step.controls.map(control => (
-                  <span key={control} className="sketch-tutorial__control-chip">{control}</span>
-                ))}
+              <div className="sketch-tutorial__controls-block">
+                <span className="sketch-tutorial__controls-label">controls</span>
+                <div className="sketch-tutorial__controls">
+                  {step.controls.map(control => (
+                    <span key={control} className="sketch-tutorial__control-chip">{control}</span>
+                  ))}
+                </div>
               </div>
 
               <div className="sketch-tutorial__note">
@@ -162,12 +146,6 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
           </div>
 
           <footer className="sketch-tutorial__footer">
-            <div className="sketch-tutorial__dots" aria-hidden="true">
-              {TUTORIAL_STEPS.map((item, index) => (
-                <span key={item.id} className={`sketch-tutorial__dot ${index === stepIndex ? 'is-active' : ''}`} />
-              ))}
-            </div>
-
             <div className="sketch-tutorial__actions">
               <button type="button" className="sketch-btn" onClick={onClose}>skip intro</button>
               {stepIndex > 0 && (

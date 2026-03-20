@@ -24,9 +24,9 @@ const projects: Project[] = [
     accentRgb: '106, 165, 175',
     featured: true,
     bullets: [
-      "Levio is a mobile care product that brings Parkinson's symptom tracking, medication routines, recovery media, and community support into one experience.",
-      'Handled iOS/Android release engineering with automated testing and staged releases.',
-      'Combined cloud auth/data services with local JSON caching so core care flows stayed usable offline.',
+      "Engineered a cross-platform Flutter/Dart mobile health platform for Parkinson's symptom tracking, medication adherence, and recovery workflows.",
+      'Integrated Supabase auth/data services with offline-first local persistence, preserving continuity for high-priority care flows under unstable network conditions.',
+      'Built automated iOS/Android release pipelines with GitHub Actions CI/CD and staged deployment checks to harden production delivery.',
     ],
     tech: ['Supabase', 'Flutter', 'Dart', 'Offline Sync', 'GitHub Actions CI/CD'],
     stats: [
@@ -43,9 +43,9 @@ const projects: Project[] = [
     accentRgb: '76, 139, 255',
     featured: true,
     bullets: [
-      'Agoriai is an anonymous career network for candid questions about internships, recruiting, and companies without the usual social risk.',
-      'Designed trust-aware networking with identity controls, moderated direct messaging, and mutual identity-reveal workflows.',
-      'Implemented hashed-session auth and graph-driven discovery across company pages, relationship maps, and internship search.',
+      'Built a full-stack anonymous career network for low-risk professional Q&A, company discovery, and trust-aware social interaction.',
+      'Implemented privacy-preserving identity controls, moderated messaging flows, and relationship-gated reveal mechanics on a Bun/Elysia + PostgreSQL/Drizzle backend.',
+      'Used React 19, TypeScript, and D3 to power graph-based exploration across company pages, relationship maps, and internship search.',
     ],
     tech: ['React 19', 'TypeScript', 'D3', 'Bun/Elysia', 'PostgreSQL/Drizzle', ],
     stats: [
@@ -61,9 +61,9 @@ const projects: Project[] = [
     accent: '#b38e5d',
     accentRgb: '179, 142, 93',
     bullets: [
-      'MyCommunity is a scouting app for finding nearby troops, service opportunities, and local updates in one place.',
-      'Connected cloud-backed troop profiles, map-based search, and live news into a single mobile workflow.',
-      'Turned geospatial browsing into a practical discovery tool for scouting participation and community engagement.',
+      'Developed an Android civic-discovery app for geospatial search across troops, local opportunities, and community updates.',
+      'Integrated Firebase-backed content, Google Maps APIs, and remote news feeds into a unified Java mobile workflow.',
+      'Optimized map-driven discovery with OkHttp, Gson, and Glide so location-based browsing stayed fast and reliable on-device.',
     ],
     tech: ['Java', 'Firebase', 'Google Maps API', 'OkHttp/Gson/Glide'],
     stats: [
@@ -79,9 +79,9 @@ const projects: Project[] = [
     accent: '#9c7fae',
     accentRgb: '156, 127, 174',
     bullets: [
-      'Tarocchi is a tarot-inspired interactive narrative designed to feel exploratory, replayable, and atmospheric.',
-      'Structured 24 branching paths through prompt-based choice logic so each route felt distinct without losing coherence.',
-      'Synchronized parallax motion and layered soundscapes to reinforce mood and pacing throughout the experience.',
+      'Built an interactive narrative web experience with 24 branching story paths and a replayable state-driven progression model.',
+      'Engineered route logic and scene transitions in React/TypeScript to keep branching flows coherent as narrative complexity increased.',
+      'Layered Framer Motion, parallax systems, and synchronized audio to deliver a cinematic, high-immersion presentation pipeline.',
     ],
     tech: ['React & Vite', 'TypeScript', 'Tailwind CSS', 'Framer Motion'],
     stats: [
