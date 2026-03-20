@@ -14,6 +14,12 @@ import GyroPrompt from './components/GyroPrompt'
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
 const SketchPortfolioOverlay = lazy(() => import('./components/SketchbookTerrain/SketchPortfolioOverlay'))
 
+const shouldForceSketchbookTutorial = () => {
+  if (typeof window === 'undefined') return false
+  const tutorialParam = new URLSearchParams(window.location.search).get('sketchTutorial')?.toLowerCase()
+  return tutorialParam === '1' || tutorialParam === 'true'
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
@@ -26,12 +32,13 @@ function App() {
 
   const openSketchbook = useCallback(() => {
     const seen = hasSeenSketchbook || localStorage.getItem('sketchbook-visited') === '1'
+    const forceTutorial = shouldForceSketchbookTutorial()
     setIsSketchbookReturning(false)
     if (returnTimerRef.current !== null) {
       window.clearTimeout(returnTimerRef.current)
       returnTimerRef.current = null
     }
-    setShowSketchbookTutorial(!seen)
+    setShowSketchbookTutorial(forceTutorial || !seen)
     setHasSeenSketchbook(true)
     localStorage.setItem('sketchbook-visited', '1')
     setSketchbookOpen(true)
