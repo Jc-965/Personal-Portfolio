@@ -692,7 +692,7 @@ html.sketchbook-returning * {
   z-index: 2;
   background:
     radial-gradient(circle at center, rgba(255, 255, 255, 1) 0%, rgba(255, 252, 245, 0.985) 18%, rgba(255, 248, 232, 0.58) 48%, rgba(255, 248, 232, 0.18) 74%, rgba(255, 248, 232, 0) 100%);
-  animation: sketch-capture-flash-pop 1.34s cubic-bezier(0.12, 0.84, 0.16, 1) both;
+  animation: sketch-capture-flash-pop 1.32s cubic-bezier(0.12, 0.84, 0.16, 1) both;
 }
 
 .sketch-photo-sheet-backdrop {
@@ -715,7 +715,7 @@ html.sketchbook-returning * {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  animation: sketch-photo-sheet-shell-in 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: sketch-photo-sheet-shell-in 1.12s cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
 .sketch-photo-sheet-shell::before {
@@ -731,7 +731,7 @@ html.sketchbook-returning * {
     linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
   filter: blur(9px);
   opacity: 0;
-  animation: sketch-photo-processing-cloud 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: sketch-photo-processing-cloud 1.12s cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
 .sketch-photo-sheet-shell::after {
@@ -748,7 +748,7 @@ html.sketchbook-returning * {
     repeating-linear-gradient(180deg, rgba(120, 102, 75, 0.08) 0 2px, transparent 2px 18px);
   filter: blur(24px);
   opacity: 0;
-  animation: sketch-photo-sheet-processing 2.3s ease both;
+  animation: sketch-photo-sheet-processing 1.12s ease both;
 }
 
 .sketch-photo-sheet {
@@ -774,7 +774,7 @@ html.sketchbook-returning * {
   overflow: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  animation: sketch-photo-sheet-in 2.3s cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: sketch-photo-sheet-in 1.12s cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
 .sketch-photo-sheet::-webkit-scrollbar {
@@ -792,7 +792,7 @@ html.sketchbook-returning * {
     repeating-linear-gradient(180deg, rgba(112, 94, 68, 0.05) 0 2px, transparent 2px 17px);
   opacity: 0;
   transform: translateY(-22%);
-  animation: sketch-photo-sheet-process-pass 2.3s cubic-bezier(0.18, 0.78, 0.24, 1) both;
+  animation: sketch-photo-sheet-process-pass 1.12s cubic-bezier(0.18, 0.78, 0.24, 1) both;
 }
 
 .sketch-photo-sheet__header {
@@ -1573,16 +1573,13 @@ html.sketchbook-returning * {
 
 @keyframes sketch-photo-sheet-shell-in {
   0% {
-    transform: translateY(-16vh);
+    transform: translateY(-12vh);
   }
-  34% {
-    transform: translateY(-11vh);
-  }
-  56% {
-    transform: translateY(-6vh);
+  46% {
+    transform: translateY(-4vh);
   }
   82% {
-    transform: translateY(2.8vh);
+    transform: translateY(2.4vh);
   }
   100% {
     transform: translateY(0);
@@ -1637,31 +1634,21 @@ html.sketchbook-returning * {
 @keyframes sketch-photo-sheet-in {
   0% {
     opacity: 0;
-    transform: translateY(-58vh) scale(0.93);
+    transform: translateY(-40vh) scale(0.944);
     filter: drop-shadow(0 36px 72px rgba(30, 25, 18, 0.08));
   }
-  14% {
+  18% {
     opacity: 1;
-    transform: translateY(-50vh) scale(0.936);
+    transform: translateY(-26vh) scale(0.956);
   }
-  32% {
+  44% {
     opacity: 1;
-    transform: translateY(-34vh) scale(0.946);
-    filter: drop-shadow(0 30px 64px rgba(30, 25, 18, 0.1));
-  }
-  52% {
-    opacity: 1;
-    transform: translateY(-18vh) scale(0.956);
+    transform: translateY(-10vh) scale(0.972);
     filter: drop-shadow(0 22px 52px rgba(30, 25, 18, 0.12));
   }
-  66% {
+  78% {
     opacity: 1;
-    transform: translateY(-4vh) scale(0.968);
-    filter: drop-shadow(0 20px 44px rgba(30, 25, 18, 0.13));
-  }
-  86% {
-    opacity: 1;
-    transform: translateY(3.8vh) scale(1.01);
+    transform: translateY(2.8vh) scale(1.008);
     filter: drop-shadow(0 24px 54px rgba(30, 25, 18, 0.16));
   }
   100% {
