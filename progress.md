@@ -1,0 +1,101 @@
+Original prompt: Make the terrain that spawns everytime more randomized. have less water
+
+- Identified that terrain shape, colors, water coverage, and placement were all driven by deterministic shared noise, so randomness had to be added at the shared generator level.
+- Added a per-spawn terrain generation config path so the shader mesh and JS-side placement can use the same seeded terrain parameters.
+
+- Normalized terrain-derived placement seeds to stay in JS-safe integer range before verification.
+- Pending: build + browser check for terrain variety and water coverage.
+- Visual check 1: sketch screenshot shows mostly dry terrain with water concentrated in the river.
+- Visual verification step 2 prepared: reloaded page to force a fresh terrain seed before re-opening sketchbook.
+- Adjusted default sketch camera to start closer to the terrain and increased seeded terrain relief while keeping water coverage low.
+- Pending final visual pass after rebuild to confirm terrain relief reads from the default spawn.
+- Added contour-style terrain shading and reset the default camera to a mid-distance landscape framing.
+- Running final post-fix screenshot against the same open-sketch flow for comparison to the user-provided flat view.
+- Added seeded broad hills and a basin on top of the noise stack so each terrain spawn has readable topography.
+- Final hill/basin verification pass started after clean build.
+- Made sketch camera views terrain-aware so the spawn frames the generated hills instead of a fixed global point.
+- Final terrain-aware camera verification run started.
+- Reduced tree density and grass density/height so the terrain surface is less occluded in the default sketch view.
+- Final vegetation-thinned screenshot pass started.
+- Increased contour density and contrast in the terrain shader so landform lines survive the sketch post-process.
+- Final contour-legibility verification run started.
+- Switched the default sketch spawn to the aerial overview so terrain shows before close foreground props.
+- Final aerial-default verification run started.
+- Removed sketch UI slant/italics, removed the generated river/trail spline meshes, reduced scene clutter, and cut paper bleed in the sketch post-process.
+- Running post-fix sketch screenshot comparison against the user-reported flat/slanted state.
+- Terrain still read too softly after removing splines/clutter, so adding an explicit terrain line overlay next.
+- Added a dedicated terrain wire overlay that uses the same displaced mesh so the landform reads explicitly.
+- Final terrain-overlay verification run started.
+- Reduced sketch post-process blend so the underlying terrain shading remains visible.
+- Rechecking terrain visibility after reducing sketch blend strength.
+- Increased terrain amplitudes and widened placement height ranges so the scene can show stronger hills without depopulating.
+- Rechecking live sketch frame after raising terrain amplitude.
+- Backed out the terrain randomization/shader/camera experiments and restored the baseline terrain path; keeping only straight UI text and no river/trail splines.
+- Verifying restored baseline terrain rendering in the live sketch scene.
+- Build passed after rollback, and Playwright screenshot `.playwright-cli/page-2026-03-18T05-04-49-137Z.png` shows terrain visible again with straight sketch UI text and no river/trail splines; only existing Firebase `permission_denied` warnings remain.
+- Set sketch spawn defaults explicitly to landscape view with a slightly more zoomed-out starting zoom (0.48) in SketchbookCanvas.
+- Added a sketch photo flow: capture button, dual-frame capture (current camera + recommended angle), animated preview sheet, and per-frame save/copy actions.
+- Build passed and Playwright verified the photo preview rendering with both captured images; clipboard/download side effects were not deeply validated under automation.
+- Slowed the sketch photo capture pacing with a minimum capture hold plus a softer, longer flash and preview-sheet reveal.
+- Added more visible click feedback to the site cursor, target cursor, and sketch cursor so clicks now animate on the cursor itself.
+- Reworked flatten/smooth/roughen to operate against absolute terrain height from a stable brush snapshot instead of only damping deformation toward the original terrain.
+- Tightened roughen again after browser verification showed runaway spikes; it now approaches a stable rough texture around the local mean instead of recursively amplifying peaks.
+- Reduced the default smooth and roughen brush intensity so the stock 15%% brush amplifier is less aggressive without changing the slider range.
+- Reworked the sketch photo handoff so the flash now freezes the current camera frame immediately, hides the recommended-angle camera override, and transitions straight into the field-photos sheet without the previous dead gap.
+- Replaced the fixed recommended photo camera with a terrain-aware scorer that picks a focal area from relief, current framing, and nearby scene subjects, then chooses a clearer alternate angle based on line of sight, slope direction, pitch, and novelty; also lowered the default sketch decay strength.
+- Retuned the sketch photo transition timing so the capture flash stays visible longer and the field-photos sheet/cards rise from lower down with a slower, softer reveal.
+- Split smooth and roughen into more distinct sculpt behaviors: smooth now relaxes the deformation field instead of acting like flatten, and roughen now converges toward stable warped ridge/terrace/swirl patterns for more unnatural landforms.
+- Simplified the sketch photo reveal into one slower dispense animation: longer textless flash, the field-photos sheet descends from the top like processed paper, and the inner photo cards no longer animate independently.
+- Improved recommended photo framing so isolated sculpted peaks are penalized during focus selection, tall dominant features force more camera standoff, and the scorer now prefers broader foreground/midground relief over a single mountain filling the frame.
+- Softened smooth and roughen again; roughen now stacks upward-biased ridge/terrace forms from the current local surface instead of blending toward signed noise that could push terrain downward.
+- Reworked the photo handoff again so the frozen scene stays blurred immediately after the flash, replaced the sheet reveal with a longer dispense-shell drop from the top, and removed the clip-path-based corner clipping on the photo sheet/frame.
+- Added a hidden sketch-counter easter egg: clicking the `sketch #...` badge ten times opens a full-screen secret sketch portfolio with a stronger paper-and-graphite treatment across hero, projects, journey, toolkit, and contact sections.
+- Tightened the sketch easter egg trigger by reducing it to five presses, adding visible counter progress marks, and giving the secret portfolio a full-screen paper-sweep enter/exit transition so the handoff back and forth is explicit.
+- Removed the visible top-center carrier bar from the field-photos reveal and extended the animation with an extra soft processing pass before the photo sheet is finally dispensed into view.
+- Removed the extra center dot from the interactive target-cursor layer so the constellation/footer area no longer shows a second cursor point detached from the main cursor.
+- Increased the vertical travel between the existing field-photo dispense stages so each beat steps the sheet noticeably farther down, and hid the sheet scrollbar to remove the cyan strip on the right edge.
+- Tightened the photo handoff blur so the scene stays softened immediately after the flash, and extended the flash timing slightly so it lingers longer before the photo sheet takes over.
+- Reworked the small-screen footer socials into a single four-button row so the mobile sketch trigger no longer drops onto its own extra row.
+- Added viewport-based scaling for the sketch UI groups on tighter windows, locked `sculpt`/`decay` controls to a single line, and centered the brush mode label so `raise`/`dig` sit properly inside their buttons.
+- Hardened native cursor suppression for Arc/browser re-entry by bootstrapping `cursor: none` before React mounts, reapplying it on focus/visibility/mouse re-entry, and wiring the interactive cursor wrapper back to the existing `.target-cursor` CSS path.
+- Replaced the secret sketch-portfolio handoff with dedicated full-screen entry/exit canvas transitions so opening and returning now behave like real takeover passes instead of a shallow sheet animation.
+- Reworked the secret portfolio into a more varied paper collage: taped hero sheet, sideboard notes, field-kit card, pinboard-style project sheets with artifact/constraint callouts, ledger-like journey cards, swatch/tool cards, postcard-style beyond-build cards, and a stronger postcard/contact area with much heavier paper and graphite treatment.
+- Simplified the sketch overlay again by removing the redundant sculpt status card and the bottom-left scene label, re-spacing the top HUD so it no longer collides with the back button, and left-aligning the sculpt tool panel so it no longer fights the folio badge for the same corner.
+- Removed the visible easter-egg progress/hint treatment from `SketchCounter` while preserving the hidden trigger, and reduced the folio badge back to a quiet single-line label.
+- Made the sketch open directly into the `tree line` sculpt survey by default, and strengthened the sky/fog/background treatment with a bluer sky dome, darker horizon silhouettes, and a less washed-out sketch post-process so the backdrop no longer reads as plain white.
+- Build passed after the HUD/background pass, and Playwright validation confirmed: desktop no longer has overlapping HUD blocks, mobile sculpt keeps the controls separated, and opening the sketch now lands in `survey: tree line`; only the existing Firebase `permission_denied` warnings remain in the console.
+- Added a small performance trim to the sketch scene: reduced terrain mesh subdivisions from `220x220` to `176x176`, lowered the canvas DPR cap from `1.5` to `1.25`, and thinned desktop/mobile counts for trees, grass, shrubs, rocks, logs, animals, horizon canopy, particles, and birds.
+- Build passed after the perf pass, and Playwright screenshots confirmed the lighter scene still opens in `tree line` sculpt on desktop and mobile while keeping the revised HUD/background intact; console still only shows the pre-existing Firebase `permission_denied` warnings.
+- Replaced the old horizon cone ring with layered procedural ridge bands around the sketch world, deepened the sky dome colors, and reduced the sketch post-process wash on bright background areas so the atmosphere now reads as distant mountains/haze instead of a plain blue sphere.
+- Build passed after the atmosphere refinement, and a live browser validation confirmed both the default `tree line` sculpt view and `explore` first-person view now show layered atmospheric depth with no obvious cone silhouettes.
+- Restyled the main-page UI toward the sketch language by reducing rounded radii, introducing paper-like button/surface treatments for nav/CTA/status/footer/constellation controls, and tightening the major content card corners so the portfolio controls feel less glossy and more drawn/field-note-like.
+- Refined the sketch HUD again by removing the extra `wander` explore label and making the survey row flatter/wider within a slimmer left dock; skipped browser validation for this pass per user request and only ran build + lint checks.
+- Removed the cylindrical horizon silhouette from `SketchAtmosphere`, increased `EXPLORE_MOVE_SPEED`, and added shared creek/pond terrain carving plus stronger water shading so visible water appears in the same places for both rendering and JS-side sampling.
+- Pending: rebuild + Playwright/browser screenshot check for ring removal, faster explore movement, and visible water in the default sketch view.
+- Browser verification passed for the terrain pass: `.playwright-cli/page-2026-03-18T23-03-47-037Z.png` shows the ring removed and visible water in the default sculpt frame, while `.playwright-cli/page-2026-03-18T23-04-29-997Z.png` and `.playwright-cli/page-2026-03-18T23-05-26-390Z.png` confirm explore starts near water and a brief `W` hold now advances the camera substantially.
+- `npm run build` passed for this pass; browser console still shows the existing Firebase `permission_denied` warnings, plus a Playwright-only pointer-lock warning during synthetic explore automation.
+- Increased Scotty terrier frequency from a single rare spawn to a small pack on desktop, loosened its placement filter/min distance slightly, and added slight size variation so multiple dogs can appear without looking cloned.
+- Rebuilt the Scotty mesh with a fuller body silhouette, shoulders, haunches, brow, beard fringe, paws, and tail so it reads much more clearly at sketchbook distance.
+- `npm run build` passed after the Scotty pass, and fresh Playwright sketchbook capture `.playwright-cli/page-2026-03-18T23-11-42-287Z.png` showed the updated animal population rendering normally in the live terrain.
+- Increased terrain relief substantially in the shared sampler/shader path by adding continental lift, stronger ridge and summit masks, extra alpine peak lift, mesa/plateau breakup, and softer basin carving so the sketchbook now has taller hills, sharper mountain spines, and more varied landforms.
+- Expanded water generation with a wider main creek, a tributary, a larger lake, and an extra basin pond, then loosened water thresholds in both JS sampling and fragment shading so wetter terrain reads more often.
+- Increased movement again in `SketchbookCanvas` by raising explore speed, raising the survey WASD translation speed, and increasing the allowable explore step height so steeper terrain does not make movement feel stuck.
+- Fixed a live GLSL compile error in the new water feature shader path (`max` arity in `terrainVertex`) after browser validation exposed it; build still passed before that because the issue was runtime-only.
+- Verification: `npm run build` passed after the terrain pass; `.playwright-cli/page-2026-03-18T23-22-39-889Z.png` and `.playwright-cli/page-2026-03-18T23-23-26-846Z.png` show much stronger mountain relief in sculpt survey views, and `.playwright-cli/page-2026-03-18T23-27-08-891Z.png` confirms a brief `W` hold in explore now moves far enough to crest the nearby slope. The bundled web-game client still cannot reach the footer sketch button automatically because it loads above the fold.
+- Remapped sketchbook camera controls so survey drag now turns the camera instead of orbiting the terrain, `q/e` rotate, `r/c` move vertically, `z/f` are inert, and the help/tutorial copy now calls out `tab` mode switching.
+- Excluded the four top navigation links from the React Bits target-cursor snap box by marking them with `data-target-cursor="off"` and updating the target selector, so the standard custom cursor still shows there without the highlight box jumping onto those links.
+- Verification: `npm run build` passed for the camera/cursor pass. Browser automation was stopped for the nav-cursor fix per user request.
+- Increased sketchbook turn responsiveness by raising both survey and explore `q/e` rotation speed, widened the survey drag sensitivities, and expanded the survey/explore pitch clamps so dragging can look much farther down at the ground instead of stopping at the old presentation-camera limit.
+- Verification: `npm run build` passed for the camera tuning pass; no Playwright/browser automation was used.
+- Fixed the React Bits snap-cursor target resolver so it no longer trusts `mouseover`/`mouseout` event targets from transformed or magnetic elements; it now resolves hover targets strictly from the live pointer coordinates, which prevents detached highlight boxes from appearing on the wrong element.
+- Verification: `npm run build` passed for the snap-cursor resolver fix; no Playwright/browser automation was used.
+- Tuned the sketchbook survey drag down slightly by reducing both yaw and pitch mouse-drag sensitivities, so click-drag camera movement feels less aggressive while keeping the wider look range from the previous pass.
+- Verification: `npm run build` passed for the drag-sensitivity adjustment; no Playwright/browser automation was used.
+- Fixed mobile sculpt input in the sketchbook by activating the terrain brush on single-touch start/move, deactivating it cleanly on pinch/end, switching the touchstart listener to non-passive so the gesture can cancel browser defaults immediately, and adding extra `user-select` / touch-callout guards on the sketchbook surface for mobile browsers.
+- Verification: `npm run build` passed for the mobile sculpting fix; no Playwright/browser automation was used.
+- Removed the extra easing layer from the React Bits snap-cursor wrapper and switched its box geometry to use the live pointer coordinates directly, so the snap box no longer drifts away from the main cursor during fast movement or hover transitions.
+- Verification: `npm run build` passed for the snap-cursor tracking fix; no Playwright/browser automation was used.
+- Split the monolithic `src/App.css` into ordered partials under `src/styles/` and turned `src/App.css` into a small import manifest, keeping the original cascade order intact while making the stylesheet easier to navigate and maintain.
+- Verification: `npm run build` passed after the CSS split, and the build output still emits a single main app stylesheet (`dist/assets/index-*.css`) plus the pre-existing lazy chunk CSS, so the runtime loading behavior did not change.
+- Fixed the React Bits snap-box positioning math by removing the percentage-based corner transforms and placing the corners in direct pixel coordinates relative to the pointer wrapper, so the selection box no longer inherits a persistent transform offset when hovering elements.
+- Verification: `npm run build` passed for the snap-box geometry fix; no Playwright/browser automation was used.

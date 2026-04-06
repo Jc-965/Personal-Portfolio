@@ -9,8 +9,6 @@ type TutorialStep = {
   eyebrow: string
   title: string
   body: string
-  featureLabel: string
-  featureBody: string
   graphicCaption: string
   controls: string[]
   callouts: { label: string; x: string; y: string }[]
@@ -22,8 +20,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     eyebrow: 'step 1',
     title: 'survey the field and sculpt the terrain',
     body: 'Start in Sculpt mode. Drag to look around, scroll to zoom, use Q and E to rotate, and use R and C to move up or down. Turn Sculpt on when you want to raise, lower, or smooth the terrain.',
-    featureLabel: 'quick tip',
-    featureBody: 'Use the survey viewpoints first, then adjust brush strength and decay once you find a shape you like.',
     graphicCaption: 'survey view + live sculpt controls',
     controls: ['drag look', 'scroll zoom', 'q/e rotate', 'r/c move', 'tab switch mode', 'sculpt on'],
     callouts: [
@@ -37,8 +33,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     eyebrow: 'step 2',
     title: 'switch to explore and walk the sketch',
     body: 'Switch to Explore. Click the scene to lock your view, move with WASD, and use the mouse to look around. Q and E turn, R and C move vertically, Tab changes modes, and Escape frees the cursor.',
-    featureLabel: 'quick tip',
-    featureBody: 'Use the perch jumps to scout the scene quickly before moving around manually.',
     graphicCaption: 'first-person roam with pinned perches',
     controls: ['explore mode', 'click to look', 'wasd walk', 'q/e rotate', 'r/c move', 'tab switch mode', 'esc release'],
     callouts: [
@@ -52,8 +46,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     eyebrow: 'step 3',
     title: 'capture a clean postcard when you find a frame',
     body: 'Press Photo to capture two images: your exact view and a cleaner recommended angle. Hide the UI if you want a cleaner frame, then save or copy the shot you want from the contact sheet.',
-    featureLabel: 'quick tip',
-    featureBody: 'The photo sheet always keeps both versions ready so you can compare before saving.',
     graphicCaption: 'contact-sheet export with clean ui toggle',
     controls: ['photo', 'save or copy', 'hide ui', 'back to portfolio'],
     callouts: [
@@ -136,11 +128,6 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
                     <span key={control} className="sketch-tutorial__control-chip">{control}</span>
                   ))}
                 </div>
-              </div>
-
-              <div className="sketch-tutorial__note">
-                <span className="sketch-tutorial__note-label">{step.featureLabel}</span>
-                <p className="sketch-tutorial__note-body">{step.featureBody}</p>
               </div>
             </div>
           </div>
