@@ -4,7 +4,11 @@ import { useScrollTransition } from './useScrollTransition'
 import SketchbookCanvas from './SketchbookCanvas'
 import SketchCounter from './SketchCounter'
 
-export default function SketchbookTerrain() {
+interface SketchbookTerrainProps {
+  onSecretUnlock?: () => void
+}
+
+export default function SketchbookTerrain({ onSecretUnlock }: SketchbookTerrainProps = {}) {
   const sectionRef = useRef<HTMLElement>(null)
   const { progress, progressRef } = useScrollTransition(sectionRef)
   const inView = useInView(sectionRef as React.RefObject<Element>, { margin: '200px 0px' })
@@ -110,7 +114,7 @@ export default function SketchbookTerrain() {
         />
       )}
 
-      <SketchCounter />
+      <SketchCounter onSecretUnlock={onSecretUnlock} />
 
       {/* Bottom left label */}
       <div className="sketchbook-label" style={{ opacity: Math.max(0, progress - 0.4) }}>
