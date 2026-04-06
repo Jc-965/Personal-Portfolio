@@ -1,639 +1,753 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import useTouchDevice from '../../hooks/useTouchDevice'
-import SecretPortfolioEntryAnimation from './SecretPortfolioEntryAnimation'
-import SecretPortfolioExitAnimation from './SecretPortfolioExitAnimation'
+import { AnimatePresence, motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion'
+import { ArrowLeft, ArrowUpRight, Boxes, Cpu, Github, Layers3, Linkedin, Mail, Orbit, Sparkles } from 'lucide-react'
+import EmailPopup from '../EmailPopup'
 
 interface SketchPortfolioOverlayProps {
   onClose: () => void
 }
 
-const notebookFacts = [
-  { label: 'base', value: 'Carnegie Mellon SCS' },
-  { label: 'focus', value: 'mobile, product systems, full-stack' },
-  { label: 'bias', value: 'real users over abstract demos' },
-  { label: 'mode', value: 'prototype visually, then harden the system' },
+const sectionLinks = [
+  { id: 'signal-hero', label: 'intro' },
+  { id: 'signal-builds', label: 'builds' },
+  { id: 'signal-path', label: 'path' },
+  { id: 'signal-lab', label: 'lab' },
+  { id: 'signal-contact', label: 'contact' },
 ]
 
-const designNotes = [
-  'I care about software that feels intentional, not generic.',
-  'The strongest projects here solve a practical problem first and then earn their style.',
-  'This folio reads like a field notebook lifted from the sketch terrain after walking the site.',
+const pulseCards = [
+  {
+    label: 'mobile systems',
+    title: 'products that have to earn trust fast',
+    note: 'Health, onboarding, and account surfaces where friction becomes product debt immediately.',
+    accent: '#84f0d6',
+  },
+  {
+    label: 'spatial data',
+    title: 'messy information turned into clean movement',
+    note: 'Pipelines, geospatial models, and structure that make interfaces feel precise instead of noisy.',
+    accent: '#ffb36b',
+  },
+  {
+    label: 'interactive web',
+    title: 'motion used as architecture, not garnish',
+    note: 'Interfaces that feel cinematic without dropping the engineering bar.',
+    accent: '#ff7c66',
+  },
+  {
+    label: 'build instinct',
+    title: 'make it vivid, then make it durable',
+    note: 'The best work here lands style and reliability in the same pass.',
+    accent: '#f7f38a',
+  },
 ]
 
-const fieldKit = [
-  { label: 'notebook mode', value: 'draft in the field, refine at the desk' },
-  { label: 'favorite surface', value: 'product systems' },
-  { label: 'default tool', value: 'mobile + full-stack' },
-  { label: 'quality bar', value: 'useful before flashy' },
+const heroStats = [
+  { value: '04', label: 'featured builds', note: 'health, social, civic, and narrative systems' },
+  { value: '06', label: 'major roles', note: 'from research pipelines to production-facing products' },
+  { value: '01', label: 'core bias', note: 'real users before ornamental complexity' },
 ]
 
-const marginFragments = [
-  'follow the ridge to the notes',
-  'tape the idea to the wall',
-  'make the system readable',
-]
-
-const projectSheets = [
+const featuredBuilds = [
   {
     name: 'Levio',
-    tag: 'mobile health / cross-platform care',
-    summary: "A Parkinson's care product that combines symptom tracking, medication routines, recovery media, and community support in one mobile experience.",
-    bullets: [
-      'Shipped iOS and Android release engineering with staged testing and automation.',
-      'Blended cloud auth/data with local JSON caching so core care flows stayed usable offline.',
-      'Built the product around consistency, trust, and daily usability instead of one-off feature spikes.',
-    ],
-    artifact: 'care flows that survive bad connectivity',
-    constraint: 'health products need trust, not friction',
-    tilt: '-2.4deg',
-    accent: '106, 165, 175',
+    year: '2025',
+    band: 'care systems',
+    summary: "A Parkinson's support product combining tracking, medication routines, recovery media, and community touchpoints in one mobile flow.",
+    outcome: 'offline-aware care flows with release discipline',
+    stack: ['Flutter', 'Firebase', 'release automation'],
+    accent: '#84f0d6',
   },
   {
     name: 'Agoriai',
-    tag: 'anonymous networking / tartan hacks 2026',
-    summary: 'An anonymous career network for candid questions about internships, recruiting, and companies without the usual social risk.',
-    bullets: [
-      'Designed identity controls, moderated messaging, and mutual reveal flows for safer interactions.',
-      'Implemented hashed-session auth and graph-driven discovery across company pages and relationship maps.',
-      'Used a stronger visual system to make a socially risky product feel calm and navigable.',
-    ],
-    artifact: 'anonymous networking with safer reveal logic',
-    constraint: 'social risk had to feel controlled',
-    tilt: '1.8deg',
-    accent: '76, 139, 255',
+    year: '2026',
+    band: 'anonymous networks',
+    summary: 'A candid recruiting network built around safer reveal logic, identity controls, and calmer social risk.',
+    outcome: 'trust-focused messaging and graph-driven discovery',
+    stack: ['TypeScript', 'auth systems', 'graph modeling'],
+    accent: '#7ab6ff',
   },
   {
     name: 'MyCommunity',
-    tag: 'android civic tech / geospatial discovery',
-    summary: 'A scouting app for finding nearby troops, service opportunities, and local updates in one mobile workflow.',
-    bullets: [
-      'Connected cloud-backed troop profiles, live news, and map-first search in a single Android experience.',
-      'Turned geospatial browsing into a practical discovery tool instead of a novelty map view.',
-      'Focused on clear local utility: where to go, what is happening, and who is active nearby.',
-    ],
-    artifact: 'map-first civic discovery on Android',
-    constraint: 'location needs clarity, not clutter',
-    tilt: '-1.1deg',
-    accent: '179, 142, 93',
+    year: '2025',
+    band: 'civic discovery',
+    summary: 'An Android scouting tool that turns nearby troops, local updates, and map-first discovery into one useful field view.',
+    outcome: 'location clarity without visual clutter',
+    stack: ['Android', 'maps', 'cloud data'],
+    accent: '#ffb36b',
   },
   {
     name: 'Tarocchi',
-    tag: 'interactive web / creative systems',
-    summary: 'A tarot-inspired interactive narrative built to feel exploratory, replayable, and atmospheric instead of linear.',
-    bullets: [
-      'Structured twenty-four branching routes through prompt-based choice logic.',
-      'Synced parallax motion and layered soundscapes to reinforce mood and pacing.',
-      'Used web interactions as storytelling structure, not just decoration.',
-    ],
-    artifact: 'narrative atmosphere built from interaction',
-    constraint: 'the web experience had to feel ritualistic',
-    tilt: '2.3deg',
-    accent: '156, 127, 174',
+    year: '2025',
+    band: 'interactive narrative',
+    summary: 'A branching web narrative built around atmosphere, replay, and ritual pacing rather than static page structure.',
+    outcome: 'interaction as storytelling grammar',
+    stack: ['React', 'motion', 'choice systems'],
+    accent: '#ff7c66',
   },
 ]
 
-const journeyEntries = [
+const trailMarks = [
   {
-    pid: '001',
-    title: 'Blue Shield of California',
-    role: 'Incoming Mobile Software Engineering Intern',
     period: 'Summer 2026',
-    track: 'health systems',
-    summary: 'Preparing to work on mobile healthcare technology with production constraints and real patient-facing stakes.',
+    role: 'Incoming Mobile Software Engineering Intern',
+    place: 'Blue Shield of California',
+    signal: 'patient-facing systems',
+    note: 'Stepping into mobile healthcare work where reliability, clarity, and production constraints all matter at once.',
   },
   {
-    pid: '002',
-    title: 'Sorcea Labs',
-    role: 'Mobile Software Engineering Intern',
     period: 'Dec 2025 - Present',
-    track: 'mobile product',
-    summary: 'Built onboarding, profile, guided tutorial, and skin-analysis flows in Flutter/Dart for personalized skincare recommendations used by 1.5k+ people.',
+    role: 'Mobile Software Engineering Intern',
+    place: 'Sorcea Labs',
+    signal: 'consumer health product',
+    note: 'Built onboarding, profile, guided tutorial, and skin-analysis flows in Flutter for a live skincare experience.',
   },
   {
-    pid: '003',
-    title: 'CMUMaps',
-    role: 'Data & Software Engineer',
     period: 'Sep 2025 - Present',
-    track: 'data systems',
-    summary: 'Normalized OpenStreetMap building data into versioned JSON pipelines and built geometry anchors for cleaner rendering and labels.',
+    role: 'Data & Software Engineer',
+    place: 'CMUMaps',
+    signal: 'spatial pipelines',
+    note: 'Normalized OpenStreetMap building data into cleaner versioned geometry and label-ready JSON systems.',
   },
   {
-    pid: '004',
-    title: 'Coding Minds Academy',
-    role: 'Instructor',
     period: 'Jun 2025 - Feb 2026',
-    track: 'teaching',
-    summary: 'Designed and taught curriculum in programming, algorithms, and project labs that translated abstract logic into working code.',
+    role: 'Instructor',
+    place: 'Coding Minds Academy',
+    signal: 'teaching systems',
+    note: 'Translated algorithms and programming concepts into project-based labs that produced working code, not just theory.',
   },
   {
-    pid: '005',
-    title: 'Game Creation Society',
-    role: 'Core Developer',
     period: 'Sep 2025 - Dec 2025',
-    track: 'games',
-    summary: 'Implemented grapple and tether mechanics in Unreal Engine 5 with physics-driven control and local multiplayer synchronization.',
+    role: 'Core Developer',
+    place: 'Game Creation Society',
+    signal: 'physics gameplay',
+    note: 'Implemented tether and grapple mechanics in Unreal Engine 5 with physics-based control and multiplayer constraints.',
   },
   {
-    pid: '006',
-    title: 'SoftCom Lab',
-    role: 'Research Intern',
     period: 'Jun 2023 - Aug 2024',
-    track: 'research',
-    summary: "Built reproducible Python pipelines for a Parkinson's-focused mobile-health study under faculty mentorship, contributing to a peer-reviewed paper.",
+    role: 'Research Intern',
+    place: 'SoftCom Lab',
+    signal: 'reproducible analysis',
+    note: "Built Python pipelines for a Parkinson's-focused mobile-health study and contributed to peer-reviewed research output.",
   },
 ]
 
-const skillGroups = [
+const labBands = [
   {
-    name: 'languages',
-    note: 'The stuff I reach for when I need raw control, fast iteration, or real implementation depth.',
-    items: ['Python', 'TypeScript', 'JavaScript', 'C++', 'Dart', 'Java', 'C', 'SQL', 'Assembly'],
+    name: 'interface stack',
+    note: 'The surfaces where interaction, product sense, and visual clarity have to land together.',
+    tags: ['React', 'Flutter', 'Framer Motion', 'TypeScript', 'design systems', 'interaction design'],
   },
   {
-    name: 'frameworks',
-    note: 'The higher-level surfaces where product decisions become something people can actually use.',
-    items: ['React', 'Flutter', 'Firebase', 'Framer Motion', 'Tailwind CSS', 'Unreal Engine 5', 'Android SDK'],
+    name: 'data stack',
+    note: 'The infrastructure for cases where raw information needs shaping before it becomes product.',
+    tags: ['Python', 'NumPy', 'Pandas', 'scikit-learn', 'GeoJSON', 'OpenStreetMap'],
   },
   {
-    name: 'data & ml',
-    note: 'The analysis and data plumbing stack I use when the problem is noisy, spatial, or too messy for manual inspection.',
-    items: ['NumPy', 'Pandas', 'scikit-learn', 'Data Pipelines', 'Signal Processing', 'GeoJSON', 'OpenStreetMap'],
-  },
-  {
-    name: 'systems & tools',
-    note: 'The working kit that keeps builds reproducible, collaborative, and durable once the first prototype is done.',
-    items: ['Git', 'Unix Shell', 'SSH', 'GitHub Actions', 'CI/CD', 'Docker', 'Figma'],
+    name: 'systems stack',
+    note: 'The layer that keeps the interesting stuff stable once a prototype has to survive real use.',
+    tags: ['Git', 'CI/CD', 'Docker', 'Firebase', 'automation', 'release tooling'],
   },
 ]
 
-const lifeNotes = [
-  {
-    title: 'Arcadia App Development',
-    caption: 'campus systems',
-    summary: 'Built a digital student ID system and helped grow a student app program that supported thousands of real check-ins.',
-  },
-  {
-    title: 'Eagle Scout',
-    caption: 'leadership',
-    summary: 'Led the planning and construction of outdoor signage for a local elementary school and coordinated volunteers end to end.',
-  },
-  {
-    title: 'Clarinet Section Leader',
-    caption: 'performance',
-    summary: 'Performed nationally and abroad while coaching younger musicians and keeping a section aligned under pressure.',
-  },
+const principleSignals = [
+  'Make motion carry information, not just energy.',
+  'Let structure stay legible even when the visuals get dramatic.',
+  'Treat production polish as part of the product, not cleanup after the fun part.',
 ]
 
-const contactLinks = [
-  { label: 'GitHub', href: 'https://github.com/Jc-965' },
-  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/jessechen2/' },
+const ambientNodes = [
+  { top: '10%', left: '8%', size: 6, driftX: 18, driftY: -12, duration: 10, delay: 0.2 },
+  { top: '18%', left: '74%', size: 9, driftX: -20, driftY: 16, duration: 12, delay: 0.6 },
+  { top: '29%', left: '55%', size: 5, driftX: 14, driftY: 20, duration: 9, delay: 0.1 },
+  { top: '44%', left: '16%', size: 8, driftX: 22, driftY: -8, duration: 13, delay: 1.1 },
+  { top: '58%', left: '84%', size: 7, driftX: -18, driftY: 14, duration: 11, delay: 0.4 },
+  { top: '70%', left: '34%', size: 10, driftX: 16, driftY: -18, duration: 14, delay: 0.8 },
+  { top: '82%', left: '64%', size: 4, driftX: -10, driftY: -12, duration: 8, delay: 1.3 },
+  { top: '90%', left: '12%', size: 6, driftX: 12, driftY: 10, duration: 10, delay: 0.7 },
 ]
 
-const waypoints = [
-  { id: 'sketch-secret-cover', code: 'hinge 00', label: 'cover sheet' },
-  { id: 'sketch-secret-survey', code: 'grid 14', label: 'survey board' },
-  { id: 'sketch-secret-specimens', code: 'drawer 28', label: 'specimen cabinet' },
-  { id: 'sketch-secret-journal', code: 'drift 41', label: 'field journal' },
-  { id: 'sketch-secret-arsenal', code: 'kit 52', label: 'tool legend' },
-  { id: 'sketch-secret-dispatch', code: 'exit 99', label: 'dispatch' },
-]
-
-const journeyLayouts = [
-  { top: '10%', left: '6%', width: '39%', rotate: '-2.2deg' },
-  { top: '15%', left: '52%', width: '38%', rotate: '1.8deg' },
-  { top: '39%', left: '12%', width: '34%', rotate: '-0.9deg' },
-  { top: '45%', left: '50%', width: '31%', rotate: '2.2deg' },
-  { top: '68%', left: '8%', width: '36%', rotate: '-1.5deg' },
-  { top: '72%', left: '53%', width: '37%', rotate: '1.2deg' },
-]
-
-const toolTilts = ['-1.6deg', '0.9deg', '-0.8deg', '1.4deg']
-const waypointTilts = ['-3deg', '2deg', '-1.4deg', '2.6deg', '-2.2deg', '1.2deg']
+const riseIn = {
+  hidden: { opacity: 0, y: 28 },
+  show: (index = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: 0.08 + index * 0.08,
+      duration: 0.72,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  }),
+}
 
 export default function SketchPortfolioOverlay({ onClose }: SketchPortfolioOverlayProps) {
-  const cursorRef = useRef<HTMLDivElement>(null)
-  const clickResetRef = useRef<number | null>(null)
-  const [phase, setPhase] = useState<'entering' | 'active' | 'exiting'>('entering')
-  const [cursorState, setCursorState] = useState<'default' | 'hover'>('default')
-  const [cursorClicking, setCursorClicking] = useState(false)
-  const isTouchDevice = useTouchDevice()
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const [viewport, setViewport] = useState({ width: 1, height: 1 })
+  const [isClosing, setIsClosing] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
+  const pointerX = useMotionValue(0)
+  const pointerY = useMotionValue(0)
+  const { scrollYProgress } = useScroll({ container: overlayRef })
+
+  const progressScale = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: 0.24 })
+  const sceneRotateY = useSpring(useTransform(pointerX, [0, Math.max(viewport.width, 1)], [-10, 10]), {
+    stiffness: 90,
+    damping: 18,
+    mass: 0.6,
+  })
+  const sceneRotateX = useSpring(useTransform(pointerY, [0, Math.max(viewport.height, 1)], [8, -8]), {
+    stiffness: 90,
+    damping: 18,
+    mass: 0.6,
+  })
+  const driftX = useSpring(useTransform(pointerX, [0, Math.max(viewport.width, 1)], [-36, 36]), {
+    stiffness: 60,
+    damping: 16,
+    mass: 0.8,
+  })
+  const driftY = useSpring(useTransform(pointerY, [0, Math.max(viewport.height, 1)], [-30, 30]), {
+    stiffness: 60,
+    damping: 16,
+    mass: 0.8,
+  })
+  const haloX = useSpring(useTransform(pointerX, value => value - 260), {
+    stiffness: 120,
+    damping: 18,
+    mass: 0.5,
+  })
+  const haloY = useSpring(useTransform(pointerY, value => value - 260), {
+    stiffness: 120,
+    damping: 18,
+    mass: 0.5,
+  })
+  const inverseDriftX = useTransform(driftX, value => value * -0.58)
+  const inverseDriftY = useTransform(driftY, value => value * -0.44)
+  const heroLift = useTransform(scrollYProgress, [0, 0.18], [0, -90])
+  const heroFade = useTransform(scrollYProgress, [0, 0.22], [1, 0.55])
+  const ringRotation = useTransform(scrollYProgress, [0, 1], [0, 120])
+  const gridShift = useTransform(scrollYProgress, [0, 1], [0, 220])
 
   useLayoutEffect(() => {
-    document.documentElement.classList.add('sketch-secret-mode')
+    const cursorCanvas = document.querySelector('.cursor-canvas') as HTMLElement | null
+    const targetCursor = document.querySelector('.target-cursor') as HTMLElement | null
+    const vintageOverlay = document.querySelector('.vintage-overlay') as HTMLElement | null
+    const previousOverflow = document.body.style.overflow
+    const previousCursorCanvasDisplay = cursorCanvas?.style.display ?? ''
+    const previousTargetCursorDisplay = targetCursor?.style.display ?? ''
+    const previousOverlayOpacity = vintageOverlay?.style.opacity ?? ''
+
     document.body.style.overflow = 'hidden'
-    document.body.style.setProperty('cursor', 'none', 'important')
-    document.documentElement.style.setProperty('cursor', 'none', 'important')
+    cursorCanvas?.style.setProperty('display', 'none', 'important')
+    targetCursor?.style.setProperty('display', 'none', 'important')
+    vintageOverlay?.style.setProperty('opacity', '0', 'important')
+
     return () => {
-      document.documentElement.classList.remove('sketch-secret-mode')
-      document.body.style.overflow = ''
-      document.body.style.removeProperty('cursor')
-      document.documentElement.style.removeProperty('cursor')
+      document.body.style.overflow = previousOverflow
+      if (cursorCanvas) {
+        if (previousCursorCanvasDisplay) {
+          cursorCanvas.style.setProperty('display', previousCursorCanvasDisplay)
+        } else {
+          cursorCanvas.style.removeProperty('display')
+        }
+      }
+      if (targetCursor) {
+        if (previousTargetCursorDisplay) {
+          targetCursor.style.setProperty('display', previousTargetCursorDisplay)
+        } else {
+          targetCursor.style.removeProperty('display')
+        }
+      }
+      if (vintageOverlay) {
+        if (previousOverlayOpacity) {
+          vintageOverlay.style.setProperty('opacity', previousOverlayOpacity)
+        } else {
+          vintageOverlay.style.removeProperty('opacity')
+        }
+      }
     }
   }, [])
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
+    const syncViewport = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+      pointerX.set(window.innerWidth * 0.5)
+      pointerY.set(window.innerHeight * 0.42)
+    }
+
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [pointerX, pointerY])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setPhase(current => (current === 'exiting' ? current : 'exiting'))
+        if (showEmail) {
+          setShowEmail(false)
+          return
+        }
+        setIsClosing(true)
       }
     }
 
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showEmail])
 
   useEffect(() => {
-    return () => {
-      if (clickResetRef.current) {
-        window.clearTimeout(clickResetRef.current)
-      }
-    }
-  }, [])
+    if (!isClosing) return
+    const closeTimer = window.setTimeout(onClose, 680)
+    return () => window.clearTimeout(closeTimer)
+  }, [isClosing, onClose])
+
+  const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    pointerX.set(event.clientX)
+    pointerY.set(event.clientY)
+  }
 
   const scrollToSection = (id: string) => {
-    if (phase !== 'active') return
-    document.getElementById(id)?.scrollIntoView({
+    if (isClosing) return
+    overlayRef.current?.querySelector<HTMLElement>(`#${id}`)?.scrollIntoView({
       behavior: 'smooth',
       block: 'start',
     })
   }
 
-  const requestClose = () => {
-    setPhase(current => (current === 'exiting' ? current : 'exiting'))
-  }
+  const externalLinks = [
+    { label: 'GitHub', href: 'https://github.com/Jc-965', icon: Github },
+    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/jessechen2/', icon: Linkedin },
+  ]
 
-  const onMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isTouchDevice || !cursorRef.current) return
+  if (typeof document === 'undefined') return null
 
-    const nextState = (event.target as HTMLElement).closest('a, button')
-      ? 'hover'
-      : 'default'
+  return createPortal(
+    <>
+      <motion.div
+        ref={overlayRef}
+        className="signal-vault"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Secret signal page"
+        initial={{ opacity: 0, scale: 0.985, filter: 'blur(12px)' }}
+        animate={isClosing
+          ? { opacity: 0, scale: 0.985, filter: 'blur(14px)' }
+          : { opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        transition={{ duration: isClosing ? 0.5 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+        onMouseMove={handlePointerMove}
+      >
+        <div className="signal-vault__backdrop" aria-hidden="true" />
+        <motion.div className="signal-vault__spotlight" aria-hidden="true" style={{ x: haloX, y: haloY }} />
+        <motion.div
+          className="signal-vault__aurora signal-vault__aurora--one"
+          aria-hidden="true"
+          style={{ x: driftX, y: driftY }}
+          animate={{ scale: [1, 1.12, 0.98, 1], rotate: [0, 24, -18, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="signal-vault__aurora signal-vault__aurora--two"
+          aria-hidden="true"
+          style={{ x: inverseDriftX, y: inverseDriftY }}
+          animate={{ scale: [1.05, 0.95, 1.08, 1.05], rotate: [0, -30, 22, 0] }}
+          transition={{ duration: 21, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="signal-vault__aurora signal-vault__aurora--three"
+          aria-hidden="true"
+          animate={{ scale: [0.95, 1.06, 1], rotate: [0, 14, -12, 0] }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div className="signal-vault__grid" aria-hidden="true" style={{ y: gridShift }} />
+        <div className="signal-vault__grain" aria-hidden="true" />
 
-    cursorRef.current.style.left = `${event.clientX}px`
-    cursorRef.current.style.top = `${event.clientY}px`
-    cursorRef.current.style.opacity = '1'
-    setCursorState(current => (current === nextState ? current : nextState))
-  }
+        <div className="signal-vault__stars" aria-hidden="true">
+          {ambientNodes.map((node, index) => (
+            <motion.span
+              key={`${node.left}-${node.top}`}
+              className="signal-vault__star"
+              style={{
+                top: node.top,
+                left: node.left,
+                width: node.size,
+                height: node.size,
+              }}
+              animate={{
+                opacity: [0.22, 1, 0.34],
+                scale: [1, 1.7, 1],
+                x: [0, node.driftX, 0],
+                y: [0, node.driftY, 0],
+              }}
+              transition={{
+                duration: node.duration,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: node.delay + index * 0.04,
+              }}
+            />
+          ))}
+        </div>
 
-  const onMouseLeave = () => {
-    if (isTouchDevice || !cursorRef.current) return
-    cursorRef.current.style.opacity = '0'
-  }
+        <header className="signal-vault__masthead">
+          <div className="signal-vault__brand">
+            <span className="signal-vault__brand-kicker">after hours / signal room</span>
+            <strong className="signal-vault__brand-name">Jesse Chen</strong>
+          </div>
 
-  const onMouseDown = () => {
-    if (isTouchDevice) return
-
-    setCursorClicking(true)
-    if (clickResetRef.current) {
-      window.clearTimeout(clickResetRef.current)
-    }
-
-    clickResetRef.current = window.setTimeout(() => {
-      setCursorClicking(false)
-      clickResetRef.current = null
-    }, 220)
-  }
-
-  const content = (
-    <div
-      className={`sketch-secret-overlay sketch-secret-overlay--${phase}`}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Secret graphite board"
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      onMouseDown={onMouseDown}
-    >
-      {phase === 'entering' && (
-        <SecretPortfolioEntryAnimation onComplete={() => setPhase('active')} />
-      )}
-
-      {(phase === 'active' || phase === 'exiting') && (
-        <div className="sketch-secret-shell">
-          <header className="sketch-secret-toolbar">
-            <span className="sketch-secret-toolbar__stamp">graphite archive // private field folio</span>
-            <div className="sketch-secret-toolbar__cluster">
-              <span className="sketch-secret-toolbar__badge">messy board / sketchbook / surreal journal</span>
-              <button className="sketch-btn sketch-secret-toolbar__close" type="button" onClick={requestClose}>
-                return to ridge
+          <nav className="signal-vault__nav" aria-label="Secret page sections">
+            {sectionLinks.map(link => (
+              <button
+                key={link.id}
+                type="button"
+                className="signal-vault__nav-button"
+                onClick={() => scrollToSection(link.id)}
+              >
+                {link.label}
               </button>
-            </div>
-          </header>
+            ))}
+          </nav>
 
-          <section className="sketch-secret-cover" id="sketch-secret-cover">
-            <article className="sketch-secret-manifesto">
-              <span className="sketch-secret-paper-tape sketch-secret-paper-tape--left" aria-hidden="true" />
-              <span className="sketch-secret-paper-tape sketch-secret-paper-tape--right" aria-hidden="true" />
+          <div className="signal-vault__masthead-actions">
+            <button
+              type="button"
+              className="signal-vault__button signal-vault__button--ghost"
+              onClick={() => setShowEmail(true)}
+            >
+              <Mail size={15} strokeWidth={2} />
+              <span>email</span>
+            </button>
+            <button
+              type="button"
+              className="signal-vault__button signal-vault__button--ghost"
+              onClick={() => setIsClosing(true)}
+            >
+              <ArrowLeft size={15} strokeWidth={2} />
+              <span>back to sketchbook</span>
+            </button>
+          </div>
 
-              <div className="sketch-secret-manifesto__meta">
-                <span className="sketch-secret-manifesto__eyebrow">
-                  Jesse Chen // field notebook recovered from the sketch terrain
-                </span>
-                <span className="sketch-secret-manifesto__stamp">notes unsealed</span>
-              </div>
+          <motion.span className="signal-vault__progress" aria-hidden="true" style={{ scaleX: progressScale }} />
+        </header>
 
-              <h1 className="sketch-secret-manifesto__title">
-                The portfolio, pulled apart into a graphite atlas.
-              </h1>
+        <main className="signal-vault__content">
+          <section className="signal-vault__hero" id="signal-hero">
+            <motion.div
+              className="signal-vault__hero-copy"
+              style={{ y: heroLift, opacity: heroFade }}
+              initial="hidden"
+              animate="show"
+            >
+              <motion.span className="signal-vault__eyebrow" variants={riseIn} custom={0}>
+                secret release / built as its own world
+              </motion.span>
+              <motion.h1 className="signal-vault__title" variants={riseIn} custom={1}>
+                A motion-heavy page for the work that deserves more depth.
+              </motion.h1>
+              <motion.p className="signal-vault__lede" variants={riseIn} custom={2}>
+                I build across mobile products, spatial pipelines, and interactive web systems. This page stages that work
+                like a live chamber of signals, layers, and moving surfaces instead of a static stack of cards.
+              </motion.p>
 
-              <p className="sketch-secret-manifesto__lede">
-                First-year CS student focused on products that solve meaningful problems without losing personality.
-                The public site stays clean and legible. This hidden pass redraws the same work as a dramatic board
-                of evidence: site coordinates, torn studies, handwritten fragments, and field notes left half-finished.
-              </p>
-
-              <div className="sketch-secret-manifesto__actions">
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-survey')}>
-                  walk the survey grid
+              <motion.div className="signal-vault__hero-actions" variants={riseIn} custom={3}>
+                <button
+                  type="button"
+                  className="signal-vault__button signal-vault__button--primary"
+                  onClick={() => scrollToSection('signal-builds')}
+                >
+                  <Sparkles size={16} strokeWidth={2.2} />
+                  <span>open builds</span>
                 </button>
-                <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-specimens')}>
-                  open the specimen drawer
+                <button
+                  type="button"
+                  className="signal-vault__button signal-vault__button--ghost"
+                  onClick={() => scrollToSection('signal-path')}
+                >
+                  <Orbit size={16} strokeWidth={2.2} />
+                  <span>trace the path</span>
                 </button>
-              </div>
+              </motion.div>
 
-              <div className="sketch-secret-manifesto__scribbles" aria-hidden="true">
-                {marginFragments.map(fragment => (
-                  <span key={fragment} className="sketch-secret-manifesto__scribble">
-                    {fragment}
-                  </span>
+              <motion.div className="signal-vault__stat-row" variants={riseIn} custom={4}>
+                {heroStats.map(stat => (
+                  <article key={stat.label} className="signal-vault__stat-card">
+                    <span className="signal-vault__stat-value">{stat.value}</span>
+                    <div>
+                      <strong className="signal-vault__stat-label">{stat.label}</strong>
+                      <p className="signal-vault__stat-note">{stat.note}</p>
+                    </div>
+                  </article>
                 ))}
-              </div>
+              </motion.div>
+            </motion.div>
 
-              <div className="sketch-secret-manifesto__crosshair" aria-hidden="true" />
-            </article>
+            <motion.div
+              className="signal-vault__hero-scene"
+              style={{ rotateX: sceneRotateX, rotateY: sceneRotateY }}
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <motion.div
+                className="signal-vault__scene-ring signal-vault__scene-ring--outer"
+                aria-hidden="true"
+                style={{ rotate: ringRotation }}
+              />
+              <motion.div
+                className="signal-vault__scene-ring signal-vault__scene-ring--mid"
+                aria-hidden="true"
+                animate={{ rotate: [0, -360] }}
+                transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
+              />
+              <motion.div
+                className="signal-vault__scene-ring signal-vault__scene-ring--inner"
+                aria-hidden="true"
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
+              />
 
-            <div className="sketch-secret-cover__rail">
-              <aside className="sketch-secret-wayfinder" aria-label="Exploratory wayfinder">
-                <span className="sketch-secret-wayfinder__label">wayfinder</span>
-                <div className="sketch-secret-wayfinder__grid">
-                  {waypoints.map((waypoint, index) => (
-                    <button
-                      key={waypoint.id}
-                      className="sketch-secret-waypoint"
-                      type="button"
-                      style={{ '--waypoint-rotate': waypointTilts[index] } as CSSProperties}
-                      onClick={() => scrollToSection(waypoint.id)}
-                    >
-                      <span className="sketch-secret-waypoint__code">{waypoint.code}</span>
-                      <strong className="sketch-secret-waypoint__label">{waypoint.label}</strong>
-                    </button>
-                  ))}
-                </div>
-              </aside>
+              <motion.div
+                className="signal-vault__scene-core"
+                animate={{ y: [0, -14, 0], rotateZ: [0, 1.4, 0, -1.4, 0] }}
+                transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <span className="signal-vault__scene-kicker">signal focus</span>
+                <strong className="signal-vault__scene-title">Systems with atmosphere.</strong>
+                <p className="signal-vault__scene-note">
+                  Product-minded engineering shaped for motion, clarity, and real-world use.
+                </p>
+              </motion.div>
 
-              <aside className="sketch-secret-mini-note sketch-secret-mini-note--facts">
-                <span className="sketch-secret-mini-note__label">observed constants</span>
-                <div className="sketch-secret-mini-note__rows">
-                  {notebookFacts.map(fact => (
-                    <div key={fact.label} className="sketch-secret-mini-note__row">
-                      <span>{fact.label}</span>
-                      <strong>{fact.value}</strong>
+              {pulseCards.map((card, index) => (
+                <motion.article
+                  key={card.label}
+                  className={`signal-vault__pulse-card signal-vault__pulse-card--${index + 1}`}
+                  style={{ '--pulse-accent': card.accent } as CSSProperties}
+                  animate={{
+                    y: [0, -12 - index * 2, 0],
+                    rotate: [index % 2 === 0 ? -4 : 4, index % 2 === 0 ? -1 : 1, index % 2 === 0 ? -4 : 4],
+                  }}
+                  transition={{
+                    duration: 7 + index * 1.4,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: index * 0.25,
+                  }}
+                >
+                  <span className="signal-vault__pulse-label">{card.label}</span>
+                  <strong className="signal-vault__pulse-title">{card.title}</strong>
+                  <p className="signal-vault__pulse-note">{card.note}</p>
+                </motion.article>
+              ))}
+            </motion.div>
+          </section>
+
+          <section className="signal-vault__section" id="signal-builds">
+            <motion.div
+              className="signal-vault__section-head"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span className="signal-vault__section-tag">build matrix</span>
+              <h2 className="signal-vault__section-title">Featured systems, staged like active channels.</h2>
+              <p className="signal-vault__section-copy">
+                Each card here is treated like a live frequency: what it was for, what made it hard, and what it had to
+                become to feel convincing.
+              </p>
+            </motion.div>
+
+            <div className="signal-vault__build-grid">
+              {featuredBuilds.map((build, index) => (
+                <motion.article
+                  key={build.name}
+                  className="signal-vault__build-card"
+                  style={{ '--build-accent': build.accent } as CSSProperties}
+                  initial={{ opacity: 0, y: 42 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.22 }}
+                  transition={{ duration: 0.7, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{ y: -10, rotateX: 4, rotateY: index % 2 === 0 ? -4 : 4 }}
+                >
+                  <div className="signal-vault__build-topline">
+                    <span>{build.band}</span>
+                    <strong>{build.year}</strong>
+                  </div>
+                  <h3 className="signal-vault__build-title">{build.name}</h3>
+                  <p className="signal-vault__build-summary">{build.summary}</p>
+                  <div className="signal-vault__build-meta">
+                    <span className="signal-vault__build-outcome">{build.outcome}</span>
+                    <div className="signal-vault__tag-row">
+                      {build.stack.map(item => (
+                        <span key={item} className="signal-vault__tag">{item}</span>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </aside>
-
-              <aside className="sketch-secret-mini-note sketch-secret-mini-note--kit">
-                <span className="sketch-secret-mini-note__label">field kit</span>
-                <div className="sketch-secret-kit-grid">
-                  {fieldKit.map(item => (
-                    <div key={item.label} className="sketch-secret-kit-grid__item">
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </aside>
+                  </div>
+                </motion.article>
+              ))}
             </div>
           </section>
 
-          <main className="sketch-secret-board">
-            <section className="sketch-secret-zone sketch-secret-zone--survey" id="sketch-secret-survey">
-              <div className="sketch-secret-zone__heading">
-                <div>
-                  <span className="sketch-secret-zone__eyebrow">architectural drawing board</span>
-                  <h2 className="sketch-secret-zone__title">The build trail plotted like a site survey</h2>
-                </div>
-                <p className="sketch-secret-zone__note">
-                  Roles, teams, and time spans are drafted as coordinates instead of resume blocks. This is the cleanest
-                  read in the hidden folio, but it still behaves like a marked-up plan.
-                </p>
-              </div>
+          <section className="signal-vault__section signal-vault__section--path" id="signal-path">
+            <motion.div
+              className="signal-vault__section-head"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span className="signal-vault__section-tag">path trace</span>
+              <h2 className="signal-vault__section-title">Roles plotted as one continuous acceleration curve.</h2>
+              <p className="signal-vault__section-copy">
+                The line moves through research, teaching, product engineering, spatial systems, and game mechanics, but
+                the through-line stays the same: build things people can actually feel.
+              </p>
+            </motion.div>
 
-              <div className="sketch-secret-survey__board">
-                <span className="sketch-secret-survey__label sketch-secret-survey__label--north">
-                  northing // active trail
-                </span>
-                <span className="sketch-secret-survey__label sketch-secret-survey__label--measure">
-                  scale shifts / roles blur / systems persist
-                </span>
+            <div className="signal-vault__trail">
+              <div className="signal-vault__trail-line" aria-hidden="true" />
+              {trailMarks.map((mark, index) => (
+                <motion.article
+                  key={`${mark.place}-${mark.period}`}
+                  className="signal-vault__trail-card"
+                  initial={{ opacity: 0, x: index % 2 === 0 ? -36 : 36, y: 28 }}
+                  whileInView={{ opacity: 1, x: 0, y: 0 }}
+                  viewport={{ once: true, amount: 0.25 }}
+                  transition={{ duration: 0.7, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <span className="signal-vault__trail-period">{mark.period}</span>
+                  <strong className="signal-vault__trail-role">{mark.role}</strong>
+                  <span className="signal-vault__trail-place">{mark.place}</span>
+                  <span className="signal-vault__trail-signal">{mark.signal}</span>
+                  <p className="signal-vault__trail-note">{mark.note}</p>
+                </motion.article>
+              ))}
+            </div>
+          </section>
 
-                {journeyEntries.map((entry, index) => {
-                  const layout = journeyLayouts[index]
+          <section className="signal-vault__section signal-vault__section--lab" id="signal-lab">
+            <motion.div
+              className="signal-vault__section-head"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span className="signal-vault__section-tag">lab stack</span>
+              <h2 className="signal-vault__section-title">The capability map behind the visuals.</h2>
+              <p className="signal-vault__section-copy">
+                This is the part that keeps the page honest. Dramatic surfaces only work if the underlying systems,
+                tooling, and interface judgment are strong enough to support them.
+              </p>
+            </motion.div>
 
-                  return (
-                    <article
-                      key={entry.pid}
-                      className="sketch-secret-plot"
-                      style={{
-                        '--plot-top': layout.top,
-                        '--plot-left': layout.left,
-                        '--plot-width': layout.width,
-                        '--plot-rotate': layout.rotate,
-                      } as CSSProperties}
-                    >
-                      <span className="sketch-secret-plot__id">{entry.pid}</span>
-                      <span className="sketch-secret-plot__track">{entry.track}</span>
-                      <h3 className="sketch-secret-plot__title">{entry.title}</h3>
-                      <p className="sketch-secret-plot__role">{entry.role}</p>
-                      <p className="sketch-secret-plot__summary">{entry.summary}</p>
-                      <span className="sketch-secret-plot__period">{entry.period}</span>
-                    </article>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="sketch-secret-zone sketch-secret-zone--specimens" id="sketch-secret-specimens">
-              <div className="sketch-secret-zone__heading">
-                <div>
-                  <span className="sketch-secret-zone__eyebrow">artist sketchbook</span>
-                  <h2 className="sketch-secret-zone__title">Project studies pinned as torn specimens</h2>
-                </div>
-                <p className="sketch-secret-zone__note">
-                  The projects stop pretending to be polished case studies here. They turn into fragments, marks,
-                  constraints, and useful artifacts taped onto the same page.
-                </p>
-              </div>
-
-              <div className="sketch-secret-specimen-grid">
-                {projectSheets.map((project, index) => (
-                  <article
-                    key={project.name}
-                    className="sketch-secret-specimen"
-                    style={{
-                      '--specimen-rotate': project.tilt,
-                      '--specimen-accent': project.accent,
-                    } as CSSProperties}
-                  >
-                    <span className="sketch-secret-specimen__sheet">
-                      study {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span className="sketch-secret-specimen__tag">{project.tag}</span>
-                    <h3 className="sketch-secret-specimen__title">{project.name}</h3>
-                    <p className="sketch-secret-specimen__summary">{project.summary}</p>
-
-                    <div className="sketch-secret-specimen__chips">
-                      <span>artifact // {project.artifact}</span>
-                      <span>constraint // {project.constraint}</span>
-                    </div>
-
-                    <div className="sketch-secret-specimen__fragments">
-                      {project.bullets.map(bullet => (
-                        <span key={bullet} className="sketch-secret-specimen__fragment">
-                          {bullet}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="sketch-secret-zone sketch-secret-zone--journal" id="sketch-secret-journal">
-              <div className="sketch-secret-zone__heading">
-                <div>
-                  <span className="sketch-secret-zone__eyebrow">surreal field journal</span>
-                  <h2 className="sketch-secret-zone__title">Margins, habits, and life outside the clean grid</h2>
-                </div>
-                <p className="sketch-secret-zone__note">
-                  The same portfolio facts loosen into handwriting here. Principles read like observations, and outside
-                  work shows up as weather, residue, and side-notes rather than credentials.
-                </p>
-              </div>
-
-              <div className="sketch-secret-journal-grid">
-                <article className="sketch-secret-journal-note sketch-secret-journal-note--principles">
-                  <span className="sketch-secret-journal-note__label">working principles</span>
-                  <ul className="sketch-secret-journal-note__list">
-                    {designNotes.map(note => (
-                      <li key={note}>{note}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="sketch-secret-journal-note sketch-secret-journal-note--life">
-                  <span className="sketch-secret-journal-note__label">outside the terminal</span>
-                  <div className="sketch-secret-life-fragments">
-                    {lifeNotes.map(note => (
-                      <div key={note.title} className="sketch-secret-life-fragment">
-                        <span>{note.caption}</span>
-                        <strong>{note.title}</strong>
-                        <p>{note.summary}</p>
-                      </div>
-                    ))}
+            <div className="signal-vault__lab-grid">
+              {labBands.map((band, index) => (
+                <motion.article
+                  key={band.name}
+                  className="signal-vault__lab-card"
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.22 }}
+                  transition={{ duration: 0.7, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className="signal-vault__lab-card-head">
+                    {index === 0 && <Layers3 size={18} strokeWidth={2.1} />}
+                    {index === 1 && <Boxes size={18} strokeWidth={2.1} />}
+                    {index === 2 && <Cpu size={18} strokeWidth={2.1} />}
+                    <strong>{band.name}</strong>
                   </div>
-                </article>
-
-                <article className="sketch-secret-journal-note sketch-secret-journal-note--margins">
-                  <span className="sketch-secret-journal-note__label">margin fragments</span>
-                  <div className="sketch-secret-margin-cloud">
-                    {marginFragments.map(fragment => (
-                      <span key={fragment} className="sketch-secret-margin-cloud__item">
-                        {fragment}
+                  <p className="signal-vault__lab-note">{band.note}</p>
+                  <div className="signal-vault__tag-row">
+                    {band.tags.map(tag => (
+                      <span key={tag} className="signal-vault__tag">
+                        {tag}
                       </span>
                     ))}
                   </div>
-                </article>
-              </div>
-            </section>
+                </motion.article>
+              ))}
 
-            <section className="sketch-secret-zone sketch-secret-zone--arsenal" id="sketch-secret-arsenal">
-              <div className="sketch-secret-zone__heading">
-                <div>
-                  <span className="sketch-secret-zone__eyebrow">tool legend</span>
-                  <h2 className="sketch-secret-zone__title">The kit rendered as swarms, stamps, and labels</h2>
-                </div>
-                <p className="sketch-secret-zone__note">
-                  Languages, frameworks, data tooling, and systems gear are packed like an annotated supply table rather
-                  than a tidy skills list.
+              <motion.article
+                className="signal-vault__principles-card"
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.22 }}
+                transition={{ duration: 0.7, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <span className="signal-vault__principles-tag">operating principles</span>
+                <ul className="signal-vault__principles-list">
+                  {principleSignals.map(signal => (
+                    <li key={signal}>{signal}</li>
+                  ))}
+                </ul>
+              </motion.article>
+            </div>
+          </section>
+
+          <section className="signal-vault__section signal-vault__section--contact" id="signal-contact">
+            <motion.div
+              className="signal-vault__dispatch"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="signal-vault__dispatch-copy">
+                <span className="signal-vault__section-tag">dispatch</span>
+                <h2 className="signal-vault__section-title">Keep the line open.</h2>
+                <p className="signal-vault__section-copy">
+                  If the page worked, it should already be obvious what I care about: systems with intent, motion with
+                  purpose, and software that feels alive without losing control.
                 </p>
               </div>
 
-              <div className="sketch-secret-arsenal-grid">
-                {skillGroups.map((group, index) => (
-                  <article
-                    key={group.name}
-                    className="sketch-secret-tool-swarm"
-                    style={{ '--swarm-rotate': toolTilts[index] } as CSSProperties}
-                  >
-                    <span className="sketch-secret-tool-swarm__name">{group.name}</span>
-                    <p className="sketch-secret-tool-swarm__note">{group.note}</p>
-                    <div className="sketch-secret-tool-swarm__tags">
-                      {group.items.map(item => (
-                        <span key={item} className="sketch-secret-tool-swarm__tag">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="sketch-secret-zone sketch-secret-zone--dispatch" id="sketch-secret-dispatch">
-              <div className="sketch-secret-dispatch">
-                <article className="sketch-secret-dispatch__note">
-                  <span className="sketch-secret-zone__eyebrow">dispatch</span>
-                  <h2 className="sketch-secret-zone__title">Pack the graphite away or keep the line open</h2>
-                  <p className="sketch-secret-dispatch__text">
-                    The public portfolio stays on the overlook. This hidden one remains the rougher board underneath it.
-                    Reach out through the usual channels, or close the folio and step back into the terrain.
-                  </p>
-                </article>
-
-                <div className="sketch-secret-dispatch__actions">
-                  {contactLinks.map(link => (
+              <div className="signal-vault__dispatch-actions">
+                {externalLinks.map(link => {
+                  const Icon = link.icon
+                  return (
                     <a
                       key={link.label}
-                      className="sketch-btn"
+                      className="signal-vault__button signal-vault__button--primary"
                       href={link.href}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {link.label}
+                      <Icon size={16} strokeWidth={2} />
+                      <span>{link.label}</span>
+                      <ArrowUpRight size={14} strokeWidth={2} />
                     </a>
-                  ))}
-                  <button className="sketch-btn" type="button" onClick={() => scrollToSection('sketch-secret-cover')}>
-                    back to cover
-                  </button>
-                  <button className="sketch-btn" type="button" onClick={requestClose}>
-                    return to terrain
-                  </button>
-                </div>
+                  )
+                })}
+                <button
+                  type="button"
+                  className="signal-vault__button signal-vault__button--ghost"
+                  onClick={() => setShowEmail(true)}
+                >
+                  <Mail size={16} strokeWidth={2} />
+                  <span>email</span>
+                </button>
+                <button
+                  type="button"
+                  className="signal-vault__button signal-vault__button--ghost"
+                  onClick={() => scrollToSection('signal-hero')}
+                >
+                  <Orbit size={16} strokeWidth={2} />
+                  <span>back to top</span>
+                </button>
               </div>
-            </section>
-          </main>
-        </div>
-      )}
+            </motion.div>
+          </section>
+        </main>
+      </motion.div>
 
-      {phase === 'exiting' && (
-        <SecretPortfolioExitAnimation onComplete={onClose} />
-      )}
-
-      {!isTouchDevice && phase !== 'entering' && (
-        <div
-          ref={cursorRef}
-          className={`sketch-secret-cursor sketch-secret-cursor--${cursorState} ${cursorClicking ? 'sketch-secret-cursor--clicking' : ''}`}
-          style={{ opacity: 0 }}
-          aria-hidden="true"
-        >
-          <div className="sketch-secret-cursor__shape" />
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {showEmail && <EmailPopup onClose={() => setShowEmail(false)} />}
+      </AnimatePresence>
+    </>,
+    document.body,
   )
-
-  return createPortal(content, document.body)
 }

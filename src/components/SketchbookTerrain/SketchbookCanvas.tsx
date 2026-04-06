@@ -802,16 +802,16 @@ function CameraController({
       }
     }
 
-    const zoomFactor = 1 / zoom
-    surveyBasePosition.current.set(
-      surveyView.pos[0] * zoomFactor,
-      surveyView.pos[1] * zoomFactor,
-      surveyView.pos[2] * zoomFactor,
-    )
     surveyRawLook.current.set(
       surveyView.look[0],
       surveyView.look[1],
       surveyView.look[2],
+    )
+    const zoomFactor = 1 / zoom
+    surveyBasePosition.current.set(
+      surveyRawLook.current.x + (surveyView.pos[0] - surveyRawLook.current.x) * zoomFactor,
+      surveyRawLook.current.y + (surveyView.pos[1] - surveyRawLook.current.y) * zoomFactor,
+      surveyRawLook.current.z + (surveyView.pos[2] - surveyRawLook.current.z) * zoomFactor,
     )
     surveyBaseDirection.current.copy(surveyRawLook.current).sub(surveyBasePosition.current).normalize()
 
