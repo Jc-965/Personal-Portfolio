@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ref as dbRef, get, update, increment as fbIncrement } from 'firebase/database'
 import { getFirebase } from '../../utils/firebase'
 
@@ -12,6 +12,7 @@ interface SketchCounterProps {
 export default function SketchCounter({ onSecretTrigger, className = '' }: SketchCounterProps) {
   const [count, setCount] = useState<number | null>(null)
   const [secretClicks, setSecretClicks] = useState(0)
+  const secretClicksRef = useRef(0)
 
   useEffect(() => {
     const db = getFirebase()
@@ -39,28 +40,24 @@ export default function SketchCounter({ onSecretTrigger, className = '' }: Sketc
       })
   }, [])
 
-  useEffect(() => {
-    if (!onSecretTrigger || secretClicks < SECRET_TRIGGER_CLICKS) return
-    onSecretTrigger()
-    setSecretClicks(0)
-  }, [onSecretTrigger, secretClicks])
-
   if (count === null) return null
 
   const registerSecretClick = () => {
     if (!onSecretTrigger) return
-    setSecretClicks(prev => Math.min(prev + 1, SECRET_TRIGGER_CLICKS))
+    const next = secretClicksRef.current + 1
+
+    if (next >= SECRET_TRIGGER_CLICKS) {
+      secretClicksRef.current = 0
+      setSecretClicks(0)
+      onSecretTrigger()
+      return
+    }
+
+    secretClicksRef.current = next
+    setSecretClicks(next)
   }
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) return
-    event.preventDefault()
-    event.stopPropagation()
-    registerSecretClick()
-  }
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
     registerSecretClick()
@@ -71,8 +68,7 @@ export default function SketchCounter({ onSecretTrigger, className = '' }: Sketc
       <button
         type="button"
         className="sketch-counter__button"
-        onPointerDown={handlePointerDown}
-        onKeyDown={handleKeyDown}
+        onClick={handleClick}
         aria-label="Field folio number"
       >
         <span className="sketch-counter__label">field folio #{count.toLocaleString()}</span>
