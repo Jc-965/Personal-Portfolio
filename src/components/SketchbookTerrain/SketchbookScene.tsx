@@ -10,7 +10,6 @@ import useTouchDevice from '../../hooks/useTouchDevice'
 
 interface SketchbookSceneProps {
   onClose: () => void
-  onOpenSecretPortfolio?: () => void
   showTutorialOnStart?: boolean
 }
 
@@ -45,7 +44,6 @@ const createCaptureFilename = (variant: CaptureVariant) => {
 
 export default function SketchbookScene({
   onClose,
-  onOpenSecretPortfolio,
   showTutorialOnStart = false,
 }: SketchbookSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -327,7 +325,7 @@ export default function SketchbookScene({
         >
           {captureState === 'capturing' ? 'developing' : 'photo'}
         </button>
-        <SketchCounter className="sketch-photo-stack__counter" onSecretTrigger={onOpenSecretPortfolio} />
+        <SketchCounter className="sketch-photo-stack__counter" />
       </div>
 
       <div className={`sketch-world-help sketch-ui-surface ${uiHidden ? 'sketch-world-help--hidden' : ''}`}>
