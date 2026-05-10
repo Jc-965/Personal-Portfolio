@@ -1,5 +1,6 @@
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Analytics } from '@vercel/analytics/react'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
 import TargetCursor from './components/TargetCursor'
@@ -152,6 +153,7 @@ function App() {
           <SecretPortfolio onClose={closeSecretPortfolio} />
         </Suspense>
       )}
+      <Analytics />
     </GyroscopeProvider>
   )
 }
