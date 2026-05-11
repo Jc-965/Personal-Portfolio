@@ -16,6 +16,9 @@
       "mergeCount": {
         ".validate": "newData.isNumber() && newData.val() >= 0"
       },
+      "mergeLock": {
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      },
       "$other": {
         ".validate": false
       }

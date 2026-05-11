@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get } from 'firebase/database'
+import { ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get, runTransaction } from 'firebase/database'
 import { getFirebase } from '../utils/firebase'
 import useIsPhone from '../hooks/useIsPhone'
 
@@ -24,9 +24,11 @@ const COLORS = [
   { value: '#ff3366', label: 'Red' },
 ]
 
-const MERGE_THRESHOLD = 300
+const MERGE_THRESHOLD = 250
+const MAX_STARS = 300
 const MEGA_STAR_COUNT = 10
 const MIN_MEGA_DISTANCE = 0.12
+const MERGE_LOCK_TIMEOUT_MS = 30000
 
 const BLOCKED_WORDS = [
   'fuck','shit','bitch','damn','dick','cock','pussy','whore','slut',
@@ -201,9 +203,11 @@ export default function Constellation() {
   const [starsSinceMerge, setStarsSinceMerge] = useState(0)
   const [mergeCount, setMergeCount] = useState(0)
   const [filterError, setFilterError] = useState(false)
+  const [capacityError, setCapacityError] = useState(false)
   const metaReceivedRef = useRef(false)
   const metadataUnavailableRef = useRef(false)
   const localFallbackRef = useRef(false)
+  const mergeInProgressRef = useRef(false)
   const sessionId = useRef(getSessionId())
   const isPhone = useIsPhone()
 
@@ -490,37 +494,77 @@ export default function Constellation() {
     }
   }, [drawStars])
 
-  // Check if we need to merge
-  const checkAndMerge = useCallback(() => {
+  // Check if we need to merge. Uses a Firebase transaction-based lock so
+  // concurrent clients can't both trigger a merge and double-up mega stars.
+  const checkAndMerge = useCallback(async () => {
     const db = getFirebase()
     if (!db || localFallbackRef.current) return
+    if (mergeInProgressRef.current) return
 
-    const stars = starsRef.current
-    const regularStars = stars.filter(s => !s.isMega)
+    const regularStars = starsRef.current.filter(s => !s.isMega)
+    if (regularStars.length < MERGE_THRESHOLD) return
 
-    // Merge when 300 regular stars (stars since last merge) have accumulated
-    if (regularStars.length >= MERGE_THRESHOLD) {
-      // Merge ALL stars (including existing mega stars) into 10 new mega stars
-      const newMegaStars = calculateMegaStarsFromBatch(stars)
+    mergeInProgressRef.current = true
+    let lockClaimed = false
+    const lockRef = dbRef(db, 'metadata/mergeLock')
 
-      // Remove ALL existing stars
-      stars.forEach(star => {
-        if (star.key) {
-          void remove(dbRef(db, `stars/${star.key}`)).catch(activateLocalFallback)
+    try {
+      const claimedAt = Date.now()
+      const txn = await runTransaction(lockRef, current => {
+        if (typeof current === 'number' && (claimedAt - current) < MERGE_LOCK_TIMEOUT_MS) {
+          return // another client holds a fresh lock — abort
+        }
+        return claimedAt
+      })
+
+      if (!txn.committed || txn.snapshot.val() !== claimedAt) return
+      lockClaimed = true
+
+      // Fetch fresh stars under the lock; local state may be stale.
+      const snap = await get(dbRef(db, 'stars'))
+      const data = snap.val()
+      const freshStars: Star[] = data
+        ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
+        : []
+      const freshRegular = freshStars.filter(s => !s.isMega)
+      if (freshRegular.length < MERGE_THRESHOLD) return
+
+      const newMegaStars = calculateMegaStarsFromBatch(freshStars)
+      if (newMegaStars.length === 0) return
+
+      const updates: Record<string, unknown> = {}
+      freshStars.forEach(s => {
+        if (s.key) updates[`stars/${s.key}`] = null
+      })
+      newMegaStars.forEach(ms => {
+        const newKey = push(dbRef(db, 'stars')).key
+        if (newKey) {
+          updates[`stars/${newKey}`] = {
+            x: ms.x,
+            y: ms.y,
+            color: ms.color,
+            message: ms.message,
+            timestamp: ms.timestamp,
+            sessionId: ms.sessionId,
+            isMega: true,
+            mergedCount: ms.mergedCount,
+          }
         }
       })
+      updates['metadata/mergeCount'] = fbIncrement(1)
+      updates['metadata/mergeLock'] = null
 
-      // Add the 10 new mega stars
-      newMegaStars.forEach(megaStar => {
-        void push(dbRef(db, 'stars'), megaStar).catch(activateLocalFallback)
-      })
-
-      // Track the merge
-      void update(dbRef(db, 'metadata'), { mergeCount: fbIncrement(1) }).catch(() => {
-        metadataUnavailableRef.current = true
-      })
+      await update(dbRef(db), updates)
+      lockClaimed = false // lock cleared atomically above
+    } catch (e) {
+      console.warn('Constellation merge failed:', e)
+    } finally {
+      if (lockClaimed) {
+        try { await update(dbRef(db, 'metadata'), { mergeLock: null }) } catch { /* best effort */ }
+      }
+      mergeInProgressRef.current = false
     }
-  }, [activateLocalFallback])
+  }, [])
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -533,6 +577,14 @@ export default function Constellation() {
     if (msg && !isClean(msg)) {
       setFilterError(true)
       setTimeout(() => setFilterError(false), 2000)
+      return
+    }
+
+    // Hard cap: if the constellation is full, kick off a merge instead of adding.
+    if (starsRef.current.length >= MAX_STARS) {
+      setCapacityError(true)
+      setTimeout(() => setCapacityError(false), 2000)
+      void checkAndMerge()
       return
     }
 
@@ -549,7 +601,7 @@ export default function Constellation() {
       push(dbRef(db, 'stars'), newStar)
         .then(() => {
           void update(dbRef(db, 'metadata'), { totalStarsEver: fbIncrement(1) }).catch(() => {})
-          setTimeout(checkAndMerge, 500)
+          void checkAndMerge()
         })
         .catch(() => {
           activateLocalFallback()
@@ -730,7 +782,7 @@ export default function Constellation() {
         <div className="constellation__input-wrap">
           <input
             type="text"
-            className={`constellation__message ${filterError ? 'is-error' : ''}`}
+            className={`constellation__message ${filterError || capacityError ? 'is-error' : ''}`}
             placeholder="Leave a message"
             maxLength={50}
             value={message}
@@ -738,6 +790,9 @@ export default function Constellation() {
           />
           {filterError && (
             <span className="constellation__filter-error">Please keep messages appropriate</span>
+          )}
+          {!filterError && capacityError && (
+            <span className="constellation__filter-error">Constellation full — merging stars, try again</span>
           )}
         </div>
       </div>
