@@ -13,7 +13,6 @@ import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
-const SecretPortfolio = lazy(() => import('./components/SecretPortfolio/SecretPortfolio'))
 
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
@@ -43,13 +42,6 @@ function App() {
     localStorage.setItem('sketchbook-visited', '1')
     setSketchbookOpen(true)
   }, [hasSeenSketchbook])
-  const [secretPortfolioOpen, setSecretPortfolioOpen] = useState(false)
-  const openSecretPortfolio = useCallback(() => {
-    setSecretPortfolioOpen(true)
-  }, [])
-  const closeSecretPortfolio = useCallback(() => {
-    setSecretPortfolioOpen(false)
-  }, [])
 
   const [sketchbookExiting, setSketchbookExiting] = useState(false)
   const closeSketchbook = useCallback(() => {
@@ -144,13 +136,7 @@ function App() {
             isExiting={sketchbookExiting}
             onExitAnimationDone={onExitAnimationDone}
             showTutorialOnStart={showSketchbookTutorial}
-            onSecretUnlock={openSecretPortfolio}
           />
-        </Suspense>
-      )}
-      {secretPortfolioOpen && (
-        <Suspense fallback={null}>
-          <SecretPortfolio onClose={closeSecretPortfolio} />
         </Suspense>
       )}
       <Analytics />

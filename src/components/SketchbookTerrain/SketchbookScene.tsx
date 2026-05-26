@@ -11,7 +11,6 @@ import useTouchDevice from '../../hooks/useTouchDevice'
 interface SketchbookSceneProps {
   onClose: () => void
   showTutorialOnStart?: boolean
-  onSecretUnlock?: () => void
 }
 
 type CaptureVariant = keyof SketchbookCanvasCaptureSet
@@ -46,7 +45,6 @@ const createCaptureFilename = (variant: CaptureVariant) => {
 export default function SketchbookScene({
   onClose,
   showTutorialOnStart = false,
-  onSecretUnlock,
 }: SketchbookSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<SketchbookCanvasHandle | null>(null)
@@ -327,7 +325,7 @@ export default function SketchbookScene({
         >
           {captureState === 'capturing' ? 'developing' : 'photo'}
         </button>
-        <SketchCounter className="sketch-photo-stack__counter" onSecretUnlock={onSecretUnlock} />
+        <SketchCounter className="sketch-photo-stack__counter" />
       </div>
 
       <div className={`sketch-world-help sketch-ui-surface ${uiHidden ? 'sketch-world-help--hidden' : ''}`}>
