@@ -1,10 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import ASCIIText from './ASCIIText'
 import DecryptedText from './DecryptedText'
 import Magnet from './Magnet'
 import useIsPhone from '../hooks/useIsPhone'
 import { useGyroscope } from '../context/GyroscopeContext'
+
+// Lazy so the Three.js bundle isn't pulled into the eager hero chunk. The
+// parent .hero__title-line--ascii reserves a fixed height, so the null
+// fallback causes no layout shift, and vendor-3d is typically already cached
+// from the loading screen by the time the hero mounts.
+const ASCIIText = lazy(() => import('./ASCIIText'))
 
 export default function Hero() {
   const [showContent, setShowContent] = useState(false)
@@ -105,7 +110,7 @@ export default function Hero() {
               </motion.span>
             </>
           ) : (
-            <>
+            <Suspense fallback={null}>
               <motion.div
                 className="hero__title-line hero__title-line--ascii hero__title-line--ascii-bright"
                 initial={{ opacity: 0, y: 40, rotateX: -30 }}
@@ -154,7 +159,7 @@ export default function Hero() {
                   interactionMode="viewport"
                 />
               </motion.div>
-            </>
+            </Suspense>
           )}
         </div>
 

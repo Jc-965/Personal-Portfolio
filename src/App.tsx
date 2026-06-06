@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Analytics } from '@vercel/analytics/react'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
-import TargetCursor from './components/TargetCursor'
 import Background from './components/Background'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -13,6 +12,9 @@ import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
+// Only shown after the loading screen completes — lazy so its gsap dependency
+// (vendor-gsap, ~28KB gz) isn't parsed on the critical path before first paint.
+const TargetCursor = lazy(() => import('./components/TargetCursor'))
 
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
@@ -94,13 +96,15 @@ function App() {
     <GyroscopeProvider>
       <Cursor />
       {!isLoading && (
-        <TargetCursor
-          targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
-          spinDuration={2}
-          hideDefaultCursor
-          parallaxOn
-          hoverDuration={0.2}
-        />
+        <Suspense fallback={null}>
+          <TargetCursor
+            targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
+            spinDuration={2}
+            hideDefaultCursor
+            parallaxOn
+            hoverDuration={0.2}
+          />
+        </Suspense>
       )}
       <div className="vintage-overlay" />
       <AnimatePresence mode="wait">

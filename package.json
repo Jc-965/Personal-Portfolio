@@ -16,7 +16,6 @@
     "framer-motion": "^11.0.0",
     "gsap": "^3.14.2",
     "lucide-react": "^0.400.0",
-    "mathjs": "^14.9.1",
     "postprocessing": "^6.36.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

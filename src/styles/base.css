@@ -8,7 +8,8 @@
   --bg-card-hover: rgba(12, 18, 42, 0.92);
   --text-primary: #ffffff;
   --text-secondary: rgba(200, 220, 255, 0.72);
-  --text-muted: rgba(120, 140, 180, 0.5);
+  /* Bumped from rgba(120,140,180,0.5) (~2.2:1 on black) to meet WCAG AA (~6:1) */
+  --text-muted: rgba(150, 170, 205, 0.82);
   --accent-cyan: #00ffff;
   --accent-magenta: #ff00ff;
   --accent-green: #00ff41;
@@ -58,6 +59,15 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   overflow-x: hidden;
+}
+
+/* Keyboard focus indicator — the custom cursor hides the native pointer, so
+   keyboard users need a clear, always-visible focus ring. Only shows for
+   keyboard navigation (not mouse clicks) via :focus-visible. */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
 }
 
 /* CRT effect overlay — scanlines + vignette */

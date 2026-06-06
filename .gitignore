@@ -26,3 +26,7 @@ npm-debug.log*
 
 # Local vendored source that has been removed from the repo
 react-bits-upstream/
+
+# Large raw source media — kept locally for editing, too big for git (GitHub 100MB limit)
+src/assets/_originals/
+*.mov

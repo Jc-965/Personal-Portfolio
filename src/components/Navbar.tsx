@@ -4,6 +4,7 @@ const links = [
   { href: '#top', label: 'Home' },
   { href: '#journey', label: 'Journey' },
   { href: '#projects', label: 'Projects' },
+  { href: '#life', label: 'Beyond' },
   { href: '#skills', label: 'Skills' },
 ]
 
@@ -58,7 +59,7 @@ export default function Navbar() {
         <span className="nav__brand-icon">&gt;_</span>
         Jesse &middot; CMU SCS
       </div>
-      <nav className={`nav__menu ${menuOpen ? 'is-open' : ''}`}>
+      <nav id="nav-menu" className={`nav__menu ${menuOpen ? 'is-open' : ''}`}>
         {links.map(l => (
           <a
             key={l.href}
@@ -75,6 +76,8 @@ export default function Navbar() {
         className={`nav__toggle ${menuOpen ? 'is-active' : ''}`}
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label="Toggle navigation"
+        aria-expanded={menuOpen}
+        aria-controls="nav-menu"
       >
         <span /><span /><span />
       </button>

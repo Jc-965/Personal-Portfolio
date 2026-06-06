@@ -7,6 +7,22 @@ export default defineConfig({
     target: 'es2020',
     minify: 'esbuild',
     cssMinify: true,
+    // Don't eagerly <link rel=modulepreload> chunks that aren't needed for the
+    // initial above-the-fold paint. These are all loaded via dynamic import()
+    // when actually reached, so preloading them at high priority only steals
+    // bandwidth from the truly-critical assets (entry JS, CSS, fonts):
+    //   - vendor-3d (201KB gz): only the decorative Dither backdrop + hero ASCII
+    //   - firebase  (50KB gz):  only the Constellation section (scroll)
+    //   - sketchbook(32KB gz):  only the Sketchbook overlay (click)
+    modulePreload: {
+      resolveDependencies: (_filename, deps) =>
+        deps.filter(
+          (dep) =>
+            !dep.includes('vendor-3d') &&
+            !dep.includes('firebase') &&
+            !dep.includes('sketchbook')
+        ),
+    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -14,8 +30,7 @@ export default defineConfig({
           if (
             id.includes('node_modules/three') ||
             id.includes('node_modules/@react-three') ||
-            id.includes('node_modules/postprocessing') ||
-            id.includes('node_modules/mathjs')
+            id.includes('node_modules/postprocessing')
           ) {
             return 'vendor-3d'
           }

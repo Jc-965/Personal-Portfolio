@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Dither from './Dither'
+
+// Lazy so the heavy Three.js/postprocessing bundle (vendor-3d) does not block
+// first paint of the loading screen. The dithered backdrop sits behind the
+// terminal content and fades in once the chunk arrives.
+const Dither = lazy(() => import('./Dither'))
 
 interface LoadingScreenProps {
   onComplete: () => void
@@ -10,6 +14,11 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0)
   const [phase, setPhase] = useState<'init' | 'loading' | 'complete'>('init')
   const [logs, setLogs] = useState<string[]>([])
+  // Defer mounting the WebGL Dither backdrop until AFTER the loading-screen
+  // text has painted. Otherwise the dynamic import() of the 764KB three.js
+  // bundle fires on first render and its parse janks the main thread right
+  // when First Contentful Paint should happen, delaying FCP by ~1.4s.
+  const [showDither, setShowDither] = useState(false)
   const skippedRef = useRef(false)
 
   const logMessages = [
@@ -29,7 +38,11 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
   }, [onComplete])
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setPhase('loading'), 150)
+    // Mount the Dither backdrop one tick after first paint so the terminal
+    // content paints first and three.js loads in the background.
+    const ditherTimer = setTimeout(() => setShowDither(true), 80)
+
+    const timer1 = setTimeout(() => setPhase('loading'), 100)
 
     let logIndex = 0
     const logInterval = setInterval(() => {
@@ -37,7 +50,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
         setLogs(prev => [...prev, logMessages[logIndex]])
         logIndex++
       }
-    }, 200)
+    }, 160)
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -46,16 +59,17 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
           clearInterval(logInterval)
           if (!skippedRef.current) {
             setPhase('complete')
-            setTimeout(onComplete, 400)
+            setTimeout(onComplete, 250)
           }
           return 100
         }
-        const increment = Math.random() * 18 + 6
+        const increment = Math.random() * 20 + 8
         return Math.min(100, prev + increment)
       })
-    }, 120)
+    }, 100)
 
     return () => {
+      clearTimeout(ditherTimer)
       clearTimeout(timer1)
       clearInterval(interval)
       clearInterval(logInterval)
@@ -73,17 +87,21 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
           onClick={skip}
         >
           <div className="loading-screen__dither" aria-hidden="true">
-            <Dither
-              waveColor={[0.06, 0.24, 0.34]}
-              disableAnimation={false}
-              enableMouseInteraction
-              mouseRadius={0.10}
-              colorNum={5}
-              pixelSize={1.35}
-              waveAmplitude={0.58}
-              waveFrequency={3.8}
-              waveSpeed={0.03}
-            />
+            {showDither && (
+            <Suspense fallback={null}>
+              <Dither
+                waveColor={[0.06, 0.24, 0.34]}
+                disableAnimation={false}
+                enableMouseInteraction
+                mouseRadius={0.10}
+                colorNum={5}
+                pixelSize={1.35}
+                waveAmplitude={0.58}
+                waveFrequency={3.8}
+                waveSpeed={0.03}
+              />
+            </Suspense>
+            )}
           </div>
 
           {/* Subtle grid background */}
