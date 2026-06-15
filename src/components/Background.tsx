@@ -896,6 +896,10 @@ export default function Background() {
       if (t) triggerInteraction(t.clientX, t.clientY)
     }
 
+    const onPointerDown = (e: PointerEvent) => {
+      triggerInteraction(e.clientX, e.clientY)
+    }
+
     const onPointerUp = () => {
       endInteraction()
     }
@@ -925,6 +929,7 @@ export default function Background() {
     window.addEventListener('resize', debouncedResize)
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
+    document.addEventListener('pointerdown', onPointerDown, { passive: true })
     document.addEventListener('pointerup', onPointerUp, { passive: true })
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -937,6 +942,7 @@ export default function Background() {
       window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
+      document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('pointerup', onPointerUp)
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
