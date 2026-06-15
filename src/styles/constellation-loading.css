@@ -37,7 +37,7 @@
 }
 
 .constellation__intro {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   color: var(--text-secondary);
   margin-bottom: 20px;
   max-width: 700px;
@@ -251,6 +251,9 @@
 
 .constellation__msg-btn {
   flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  min-width: 78px;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.04em;
@@ -259,6 +262,11 @@
   cursor: pointer;
   transition: background 0.25s ease, border-color 0.25s ease,
     box-shadow 0.25s ease, color 0.25s ease;
+}
+
+.constellation__msg-btn-label {
+  display: block;
+  grid-area: 1 / 1;
 }
 
 .constellation__msg-btn--submit {
@@ -644,4 +652,3 @@
 .card-3d-tilt:hover .skill-card::after {
   opacity: 1;
 }
-

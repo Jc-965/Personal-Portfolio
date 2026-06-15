@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WindowFrame from './WindowFrame'
 import useIsPhone from '../hooks/useIsPhone'
+import { preloadImages } from '../utils/preloadImage'
 
 export interface GalleryImage {
   src: string
@@ -40,6 +41,15 @@ export default function MediaGallery({
     ? [{ img: images[active], i: active }]
     : images.map((img, i) => ({ img, i }))
 
+  useEffect(() => {
+    if (n === 0) return
+    preloadImages([
+      images[active]?.src,
+      images[(active + 1) % n]?.src,
+      images[(active - 1 + n) % n]?.src,
+    ])
+  }, [active, images, n])
+
   return (
     <div className="gallery" style={{ '--gallery-accent': accent } as React.CSSProperties}>
       <div className="gallery__deck">
@@ -71,6 +81,7 @@ export default function MediaGallery({
                 accent={accent}
                 aspect={img.aspect}
                 tilt={false}
+                loading={front ? 'eager' : 'lazy'}
               />
             </motion.div>
           )

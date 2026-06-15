@@ -209,7 +209,7 @@
   opacity: 0.7;
 }
 
-/* single-shot viewer (crossfades between tabs) */
+/* single-shot viewer with a quick, stable tab transition */
 .chapter__viewer {
   position: relative;
   z-index: 1;
@@ -222,12 +222,45 @@
 }
 
 .chapter__shot {
-  will-change: opacity, transform;
+  position: relative;
+  will-change: opacity, transform, filter;
 }
 
 .chapter__shot:not(.chapter__shot--base) {
   position: absolute;
   inset: 0;
+}
+
+.chapter__shot::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 28%,
+    color-mix(in srgb, var(--chapter-accent) 16%, transparent) 45%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 66%
+  );
+  opacity: 0;
+  transform: translateX(-54%);
+  animation: chapter-shot-sheen 0.68s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes chapter-shot-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-54%);
+  }
+  18% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(42%);
+  }
 }
 
 /* text-integrated tab nav (lives in the copy column) */
@@ -264,12 +297,18 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition:
+    background-color 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    color 0.24s ease,
+    transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .chapter__view:hover {
   border-color: color-mix(in srgb, var(--chapter-accent) 42%, transparent);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .chapter__view.is-active {
@@ -277,6 +316,7 @@
   border-color: color-mix(in srgb, var(--chapter-accent) 50%, transparent);
   color: color-mix(in srgb, var(--chapter-accent) 85%, white);
   box-shadow: 0 0 14px color-mix(in srgb, var(--chapter-accent) 22%, transparent);
+  transform: translateY(-1px);
 }
 
 .chapter__view-caret {
@@ -287,6 +327,23 @@
 
 .chapter__view.is-active .chapter__view-caret {
   opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter__shot {
+    will-change: auto;
+  }
+
+  .chapter__shot::after {
+    display: none;
+  }
+
+  .chapter__view,
+  .chapter__view:hover,
+  .chapter__view.is-active {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* --- responsive --- */

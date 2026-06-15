@@ -16,6 +16,7 @@ interface WindowFrameProps {
   tilt?: boolean
   /** object-fit for the image. 'cover' fills (may crop); 'contain' letterboxes. */
   fit?: 'cover' | 'contain'
+  loading?: 'eager' | 'lazy'
   className?: string
   children?: ReactNode
 }
@@ -34,6 +35,7 @@ function WindowFrameShell({
   aspect = '16 / 10',
   status,
   fit = 'cover',
+  loading = 'lazy',
   className = '',
   children,
   tiltRef,
@@ -71,7 +73,7 @@ function WindowFrameShell({
             className="window-frame__img"
             src={src}
             alt={alt}
-            loading="lazy"
+            loading={loading}
             decoding="async"
             draggable={false}
             style={{ objectFit: fit }}

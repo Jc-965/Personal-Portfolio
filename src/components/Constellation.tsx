@@ -289,7 +289,9 @@ export default function Constellation() {
     stars.forEach(star => {
       const x = star.x * w, y = star.y * h
       const isHovered = hoveredRef.current === star
-      const isOwn = star.sessionId === sessionId.current
+      const isCurrentVisitStar =
+        star.visitId === PAGE_VISIT_ID ||
+        (currentVisitStarRef.current?.key != null && star.key === currentVisitStarRef.current.key)
       const isMega = star.isMega
 
       // Size: mega stars only slightly bigger
@@ -325,11 +327,17 @@ export default function Constellation() {
         ctx.stroke()
       }
 
-      if (isOwn && !isMega) {
-        ctx.strokeStyle = star.color + '40'
-        ctx.lineWidth = 1
+      if (isCurrentVisitStar && !isMega) {
+        ctx.strokeStyle = star.color + '38'
+        ctx.lineWidth = 4
         ctx.beginPath()
-        ctx.arc(x, y, 8, 0, Math.PI * 2)
+        ctx.arc(x, y, 12, 0, Math.PI * 2)
+        ctx.stroke()
+
+        ctx.strokeStyle = star.color + 'd0'
+        ctx.lineWidth = 1.8
+        ctx.beginPath()
+        ctx.arc(x, y, 10, 0, Math.PI * 2)
         ctx.stroke()
       }
     })
@@ -932,7 +940,7 @@ export default function Constellation() {
       </div>
 
       <p className="constellation__intro">
-        One star is added automatically for each visit. Your star keeps the same ring style as before.
+        One star is added automatically for each visit. Your current star has a ring around it.
         {' '}At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
       </p>
 
@@ -969,7 +977,7 @@ export default function Constellation() {
         <div className="constellation__editor-header">
           <span className="constellation__editor-kicker">Your star</span>
           <span className="constellation__editor-hint">
-            {isPhone ? 'Tap or drag the sky to reposition it.' : 'Drag anywhere in the sky to reposition it.'}
+            {isPhone ? 'Tap or drag the sky to reposition it.' : 'Drag or click anywhere in the sky to reposition it.'}
           </span>
         </div>
 
@@ -1008,37 +1016,27 @@ export default function Constellation() {
                   }
                 }}
               />
-              <AnimatePresence mode="wait" initial={false}>
-                {messageSubmitted ? (
-                  <motion.button
-                    key="edit"
-                    type="button"
-                    className="constellation__msg-btn constellation__msg-btn--edit"
-                    onClick={startEditing}
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    aria-label="Edit your message"
+              <motion.button
+                type="button"
+                className={`constellation__msg-btn ${messageSubmitted ? 'constellation__msg-btn--edit' : 'constellation__msg-btn--submit'}`}
+                onClick={messageSubmitted ? startEditing : submitMessage}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                aria-label={messageSubmitted ? 'Edit your message' : 'Submit your message'}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={messageSubmitted ? 'edit' : 'submit'}
+                    className="constellation__msg-btn-label"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    Edit
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    key="submit"
-                    type="button"
-                    className="constellation__msg-btn constellation__msg-btn--submit"
-                    onClick={submitMessage}
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    aria-label="Submit your message"
-                  >
-                    Submit
-                  </motion.button>
-                )}
-              </AnimatePresence>
+                    {messageSubmitted ? 'Edit' : 'Submit'}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
             </div>
             <AnimatePresence>
               {messageSubmitted && !filterError && (

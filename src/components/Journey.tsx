@@ -1,4 +1,4 @@
-import { useRef, useState, memo } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { motion, useInView, useScroll, useReducedMotion } from 'framer-motion'
 import {
   Terminal,
@@ -10,6 +10,7 @@ import {
   BrainCircuit,
 } from 'lucide-react'
 import WindowFrame from './WindowFrame'
+import { preloadImage, preloadImages } from '../utils/preloadImage'
 
 interface MediaItem {
   src: string
@@ -109,8 +110,8 @@ const experiences: Experience[] = [
     media: {
       kind: 'maps',
       items: [
-        { src: '/Maps/cmumaps-overview.jpg', label: 'cmumaps · campus', alt: 'CMUMaps campus map with building anchors', aspect: '554 / 422' },
-        { src: '/Maps/cmumaps-pins.jpg', label: 'cmumaps · anchors', alt: 'CMUMaps polylabel anchor density', aspect: '538 / 338' },
+        { src: '/Maps/cmumaps-overview.jpg', label: 'cmumaps · map', alt: 'CMUMaps campus map with building pins', aspect: '554 / 422' },
+        { src: '/Maps/cmumaps-pins.jpg', label: 'cmumaps · pins', alt: 'CMUMaps dense campus building pins', aspect: '538 / 338' },
       ],
     },
   },
@@ -202,44 +203,43 @@ function ChapterMediaView({
   media,
   accent,
   active,
-  prev,
+  direction,
 }: {
   media: ExperienceMedia
   accent: string
   active: number
-  prev: number
+  direction: number
 }) {
+  const item = media.items[active] ?? media.items[0]
+  const reduce = useReducedMotion()
+  if (!item) return null
+
+  const enterX = media.kind === 'phones' ? direction * 22 : direction * 7
+  const enterY = media.kind === 'phones' ? 0 : 4
+  const duration = media.kind === 'phones' ? 0.44 : 0.34
+
   return (
     <div className={`chapter__media chapter__media--${media.kind}`}>
       <span className="chapter__media-glow" aria-hidden="true" />
       <div className="chapter__viewer">
-        {media.items.map((m, i) => {
-          const isActive = i === active
-          // The previous shot stays fully opaque underneath while the new one
-          // fades in on top, so you never see one image through another.
-          const isPrev = i === prev && prev !== active
-          return (
-            <motion.div
-              key={m.src}
-              className={`chapter__shot ${i === 0 ? 'chapter__shot--base' : ''}`}
-              aria-hidden={!isActive}
-              initial={false}
-              animate={{ opacity: isActive || isPrev ? 1 : 0 }}
-              transition={{ duration: 0.45, ease: revealEase }}
-              style={{ zIndex: isActive ? 3 : isPrev ? 2 : 1 }}
-            >
-              <WindowFrame
-                src={m.src}
-                alt={m.alt}
-                label={m.label}
-                variant={media.kind === 'maps' ? 'browser' : 'terminal'}
-                accent={accent}
-                aspect={m.aspect}
-                tilt={false}
-              />
-            </motion.div>
-          )
-        })}
+        <motion.div
+          key={item.src}
+          className="chapter__shot chapter__shot--base"
+          initial={reduce ? false : { opacity: 0.72, x: enterX, y: enterY, scale: 0.986, filter: 'blur(2.5px)' }}
+          animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
+          transition={reduce ? { duration: 0 } : { duration, ease: [0.22, 0.61, 0.36, 1] }}
+        >
+          <WindowFrame
+            src={item.src}
+            alt={item.alt}
+            label={item.label}
+            variant={media.kind === 'maps' ? 'browser' : 'terminal'}
+            accent={accent}
+            aspect={item.aspect}
+            tilt={false}
+            loading="eager"
+          />
+        </motion.div>
       </div>
     </div>
   )
@@ -248,8 +248,19 @@ function ChapterMediaView({
 const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, amount: 0.3, margin: '0px 0px -12% 0px' })
-  const [view, setView] = useState({ active: 0, prev: 0 })
-  const select = (i: number) => setView((v) => ({ active: i, prev: v.active }))
+  const [view, setView] = useState({ active: 0, direction: 1 })
+  const select = (i: number) => {
+    if (exp.media) preloadImage(exp.media.items[i]?.src)
+    setView((current) => {
+      if (i === current.active) return current
+      return { active: i, direction: i > current.active ? 1 : -1 }
+    })
+  }
+
+  useEffect(() => {
+    if (!exp.media || !inView) return
+    preloadImages(exp.media.items.map((item) => item.src))
+  }, [exp.media, inView])
 
   return (
     <motion.article
@@ -286,7 +297,12 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
           {exp.media && <ChapterTabs media={exp.media} active={view.active} setActive={select} />}
         </div>
         {exp.media && (
-          <ChapterMediaView media={exp.media} accent={exp.accent} active={view.active} prev={view.prev} />
+          <ChapterMediaView
+            media={exp.media}
+            accent={exp.accent}
+            active={view.active}
+            direction={view.direction}
+          />
         )}
       </div>
     </motion.article>
