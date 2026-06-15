@@ -3,12 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Github, Linkedin, Mail } from 'lucide-react'
 import EmailPopup from './EmailPopup'
 
-interface FooterProps {
-  onOpenSketchbook: () => void
-  hasSeenSketchbook?: boolean
-}
-
-export default function Footer({ onOpenSketchbook, hasSeenSketchbook }: FooterProps) {
+export default function Footer() {
   const [showEmail, setShowEmail] = useState(false)
   const closeEmail = useCallback(() => setShowEmail(false), [])
 
@@ -47,19 +42,6 @@ export default function Footer({ onOpenSketchbook, hasSeenSketchbook }: FooterPr
           <Linkedin size={15} strokeWidth={2.25} aria-hidden="true" />
           <span className="footer__social-text">LinkedIn</span>
         </a>
-        <button
-          className={`footer__social-link footer__social-link--sketch ${hasSeenSketchbook ? '' : 'footer__social-link--sketch-glitch'}`}
-          onClick={onOpenSketchbook}
-          aria-label="Open sketchbook"
-          title="Open sketchbook"
-        >
-          <span className="footer__social-text footer__social-text--sketch">
-            {hasSeenSketchbook
-              ? 'Sketch'
-              : <span className="sketch-glitch-text" data-text="?">?</span>
-            }
-          </span>
-        </button>
       </div>
       <button
         className="back-to-top"

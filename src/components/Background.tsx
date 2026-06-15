@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useGyroscope } from '../context/GyroscopeContext'
+import { getScrollProgress } from '../scroll/scrollSignal'
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const rand = (min: number, max: number) => Math.random() * (max - min) + min
@@ -468,6 +469,10 @@ export default function Background() {
 
 
       const time = now * 0.0012
+      // Scroll-linked hue drift: the whole field shifts cyan → magenta as you
+      // travel down the page, tying the sections together. Read imperatively
+      // (no React) from the scroll signal that ScrollProvider pumps.
+      const hueShift = getScrollProgress() * 150
       const p = pointer.current
       const boostRemaining = Math.max(0, p.boostUntil - now)
       const boostProgress = boostRemaining > 0 ? clamp(boostRemaining / 220, 0, 1) : 0
@@ -546,7 +551,7 @@ export default function Background() {
           for (let x = -spacing; x < w + spacing; x += spacing) {
             const bx = x + offX
             let alpha = 0.12
-            let hue = 186
+            let hue = 186 + hueShift
             let lw = 0.82
             const distToClick = Math.abs(clickDistortion.x - bx)
             if (distToClick < clickR) {
@@ -564,7 +569,7 @@ export default function Background() {
           for (let y = -spacing; y < h + spacing; y += spacing) {
             const by = y + offY
             let alpha = 0.12
-            let hue = 186
+            let hue = 186 + hueShift
             let lw = 0.82
             const distToClick = Math.abs(clickDistortion.y - by)
             if (distToClick < clickR) {
@@ -587,7 +592,7 @@ export default function Background() {
           for (let y = -spacing; y < h + spacing; y += spacing) {
             drawSimpleGridLine(false, y + offY)
           }
-          ctx.strokeStyle = `hsla(186, 100%, 56%, ${profile.isCompact ? 0.12 : 0.09})`
+          ctx.strokeStyle = `hsla(${186 + hueShift}, 100%, 56%, ${profile.isCompact ? 0.12 : 0.09})`
           ctx.lineWidth = 0.82
           ctx.stroke()
         }
@@ -639,7 +644,7 @@ export default function Background() {
       } else {
         for (let x = -spacing; x < w + spacing; x += spacing) {
           const bx = x + offX
-          const hue = 180 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 420, 0, 1) * 30 : 0)
+          const hue = 180 + hueShift + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 420, 0, 1) * 30 : 0)
           let alpha = 0.1 + pointerFactor * 0.2 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 360, 0, 1) * 0.2 : 0)
 
           if (clickR > 0) {
@@ -685,7 +690,7 @@ export default function Background() {
 
         for (let y = -spacing; y < h + spacing; y += spacing) {
           const by = y + offY
-          const hue = 180 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 360, 0, 1) * 30 : 0)
+          const hue = 180 + hueShift + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 360, 0, 1) * 30 : 0)
           let alpha = 0.08 + pointerFactor * 0.18 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 320, 0, 1) * 0.18 : 0)
 
           if (clickR > 0) {
@@ -776,7 +781,7 @@ export default function Background() {
         const to = nodes[b]
         if (!from || !to) return
         const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.56 : 0.82)
-        const hue = 180 + highlight * 60
+        const hue = 180 + hueShift + highlight * 60
         const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 + highlight * 0.22 : 0.14 + highlight * 0.35
         ctx.strokeStyle = `hsla(${hue}, 100%, ${profile.isCompact ? 62 + highlight * 8 : 50 + highlight * 15}%, ${alpha})`
         ctx.lineWidth = profile.isLowPower ? 0.7 : profile.isCompact ? 0.46 + highlight * 0.58 : 0.5 + highlight * 1.2
@@ -788,7 +793,7 @@ export default function Background() {
 
       nodes.forEach(node => {
         const r = node.radius * (0.78 + node.depth * 0.26)
-        const nodeHue = 180 + node.halo * 60
+        const nodeHue = 180 + hueShift + node.halo * 60
 
         if (profile.isLowPower) {
           const glowRadius = r * 2.1
@@ -886,10 +891,6 @@ export default function Background() {
       drawFrame(now)
     }
 
-    const onPointerDown = (e: PointerEvent) => {
-      triggerInteraction(e.clientX, e.clientY)
-    }
-
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0]
       if (t) triggerInteraction(t.clientX, t.clientY)
@@ -924,7 +925,6 @@ export default function Background() {
     window.addEventListener('resize', debouncedResize)
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
-    document.addEventListener('pointerdown', onPointerDown, { passive: true })
     document.addEventListener('pointerup', onPointerUp, { passive: true })
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -937,7 +937,6 @@ export default function Background() {
       window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerleave', onLeave)
-      document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('pointerup', onPointerUp)
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)

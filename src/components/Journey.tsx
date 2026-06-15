@@ -1,499 +1,307 @@
-import { useRef, memo, useEffect, useState, useCallback } from 'react'
-import { motion, useInView } from 'framer-motion'
-import { Terminal, Gamepad2, Map, GraduationCap, FlaskConical, Shield } from 'lucide-react'
-import { useGyroscope } from '../context/GyroscopeContext'
-import useIsPhone from '../hooks/useIsPhone'
+import { useRef, useState, memo } from 'react'
+import { motion, useInView, useScroll, useReducedMotion } from 'framer-motion'
+import {
+  Terminal,
+  Gamepad2,
+  Map,
+  GraduationCap,
+  FlaskConical,
+  Shield,
+  BrainCircuit,
+} from 'lucide-react'
+import WindowFrame from './WindowFrame'
 
-interface ExperienceDetail {
+interface MediaItem {
+  src: string
   label: string
-  value: string
-  bar?: number
+  alt: string
+  aspect: string
+}
+
+interface ExperienceMedia {
+  kind: 'phones' | 'maps'
+  items: MediaItem[]
 }
 
 interface Experience {
   id: string
-  pid: string
   icon: React.ReactNode
-  title: string
+  company: string
   role: string
   track: string
-  period?: string
-  location?: string
+  period: string
+  location: string
   status?: string
   summary: string
   stack: string[]
-  panelLabel: string
-  panelStatus: string
-  panelMode: 'metrics' | 'details'
-  details: ExperienceDetail[]
   accent: string
+  media?: ExperienceMedia
 }
 
 const revealEase = [0.22, 1, 0.36, 1] as const
 
-const metaVariants = {
-  hidden: { opacity: 0, x: -10 },
-  visible: (index: number) => ({
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.55,
-      delay: index * 0.06,
-      ease: revealEase,
-    },
-  }),
-}
-
-const branchVariants = {
-  hidden: { opacity: 0, scaleX: 0.85 },
-  visible: (index: number) => ({
-    opacity: 1,
-    scaleX: 1,
-    transition: {
-      duration: 0.5,
-      delay: 0.08 + index * 0.06,
-      ease: revealEase,
-    },
-  }),
-}
-
-const markerVariants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: (index: number) => ({
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 0.45,
-      delay: 0.14 + index * 0.06,
-      ease: revealEase,
-    },
-  }),
-}
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: (index: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.65,
-      delay: 0.12 + index * 0.06,
-      ease: revealEase,
-    },
-  }),
-}
-
-interface RailPoint {
-  accent: string
-  center: number
-}
-
+// Reverse-chronological journey, aligned with the résumé.
 const experiences: Experience[] = [
   {
     id: 'blue-shield',
-    pid: '001',
-    icon: <Shield size={16} />,
-    title: 'Blue Shield of California',
-    role: 'Incoming Mobile Software Engineering Intern',
+    icon: <Shield size={15} />,
+    company: 'Blue Shield of California',
+    role: 'Incoming Mobile Software Engineer Intern',
     track: 'Healthcare',
-    period: 'Jun 2026 - Aug 2026',
+    period: 'Jun 2026 – Aug 2026',
     location: 'Long Beach, CA',
     status: 'Incoming',
-    summary: 'Joining Blue Shield of California as an incoming Mobile Software Engineering Intern for Summer 2026, working on mobile healthcare technology.',
-    stack: ['Mobile Engineering', 'Healthcare Tech', 'Summer 2026'],
-    panelLabel: 'AT A GLANCE',
-    panelStatus: 'INCOMING',
-    panelMode: 'details',
-    details: [
-      { label: 'Start', value: 'JUN 2026' },
-      { label: 'Track', value: 'MOBILE ENG' },
-      { label: 'Domain', value: 'HEALTHCARE' },
-    ],
+    summary:
+      'Developing Android/Kotlin mobile features in an Agile healthcare engineering workflow, translating Jira tickets into sprint-scoped implementation tasks and production-ready deliverables.',
+    stack: ['Android', 'Kotlin', 'Agile', 'Jira'],
     accent: '#2d7ff9',
   },
   {
-    id: 'sorcea',
-    pid: '002',
-    icon: <Terminal size={16} />,
-    title: 'Sorcea Labs',
-    role: 'Mobile Software Engineering Intern',
-    track: 'Industry',
-    period: 'Dec 2025 - May 2026',
-    location: 'Remote',
-    summary: 'Built skincare discovery features for 10k+ users across 80k+ products and 8M+ reviews. Engineered 15+ Dio-backed flows including a 22-step tutorial engine, animated CustomPainter score gauge, comparison module, and paginated reviews, and parallelized home/profile/feed fetches to cut equal-latency waits by up to 75%.',
-    stack: ['Flutter', 'Dart', 'Dio', 'CustomPainter', 'Performance'],
-    panelLabel: 'METRICS',
-    panelStatus: 'SHIPPED',
-    panelMode: 'metrics',
-    details: [
-      { label: 'Users', value: '10K+', bar: 90 },
-      { label: 'Products', value: '80K+', bar: 84 },
-      { label: 'Reviews', value: '8M+', bar: 96 },
-    ],
-    accent: '#00ffff',
+    id: 'scottylabs-ai',
+    icon: <BrainCircuit size={15} />,
+    company: 'ScottyLabs AI · CMUGPT',
+    role: 'AI Platform Engineer',
+    track: 'AI Platform',
+    period: 'Apr 2026 – Present',
+    location: 'Pittsburgh, PA',
+    status: 'Active',
+    summary:
+      'Launched CMUGPT’s agent layer: a FastAPI/LangGraph StateGraph orchestrating LLMs over runtime-discovered MCP tools with deterministic CMU Maps route embeds. Piped authenticated SSE through an Express/tsoa BFF into NDJSON in a React 19/TanStack client with frame-batched rendering, and hardened it against prompt-injection across 16 live adversarial tests.',
+    stack: ['FastAPI', 'LangGraph', 'MCP', 'React 19', 'TanStack', 'SSE/NDJSON'],
+    accent: '#a06bff',
   },
   {
-    id: 'gcs',
-    pid: '005',
-    icon: <Gamepad2 size={16} />,
-    title: 'Game Creation Society',
-    role: 'Core Developer',
-    track: 'Game Systems',
-    period: 'Sep 2025 - Dec 2025',
-    location: 'Pittsburgh, PA',
-    summary: 'Built Unreal Engine 5 Blueprint gameplay systems for grappling, tethering, and local multiplayer combat. Synchronized physics-driven interactions, collision feedback, and elimination state in real time to maintain responsive first-person gameplay.',
-    stack: ['Unreal Engine 5', 'Blueprints', 'Physics Systems', 'Multiplayer Logic'],
-    panelLabel: 'SYSTEMS',
-    panelStatus: 'SHIPPED',
-    panelMode: 'details',
-    details: [
-      { label: 'Mechanics', value: 'GRAPPLE + TETHER' },
-      { label: 'Mode', value: 'LOCAL MULTIPLAYER' },
-      { label: 'Sync', value: 'COLLISIONS + TRAILS' },
-    ],
-    accent: '#ff00ff',
+    id: 'sorcea',
+    icon: <Terminal size={15} />,
+    company: 'Sorcea Labs',
+    role: 'Mobile Software Engineer Intern',
+    track: 'Industry',
+    period: 'Dec 2025 – May 2026',
+    location: 'Remote',
+    status: 'Shipped',
+    summary:
+      'Shipped onboarding, routine builder, product pages, feed, search, compare, and SHA-256 contact-matched friend discovery for a production Flutter app serving 10k+ users, 80k+ products, and 8M+ reviews. Engineered a CIELAB / Delta-E perceptual color engine with parallelized sampling, and cut home-load latency up to 75% by batching Dio fetches into one parallel call.',
+    stack: ['Flutter', 'Dart', 'Dio', 'CustomPainter', 'CIELAB/Delta-E'],
+    accent: '#00ffff',
+    media: {
+      kind: 'phones',
+      items: [
+        { src: '/sorcea/home.jpg', label: 'sorcea · home', alt: 'Sorcea home feed', aspect: '527 / 1080' },
+        { src: '/sorcea/score.jpg', label: 'sorcea · score', alt: 'Sorcea animated score gauge', aspect: '528 / 1080' },
+        { src: '/sorcea/search.jpg', label: 'sorcea · search', alt: 'Sorcea product search', aspect: '528 / 1080' },
+        { src: '/sorcea/compare.jpg', label: 'sorcea · compare', alt: 'Sorcea comparison view', aspect: '527 / 1080' },
+      ],
+    },
   },
   {
     id: 'cmumaps',
-    pid: '003',
-    icon: <Map size={16} />,
-    title: 'CMUMaps',
+    icon: <Map size={15} />,
+    company: 'CMUMaps · ScottyLabs',
     role: 'Data & Software Engineer',
-    track: 'Campus Data',
-    period: 'Sep 2025 - Apr 2026',
+    track: 'Geospatial',
+    period: 'Sep 2025 – Apr 2026',
     location: 'Pittsburgh, PA',
-    summary: 'Parsed OpenStreetMap data with Python into normalized JSON artifacts, validating room IDs, geometry, and metadata consistency. Automated serializer and deserializer to version datasets and publish artifacts to AWS S3 for frontend and backend use, and implemented geometry-based anchors for accurate map rendering and label placement across complex map features.',
-    stack: ['Python', 'OSM Parsing', 'JSON Pipelines', 'AWS S3', 'Geometry Anchors'],
-    panelLabel: 'METRICS',
-    panelStatus: 'SHIPPED',
-    panelMode: 'metrics',
-    details: [
-      { label: 'Buildings', value: '142', bar: 92 },
-      { label: 'Paths', value: '1.2K', bar: 84 },
-      { label: 'Workflows', value: '2', bar: 78 },
-    ],
+    status: 'Shipped',
+    summary:
+      'Mapped all 74 campus buildings by engineering a Python geospatial ETL that fuses CMU ArcGIS records with OpenStreetMap extracts (parsing OSM multipolygon relations, entrances, and fuzzy-matched facility IDs), then implemented Mapbox’s polylabel algorithm to compute guaranteed-interior label anchors powering search-zoom navigation and map rendering.',
+    stack: ['Python', 'OpenStreetMap', 'ArcGIS', 'polylabel', 'GeoJSON', 'AWS S3'],
     accent: '#00ff41',
+    media: {
+      kind: 'maps',
+      items: [
+        { src: '/Maps/cmumaps-overview.jpg', label: 'cmumaps · campus', alt: 'CMUMaps campus map with building anchors', aspect: '554 / 422' },
+        { src: '/Maps/cmumaps-pins.jpg', label: 'cmumaps · anchors', alt: 'CMUMaps polylabel anchor density', aspect: '538 / 338' },
+      ],
+    },
+  },
+  {
+    id: 'gcs',
+    icon: <Gamepad2 size={15} />,
+    company: 'Game Creation Society',
+    role: 'Core Developer',
+    track: 'Game Systems',
+    period: 'Sep 2025 – Dec 2025',
+    location: 'Pittsburgh, PA',
+    status: 'Shipped',
+    summary:
+      'Built Unreal Engine 5 Blueprint gameplay systems for grappling, tethering, and local multiplayer combat, synchronizing physics-driven interactions, collision feedback, and elimination state in real time for responsive first-person play.',
+    stack: ['Unreal Engine 5', 'Blueprints', 'Physics', 'Multiplayer'],
+    accent: '#ff00ff',
   },
   {
     id: 'coding-minds',
-    pid: '004',
-    icon: <GraduationCap size={16} />,
-    title: 'Coding Minds Academy',
+    icon: <GraduationCap size={15} />,
+    company: 'Coding Minds Academy',
     role: 'Instructor',
     track: 'Teaching',
-    period: 'Jun 2025 - Feb 2026',
+    period: 'Jun 2025 – Feb 2026',
     location: 'Remote',
-    summary: 'Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving. Built structured labs and code-driven exercises that translated abstract CS concepts into repeatable implementation workflows.',
+    status: 'Complete',
+    summary:
+      'Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving, translating abstract CS concepts into repeatable implementation workflows through structured labs.',
     stack: ['Python', 'C++', 'JavaScript', 'ACSL'],
-    panelLabel: 'TEACHING',
-    panelStatus: 'COMPLETE',
-    panelMode: 'details',
-    details: [
-      { label: 'Languages', value: 'PYTHON / C++ / JS' },
-      { label: 'Focus', value: 'ALGORITHMS + ACSL' },
-      { label: 'Format', value: 'PROJECT LABS' },
-    ],
     accent: '#ffcc00',
   },
   {
     id: 'softcom',
-    pid: '006',
-    icon: <FlaskConical size={16} />,
-    title: 'SoftCom Lab',
+    icon: <FlaskConical size={15} />,
+    company: 'SoftCom Lab · Cal Poly Pomona',
     role: 'Research Intern',
     track: 'Research',
-    period: 'Jun 2023 - Aug 2024',
+    period: 'Jun 2023 – Aug 2024',
     location: 'Pomona, CA',
-    summary: "Initiated a Parkinson's-focused mobile-health study by assembling speech and movement datasets under faculty mentorship, then developed reproducible Python pipelines using NumPy, Pandas, and scikit-learn for feature extraction and analysis. Contributed methodology and results to a peer-reviewed CCSIT paper advancing healthcare AI/ML digital therapeutics.",
-    stack: ['Python', 'NumPy', 'Pandas', 'Scikit-learn', 'Healthcare AI/ML'],
-    panelLabel: 'RESEARCH',
-    panelStatus: 'PUBLISHED',
-    panelMode: 'details',
-    details: [
-      { label: 'Study', value: "PARKINSON'S M-HEALTH" },
-      { label: 'Signals', value: 'SPEECH + MOTION' },
-      { label: 'Output', value: 'PEER-REVIEWED PAPER' },
-    ],
+    status: 'Published',
+    summary:
+      'Developed and evaluated an applied ML/CV model for Parkinson’s motor-symptom assessment: designing reproducible exercise-video trials, analyzing input-quality failure modes, and validating robustness at 95.42% mean / 96.42% median accuracy. Contributed to a peer-reviewed CCSIT paper.',
+    stack: ['Python', 'ML/CV', 'NumPy', 'scikit-learn'],
     accent: '#ff3366',
   },
 ]
 
-const timelineOrder = ['blue-shield', 'sorcea', 'cmumaps', 'coding-minds', 'gcs', 'softcom']
-
-const orderedExperiences = timelineOrder
-  .map(id => experiences.find(exp => exp.id === id))
-  .filter((exp): exp is Experience => Boolean(exp))
-
-function buildProgressGradient(points: RailPoint[], railHeight: number) {
-  if (!points.length || railHeight <= 0) {
-    return 'linear-gradient(180deg, rgba(143, 252, 255, 0.92), rgba(0, 255, 255, 0.32))'
-  }
-
-  const stops: string[] = [`${points[0].accent} 0%`]
-
-  points.forEach((point, index) => {
-    const pointPct = (point.center / railHeight) * 100
-    stops.push(`${point.accent} ${pointPct.toFixed(2)}%`)
-
-    if (index === points.length - 1) {
-      stops.push(`${point.accent} 100%`)
-      return
-    }
-
-    const next = points[index + 1]
-    const nextPct = (next.center / railHeight) * 100
-    const segmentPct = Math.max(0, nextPct - pointPct)
-    const transitionStartPct = pointPct + segmentPct * 0.875
-
-    stops.push(`${point.accent} ${transitionStartPct.toFixed(2)}%`)
-    stops.push(`${next.accent} ${nextPct.toFixed(2)}%`)
-  })
-
-  return `linear-gradient(180deg, ${stops.join(', ')})`
+/* Journey media uses a text-integrated tabbed viewer (distinct from the
+   Projects deck): labelled "screen" tabs live with the copy and switch a single
+   framed shot in the media column. */
+function ChapterTabs({
+  media,
+  active,
+  setActive,
+}: {
+  media: ExperienceMedia
+  active: number
+  setActive: (i: number) => void
+}) {
+  return (
+    <div className="chapter__views">
+      <span className="chapter__views-label">
+        {media.kind === 'phones' ? '// screens' : '// views'}
+      </span>
+      <ul className="chapter__views-list">
+        {media.items.map((m, i) => {
+          const short = m.label.split(/[·/]/).pop()?.trim() ?? m.label
+          return (
+            <li key={m.src}>
+              <button
+                type="button"
+                className={`chapter__view ${i === active ? 'is-active' : ''}`}
+                onClick={() => setActive(i)}
+                aria-pressed={i === active}
+                data-cursor
+              >
+                <span className="chapter__view-caret" aria-hidden="true">&rsaquo;</span>
+                {short}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
 }
 
-const ProcessCard = memo(function ProcessCard({
-  exp,
-  index,
-  onReveal,
-  registerMarker,
+function ChapterMediaView({
+  media,
+  accent,
+  active,
+  prev,
 }: {
-  exp: Experience
-  index: number
-  onReveal: (index: number) => void
-  registerMarker: (id: string, marker: HTMLSpanElement | null) => void
+  media: ExperienceMedia
+  accent: string
+  active: number
+  prev: number
 }) {
+  return (
+    <div className={`chapter__media chapter__media--${media.kind}`}>
+      <span className="chapter__media-glow" aria-hidden="true" />
+      <div className="chapter__viewer">
+        {media.items.map((m, i) => {
+          const isActive = i === active
+          // The previous shot stays fully opaque underneath while the new one
+          // fades in on top, so you never see one image through another.
+          const isPrev = i === prev && prev !== active
+          return (
+            <motion.div
+              key={m.src}
+              className={`chapter__shot ${i === 0 ? 'chapter__shot--base' : ''}`}
+              aria-hidden={!isActive}
+              initial={false}
+              animate={{ opacity: isActive || isPrev ? 1 : 0 }}
+              transition={{ duration: 0.45, ease: revealEase }}
+              style={{ zIndex: isActive ? 3 : isPrev ? 2 : 1 }}
+            >
+              <WindowFrame
+                src={m.src}
+                alt={m.alt}
+                label={m.label}
+                variant={media.kind === 'maps' ? 'browser' : 'terminal'}
+                accent={accent}
+                aspect={m.aspect}
+                tilt={false}
+              />
+            </motion.div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
   const ref = useRef(null)
-  const inView = useInView(ref, {
-    once: true,
-    amount: 0.34,
-    margin: '0px 0px -10% 0px',
-  })
-  const cardRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef<number>(0)
-  const gyro = useGyroscope()
-  const isPhone = useIsPhone()
-
-  // Gyroscope tilt on mobile only
-  useEffect(() => {
-    const el = cardRef.current
-    if (!el || !isPhone || !gyro.permitted) return
-
-    return gyro.subscribe((gx, gy) => {
-      el.style.transform = `perspective(800px) rotateX(${gy * -8}deg) rotateY(${gx * 8}deg) translate(${gx * 6}px, ${gy * 4}px)`
-    })
-  }, [gyro, isPhone])
-
-  const handleMouse = (e: React.MouseEvent) => {
-    if (isPhone || !cardRef.current) return
-    cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => {
-      if (!cardRef.current) return
-      const rect = cardRef.current.getBoundingClientRect()
-      const x = Math.max(-1, Math.min(1, ((e.clientX - rect.left) / rect.width - 0.5) * 2))
-      const y = Math.max(-1, Math.min(1, ((e.clientY - rect.top) / rect.height - 0.5) * 2))
-      cardRef.current.style.transform = `rotateX(${y * -6}deg) rotateY(${x * 6}deg)`
-    })
-  }
-
-  const handleMouseLeave = () => {
-    cancelAnimationFrame(rafRef.current)
-    if (cardRef.current) cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
-  }
-
-  useEffect(() => {
-    if (!inView) return
-    onReveal(index)
-  }, [inView, index, onReveal])
+  const inView = useInView(ref, { once: true, amount: 0.3, margin: '0px 0px -12% 0px' })
+  const [view, setView] = useState({ active: 0, prev: 0 })
+  const select = (i: number) => setView((v) => ({ active: i, prev: v.active }))
 
   return (
-    <motion.div
+    <motion.article
       ref={ref}
-      className="timeline-entry"
-      style={{ '--process-accent': exp.accent } as React.CSSProperties}
-      initial="hidden"
-      animate={inView ? 'visible' : 'hidden'}
+      className={`chapter ${exp.media ? 'chapter--has-media' : ''}`}
+      style={{ '--chapter-accent': exp.accent } as React.CSSProperties}
+      initial={{ opacity: 0, y: 32 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, ease: revealEase }}
     >
-      <motion.div className="timeline-entry__meta" variants={metaVariants} custom={index}>
-        <div className="timeline-entry__meta-top">
-          <span className="timeline-entry__track">{exp.track}</span>
-          {exp.status && <span className="timeline-entry__status">{exp.status}</span>}
-        </div>
-        {exp.period && <div className="timeline-entry__date">{exp.period}</div>}
-        {exp.location && <div className="timeline-entry__location">{exp.location}</div>}
-      </motion.div>
-
-      <div className="timeline-entry__marker" aria-hidden="true">
-        <motion.span className="timeline-entry__branch" variants={branchVariants} custom={index} />
-        <motion.span
-          ref={node => registerMarker(exp.id, node)}
-          className="timeline-entry__dot"
-          variants={markerVariants}
-          custom={index}
-        />
+      <div className="chapter__aside">
+        <span className="chapter__period">{exp.period}</span>
+        <span className="chapter__location">{exp.location}</span>
       </div>
 
-      <motion.div className="card-3d-wrap timeline-entry__card" variants={cardVariants} custom={index}>
-        <div
-          ref={cardRef}
-          className="card-3d-tilt"
-          onMouseMove={handleMouse}
-          onMouseLeave={handleMouseLeave}
-        >
-          <article className="process-card" data-cursor>
-            {/* Tech overlay pattern */}
-            <div className="process-card__overlay" />
+      <div className="chapter__spine" aria-hidden="true">
+        <span className={`chapter__node ${inView ? 'is-live' : ''}`}>{exp.icon}</span>
+      </div>
 
-            {/* Terminal title bar */}
-            <div className="process-card__titlebar">
-              <div className="process-card__dots">
-                <span className="process-card__dot process-card__dot--red" />
-                <span className="process-card__dot process-card__dot--yellow" />
-                <span className="process-card__dot process-card__dot--green" />
-              </div>
-              <div className="process-card__path">
-                {exp.icon}
-                <span>~/{exp.id}</span>
-              </div>
-              <div className="process-card__pid">PID:{exp.pid}</div>
-            </div>
-
-            {/* Content */}
-            <div className={`process-card__body ${exp.panelMode === 'details' ? 'process-card__body--details' : ''}`}>
-              <div className="process-card__main">
-                <div className="process-card__header">
-                  <h3>
-                    <span className="process-card__prompt">&gt; </span>
-                    {exp.title}
-                  </h3>
-                  <span className="process-card__role">{exp.role}</span>
-                </div>
-
-                <p className="process-card__summary">{exp.summary}</p>
-
-                <div className="process-card__stack">
-                  {exp.stack.map(s => (
-                    <span key={s} className="process-card__tag">{s}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sidebar panel */}
-              <div className={`process-card__metrics ${exp.panelMode === 'details' ? 'process-card__metrics--details' : ''}`}>
-                <div className="process-card__metrics-header">
-                  <span className="process-card__metrics-label">{exp.panelLabel}</span>
-                  <span className="process-card__metrics-status">● {exp.panelStatus}</span>
-                </div>
-                {exp.details.map((m, i) => (
-                  <div key={i} className="process-card__metric">
-                    <div className="process-card__metric-info">
-                      <span className="process-card__metric-label">{m.label}</span>
-                      <span className="process-card__metric-value">{m.value}</span>
-                    </div>
-                    {exp.panelMode === 'metrics' && m.bar !== undefined && (
-                      <div className="process-card__metric-bar">
-                        <motion.div
-                          className="process-card__metric-fill"
-                          initial={{ width: 0 }}
-                          animate={inView ? { width: `${m.bar}%` } : {}}
-                          transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {/* Data visualization dots (CSS-animated) */}
-                <div className="process-card__data-viz">
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <span key={i} className="process-card__data-dot" />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Corner brackets */}
-            <span className="process-card__corner process-card__corner--tl" />
-            <span className="process-card__corner process-card__corner--tr" />
-            <span className="process-card__corner process-card__corner--bl" />
-            <span className="process-card__corner process-card__corner--br" />
-          </article>
+      <div className="chapter__body">
+        <div className="chapter__text">
+          <div className="chapter__heading">
+            <span className="chapter__track">{exp.track}</span>
+            {exp.status && <span className="chapter__status">● {exp.status}</span>}
+          </div>
+          <h3 className="chapter__company">{exp.company}</h3>
+          <p className="chapter__role">{exp.role}</p>
+          <p className="chapter__summary">{exp.summary}</p>
+          <div className="chapter__stack">
+            {exp.stack.map((s) => (
+              <span key={s} className="chapter__chip">{s}</span>
+            ))}
+          </div>
+          {exp.media && <ChapterTabs media={exp.media} active={view.active} setActive={select} />}
         </div>
-      </motion.div>
-    </motion.div>
+        {exp.media && (
+          <ChapterMediaView media={exp.media} accent={exp.accent} active={view.active} prev={view.prev} />
+        )}
+      </div>
+    </motion.article>
   )
 })
 
 export default function Journey() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
-  const railRef = useRef<HTMLDivElement>(null)
-  const markerRefs = useRef<Record<string, HTMLSpanElement | null>>({})
-  const [revealedIndex, setRevealedIndex] = useState(-1)
-  const [railHeightPx, setRailHeightPx] = useState(0)
-  const [progressHeightPx, setProgressHeightPx] = useState(0)
-  const [progressGradient, setProgressGradient] = useState(
-    'linear-gradient(180deg, rgba(143, 252, 255, 0.92), rgba(0, 255, 255, 0.32))'
-  )
-
-  const registerMarker = useCallback((id: string, marker: HTMLSpanElement | null) => {
-    markerRefs.current[id] = marker
-  }, [])
-
-  const handleReveal = useCallback((index: number) => {
-    setRevealedIndex(current => Math.max(current, index))
-  }, [])
-
-  const updateRailVisuals = useCallback(() => {
-    if (!railRef.current) return
-
-    const railRect = railRef.current.getBoundingClientRect()
-    const railHeight = railRect.height
-
-    if (railHeight <= 0) return
-
-    setRailHeightPx(railHeight)
-
-    const points = orderedExperiences
-      .map(exp => {
-        const marker = markerRefs.current[exp.id]
-        if (!marker) return null
-
-        const markerRect = marker.getBoundingClientRect()
-        return {
-          accent: exp.accent,
-          center: Math.max(0, Math.min(railHeight, markerRect.top - railRect.top + markerRect.height / 2)),
-        }
-      })
-      .filter((point): point is RailPoint => Boolean(point))
-
-    if (!points.length) return
-
-    setProgressGradient(buildProgressGradient(points, railHeight))
-
-    if (revealedIndex < 0) {
-      setProgressHeightPx(0)
-      return
-    }
-
-    const clampedIndex = Math.min(revealedIndex, points.length - 1)
-    const target = clampedIndex === points.length - 1
-      ? railHeight
-      : Math.max(points[clampedIndex].center, 8)
-
-    setProgressHeightPx(Math.max(0, Math.min(railHeight, target)))
-  }, [revealedIndex])
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(updateRailVisuals)
-    const onResize = () => updateRailVisuals()
-
-    window.addEventListener('resize', onResize)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [updateRailVisuals])
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const reduce = useReducedMotion()
+  const { scrollYProgress } = useScroll({
+    target: timelineRef,
+    offset: ['start center', 'end 80%'],
+  })
 
   return (
     <>
@@ -508,34 +316,18 @@ export default function Journey() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Journey
         </p>
-        <h2>From Research Labs to Shipped Products</h2>
+        <h2>From research labs to shipped products</h2>
       </motion.header>
 
-      <div className="process-grid">
-        <div ref={railRef} className="process-grid__rail">
+      <div ref={timelineRef} className="timeline">
+        <div className="timeline__track" aria-hidden="true">
           <motion.div
-            className="process-grid__progress-viewport"
-            initial={false}
-            animate={{ height: progressHeightPx, opacity: progressHeightPx > 0 ? 1 : 0 }}
-            transition={{ duration: 0.8, ease: revealEase }}
-          >
-            <div
-              className="process-grid__progress"
-              style={{
-                background: progressGradient,
-                height: railHeightPx > 0 ? `${railHeightPx}px` : '100%',
-              }}
-            />
-          </motion.div>
-        </div>
-        {orderedExperiences.map((exp, i) => (
-          <ProcessCard
-            key={exp.id}
-            exp={exp}
-            index={i}
-            onReveal={handleReveal}
-            registerMarker={registerMarker}
+            className="timeline__fill"
+            style={reduce ? { scaleY: 1 } : { scaleY: scrollYProgress }}
           />
+        </div>
+        {experiences.map((exp) => (
+          <Chapter key={exp.id} exp={exp} />
         ))}
       </div>
     </>

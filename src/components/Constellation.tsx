@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { motion, useInView } from 'framer-motion'
-import { ref as dbRef, push, remove, onValue, update, increment as fbIncrement, get, runTransaction } from 'firebase/database'
+import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { ref as dbRef, push, set, onValue, update, increment as fbIncrement, get, runTransaction } from 'firebase/database'
 import { getFirebase } from '../utils/firebase'
 import useIsPhone from '../hooks/useIsPhone'
 
@@ -12,9 +12,12 @@ interface Star {
   timestamp: number
   sessionId: string
   key?: string
+  visitId?: string
   isMega?: boolean
   mergedCount?: number
 }
+
+type EditableStarPatch = Partial<Pick<Star, 'x' | 'y' | 'color' | 'message'>>
 
 const COLORS = [
   { value: '#00ffff', label: 'Cyan' },
@@ -29,6 +32,16 @@ const MAX_STARS = 300
 const MEGA_STAR_COUNT = 10
 const MIN_MEGA_DISTANCE = 0.12
 const MERGE_LOCK_TIMEOUT_MS = 30000
+const VISIT_STAR_MARGIN = 0.08
+
+function createId(prefix: string): string {
+  const randomId = globalThis.crypto?.randomUUID?.()
+  if (randomId) return randomId
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+const PAGE_VISIT_ID = createId('visit')
+let pageVisitStarStarted = false
 
 const BLOCKED_WORDS = [
   'fuck','shit','bitch','damn','dick','cock','pussy','whore','slut',
@@ -50,10 +63,22 @@ function escapeHtml(text: string): string {
 function getSessionId(): string {
   let id = localStorage.getItem('constellation-session')
   if (!id) {
-    id = crypto.randomUUID()
+    id = createId('session')
     localStorage.setItem('constellation-session', id)
   }
   return id
+}
+
+function randomStarCoordinate(): number {
+  return VISIT_STAR_MARGIN + Math.random() * (1 - VISIT_STAR_MARGIN * 2)
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
+
+function getVisitStar(stars: Star[]): Star | null {
+  return stars.find(star => star.visitId === PAGE_VISIT_ID) ?? null
 }
 
 function getDerivedStarStats(stars: Star[]) {
@@ -195,13 +220,20 @@ export default function Constellation() {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const starsRef = useRef<Star[]>([])
+  const currentVisitStarRef = useRef<Star | null>(null)
   const hoveredRef = useRef<Star | null>(null)
   const tooltipTimeout = useRef<number | null>(null)
+  const isDraggingVisitStarRef = useRef(false)
+  const positionSaveTimeout = useRef<number | null>(null)
+  const latestPositionPatchRef = useRef<EditableStarPatch | null>(null)
+  const messageSaveTimeout = useRef<number | null>(null)
   const [selectedColor, setSelectedColor] = useState('#00ffff')
   const [message, setMessage] = useState('')
+  const [messageSubmitted, setMessageSubmitted] = useState(false)
   const [totalStarsEver, setTotalStarsEver] = useState(0)
   const [starsSinceMerge, setStarsSinceMerge] = useState(0)
   const [mergeCount, setMergeCount] = useState(0)
+  const [isDraggingVisitStar, setIsDraggingVisitStar] = useState(false)
   const [filterError, setFilterError] = useState(false)
   const [capacityError, setCapacityError] = useState(false)
   const metaReceivedRef = useRef(false)
@@ -310,6 +342,7 @@ export default function Constellation() {
       try { stars = JSON.parse(saved) } catch { stars = [] }
     }
     starsRef.current = stars
+    currentVisitStarRef.current = getVisitStar(stars)
 
     const derivedStats = getDerivedStarStats(stars)
     setStarsSinceMerge(derivedStats.regularCount)
@@ -336,6 +369,9 @@ export default function Constellation() {
 
   const addLocalStar = useCallback((newStar: Star) => {
     starsRef.current = [...starsRef.current, newStar]
+    if (newStar.visitId === PAGE_VISIT_ID) {
+      currentVisitStarRef.current = newStar
+    }
     localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
     setStarsSinceMerge(prev => prev + 1)
     setTotalStarsEver(prev => {
@@ -346,12 +382,55 @@ export default function Constellation() {
     drawStars()
   }, [drawStars])
 
-  const removeLocalStar = useCallback((targetStar: Star) => {
-    starsRef.current = starsRef.current.filter(star => star !== targetStar)
-    localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
-    setStarsSinceMerge(prev => Math.max(0, prev - 1))
+  const applyVisitStarPatchLocally = useCallback((patch: EditableStarPatch) => {
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    if (!targetStar) return null
+
+    let updatedStar: Star | null = null
+    let foundStar = false
+
+    starsRef.current = starsRef.current.map(star => {
+      const isTarget = star.visitId === PAGE_VISIT_ID || (targetStar.key != null && star.key === targetStar.key)
+      if (!isTarget) return star
+
+      foundStar = true
+      updatedStar = { ...star, ...patch }
+      return updatedStar
+    })
+
+    if (!foundStar) {
+      updatedStar = { ...targetStar, ...patch }
+      starsRef.current = [...starsRef.current, updatedStar]
+    }
+
+    currentVisitStarRef.current = updatedStar
+    if (localFallbackRef.current) {
+      localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
+    }
     drawStars()
+    return updatedStar
   }, [drawStars])
+
+  const persistVisitStarPatch = useCallback((patch: EditableStarPatch) => {
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    if (!targetStar) return
+
+    const db = getFirebase()
+    if (db && targetStar.key && !localFallbackRef.current) {
+      void update(dbRef(db, `stars/${targetStar.key}`), patch).catch(() => {
+        const fallbackStar = currentVisitStarRef.current ?? { ...targetStar, ...patch }
+        activateLocalFallback()
+
+        if (getVisitStar(starsRef.current)) {
+          applyVisitStarPatchLocally(patch)
+        } else {
+          addLocalStar({ ...fallbackStar, ...patch, key: undefined })
+        }
+      })
+    } else {
+      applyVisitStarPatchLocally(patch)
+    }
+  }, [activateLocalFallback, addLocalStar, applyVisitStarPatchLocally])
 
   // Firebase real-time listener
   useEffect(() => {
@@ -377,6 +456,10 @@ export default function Constellation() {
             ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
             : []
           starsRef.current = starsList
+          const visitStar = getVisitStar(starsList)
+          if (visitStar) {
+            currentVisitStarRef.current = visitStar
+          }
           const derivedStats = getDerivedStarStats(starsList)
 
           setStarsSinceMerge(derivedStats.regularCount)
@@ -566,79 +649,191 @@ export default function Constellation() {
     }
   }, [])
 
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width
-    const y = (e.clientY - rect.top) / rect.height
-
-    const msg = message.trim()
-    if (msg && !isClean(msg)) {
-      setFilterError(true)
-      setTimeout(() => setFilterError(false), 2000)
+  const ensureVisitStar = useCallback(() => {
+    const existingStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    if (existingStar) {
+      currentVisitStarRef.current = existingStar
+      pageVisitStarStarted = true
       return
     }
 
-    // Hard cap: if the constellation is full, kick off a merge instead of adding.
+    if (pageVisitStarStarted) return
+    pageVisitStarStarted = true
+
     if (starsRef.current.length >= MAX_STARS) {
       setCapacityError(true)
-      setTimeout(() => setCapacityError(false), 2000)
+      window.setTimeout(() => setCapacityError(false), 2000)
       void checkAndMerge()
       return
     }
 
     const newStar: Star = {
-      x, y,
+      x: randomStarCoordinate(),
+      y: randomStarCoordinate(),
       color: selectedColor,
-      message: msg,
+      message: '',
       timestamp: Date.now(),
       sessionId: sessionId.current,
+      visitId: PAGE_VISIT_ID,
     }
+
+    currentVisitStarRef.current = newStar
 
     const db = getFirebase()
     if (db && !localFallbackRef.current) {
-      push(dbRef(db, 'stars'), newStar)
+      const newStarRef = push(dbRef(db, 'stars'))
+      const optimisticStar = { ...newStar, key: newStarRef.key ?? undefined }
+      currentVisitStarRef.current = optimisticStar
+      starsRef.current = [
+        ...starsRef.current.filter(star => star.visitId !== PAGE_VISIT_ID),
+        optimisticStar,
+      ]
+      drawStars()
+
+      void set(newStarRef, newStar)
         .then(() => {
           void update(dbRef(db, 'metadata'), { totalStarsEver: fbIncrement(1) }).catch(() => {})
           void checkAndMerge()
         })
         .catch(() => {
+          const fallbackStar = currentVisitStarRef.current ?? newStar
           activateLocalFallback()
-          addLocalStar(newStar)
+          if (!getVisitStar(starsRef.current)) {
+            addLocalStar({ ...fallbackStar, key: undefined })
+          }
         })
     } else {
       addLocalStar(newStar)
     }
-    setMessage('')
+  }, [activateLocalFallback, addLocalStar, checkAndMerge, drawStars, selectedColor])
+
+  useEffect(() => {
+    ensureVisitStar()
+  }, [ensureVisitStar])
+
+  const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: clamp01((clientX - rect.left) / rect.width),
+      y: clamp01((clientY - rect.top) / rect.height),
+    }
+  }, [])
+
+  const schedulePositionSave = useCallback((patch: EditableStarPatch) => {
+    latestPositionPatchRef.current = patch
+    if (positionSaveTimeout.current) {
+      window.clearTimeout(positionSaveTimeout.current)
+    }
+
+    positionSaveTimeout.current = window.setTimeout(() => {
+      const nextPatch = latestPositionPatchRef.current
+      latestPositionPatchRef.current = null
+      positionSaveTimeout.current = null
+      if (nextPatch) {
+        persistVisitStarPatch(nextPatch)
+      }
+    }, 120)
+  }, [persistVisitStarPatch])
+
+  const flushPositionSave = useCallback(() => {
+    if (positionSaveTimeout.current) {
+      window.clearTimeout(positionSaveTimeout.current)
+      positionSaveTimeout.current = null
+    }
+
+    const nextPatch = latestPositionPatchRef.current
+    latestPositionPatchRef.current = null
+    if (nextPatch) {
+      persistVisitStarPatch(nextPatch)
+    }
+  }, [persistVisitStarPatch])
+
+  const moveVisitStar = useCallback((clientX: number, clientY: number) => {
+    const point = getCanvasPoint(clientX, clientY)
+    const visitStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    if (!point || !visitStar) return
+
+    const patch = { x: point.x, y: point.y }
+    applyVisitStarPatchLocally(patch)
+    schedulePositionSave(patch)
+  }, [applyVisitStarPatchLocally, getCanvasPoint, schedulePositionSave])
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    isDraggingVisitStarRef.current = true
+    setIsDraggingVisitStar(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+    moveVisitStar(e.clientX, e.clientY)
   }
 
-  const handleRightClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDraggingVisitStarRef.current) return
     e.preventDefault()
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const mx = (e.clientX - rect.left) / rect.width
-    const my = (e.clientY - rect.top) / rect.height
+    moveVisitStar(e.clientX, e.clientY)
+  }
 
-    for (const star of starsRef.current) {
-      if (star.sessionId !== sessionId.current || star.isMega) continue
-      const dx = (star.x - mx) * rect.width
-      const dy = (star.y - my) * rect.height
-      if (Math.hypot(dx, dy) < 15) {
-        const db = getFirebase()
-        if (db && star.key && !localFallbackRef.current) {
-          void remove(dbRef(db, `stars/${star.key}`)).catch(() => {
-            activateLocalFallback()
-            removeLocalStar(star)
-          })
-        } else {
-          removeLocalStar(star)
-        }
-        break
-      }
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDraggingVisitStarRef.current) return
+    isDraggingVisitStarRef.current = false
+    setIsDraggingVisitStar(false)
+    flushPositionSave()
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
     }
   }
+
+  const handleColorSelect = useCallback((color: string) => {
+    setSelectedColor(color)
+    const patch = { color }
+    applyVisitStarPatchLocally(patch)
+    persistVisitStarPatch(patch)
+  }, [applyVisitStarPatchLocally, persistVisitStarPatch])
+
+  const saveMessage = useCallback((nextMessage: string) => {
+    const msg = nextMessage.trim()
+    if (msg && !isClean(msg)) {
+      setFilterError(true)
+      return
+    }
+
+    setFilterError(false)
+    const patch = { message: msg }
+    applyVisitStarPatchLocally(patch)
+    persistVisitStarPatch(patch)
+  }, [applyVisitStarPatchLocally, persistVisitStarPatch])
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value)
+    setFilterError(false)
+  }
+
+  const submitMessage = useCallback(() => {
+    const msg = message.trim()
+    if (msg && !isClean(msg)) {
+      setFilterError(true)
+      return
+    }
+    saveMessage(message)
+    setMessageSubmitted(true)
+  }, [message, saveMessage])
+
+  const startEditing = useCallback(() => {
+    setMessageSubmitted(false)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (positionSaveTimeout.current) {
+        window.clearTimeout(positionSaveTimeout.current)
+      }
+      if (messageSaveTimeout.current) {
+        window.clearTimeout(messageSaveTimeout.current)
+      }
+    }
+  }, [])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -737,14 +932,12 @@ export default function Constellation() {
       </div>
 
       <p className="constellation__intro">
-        {isPhone ? 'Tap to place a star.' : 'Click to place a star.'} At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
-        {isPhone ? ' Stars you add keep a ring so they are easy to spot.' : (
-          <> Your stars have a ring — <span className="constellation__delete-hint">right-click to delete</span>.</>
-        )}
+        One star is added automatically for each visit. Your star keeps the same ring style as before.
+        {' '}At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
       </p>
 
       <motion.div
-        className="constellation"
+        className={`constellation ${isDraggingVisitStar ? 'is-dragging' : ''}`}
         ref={containerRef}
         initial={{ opacity: 0 }}
         animate={inView ? { opacity: 1 } : {}}
@@ -753,8 +946,13 @@ export default function Constellation() {
         <canvas
           ref={canvasRef}
           className="constellation__canvas"
-          onClick={handleClick}
-          onContextMenu={handleRightClick}
+          aria-label="Constellation sky. Drag to move your star."
+          data-cursor-drag
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onContextMenu={e => e.preventDefault()}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => {
             tooltipTimeout.current = window.setTimeout(() => {
@@ -767,33 +965,101 @@ export default function Constellation() {
         <div ref={tooltipRef} className="constellation__tooltip" />
       </motion.div>
 
-      <div className="constellation__controls">
-        <div className="constellation__color-picker">
-          {COLORS.map(c => (
-            <button
-              key={c.value}
-              className={selectedColor === c.value ? 'active' : ''}
-              style={{ '--btn-color': c.value } as React.CSSProperties}
-              onClick={() => setSelectedColor(c.value)}
-              aria-label={c.label}
-            />
-          ))}
+      <div className="constellation__editor">
+        <div className="constellation__editor-header">
+          <span className="constellation__editor-kicker">Your star</span>
+          <span className="constellation__editor-hint">
+            {isPhone ? 'Tap or drag the sky to reposition it.' : 'Drag anywhere in the sky to reposition it.'}
+          </span>
         </div>
-        <div className="constellation__input-wrap">
-          <input
-            type="text"
-            className={`constellation__message ${filterError || capacityError ? 'is-error' : ''}`}
-            placeholder="Leave a message"
-            maxLength={50}
-            value={message}
-            onChange={e => { setMessage(e.target.value); setFilterError(false) }}
-          />
-          {filterError && (
-            <span className="constellation__filter-error">Please keep messages appropriate</span>
-          )}
-          {!filterError && capacityError && (
-            <span className="constellation__filter-error">Constellation full — merging stars, try again</span>
-          )}
+
+        <div className="constellation__controls" aria-label="Edit your star">
+          <div
+            className={`constellation__color-picker ${messageSubmitted ? 'is-submitted' : ''}`}
+            aria-label="Choose your star color"
+          >
+            {COLORS.map(c => (
+              <button
+                key={c.value}
+                type="button"
+                className={selectedColor === c.value ? 'active' : ''}
+                style={{ '--btn-color': c.value } as React.CSSProperties}
+                onClick={() => handleColorSelect(c.value)}
+                disabled={messageSubmitted}
+                aria-label={c.label}
+              />
+            ))}
+          </div>
+          <div className="constellation__input-wrap">
+            <div className="constellation__message-row">
+              <input
+                type="text"
+                className={`constellation__message ${filterError || capacityError ? 'is-error' : ''} ${messageSubmitted ? 'is-submitted' : ''}`}
+                placeholder="Add a message to your star"
+                aria-label="Message for your star"
+                maxLength={50}
+                value={message}
+                disabled={messageSubmitted}
+                onChange={handleMessageChange}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !messageSubmitted) {
+                    e.preventDefault()
+                    submitMessage()
+                  }
+                }}
+              />
+              <AnimatePresence mode="wait" initial={false}>
+                {messageSubmitted ? (
+                  <motion.button
+                    key="edit"
+                    type="button"
+                    className="constellation__msg-btn constellation__msg-btn--edit"
+                    onClick={startEditing}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    aria-label="Edit your message"
+                  >
+                    Edit
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    key="submit"
+                    type="button"
+                    className="constellation__msg-btn constellation__msg-btn--submit"
+                    onClick={submitMessage}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    aria-label="Submit your message"
+                  >
+                    Submit
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+            <AnimatePresence>
+              {messageSubmitted && !filterError && (
+                <motion.span
+                  className="constellation__saved"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  &#10003; saved to your star
+                </motion.span>
+              )}
+            </AnimatePresence>
+            {filterError && (
+              <span className="constellation__filter-error">Please keep messages appropriate</span>
+            )}
+            {!filterError && capacityError && (
+              <span className="constellation__filter-error">Constellation full, merging stars, try again</span>
+            )}
+          </div>
         </div>
       </div>
     </>

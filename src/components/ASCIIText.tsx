@@ -32,15 +32,7 @@ uniform float uTime;
 uniform sampler2D uTexture;
 
 void main() {
-    float time = uTime;
-    vec2 pos = vUv;
-    
-    float move = sin(time + mouse) * 0.01;
-    float r = texture2D(uTexture, pos + cos(time * 2. - time + pos.x) * .01).r;
-    float g = texture2D(uTexture, pos + tan(time * .5 + pos.x - time) * .01).g;
-    float b = texture2D(uTexture, pos - cos(time * 2. + time + pos.y) * .01).b;
-    float a = texture2D(uTexture, pos).a;
-    gl_FragColor = vec4(r, g, b, a);
+    gl_FragColor = texture2D(uTexture, vUv);
 }
 `
 
@@ -104,7 +96,7 @@ class AsciiFilter {
     this.invert = invert ?? true
     this.fontSize = fontSize ?? 12
     this.fontFamily = fontFamily ?? "'Courier New', monospace"
-    this.charset = charset ?? ' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$'
+    this.charset = charset ?? ' .:-=+*#%@'
 
     if (this.context) {
       this.context.imageSmoothingEnabled = false
@@ -152,6 +144,9 @@ class AsciiFilter {
       this.pre.style.zIndex = '9'
       this.pre.style.backgroundAttachment = 'fixed'
       this.pre.style.mixBlendMode = 'difference'
+      this.pre.style.whiteSpace = 'pre'
+      this.pre.style.letterSpacing = '0'
+      this.canvas.style.display = 'none'
     }
   }
 
@@ -322,6 +317,7 @@ class CanvAscii {
   geometry: THREE.PlaneGeometry | undefined
   material: THREE.ShaderMaterial | undefined
   mesh!: THREE.Mesh
+  textAspect = 1
   renderer!: THREE.WebGLRenderer
   filter!: AsciiFilter
   center = { x: 0, y: 0 }
@@ -377,12 +373,9 @@ class CanvAscii {
     this.texture.minFilter = THREE.NearestFilter
     this.texture.needsUpdate = true
 
-    const textAspect = this.textCanvas.width / this.textCanvas.height
-    const baseH = this.planeBaseHeight
-    const planeW = baseH * textAspect
-    const planeH = baseH
+    this.textAspect = this.textCanvas.width / this.textCanvas.height
 
-    this.geometry = new THREE.PlaneGeometry(planeW, planeH, 36, 36)
+    this.geometry = new THREE.PlaneGeometry(1, 1, 36, 36)
     this.material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
@@ -396,6 +389,7 @@ class CanvAscii {
     })
 
     this.mesh = new THREE.Mesh(this.geometry, this.material)
+    this.fitMeshToView()
     this.scene.add(this.mesh)
   }
 
@@ -429,10 +423,24 @@ class CanvAscii {
 
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    this.fitMeshToView()
 
     this.filter.setSize(w, h)
 
     this.center = { x: w / 2, y: h / 2 }
+  }
+
+  fitMeshToView() {
+    if (!this.mesh || !Number.isFinite(this.textAspect) || this.textAspect <= 0) return
+
+    const verticalFov = THREE.MathUtils.degToRad(this.camera.fov)
+    const viewHeight = 2 * Math.tan(verticalFov / 2) * this.camera.position.z
+    const viewWidth = viewHeight * this.camera.aspect
+    const maxPlaneHeight = viewHeight * 0.86
+    const maxPlaneWidth = viewWidth * 0.96
+    const targetPlaneHeight = Math.min(this.planeBaseHeight, maxPlaneHeight, maxPlaneWidth / this.textAspect)
+
+    this.mesh.scale.set(targetPlaneHeight * this.textAspect, targetPlaneHeight, 1)
   }
 
   load() {
@@ -601,6 +609,18 @@ export default function ASCIIText({
       return instance
     }
 
+    const mountInstance = async (container: HTMLDivElement, w: number, h: number) => {
+      const instance = await createAndInit(container, w, h)
+      if (cancelled) {
+        instance.dispose()
+        return
+      }
+
+      asciiRef.current = instance
+      observeVisibility()
+      instance.load()
+    }
+
     const setup = async () => {
       const { width, height } = containerRef.current!.getBoundingClientRect()
 
@@ -614,11 +634,7 @@ export default function ASCIIText({
               sizeObserver = null
 
               if (!cancelled) {
-                asciiRef.current = await createAndInit(containerRef.current!, w, h)
-                if (!cancelled && asciiRef.current) {
-                  observeVisibility()
-                  asciiRef.current.load()
-                }
+                await mountInstance(containerRef.current!, w, h)
               }
             }
           },
@@ -628,11 +644,8 @@ export default function ASCIIText({
         return
       }
 
-      asciiRef.current = await createAndInit(containerRef.current!, width, height)
+      await mountInstance(containerRef.current!, width, height)
       if (!cancelled && asciiRef.current) {
-        observeVisibility()
-        asciiRef.current.load()
-
         ro = new ResizeObserver(entries => {
           if (!entries[0] || !asciiRef.current) return
           const { width: w, height: h } = entries[0].contentRect

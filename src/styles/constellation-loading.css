@@ -58,8 +58,13 @@
   border: 1px solid var(--border-card);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  cursor: crosshair;
+  cursor: grab;
   margin-bottom: 16px;
+  touch-action: none;
+}
+
+.constellation.is-dragging {
+  cursor: grabbing;
 }
 
 .constellation__canvas {
@@ -67,6 +72,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  cursor: inherit;
+  touch-action: none;
 }
 
 .constellation__ripple {
@@ -119,6 +126,36 @@
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.constellation__editor {
+  border: 1px solid rgba(0, 255, 255, 0.12);
+  background: rgba(4, 9, 18, 0.42);
+  padding: 14px;
+}
+
+.constellation__editor-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+}
+
+.constellation__editor-kicker {
+  color: var(--accent-cyan);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.constellation__editor-hint {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .constellation__color-picker {
@@ -187,6 +224,73 @@
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--accent-red);
+}
+
+/* --- message submit / edit --- */
+.constellation__color-picker.is-submitted {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.constellation__message-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.constellation__message.is-submitted {
+  opacity: 0.55;
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+  transition: opacity 0.3s ease, color 0.3s ease, border-color 0.3s ease,
+    background 0.3s ease;
+}
+
+.constellation__msg-btn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease,
+    box-shadow 0.25s ease, color 0.25s ease;
+}
+
+.constellation__msg-btn--submit {
+  color: #04121c;
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--accent-cyan), #00c8e6);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(0, 255, 255, 0.28);
+}
+
+.constellation__msg-btn--submit:hover {
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.5);
+}
+
+.constellation__msg-btn--edit {
+  color: var(--accent-cyan);
+  background: rgba(0, 255, 255, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.constellation__msg-btn--edit:hover {
+  background: rgba(0, 255, 255, 0.12);
+  border-color: rgba(0, 255, 255, 0.5);
+}
+
+.constellation__saved {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-green);
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
 }
 
 /* ============================================================================
@@ -540,6 +644,4 @@
 .card-3d-tilt:hover .skill-card::after {
   opacity: 1;
 }
-
-
 

@@ -126,12 +126,13 @@
 
   .hero__title {
     font-size: clamp(1.8rem, 7vw, 2.8rem);
+    width: min(calc(100vw - 36px), 980px);
   }
 
   .hero__title-line--ascii {
-    width: calc(100% + 28px);
-    height: clamp(58px, 12vw, 100px);
-    margin: 0 -14px -6px;
+    width: 100vw;
+    height: clamp(54px, 9vw, 84px);
+    margin: 0 calc((100% - 100vw) / 2) -5px;
   }
 
   .hero__cta {
@@ -235,7 +236,9 @@
   }
 
   .hero__title-line--ascii {
-    height: clamp(48px, 12vw, 64px);
+    width: 100%;
+    height: clamp(50px, 13vw, 62px);
+    margin: 0 0 -1px;
   }
 
   .section__header h2 {
@@ -356,9 +359,9 @@
   }
 
   .hero__title-line--ascii {
-    width: calc(100% + 28px);
-    height: clamp(56px, 14vw, 82px);
-    margin: 0 -14px -2px;
+    width: 100%;
+    height: clamp(50px, 13vw, 62px);
+    margin: 0 0 -1px;
   }
 
   .hero__title-line--mobile {
@@ -988,4 +991,3 @@
   0%, 100% { opacity: 0.7; transform: rotate(0deg); }
   50% { opacity: 1; transform: rotate(15deg); }
 }
-

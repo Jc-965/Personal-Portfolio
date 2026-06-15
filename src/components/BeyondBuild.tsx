@@ -1,101 +1,152 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { Smartphone, Clock, Music } from 'lucide-react'
-import MagicBento, { type MagicBentoItem } from './MagicBento'
-import useIsPhone from '../hooks/useIsPhone'
+import { Smartphone, Compass, Music } from 'lucide-react'
+import useCardTilt from '../hooks/useCardTilt'
 
-const desktopItems: MagicBentoItem[] = [
+interface LifeStat {
+  label: string
+  value: string
+}
+
+interface LifeItem {
+  id: string
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+  accent: string
+  accentRgb: string
+  stats: LifeStat[]
+  bullets: string[]
+}
+
+const items: LifeItem[] = [
   {
     id: 'arcadia',
     icon: <Smartphone size={18} />,
     title: 'Arcadia App Development',
     subtitle: 'Developer & Treasurer',
-    bullets: [
-      'Helped develop a digital student ID system that improved check-ins for thousands of students.',
-      'Worked closely with administrators to design features based on real student and faculty needs.',
-      "Managed finances and outreach efforts, expanding the club's reach and project capacity.",
-    ],
+    accent: '#3aa39b',
+    accentRgb: '58, 163, 155',
     stats: [
-      { label: 'USERS', value: '2K+' },
+      { label: 'STUDENTS', value: '2K+' },
       { label: 'EVENTS', value: '50+' },
     ],
-    accent: '#3a9b95',
-    feature: {
-      variant: 'app',
-      eyebrow: 'digital student hub',
-      title: 'AHS Student App',
-      tags: ['Digital ID', 'Events', 'Alerts', 'Schedule'],
-      meters: [
-        { label: 'Check-In', value: 'READY', level: 100 },
-        { label: 'Events', value: '4 LIVE', level: 68 },
-        { label: 'Notices', value: '2 NEW', level: 42 },
-      ],
-      notifications: ['Student ID active', 'Club Fair check-in opens at 4:30', '2 announcements just posted'],
-    },
+    bullets: [
+      'Helped build a digital student-ID system that streamlined check-ins for thousands of students.',
+      'Designed features alongside administrators around real student and faculty needs.',
+      "Managed finances and outreach, expanding the club's reach and project capacity.",
+    ],
   },
   {
     id: 'eagle',
-    icon: <Clock size={18} />,
+    icon: <Compass size={18} />,
     title: 'Eagle Scout',
     subtitle: 'Boy Scouts of America',
-    bullets: [
-      'Led the planning and construction of wooden signage and a large outdoor banner for a local elementary school.',
-      'Organized volunteers and coordinated logistics to ensure safety, accuracy, and meaningful results.',
-      'Mentored younger Scouts on leadership, communication, and responsibility through hands-on activities.',
-    ],
+    accent: '#b38e5d',
+    accentRgb: '179, 142, 93',
     stats: [
-      { label: 'HOURS', value: '200+' },
+      { label: 'SERVICE HRS', value: '200+' },
       { label: 'VOLUNTEERS', value: '15' },
     ],
-    accent: '#b38e5d',
+    bullets: [
+      'Led the planning and construction of wooden signage and a large outdoor banner for a local elementary school.',
+      'Organized volunteers and coordinated logistics for safety, accuracy, and meaningful results.',
+      'Mentored younger Scouts on leadership, communication, and responsibility.',
+    ],
   },
   {
     id: 'clarinet',
     icon: <Music size={18} />,
     title: 'Clarinet Section Leader',
     subtitle: 'Soloist & Performer',
-    bullets: [
-      'Dedicated over 200 hours each year to rehearsals, performances, and coordinating with directors and peers.',
-      'Led sectionals, coached younger clarinetists, and organized music for both marching and concert seasons.',
-      'Performed nationally and abroad with the Pasadena Symphony and Pops, developing focus and composure under pressure.',
-    ],
+    accent: '#9c7fae',
+    accentRgb: '156, 127, 174',
     stats: [
       { label: 'YEARS', value: '4' },
       { label: 'ANNUAL HRS', value: '200+' },
     ],
-    accent: '#9c7fae',
+    bullets: [
+      'Dedicated 200+ hours each year to rehearsals, performances, and coordinating with directors and peers.',
+      'Led sectionals, coached younger clarinetists, and organized music for marching and concert seasons.',
+      'Performed nationally and abroad with the Pasadena Symphony and Pops.',
+    ],
   },
 ]
 
-const mobileItems: MagicBentoItem[] = [
-  {
-    ...desktopItems[0],
-    bullets: [
-      'Built a digital student ID system used by thousands of students.',
-      'Designed features with administrators based on real needs.',
-      'Managed finances and outreach for the club.',
-    ],
-  },
-  {
-    ...desktopItems[1],
-    bullets: [
-      'Built signage and a banner for a local school.',
-      'Organized volunteers and coordinated logistics.',
-      'Mentored younger Scouts on leadership.',
-    ],
-  },
-  {
-    ...desktopItems[2],
-    bullets: [
-      '200+ hours yearly in rehearsals and performances.',
-      'Led sectionals and coached younger players.',
-      'Performed with the Pasadena Symphony and Pops.',
-    ],
-  },
+const poses = [
+  { rot: -1.6, dy: 0 },
+  { rot: 1.1, dy: 46 },
+  { rot: -0.6, dy: 18 },
 ]
+
+const LifeCard = memo(function LifeCard({ item, index }: { item: LifeItem; index: number }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: '-60px' })
+  const { ref: tiltRef, tiltProps } = useCardTilt({ max: 7, perspective: 1100 })
+  const pose = poses[index % poses.length]
+
+  return (
+    <motion.div
+      ref={ref}
+      className="life-card-wrap"
+      initial={{ opacity: 0, y: 30 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.55, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div
+        className="life-card-pose"
+        style={{ '--pose-rot': `${pose.rot}deg`, '--pose-dy': `${pose.dy}px` } as React.CSSProperties}
+      >
+        <article
+          ref={tiltRef}
+          {...tiltProps}
+          className="life-card"
+          data-cursor
+          style={{
+            '--life-accent': item.accent,
+            '--life-accent-rgb': item.accentRgb,
+          } as React.CSSProperties}
+        >
+          <span className="life-card__index" aria-hidden="true">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <span className="life-card__corner life-card__corner--tl" aria-hidden="true" />
+          <span className="life-card__corner life-card__corner--tr" aria-hidden="true" />
+          <span className="life-card__corner life-card__corner--bl" aria-hidden="true" />
+          <span className="life-card__corner life-card__corner--br" aria-hidden="true" />
+
+          <div className="life-card__head">
+            <span className="life-card__badge">{item.icon}</span>
+            <div>
+              <h3 className="life-card__title">{item.title}</h3>
+              <span className="life-card__subtitle">{item.subtitle}</span>
+            </div>
+          </div>
+
+          <div className="life-card__stats">
+            {item.stats.map((s) => (
+              <div key={s.label} className="life-card__stat">
+                <span className="life-card__stat-value">{s.value}</span>
+                <span className="life-card__stat-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <ul className="life-card__list">
+            {item.bullets.map((b, i) => (
+              <li key={i}>
+                <span className="life-card__bullet">›</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </article>
+      </div>
+    </motion.div>
+  )
+})
 
 export default function BeyondBuild() {
-  const isPhone = useIsPhone()
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
 
@@ -112,23 +163,24 @@ export default function BeyondBuild() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Beyond the build
         </p>
-        <h2>Leadership, collaboration, and community impact</h2>
+        <h2>Leadership, craft, and community beyond the code</h2>
+        <p className="section__intro">
+          The work that shaped how I lead, teach, and show up, from launching a
+          student app to mentoring scouts and performing on a national stage.
+        </p>
       </motion.header>
 
-      <MagicBento
-        items={isPhone ? mobileItems : desktopItems}
-        textAutoHide
-        enableStars={false}
-        enableSpotlight
-        enableBorderGlow
-        enableTilt
-        enableMagnetism
-        clickEffect
-        spotlightRadius={300}
-        particleCount={12}
-        glowColor="132, 0, 255"
-        disableAnimations={false}
-      />
+      <div className="life-scatter">
+        <div className="life-scatter__bg" aria-hidden="true">
+          <span className="life-scatter__glow life-scatter__glow--1" />
+          <span className="life-scatter__glow life-scatter__glow--2" />
+        </div>
+        <div className="life-scatter__cards">
+          {items.map((item, i) => (
+            <LifeCard key={item.id} item={item} index={i} />
+          ))}
+        </div>
+      </div>
     </>
   )
 }

@@ -1,0 +1,296 @@
+/* ============================================================================
+   WINDOW FRAME — in-theme terminal/browser chrome around screenshots
+   ============================================================================ */
+
+.window-frame {
+  --wf-accent: var(--accent-cyan);
+  --wf-accent-rgb: 0, 255, 255;
+  position: relative;
+  perspective: 1400px;
+  width: 100%;
+}
+
+.window-frame__tilt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  /* fully opaque — stacked frames (deck / tabbed viewer) must not bleed through */
+  background:
+    linear-gradient(180deg, #0a101e, #05091a);
+  border: 1px solid color-mix(in srgb, var(--wf-accent) 32%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 22px 60px -22px rgba(0, 0, 0, 0.85),
+    0 0 42px -12px color-mix(in srgb, var(--wf-accent) 45%, transparent);
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s ease;
+  will-change: transform;
+}
+
+.window-frame:hover .window-frame__tilt {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 28px 70px -22px rgba(0, 0, 0, 0.9),
+    0 0 70px -10px color-mix(in srgb, var(--wf-accent) 60%, transparent);
+}
+
+/* --- chrome bar --- */
+.window-frame__chrome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: linear-gradient(180deg, #101626, #090d1a);
+  border-bottom: 1px solid color-mix(in srgb, var(--wf-accent) 18%, transparent);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.window-frame__dots {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.window-frame__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  opacity: 0.92;
+}
+
+.window-frame__dot--r { background: #ff5f57; box-shadow: 0 0 6px rgba(255, 95, 87, 0.5); }
+.window-frame__dot--y { background: #febc2e; box-shadow: 0 0 6px rgba(254, 188, 46, 0.5); }
+.window-frame__dot--g { background: #28c840; box-shadow: 0 0 6px rgba(40, 200, 64, 0.5); }
+
+.window-frame__path {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.window-frame__url {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid color-mix(in srgb, var(--wf-accent) 14%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.window-frame__lock {
+  color: var(--accent-green);
+  font-size: 0.55rem;
+}
+
+.window-frame__live {
+  margin-left: auto;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  color: var(--wf-accent);
+  text-transform: uppercase;
+  flex-shrink: 0;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--wf-accent) 60%, transparent);
+}
+
+/* --- screen --- */
+.window-frame__screen {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #05070f;
+}
+
+.window-frame__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* scanlines on top of the screenshot — CRT identity */
+.window-frame__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* light CRT on screenshots — just a hint so the image stays legible */
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.32;
+}
+
+/* moving diagonal sheen */
+.window-frame__glare {
+  position: absolute;
+  inset: -20% -60%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    color-mix(in srgb, var(--wf-accent) 16%, transparent) 48%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 62%
+  );
+  transform: translateX(-30%);
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.window-frame:hover .window-frame__glare {
+  opacity: 1;
+  transform: translateX(30%);
+}
+
+/* --- corner brackets --- */
+.window-frame__corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--wf-accent);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.window-frame__corner--tl { top: 7px; left: 7px; border-right: none; border-bottom: none; }
+.window-frame__corner--tr { top: 7px; right: 7px; border-left: none; border-bottom: none; }
+.window-frame__corner--bl { bottom: 7px; left: 7px; border-right: none; border-top: none; }
+.window-frame__corner--br { bottom: 7px; right: 7px; border-left: none; border-top: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .window-frame__tilt { transition: none; }
+  .window-frame__glare { display: none; }
+}
+
+/* ============================================================================
+   MEDIA GALLERY — browsable screenshot viewer (arrows + dots + counter)
+   ============================================================================ */
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.gallery__deck {
+  position: relative;
+  width: 100%;
+}
+
+.gallery__card {
+  will-change: transform, opacity;
+}
+
+/* the base card stays in flow to reserve height, but must be positioned so its
+   z-index applies — otherwise the fanned (absolute) cards paint on top of the
+   front image and it looks see-through. */
+.gallery__card--base {
+  position: relative;
+}
+
+.gallery__card:not(.gallery__card--base) {
+  position: absolute;
+  inset: 0;
+}
+
+.gallery__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--gallery-accent);
+  background: rgba(4, 9, 18, 0.72);
+  border: 1px solid color-mix(in srgb, var(--gallery-accent) 42%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--gallery-accent) 22%, transparent);
+}
+
+.gallery__nav:hover {
+  background: color-mix(in srgb, var(--gallery-accent) 22%, rgba(4, 9, 18, 0.82));
+  border-color: var(--gallery-accent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--gallery-accent) 46%, transparent);
+}
+
+.gallery__nav--prev { left: -16px; }
+.gallery__nav--next { right: -16px; }
+
+.gallery__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.gallery__dots {
+  display: flex;
+  gap: 9px;
+}
+
+.gallery__dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--gallery-accent) 45%, transparent);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.gallery__dot:hover {
+  border-color: var(--gallery-accent);
+  background: color-mix(in srgb, var(--gallery-accent) 30%, transparent);
+}
+
+.gallery__dot.is-active {
+  width: 24px;
+  border-radius: 999px;
+  background: var(--gallery-accent);
+  border-color: var(--gallery-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gallery-accent) 60%, transparent);
+}
+
+.gallery__count {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+@media (max-width: 560px) {
+  .gallery__nav { width: 34px; height: 34px; }
+  .gallery__nav--prev { left: -6px; }
+  .gallery__nav--next { right: -6px; }
+}

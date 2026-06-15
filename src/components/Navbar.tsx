@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const links = [
   { href: '#top', label: 'Home' },
@@ -11,6 +11,9 @@ const links = [
 export default function Navbar() {
   const [active, setActive] = useState('#top')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [hidden, setHidden] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const lastY = useRef(0)
 
   useEffect(() => {
     const sections = document.querySelectorAll('section[id]')
@@ -37,6 +40,17 @@ export default function Navbar() {
     }
 
     const onScroll = () => {
+      // Auto-hide on scroll-down, reveal on scroll-up / near top (kept out of
+      // the debounce so it feels immediate).
+      const y = window.scrollY
+      setScrolled(y > 12)
+      const goingDown = y > lastY.current + 4
+      const goingUp = y < lastY.current - 4
+      if (menuOpen || y < 120) setHidden(false)
+      else if (goingDown) setHidden(true)
+      else if (goingUp) setHidden(false)
+      lastY.current = y
+
       if (timeout) return
       timeout = window.setTimeout(() => { update(); timeout = 0 }, 50)
     }
@@ -44,7 +58,7 @@ export default function Navbar() {
     window.addEventListener('scroll', onScroll, { passive: true })
     update()
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [menuOpen])
 
   const handleClick = (href: string) => {
     setMenuOpen(false)
@@ -54,11 +68,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="nav">
-      <div className="nav__brand">
-        <span className="nav__brand-icon">&gt;_</span>
-        Jesse &middot; CMU SCS
-      </div>
+    <header className={`nav ${hidden ? 'nav--hidden' : ''} ${scrolled ? 'nav--scrolled' : ''}`}>
       <nav id="nav-menu" className={`nav__menu ${menuOpen ? 'is-open' : ''}`}>
         {links.map(l => (
           <a

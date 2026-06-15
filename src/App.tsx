@@ -15,6 +15,10 @@ const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/Sket
 // Only shown after the loading screen completes — lazy so its gsap dependency
 // (vendor-gsap, ~28KB gz) isn't parsed on the critical path before first paint.
 const TargetCursor = lazy(() => import('./components/TargetCursor'))
+// Site-wide scroll engine (Lenis inertial smooth scroll + scroll signal).
+// Lazy so lenis stays off the critical path; it activates a beat after first
+// paint, once the main view is up.
+const ScrollProvider = lazy(() => import('./scroll/ScrollProvider'))
 
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
@@ -68,6 +72,36 @@ function App() {
     setHasSeenSketchbook(seen)
   }, [])
 
+  // Native drag-and-drop (e.g. dragging an image) suppresses mousemove, which
+  // freezes the custom cursor mid-drag. Cancelling dragstart keeps the pointer
+  // in normal mouse-move mode so the cursor keeps following.
+  useEffect(() => {
+    const preventDrag = (e: DragEvent) => e.preventDefault()
+    document.addEventListener('dragstart', preventDrag)
+    return () => document.removeEventListener('dragstart', preventDrag)
+  }, [])
+
+  // Hidden easter egg: the Konami code unlocks the secret portfolio. No button.
+  useEffect(() => {
+    const sequence = [
+      'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown',
+      'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a',
+    ]
+    let progress = 0
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+      progress = key === sequence[progress] ? progress + 1 : (key === sequence[0] ? 1 : 0)
+      if (progress === sequence.length) {
+        progress = 0
+        openSketchbook()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openSketchbook])
+
   useEffect(() => {
     if (hasSeenSketchbook) {
       document.documentElement.classList.add('sketchbook-seen')
@@ -118,16 +152,19 @@ function App() {
             transition={{ duration: 0.5 }}
           >
             <Background />
+            <Suspense fallback={null}>
+              <ScrollProvider />
+            </Suspense>
             <Navbar />
             <main>
               <Hero />
               <LazySection id="journey" className="section journey" load={() => import('./components/Journey')} />
-              <LazySection id="projects" className="section projects" load={() => import('./components/Projects')} />
+              <LazySection id="projects" className="section projects section--wide" load={() => import('./components/Projects')} />
               <LazySection id="life" className="section beyond" load={() => import('./components/BeyondBuild')} />
               <LazySection id="skills" className="section toolkit" load={() => import('./components/Toolkit')} />
               <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
             </main>
-            <Footer onOpenSketchbook={openSketchbook} hasSeenSketchbook={hasSeenSketchbook} />
+            <Footer />
             <GyroPrompt />
           </motion.div>
         )}
