@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WindowFrame from './WindowFrame'
+import useIsPhone from '../hooks/useIsPhone'
 
 export interface GalleryImage {
   src: string
@@ -31,20 +32,25 @@ export default function MediaGallery({
   side = 'left',
 }: MediaGalleryProps) {
   const [active, setActive] = useState(0)
+  const isPhone = useIsPhone()
   const n = images.length
   const dir = side === 'right' ? 1 : -1
   const go = (d: number) => setActive((p) => (p + d + n) % n)
+  const cards = isPhone
+    ? [{ img: images[active], i: active }]
+    : images.map((img, i) => ({ img, i }))
 
   return (
     <div className="gallery" style={{ '--gallery-accent': accent } as React.CSSProperties}>
       <div className="gallery__deck">
-        {images.map((img, i) => {
+        {cards.map(({ img, i }) => {
+          if (!img) return null
           const pos = (i - active + n) % n // 0 = front
           const front = pos === 0
           return (
             <motion.div
               key={img.src}
-              className={`gallery__card ${i === 0 ? 'gallery__card--base' : ''}`}
+              className={`gallery__card ${i === 0 || isPhone ? 'gallery__card--base' : ''} ${front ? 'is-active' : ''}`}
               aria-hidden={!front}
               initial={false}
               animate={{

@@ -10,6 +10,7 @@ import LazySection from './components/LazySection'
 import Footer from './components/Footer'
 import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
+import { shouldUseCustomCursor } from './utils/nativeCursor'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
 // Only shown after the loading screen completes — lazy so its gsap dependency
@@ -20,6 +21,12 @@ const TargetCursor = lazy(() => import('./components/TargetCursor'))
 // paint, once the main view is up.
 const ScrollProvider = lazy(() => import('./scroll/ScrollProvider'))
 
+const loadJourney = () => import('./components/Journey')
+const loadProjects = () => import('./components/Projects')
+const loadBeyondBuild = () => import('./components/BeyondBuild')
+const loadToolkit = () => import('./components/Toolkit')
+const loadConstellation = () => import('./components/Constellation')
+
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
   const tutorialParam = new URLSearchParams(window.location.search).get('sketchTutorial')?.toLowerCase()
@@ -28,12 +35,40 @@ const shouldForceSketchbookTutorial = () => {
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
+  const [useCustomCursor, setUseCustomCursor] = useState(() => shouldUseCustomCursor())
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
   const [hasSeenSketchbook, setHasSeenSketchbook] = useState(false)
   const [showSketchbookTutorial, setShowSketchbookTutorial] = useState(false)
   const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
   const returnTimerRef = useRef<number | null>(null)
   const onLoadingComplete = useCallback(() => setIsLoading(false), [])
+
+  useEffect(() => {
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const legacyFinePointer = finePointer as MediaQueryList & {
+      addListener?: (listener: (event: MediaQueryListEvent) => void) => void
+      removeListener?: (listener: (event: MediaQueryListEvent) => void) => void
+    }
+    const update = () => setUseCustomCursor(shouldUseCustomCursor())
+
+    update()
+    window.addEventListener('resize', update, { passive: true })
+
+    if ('addEventListener' in finePointer) {
+      finePointer.addEventListener('change', update)
+    } else {
+      legacyFinePointer.addListener?.(update)
+    }
+
+    return () => {
+      window.removeEventListener('resize', update)
+      if ('removeEventListener' in finePointer) {
+        finePointer.removeEventListener('change', update)
+      } else {
+        legacyFinePointer.removeListener?.(update)
+      }
+    }
+  }, [])
 
   const openSketchbook = useCallback(() => {
     const seen = hasSeenSketchbook || localStorage.getItem('sketchbook-visited') === '1'
@@ -128,8 +163,8 @@ function App() {
 
   return (
     <GyroscopeProvider>
-      <Cursor />
-      {!isLoading && (
+      {useCustomCursor && <Cursor />}
+      {!isLoading && useCustomCursor && (
         <Suspense fallback={null}>
           <TargetCursor
             targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
@@ -158,11 +193,11 @@ function App() {
             <Navbar />
             <main>
               <Hero />
-              <LazySection id="journey" className="section journey" load={() => import('./components/Journey')} />
-              <LazySection id="projects" className="section projects section--wide" load={() => import('./components/Projects')} />
-              <LazySection id="life" className="section beyond" load={() => import('./components/BeyondBuild')} />
-              <LazySection id="skills" className="section toolkit" load={() => import('./components/Toolkit')} />
-              <LazySection id="constellation" className="section constellation-section" load={() => import('./components/Constellation')} />
+              <LazySection id="journey" className="section journey" load={loadJourney} />
+              <LazySection id="projects" className="section projects section--wide" load={loadProjects} />
+              <LazySection id="life" className="section beyond" load={loadBeyondBuild} />
+              <LazySection id="skills" className="section toolkit" load={loadToolkit} />
+              <LazySection id="constellation" className="section constellation-section" load={loadConstellation} />
             </main>
             <Footer />
             <GyroPrompt />

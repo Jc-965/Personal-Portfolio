@@ -340,6 +340,118 @@
   .proj__fan-card--3 { display: none; }
 }
 
+@media (max-width: 640px) {
+  .projects__scenes {
+    gap: 36px;
+  }
+
+  .proj,
+  .proj--right {
+    gap: 18px;
+    padding: 30px 0;
+  }
+
+  .proj__bigname-wrap {
+    display: none;
+  }
+
+  .proj__copy {
+    order: 1;
+  }
+
+  .proj__visual {
+    order: 2;
+  }
+
+  .proj__visual,
+  .proj__visual-inner {
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .proj__eyebrow {
+    gap: 7px;
+    margin-bottom: 10px;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+  }
+
+  .proj__title {
+    margin-bottom: 12px;
+    font-size: clamp(1.4rem, 8vw, 1.9rem);
+    line-height: 1.08;
+  }
+
+  .proj__lead {
+    max-width: none;
+    margin-bottom: 15px;
+    color: rgba(226, 236, 250, 0.84);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .proj__bullets {
+    gap: 9px;
+    margin-bottom: 18px;
+  }
+
+  .proj__bullets li {
+    gap: 8px;
+    color: rgba(226, 236, 250, 0.82);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .proj__bullet-icon {
+    opacity: 1;
+  }
+
+  .proj__meta {
+    gap: 13px;
+  }
+
+  .proj__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 14px;
+  }
+
+  .proj__stat-value {
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .proj__tech {
+    gap: 6px;
+  }
+
+  .proj__tech-tag {
+    font-size: 0.62rem;
+    padding: 4px 8px;
+  }
+
+  .proj__fan,
+  .proj__codestage {
+    max-width: 100%;
+  }
+
+  .proj__deck-wrap {
+    gap: 12px;
+  }
+
+  .proj__deck-controls {
+    gap: 12px;
+  }
+
+  .code-frame__body {
+    min-height: 150px;
+    padding: 12px 14px 14px;
+    font-size: 0.68rem;
+    line-height: 1.7;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .proj__fan-card,
   .proj__fan,

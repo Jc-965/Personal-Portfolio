@@ -163,11 +163,7 @@ export default function BeyondBuild() {
           <span className="section__eyebrow-icon">&#9670;</span>
           Beyond the build
         </p>
-        <h2>Leadership, craft, and community beyond the code</h2>
-        <p className="section__intro">
-          The work that shaped how I lead, teach, and show up, from launching a
-          student app to mentoring scouts and performing on a national stage.
-        </p>
+        <h2>Outside the code</h2>
       </motion.header>
 
       <div className="life-scatter">

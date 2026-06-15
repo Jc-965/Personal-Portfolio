@@ -32,16 +32,39 @@ export default function ScrollProvider() {
     }
 
     let rafId = 0
-    const raf = (time: number) => {
-      lenis?.raf(time)
-      updateScrollSignal(time)
+    if (useLenis) {
+      const raf = (time: number) => {
+        lenis?.raf(time)
+        updateScrollSignal(time)
+        rafId = requestAnimationFrame(raf)
+      }
       rafId = requestAnimationFrame(raf)
+
+      return () => {
+        cancelAnimationFrame(rafId)
+        lenis?.destroy()
+        document.documentElement.classList.remove('lenis-active')
+      }
     }
-    rafId = requestAnimationFrame(raf)
+
+    const requestSignalUpdate = () => {
+      if (rafId) return
+      rafId = requestAnimationFrame((time) => {
+        rafId = 0
+        updateScrollSignal(time)
+      })
+    }
+
+    updateScrollSignal(performance.now())
+    window.addEventListener('scroll', requestSignalUpdate, { passive: true })
+    window.addEventListener('resize', requestSignalUpdate, { passive: true })
+    window.addEventListener('pageshow', requestSignalUpdate, { passive: true })
 
     return () => {
-      cancelAnimationFrame(rafId)
-      lenis?.destroy()
+      if (rafId) cancelAnimationFrame(rafId)
+      window.removeEventListener('scroll', requestSignalUpdate)
+      window.removeEventListener('resize', requestSignalUpdate)
+      window.removeEventListener('pageshow', requestSignalUpdate)
       document.documentElement.classList.remove('lenis-active')
     }
   }, [])

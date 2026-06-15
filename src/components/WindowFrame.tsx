@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react'
+import { memo, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import useCardTilt from '../hooks/useCardTilt'
 
 interface WindowFrameProps {
@@ -20,12 +20,12 @@ interface WindowFrameProps {
   children?: ReactNode
 }
 
-/**
- * In-theme terminal/browser "window" wrapping a screenshot — title-bar dots,
- * path label, corner brackets, scanline sheen, accent glow, and pointer/gyro
- * 3D tilt. The standard presentation for every screenshot in the portfolio.
- */
-function WindowFrame({
+interface WindowFrameShellProps extends WindowFrameProps {
+  tiltRef?: Ref<HTMLDivElement>
+  tiltProps?: HTMLAttributes<HTMLDivElement>
+}
+
+function WindowFrameShell({
   src,
   alt,
   label,
@@ -33,13 +33,12 @@ function WindowFrame({
   accent = '#00ffff',
   aspect = '16 / 10',
   status,
-  tilt = true,
   fit = 'cover',
   className = '',
   children,
-}: WindowFrameProps) {
-  const { ref, tiltProps } = useCardTilt({ max: 6, perspective: 1100 })
-
+  tiltRef,
+  tiltProps,
+}: WindowFrameShellProps) {
   return (
     <div
       className={`window-frame window-frame--${variant} ${className}`}
@@ -47,8 +46,8 @@ function WindowFrame({
     >
       <div
         className="window-frame__tilt"
-        ref={tilt ? ref : undefined}
-        {...(tilt ? tiltProps : {})}
+        ref={tiltRef}
+        {...tiltProps}
       >
         <div className="window-frame__chrome">
           <div className="window-frame__dots" aria-hidden="true">
@@ -89,6 +88,21 @@ function WindowFrame({
       </div>
     </div>
   )
+}
+
+function TiltedWindowFrame(props: WindowFrameProps) {
+  const { ref, tiltProps } = useCardTilt({ max: 6, perspective: 1100 })
+  return <WindowFrameShell {...props} tiltRef={ref} tiltProps={tiltProps} />
+}
+
+/**
+ * In-theme terminal/browser "window" wrapping a screenshot — title-bar dots,
+ * path label, corner brackets, scanline sheen, accent glow, and pointer/gyro
+ * 3D tilt. The standard presentation for every screenshot in the portfolio.
+ */
+function WindowFrame(props: WindowFrameProps) {
+  if (props.tilt === false) return <WindowFrameShell {...props} />
+  return <TiltedWindowFrame {...props} />
 }
 
 export default memo(WindowFrame)

@@ -21,7 +21,7 @@ export default function Hero() {
   const ctaRef = useRef<HTMLDivElement>(null)
   const asciiFontSize = isPhone ? 4 : 5
   const asciiTextFontSize = isPhone ? 220 : 260
-  const asciiPlaneHeight = isPhone ? 14 : 13.5
+  const asciiPlaneHeight = isPhone ? 16 : 13.5
   const asciiInitial = isPhone
     ? { opacity: 0, y: 24 }
     : { opacity: 0, y: 40, rotateX: -30 }
