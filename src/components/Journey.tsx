@@ -120,7 +120,7 @@ const experiences: Experience[] = [
     track: 'Industry',
     period: 'Dec 2025 - May 2026',
     location: 'Remote',
-    summary: 'Shipped 100+ Flutter/Dart commits across 5 release cycles as the #2 contributor on a 9-person startup team, building skincare discovery features for 10k+ users across 80k+ products and 8M+ reviews. Engineered 15+ Dio-backed flows including a 22-step tutorial engine, animated CustomPainter score gauge, comparison module, and paginated reviews, and parallelized home/profile/feed fetches to cut equal-latency waits by up to 75%.',
+    summary: 'Built skincare discovery features for 10k+ users across 80k+ products and 8M+ reviews. Engineered 15+ Dio-backed flows including a 22-step tutorial engine, animated CustomPainter score gauge, comparison module, and paginated reviews, and parallelized home/profile/feed fetches to cut equal-latency waits by up to 75%.',
     stack: ['Flutter', 'Dart', 'Dio', 'CustomPainter', 'Performance'],
     panelLabel: 'METRICS',
     panelStatus: 'SHIPPED',
