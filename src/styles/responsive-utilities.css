@@ -90,33 +90,148 @@
 
   .nav {
     padding: 12px 18px;
+    transform: none;
   }
 
   .nav__menu {
     position: fixed;
-    top: 50px;
-    left: 0;
-    right: 0;
+    top: 58px;
+    right: 18px;
+    left: auto;
+    width: min(220px, calc(100vw - 28px));
+    z-index: 2;
     flex-direction: column;
-    background: rgba(0, 0, 0, 0.95);
-    backdrop-filter: blur(20px);
-    padding: 14px;
-    gap: 4px;
-    border-bottom: 1px solid var(--border-subtle);
-    transform: translateY(-120%);
+    background:
+      linear-gradient(90deg, rgba(0, 255, 255, 0.09), transparent 34%),
+      repeating-linear-gradient(0deg, rgba(0, 255, 255, 0.035) 0 1px, transparent 1px 4px),
+      linear-gradient(180deg, rgba(6, 14, 25, 0.96), rgba(1, 5, 12, 0.98));
+    backdrop-filter: blur(18px) saturate(130%);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    padding: 6px;
+    gap: 1px;
+    border: 1px solid rgba(0, 255, 255, 0.22);
+    border-radius: 4px;
+    box-shadow:
+      0 16px 42px rgba(0, 0, 0, 0.52),
+      0 0 22px rgba(0, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 0 0 1px rgba(0, 255, 255, 0.04);
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    transform: translateY(-8px) scale(0.98);
+    transform-origin: top right;
     opacity: 0;
-    transition: all 0.3s ease;
+    visibility: hidden;
+    transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.18s ease;
     pointer-events: none;
+    max-height: calc(100dvh - 74px);
+    overflow-y: auto;
+  }
+
+  .nav__menu::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(0, 255, 255, 0.18), transparent 22%) top left / 100% 1px no-repeat,
+      linear-gradient(180deg, rgba(0, 255, 255, 0.16), transparent 44%) top left / 1px 100% no-repeat;
+    opacity: 0.72;
   }
 
   .nav__menu.is-open {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
+  }
+
+  .nav__menu a {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    min-height: 40px;
+    padding: 9px 12px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    background: linear-gradient(90deg, rgba(0, 255, 255, 0.025), transparent 68%);
+    color: rgba(218, 230, 255, 0.76);
+    text-align: left;
+    text-shadow: none;
+    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  }
+
+  .nav__menu a::before {
+    content: '>';
+    color: rgba(0, 255, 65, 0.62);
+    font-size: 0.72em;
+    line-height: 1;
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+  }
+
+  .nav__menu a:hover,
+  .nav__menu a:focus-visible {
+    color: rgba(236, 248, 255, 0.94);
+    border-color: rgba(0, 255, 255, 0.14);
+    background: linear-gradient(90deg, rgba(0, 255, 255, 0.08), rgba(0, 255, 255, 0.02));
+  }
+
+  .nav__menu a.is-active {
+    color: var(--accent-cyan);
+    border-color: rgba(0, 255, 255, 0.24);
+    background: linear-gradient(90deg, rgba(0, 255, 255, 0.13), rgba(0, 255, 255, 0.03));
+    box-shadow: inset 2px 0 0 rgba(0, 255, 255, 0.68);
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.32);
+  }
+
+  .nav__menu a.is-active::before {
+    color: var(--accent-green);
+    opacity: 1;
+  }
+
+  .nav__menu a.is-active::after {
+    content: '';
+    margin-left: auto;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
   }
 
   .nav__toggle {
     display: flex;
+    position: relative;
+    z-index: 3;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    gap: 4px;
+    border: 1px solid rgba(0, 255, 255, 0.24);
+    border-radius: 4px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0, 255, 255, 0.04) 0 1px, transparent 1px 4px),
+      rgba(3, 9, 18, 0.86);
+    box-shadow:
+      0 10px 28px rgba(0, 0, 0, 0.36),
+      0 0 18px rgba(0, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+  }
+
+  .nav__toggle span {
+    width: 17px;
+    height: 1.5px;
+    background: rgba(190, 245, 255, 0.9);
+  }
+
+  .nav__toggle.is-active {
+    border-color: rgba(0, 255, 255, 0.28);
+    background: rgba(4, 16, 24, 0.92);
   }
 
   .hero {
@@ -291,18 +406,20 @@
   }
 
   .nav__toggle span {
-    width: 18px;
-    height: 1.5px;
+    width: 16px;
   }
 
   .nav__menu {
-    top: 48px;
-    padding: 10px 12px 14px;
+    top: 52px;
+    right: 12px;
+    width: min(214px, calc(100vw - 24px));
+    padding: 6px;
   }
 
   .nav__menu a {
     font-size: 0.68rem;
-    padding: 8px 10px;
+    min-height: 40px;
+    padding: 9px 11px;
   }
 
   .section {
@@ -810,9 +927,10 @@
 
   .constellation__stat {
     min-width: 0;
-    align-items: flex-start;
+    align-items: center;
     gap: 2px;
     padding: 8px;
+    text-align: center;
     border: 1px solid var(--border-card);
     border-radius: 10px;
     background: rgba(8, 12, 30, 0.72);
@@ -831,13 +949,16 @@
     font-size: 0.52rem;
     line-height: 1.4;
     letter-spacing: 0.1em;
+    overflow-wrap: anywhere;
   }
 
   .constellation__intro {
-    max-width: 34ch;
+    max-width: 100%;
     margin-bottom: 12px;
     font-size: 0.92rem;
     line-height: 1.6;
+    text-align: left;
+    overflow-wrap: anywhere;
   }
 
   .constellation {
@@ -848,6 +969,16 @@
 
   .constellation__controls {
     gap: 10px;
+  }
+
+  .constellation__editor-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .constellation__editor-hint {
+    text-align: left;
   }
 
   .constellation__color-picker {
@@ -882,13 +1013,16 @@
   .footer {
     gap: 12px;
     padding: 16px 14px 22px;
+    align-items: center;
   }
 
   .footer__socials {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 96px));
+    justify-content: center;
+    justify-items: stretch;
+    gap: 8px;
   }
 
   .footer__social-link {

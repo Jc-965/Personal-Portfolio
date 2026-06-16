@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type MouseEvent } from 'react'
 
 const links = [
   { href: '#top', label: 'Home' },
@@ -43,10 +43,11 @@ export default function Navbar() {
       // Auto-hide on scroll-down, reveal on scroll-up / near top (kept out of
       // the debounce so it feels immediate).
       const y = window.scrollY
+      const shouldAutoHide = window.matchMedia('(min-width: 769px)').matches
       setScrolled(y > 12)
       const goingDown = y > lastY.current + 4
       const goingUp = y < lastY.current - 4
-      if (menuOpen || y < 120) setHidden(false)
+      if (!shouldAutoHide || menuOpen || y < 120) setHidden(false)
       else if (goingDown) setHidden(true)
       else if (goingUp) setHidden(false)
       lastY.current = y
@@ -60,12 +61,42 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [menuOpen])
 
-  const handleClick = (href: string) => {
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    event.preventDefault()
     setMenuOpen(false)
+    setActive(href)
     if (href === '#top') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.history.replaceState(null, '', window.location.pathname)
+      return
     }
+
+    const scrollToTarget = (behavior: ScrollBehavior = 'smooth') => {
+      const target = document.querySelector(href)
+      if (!target) return
+
+      const top = target.getBoundingClientRect().top + window.scrollY - 62
+      window.scrollTo({ top, behavior })
+    }
+
+    scrollToTarget()
+    window.setTimeout(() => scrollToTarget(), 550)
+    window.setTimeout(() => scrollToTarget('auto'), 1250)
+    window.history.replaceState(null, '', href)
   }
+
+  const toggleMenu = () => {
+    setHidden(false)
+    setMenuOpen(open => !open)
+  }
+
+  useEffect(() => {
+    const closeOnResize = () => {
+      if (window.innerWidth > 768) setMenuOpen(false)
+    }
+    window.addEventListener('resize', closeOnResize, { passive: true })
+    return () => window.removeEventListener('resize', closeOnResize)
+  }, [])
 
   return (
     <header className={`nav ${hidden ? 'nav--hidden' : ''} ${scrolled ? 'nav--scrolled' : ''}`}>
@@ -76,15 +107,16 @@ export default function Navbar() {
             href={l.href}
             data-target-cursor="off"
             className={active === l.href ? 'is-active' : ''}
-            onClick={() => handleClick(l.href)}
+            onClick={(event) => handleClick(event, l.href)}
           >
             {l.label}
           </a>
         ))}
       </nav>
       <button
+        type="button"
         className={`nav__toggle ${menuOpen ? 'is-active' : ''}`}
-        onClick={() => setMenuOpen(!menuOpen)}
+        onClick={toggleMenu}
         aria-label="Toggle navigation"
         aria-expanded={menuOpen}
         aria-controls="nav-menu"
