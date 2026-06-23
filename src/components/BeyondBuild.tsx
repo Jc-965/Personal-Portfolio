@@ -57,7 +57,7 @@ const items: LifeItem[] = [
   {
     id: 'clarinet',
     icon: <Music size={18} />,
-    title: 'Clarinet Section Leader',
+    title: 'Clarinetist',
     subtitle: 'Soloist & Performer',
     accent: '#9c7fae',
     accentRgb: '156, 127, 174',
@@ -66,9 +66,9 @@ const items: LifeItem[] = [
       { label: 'ANNUAL HRS', value: '200+' },
     ],
     bullets: [
-      'Dedicated 200+ hours each year to rehearsals, performances, and coordinating with directors and peers.',
-      'Led sectionals, coached younger clarinetists, and organized music for marching and concert seasons.',
-      'Performed nationally and abroad with the Pasadena Symphony and Pops.',
+      'Perform with Carnegie Mellon’s All-University Orchestra (AUO).',
+      'Selected for the California All-State Honor Band and performed as a soloist in high school.',
+      'Performed nationally with the Pasadena Symphony and Pops.',
     ],
   },
 ]

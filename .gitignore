@@ -29,4 +29,25 @@ react-bits-upstream/
 
 # Large raw source media — kept locally for editing, too big for git (GitHub 100MB limit)
 src/assets/_originals/
+
+# Video files — kept out of the repo entirely
 *.mov
+*.mp4
+*.webm
+*.m4v
+*.avi
+public/videos/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Editor/agent local settings
+.claude/
+
+# Local tooling output — not part of the site
+.playwright-cli/
+output/
+
+# Local-only files: personal résumé data dump + internal dev journal (not used by the app)
+profile.json
+progress.md
