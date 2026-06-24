@@ -4,7 +4,7 @@
   <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=34&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=620&height=56&lines=Personal+Portfolio" alt="Personal Portfolio" />
 </h1>
 
-<img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=500&size=18&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=720&height=30&lines=Software+Engineer+%C2%B7+Computer+Science+%40+Carnegie+Mellon+University+%28SCS%29+%C2%B7+Machine+Learning" alt="Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Machine Learning" />
+Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Machine Learning
 
 <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=600&size=20&pause=1200&color=00B894&center=true&vCenter=true&width=620&lines=Building+technology+that+solves+real+problems;Mobile+%C2%B7+AI+Platforms+%C2%B7+Interactive+Web" alt="Building technology that solves real problems" />
 
@@ -21,14 +21,41 @@
 </div>
 
 <h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=220&height=38&lines=Experience" alt="Experience" />
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=340&height=44&lines=Explore+the+Site" alt="Explore the Site" />
 </h2>
 
 <table width="100%">
   <tr>
-    <th align="left" width="28%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=100&height=22&lines=Experience" alt="Experience" /></th>
-    <th align="center" width="20%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=70&height=22&lines=Stack" alt="Stack" /></th>
-    <th align="left" width="52%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=110&height=22&lines=What+I+Did" alt="What I Did" /></th>
+    <td width="50%" valign="top"><img src="screenshots/journey.png" alt="Journey timeline"/><br/><div align="center"><strong>The journey</strong><br/><sub>animated experience timeline</sub></div></td>
+    <td width="50%" valign="top"><img src="screenshots/projects.png" alt="Selected work"/><br/><div align="center"><strong>Selected work</strong><br/><sub>interactive case-study cards</sub></div></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="screenshots/toolkit.png" alt="Toolkit"/><br/><div align="center"><strong>The toolkit</strong><br/><sub>a GSAP card stack of tools</sub></div></td>
+    <td width="50%" valign="top"><img src="screenshots/constellation.png" alt="Constellation"/><br/><div align="center"><strong>The constellation</strong><br/><sub>a shared, live star field</sub></div></td>
+  </tr>
+</table>
+
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=440&height=44&lines=Hidden+Sketchbook+World" alt="Hidden Sketchbook World" />
+</h2>
+
+A secret Three.js scene with procedurally generated terrain you can sculpt and explore, rendered through a hand-drawn, pencil-on-paper post-processing pass.
+
+<div align="center">
+
+<img src="screenshots/sketchbook.png" alt="Sketchbook terrain" width="100%" />
+
+</div>
+
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=260&height=44&lines=Experience" alt="Experience" />
+</h2>
+
+<table width="100%">
+  <tr>
+    <th align="left" width="28%">Experience</th>
+    <th align="center" width="20%">Stack</th>
+    <th align="left" width="52%">What I Did</th>
   </tr>
   <tr>
     <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Mobile SWE Intern · Summer 2026</sub></td>
@@ -68,70 +95,61 @@
 </table>
 
 <h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=310&height=38&lines=Beyond+the+Code" alt="Beyond the Code" />
-</h2>
-
-**Developer & Treasurer** · Arcadia App Development<br/>
-**Eagle Scout** · Boy Scouts of America<br/>
-**Clarinetist & Soloist** · CMU All-University Orchestra, CA All-State Band
-
-<h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=290&height=38&lines=Explore+the+Site" alt="Explore the Site" />
-</h2>
-
-<table>
-  <tr>
-    <td width="50%" valign="top"><img src="screenshots/journey.png" alt="Journey timeline"/><br/><div align="center"><strong>The journey</strong><br/><sub>animated experience timeline</sub></div></td>
-    <td width="50%" valign="top"><img src="screenshots/projects.png" alt="Selected work"/><br/><div align="center"><strong>Selected work</strong><br/><sub>interactive case-study cards</sub></div></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><img src="screenshots/toolkit.png" alt="Toolkit"/><br/><div align="center"><strong>The toolkit</strong><br/><sub>a GSAP card stack of tools</sub></div></td>
-    <td width="50%" valign="top"><img src="screenshots/constellation.png" alt="Constellation"/><br/><div align="center"><strong>The constellation</strong><br/><sub>a shared, live star field</sub></div></td>
-  </tr>
-</table>
-
-**The hidden sketchbook world:** a secret Three.js scene with procedurally generated terrain you can sculpt and explore, rendered through a hand-drawn, pencil-on-paper post-processing pass.
-
-<div align="center">
-
-<img src="screenshots/sketchbook.png" alt="Sketchbook terrain" width="100%" />
-
-</div>
-
-<h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=280&height=38&lines=Selected+Work" alt="Selected Work" />
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=320&height=44&lines=Selected+Work" alt="Selected Work" />
 </h2>
 
 <table width="100%">
   <tr>
-    <th align="left" width="24%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=80&height=22&lines=Project" alt="Project" /></th>
-    <th align="center" width="20%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=110&height=22&lines=Tech+Stack" alt="Tech Stack" /></th>
-    <th align="left" width="56%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=120&height=22&lines=What+It+Does" alt="What It Does" /></th>
+    <th align="left" width="24%">Project</th>
+    <th align="center" width="20%">Tech Stack</th>
+    <th align="left" width="56%">What It Does</th>
   </tr>
   <tr>
-    <td valign="middle">💬 <strong>Agoriai</strong></td>
+    <td valign="middle"><strong>Agoriai</strong></td>
     <td align="center" valign="middle"><img title="React · TypeScript · D3 · PostgreSQL" alt="React, TypeScript, D3, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=react,ts,d3,postgresql" /></td>
     <td valign="middle">Anonymous student career network with school-email auth, private identity tiers, threaded discussions, voting, and a student-company graph.</td>
   </tr>
   <tr>
-    <td valign="middle">🩺 <strong>Levio</strong></td>
+    <td valign="middle"><strong>Levio</strong></td>
     <td align="center" valign="middle"><img title="Flutter · Dart · Supabase · PostgreSQL · GitHub Actions" alt="Flutter, Dart, Supabase, PostgreSQL, GitHub Actions" height="28" src="https://skillicons.dev/icons?i=flutter,dart,supabase,postgresql,githubactions" /></td>
     <td valign="middle">Offline-first Parkinson's care app for symptom tracking, medication schedules, guided therapy, crisis screening, and signed mobile releases.</td>
   </tr>
   <tr>
-    <td valign="middle">🃏 <strong>Tarocchi</strong></td>
+    <td valign="middle"><strong>Tarocchi</strong></td>
     <td align="center" valign="middle"><img title="React · Vite · TypeScript · Tailwind CSS · Framer Motion" alt="React, Vite, TypeScript, Tailwind CSS, Framer Motion" height="28" src="https://skillicons.dev/icons?i=react,vite,ts,tailwind,framer" /></td>
     <td valign="middle">Interactive narrative web app with 24 branching paths, animated scene transitions, parallax, and synchronized audio.</td>
   </tr>
   <tr>
-    <td valign="middle">🧭 <strong>MyCommunity</strong></td>
+    <td valign="middle"><strong>MyCommunity</strong></td>
     <td align="center" valign="middle"><img title="Java · Android · Firebase" alt="Java, Android, Firebase" height="28" src="https://skillicons.dev/icons?i=java,androidstudio,firebase" /></td>
     <td valign="middle">Native Android app for Boy Scouts troop discovery, real-time map markers, Google Sign-In, and a community news feed.</td>
   </tr>
 </table>
 
 <h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=290&height=38&lines=Under+the+Hood" alt="Under the Hood" />
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=340&height=44&lines=Beyond+the+Code" alt="Beyond the Code" />
+</h2>
+
+<table width="100%">
+  <tr>
+    <th align="left" width="28%">Area</th>
+    <th align="left" width="24%">Role</th>
+    <th align="left" width="48%">What It Adds</th>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Boy Scouts of America</strong></td>
+    <td valign="middle">Eagle Scout</td>
+    <td valign="middle">Led a 200+ hour service project, coordinated 15 volunteers, and mentored younger Scouts on planning and responsibility.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Music Performance</strong></td>
+    <td valign="middle">Clarinetist &amp; Soloist</td>
+    <td valign="middle">Perform with CMU's All-University Orchestra after California All-State, soloist, and Pasadena Symphony and Pops experience.</td>
+  </tr>
+</table>
+
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=320&height=44&lines=Under+the+Hood" alt="Under the Hood" />
 </h2>
 
 - **Interactive canvas background:** procedurally generated node network with pointer tracking and gyroscope tilt response
@@ -141,7 +159,7 @@
 - **Smooth scrolling:** inertial scroll via Lenis, with code-split sections lazily loaded for fast initial paint
 
 <h2>
-  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=220&height=38&lines=Built+With" alt="Built With" />
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=260&height=44&lines=Built+With" alt="Built With" />
 </h2>
 
 <div align="center">
