@@ -1,8 +1,12 @@
 <div align="center">
 
-# Jesse Chen
+<h1>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=34&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=620&height=56&lines=Personal+Portfolio" alt="Personal Portfolio" />
+</h1>
 
-**Software Engineer**  ·  Computer Science @ Carnegie Mellon University (SCS)  ·  Machine Learning
+<img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=500&size=18&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=720&height=30&lines=Software+Engineer+%C2%B7+Computer+Science+%40+Carnegie+Mellon+University+%28SCS%29+%C2%B7+Machine+Learning" alt="Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Machine Learning" />
+
+<img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=600&size=20&pause=1200&color=00B894&center=true&vCenter=true&width=620&lines=Building+technology+that+solves+real+problems;Mobile+%C2%B7+AI+Platforms+%C2%B7+Interactive+Web" alt="Building technology that solves real problems" />
 
 [![Live Site](https://img.shields.io/badge/Live_Site-Jc--965.com-00B894?style=for-the-badge&logoColor=white)](https://Jc-965.com)
 &nbsp;&nbsp;
@@ -12,68 +16,68 @@
 
 <br />
 
-<img src="screenshots/hero.png" alt="Jesse Chen personal portfolio" width="100%" />
-
-<br /><br />
-
-*A scroll-driven portfolio with a procedurally generated background, a hidden 3D sketchbook world, and a live visitor constellation.*
+<img src="screenshots/hero.png" alt="Personal portfolio" width="100%" />
 
 </div>
 
-<br />
-
-### 💼 Experience
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=220&height=38&lines=Experience" alt="Experience" />
+</h2>
 
 <table width="100%">
-<tr>
-<th align="left">Role</th>
-<th align="left">Organization</th>
-<th align="left" width="160">When</th>
-</tr>
-<tr>
-<td><b>Mobile Software Engineer Intern</b></td>
-<td>Blue Shield of California</td>
-<td>Summer 2026</td>
-</tr>
-<tr>
-<td><b>AI Platform Engineer</b> &nbsp;·&nbsp; <i>CMUGPT</i></td>
-<td>ScottyLabs</td>
-<td>2026 to Present</td>
-</tr>
-<tr>
-<td><b>Mobile Software Engineer Intern</b></td>
-<td>Sorcea Labs</td>
-<td>Spring 2026</td>
-</tr>
-<tr>
-<td><b>Data &amp; Software Engineer</b> &nbsp;·&nbsp; <i>CMUMaps</i></td>
-<td>ScottyLabs</td>
-<td>2025 to 2026</td>
-</tr>
-<tr>
-<td><b>Programming Instructor</b></td>
-<td>Coding Minds Academy</td>
-<td>2025 to 2026</td>
-</tr>
-<tr>
-<td><b>Creator &amp; Developer</b> &nbsp;·&nbsp; <i>Levio</i></td>
-<td>Parkinson's care platform</td>
-<td>2023 to 2024</td>
-</tr>
-<tr>
-<td><b>Research Intern</b></td>
-<td>SoftCom Lab, Cal Poly Pomona</td>
-<td>2023 to 2024</td>
-</tr>
+  <tr>
+    <th align="left" width="28%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=100&height=22&lines=Experience" alt="Experience" /></th>
+    <th align="center" width="20%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=70&height=22&lines=Stack" alt="Stack" /></th>
+    <th align="left" width="52%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=110&height=22&lines=What+I+Did" alt="What I Did" /></th>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Mobile SWE Intern · Summer 2026</sub></td>
+    <td align="center" valign="middle"><img title="Android · Kotlin · Jira" alt="Android, Kotlin, Jira" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin,jira" /></td>
+    <td valign="middle">Building mobile healthcare features from Jira tickets into sprint-scoped, production-ready deliverables.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>ScottyLabs AI · CMUGPT</strong><br/><sub>AI Platform Engineer · 2026 to Present</sub></td>
+    <td align="center" valign="middle"><img title="Python · FastAPI · React · TypeScript" alt="Python, FastAPI, React, TypeScript" height="28" src="https://skillicons.dev/icons?i=py,fastapi,react,ts" />&nbsp;<img title="LangGraph" alt="LangGraph" height="28" width="28" src="https://cdn.simpleicons.org/langchain/00A67E" />&nbsp;<img title="TanStack" alt="TanStack" height="28" width="28" src="https://cdn.simpleicons.org/reactquery/FF4154" /></td>
+    <td valign="middle">Built agent orchestration, authenticated streaming, CMU Maps route embeds, and prompt-injection protections for a campus AI platform.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Sorcea Labs</strong><br/><sub>Mobile SWE Intern · Spring 2026</sub></td>
+    <td align="center" valign="middle"><img title="Flutter · Dart" alt="Flutter, Dart" height="28" src="https://skillicons.dev/icons?i=flutter,dart" /></td>
+    <td valign="middle">Shipped production app flows for 10k+ users and improved home-load latency by batching network calls.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>CMUMaps · ScottyLabs</strong><br/><sub>Data &amp; Software Engineer · 2025 to 2026</sub></td>
+    <td align="center" valign="middle"><img title="Python · AWS" alt="Python, AWS" height="28" src="https://skillicons.dev/icons?i=py,aws" />&nbsp;<img title="OpenStreetMap" alt="OpenStreetMap" height="28" width="28" src="https://cdn.simpleicons.org/openstreetmap/7EBC6F" />&nbsp;<img title="ArcGIS" alt="ArcGIS" height="28" width="28" src="https://cdn.simpleicons.org/arcgis/2C7AC3" /></td>
+    <td valign="middle">Built geospatial ETL for all 74 CMU buildings, including OSM parsing, fuzzy matching, and interior map labels.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Coding Minds Academy</strong><br/><sub>Programming Instructor · 2025 to 2026</sub></td>
+    <td align="center" valign="middle"><img title="Python · C++ · JavaScript" alt="Python, C++, JavaScript" height="28" src="https://skillicons.dev/icons?i=py,cpp,js" /></td>
+    <td valign="middle">Taught project-based CS, algorithms, debugging, and competitive programming through structured labs.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Levio</strong><br/><sub>Creator &amp; Developer · 2023 to 2024</sub></td>
+    <td align="center" valign="middle"><img title="Flutter · Dart · Supabase · PostgreSQL · GitHub Actions" alt="Flutter, Dart, Supabase, PostgreSQL, GitHub Actions" height="28" src="https://skillicons.dev/icons?i=flutter,dart,supabase,postgresql,githubactions" /></td>
+    <td valign="middle">Built an offline-first Parkinson's care platform with symptom logs, medication schedules, guided therapy, and snapshot sync.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>SoftCom Lab · Cal Poly Pomona</strong><br/><sub>Research Intern · 2023 to 2024</sub></td>
+    <td align="center" valign="middle"><img title="Python · OpenCV · NumPy" alt="Python, OpenCV, NumPy" height="28" src="https://skillicons.dev/icons?i=py,opencv,numpy" /></td>
+    <td valign="middle">Evaluated Parkinson's motor-symptom video analysis models and contributed to a peer-reviewed CCSIT publication.</td>
+  </tr>
 </table>
 
-### 🌟 Beyond the Code
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=310&height=38&lines=Beyond+the+Code" alt="Beyond the Code" />
+</h2>
 
 **Developer & Treasurer** · Arcadia App Development<br/>
 **Eagle Scout** · Boy Scouts of America<br/>
 **Clarinetist & Soloist** · CMU All-University Orchestra, CA All-State Band
 
-### ✨ Explore the site
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=290&height=38&lines=Explore+the+Site" alt="Explore the Site" />
+</h2>
 
 <table>
   <tr>
@@ -94,17 +98,41 @@
 
 </div>
 
-### 🧩 Selected work
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=280&height=38&lines=Selected+Work" alt="Selected Work" />
+</h2>
 
-**Agoriai** · An anonymous student career network built in one TartanHacks weekend: a REST API over Drizzle/PostgreSQL with school-email auth, hashed bearer sessions, and a typed React client.
+<table width="100%">
+  <tr>
+    <th align="left" width="24%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=80&height=22&lines=Project" alt="Project" /></th>
+    <th align="center" width="20%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&center=true&vCenter=true&repeat=false&width=110&height=22&lines=Tech+Stack" alt="Tech Stack" /></th>
+    <th align="left" width="56%"><img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=15&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=120&height=22&lines=What+It+Does" alt="What It Does" /></th>
+  </tr>
+  <tr>
+    <td valign="middle">💬 <strong>Agoriai</strong></td>
+    <td align="center" valign="middle"><img title="React · TypeScript · D3 · PostgreSQL" alt="React, TypeScript, D3, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=react,ts,d3,postgresql" /></td>
+    <td valign="middle">Anonymous student career network with school-email auth, private identity tiers, threaded discussions, voting, and a student-company graph.</td>
+  </tr>
+  <tr>
+    <td valign="middle">🩺 <strong>Levio</strong></td>
+    <td align="center" valign="middle"><img title="Flutter · Dart · Supabase · PostgreSQL · GitHub Actions" alt="Flutter, Dart, Supabase, PostgreSQL, GitHub Actions" height="28" src="https://skillicons.dev/icons?i=flutter,dart,supabase,postgresql,githubactions" /></td>
+    <td valign="middle">Offline-first Parkinson's care app for symptom tracking, medication schedules, guided therapy, crisis screening, and signed mobile releases.</td>
+  </tr>
+  <tr>
+    <td valign="middle">🃏 <strong>Tarocchi</strong></td>
+    <td align="center" valign="middle"><img title="React · Vite · TypeScript · Tailwind CSS · Framer Motion" alt="React, Vite, TypeScript, Tailwind CSS, Framer Motion" height="28" src="https://skillicons.dev/icons?i=react,vite,ts,tailwind,framer" /></td>
+    <td valign="middle">Interactive narrative web app with 24 branching paths, animated scene transitions, parallax, and synchronized audio.</td>
+  </tr>
+  <tr>
+    <td valign="middle">🧭 <strong>MyCommunity</strong></td>
+    <td align="center" valign="middle"><img title="Java · Android · Firebase" alt="Java, Android, Firebase" height="28" src="https://skillicons.dev/icons?i=java,androidstudio,firebase" /></td>
+    <td valign="middle">Native Android app for Boy Scouts troop discovery, real-time map markers, Google Sign-In, and a community news feed.</td>
+  </tr>
+</table>
 
-**Levio** · Offline-first cross-platform app supporting Parkinson's care: symptom tracking, medication schedules, and guided therapy.
-
-**Tarocchi** · HackCMU web app blending art, logic, and storytelling in React and TypeScript.
-
-**MyCommunity** · Android app that helps Scouts find service projects using Firebase and Maps APIs.
-
-### ⚙️ Under the hood
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=290&height=38&lines=Under+the+Hood" alt="Under the Hood" />
+</h2>
 
 - **Interactive canvas background:** procedurally generated node network with pointer tracking and gyroscope tilt response
 - **3D sketchbook world:** a Three.js / React Three Fiber procedural terrain scene with sculpting tools and a hand-drawn post-processing pass
@@ -112,11 +140,11 @@
 - **Performance-adaptive:** detects device capabilities and adjusts DPR, frame rate, and rendering complexity
 - **Smooth scrolling:** inertial scroll via Lenis, with code-split sections lazily loaded for fast initial paint
 
-<br />
+<h2>
+  <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=220&height=38&lines=Built+With" alt="Built With" />
+</h2>
 
 <div align="center">
-
-**Built with**
 
 ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
 &nbsp;
@@ -133,8 +161,6 @@
 ![Firebase](https://img.shields.io/badge/Firebase-DD2C00?style=flat-square&logo=firebase&logoColor=white)
 &nbsp;
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
-
-<br />
 
 <sub>© Jesse Chen · Personal portfolio · source shared for reference</sub>
 
