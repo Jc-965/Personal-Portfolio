@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, Send } from 'lucide-react'
 
@@ -9,13 +9,44 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [emailError, setEmailError] = useState('')
+  // Honeypot: invisible to humans, autofilled by naive bots. Formspree drops
+  // any submission where _gotcha is non-empty; we also short-circuit locally.
+  const [gotcha, setGotcha] = useState('')
+  const cardRef = useRef<HTMLDivElement>(null)
 
+  // Dialog behaviour: Escape closes, Tab is trapped inside the card, focus
+  // moves in on open and back to the opener on close.
   useEffect(() => {
+    const openerEl = document.activeElement as HTMLElement | null
+    cardRef.current?.querySelector<HTMLElement>('input, textarea, button')?.focus()
+
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !cardRef.current) return
+      const focusables = Array.from(
+        cardRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled])'
+        )
+      ).filter(el => el.offsetParent !== null)
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      openerEl?.focus?.()
+    }
   }, [onClose])
 
   const isValidEmail = (value: string) =>
@@ -31,12 +62,19 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
     }
     setEmailError('')
 
+    // A filled honeypot means a bot — pretend success without hitting the API.
+    if (gotcha) {
+      setStatus('sent')
+      setTimeout(onClose, 2000)
+      return
+    }
+
     setStatus('sending')
     try {
       const res = await fetch(FORMSPREE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, message }),
+        body: JSON.stringify({ email, message, _gotcha: gotcha }),
       })
       if (res.ok) {
         setStatus('sent')
@@ -59,7 +97,11 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <motion.div
+        ref={cardRef}
         className="email-popup__card"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Contact form"
         initial={{ opacity: 0, scale: 0.92, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 20 }}
@@ -84,6 +126,16 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <form className="email-popup__form" onSubmit={handleSubmit}>
+            <input
+              type="text"
+              name="_gotcha"
+              value={gotcha}
+              onChange={e => setGotcha(e.target.value)}
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+            />
             <div className="email-popup__field">
               <label className="email-popup__label" htmlFor="popup-email">Email</label>
               <input

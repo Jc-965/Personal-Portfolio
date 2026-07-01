@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ref as dbRef, push, set, onValue, update, increment as fbIncrement, get, runTransaction } from 'firebase/database'
 import { getFirebase } from '../utils/firebase'
+import { storageGet, storageSet } from '../utils/safeStorage'
 import useIsPhone from '../hooks/useIsPhone'
 
 interface Star {
@@ -50,8 +51,14 @@ const BLOCKED_WORDS = [
 
 function isClean(text: string): boolean {
   if (!text) return true
-  const lower = text.toLowerCase().replace(/[^a-z]/g, '')
-  return !BLOCKED_WORDS.some(w => lower.includes(w))
+  // Match whole words only — substring checks reject innocent messages
+  // ("class", "password" both contain "ass"). Also check the fully-collapsed
+  // string against multi-word slurs to catch spaced-out evasion ("f u c k"),
+  // but only for words long enough not to appear inside common words.
+  const words = text.toLowerCase().split(/[^a-z]+/).filter(Boolean)
+  if (words.some(w => BLOCKED_WORDS.includes(w))) return false
+  const collapsed = text.toLowerCase().replace(/[^a-z]/g, '')
+  return !BLOCKED_WORDS.some(w => w.length >= 5 && collapsed.includes(w))
 }
 
 function escapeHtml(text: string): string {
@@ -61,10 +68,10 @@ function escapeHtml(text: string): string {
 }
 
 function getSessionId(): string {
-  let id = localStorage.getItem('constellation-session')
+  let id = storageGet('constellation-session')
   if (!id) {
     id = createId('session')
-    localStorage.setItem('constellation-session', id)
+    storageSet('constellation-session', id)
   }
   return id
 }
@@ -344,7 +351,7 @@ export default function Constellation() {
   }, [])
 
   const loadLocalState = useCallback(() => {
-    const saved = localStorage.getItem('constellation-stars')
+    const saved = storageGet('constellation-stars')
     let stars: Star[] = []
     if (saved) {
       try { stars = JSON.parse(saved) } catch { stars = [] }
@@ -355,15 +362,15 @@ export default function Constellation() {
     const derivedStats = getDerivedStarStats(stars)
     setStarsSinceMerge(derivedStats.regularCount)
 
-    const savedTotal = localStorage.getItem('constellation-totalStarsEver')
+    const savedTotal = storageGet('constellation-totalStarsEver')
     if (savedTotal != null) {
       setTotalStarsEver(Number(savedTotal))
     } else {
       setTotalStarsEver(derivedStats.totalCount)
-      localStorage.setItem('constellation-totalStarsEver', String(derivedStats.totalCount))
+      storageSet('constellation-totalStarsEver', String(derivedStats.totalCount))
     }
 
-    const savedMergeCount = localStorage.getItem('constellation-mergeCount')
+    const savedMergeCount = storageGet('constellation-mergeCount')
     setMergeCount(savedMergeCount != null ? Number(savedMergeCount) : derivedStats.mergeCount)
 
     drawStars()
@@ -380,11 +387,11 @@ export default function Constellation() {
     if (newStar.visitId === PAGE_VISIT_ID) {
       currentVisitStarRef.current = newStar
     }
-    localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
+    storageSet('constellation-stars', JSON.stringify(starsRef.current))
     setStarsSinceMerge(prev => prev + 1)
     setTotalStarsEver(prev => {
       const nextTotal = prev + 1
-      localStorage.setItem('constellation-totalStarsEver', String(nextTotal))
+      storageSet('constellation-totalStarsEver', String(nextTotal))
       return nextTotal
     })
     drawStars()
@@ -413,7 +420,7 @@ export default function Constellation() {
 
     currentVisitStarRef.current = updatedStar
     if (localFallbackRef.current) {
-      localStorage.setItem('constellation-stars', JSON.stringify(starsRef.current))
+      storageSet('constellation-stars', JSON.stringify(starsRef.current))
     }
     drawStars()
     return updatedStar
@@ -566,8 +573,10 @@ export default function Constellation() {
     return () => window.removeEventListener('resize', resize)
   }, [drawStars])
 
-  // Animation — redraw at ~1.5s intervals; pause when tab hidden to save CPU
+  // Animation — redraw at ~1.5s intervals; pause when tab hidden to save CPU.
+  // Reduced-motion users get a static field (stars still redraw on data changes).
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let frame = 0, animId: number
     const tick = () => {
       if (document.hidden) return // pause: do not schedule next frame
@@ -1038,25 +1047,28 @@ export default function Constellation() {
                 </AnimatePresence>
               </motion.button>
             </div>
-            <AnimatePresence>
-              {messageSubmitted && !filterError && (
-                <motion.span
-                  className="constellation__saved"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  &#10003; saved to your star
-                </motion.span>
+            {/* role=status makes save/error feedback audible to screen readers */}
+            <div role="status" aria-live="polite">
+              <AnimatePresence>
+                {messageSubmitted && !filterError && (
+                  <motion.span
+                    className="constellation__saved"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    &#10003; saved to your star
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {filterError && (
+                <span className="constellation__filter-error">Please keep messages appropriate</span>
               )}
-            </AnimatePresence>
-            {filterError && (
-              <span className="constellation__filter-error">Please keep messages appropriate</span>
-            )}
-            {!filterError && capacityError && (
-              <span className="constellation__filter-error">Constellation full, merging stars, try again</span>
-            )}
+              {!filterError && capacityError && (
+                <span className="constellation__filter-error">Constellation full, merging stars, try again</span>
+              )}
+            </div>
           </div>
         </div>
       </div>

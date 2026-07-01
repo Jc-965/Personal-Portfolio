@@ -12,6 +12,7 @@ import Footer from './components/Footer'
 import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 import { shouldUseCustomCursor } from './utils/nativeCursor'
+import { storageGet, storageSet } from './utils/safeStorage'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
 // Only shown after the loading screen completes — lazy so its gsap dependency
@@ -33,6 +34,14 @@ const shouldForceSketchbookTutorial = () => {
   const tutorialParam = new URLSearchParams(window.location.search).get('sketchTutorial')?.toLowerCase()
   return tutorialParam === '1' || tutorialParam === 'true'
 }
+
+// Rendered when a content section crashes: keeps the section (and its anchor
+// id, so navbar links still land somewhere) instead of silently vanishing.
+const SectionFallback = ({ id, className }: { id: string; className: string }) => (
+  <section id={id} className={className}>
+    <p className="section-fallback">This section failed to load — refresh to try again.</p>
+  </section>
+)
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
@@ -72,7 +81,7 @@ function App() {
   }, [])
 
   const openSketchbook = useCallback(() => {
-    const seen = hasSeenSketchbook || localStorage.getItem('sketchbook-visited') === '1'
+    const seen = hasSeenSketchbook || storageGet('sketchbook-visited') === '1'
     const forceTutorial = shouldForceSketchbookTutorial()
     setIsSketchbookReturning(false)
     if (returnTimerRef.current !== null) {
@@ -81,7 +90,7 @@ function App() {
     }
     setShowSketchbookTutorial(forceTutorial || !seen)
     setHasSeenSketchbook(true)
-    localStorage.setItem('sketchbook-visited', '1')
+    storageSet('sketchbook-visited', '1')
     setSketchbookOpen(true)
   }, [hasSeenSketchbook])
 
@@ -104,7 +113,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const seen = localStorage.getItem('sketchbook-visited') === '1'
+    const seen = storageGet('sketchbook-visited') === '1'
     setHasSeenSketchbook(seen)
   }, [])
 
@@ -193,14 +202,15 @@ function App() {
             <Suspense fallback={null}>
               <ScrollProvider />
             </Suspense>
+            <a href="#main-content" className="skip-link">Skip to content</a>
             <Navbar />
-            <main>
+            <main id="main-content">
               <Hero />
-              <ErrorBoundary label="Journey"><LazySection id="journey" className="section journey" load={loadJourney} /></ErrorBoundary>
-              <ErrorBoundary label="Projects"><LazySection id="projects" className="section projects section--wide" load={loadProjects} /></ErrorBoundary>
-              <ErrorBoundary label="BeyondBuild"><LazySection id="life" className="section beyond" load={loadBeyondBuild} /></ErrorBoundary>
-              <ErrorBoundary label="Toolkit"><LazySection id="skills" className="section toolkit" load={loadToolkit} /></ErrorBoundary>
-              <ErrorBoundary label="Constellation"><LazySection id="constellation" className="section constellation-section" load={loadConstellation} /></ErrorBoundary>
+              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" load={loadJourney} /></ErrorBoundary>
+              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" load={loadProjects} /></ErrorBoundary>
+              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" load={loadBeyondBuild} /></ErrorBoundary>
+              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" load={loadToolkit} /></ErrorBoundary>
+              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" load={loadConstellation} /></ErrorBoundary>
             </main>
             <Footer />
             <GyroPrompt />

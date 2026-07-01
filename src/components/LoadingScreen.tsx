@@ -1,6 +1,25 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// Same-session revisits (e.g. a refresh) skip straight to the site — the boot
+// sequence is a first-impression moment, not a toll booth. sessionStorage can
+// throw in lockdown/private modes; treat that as "not seen".
+const INTRO_SEEN_KEY = 'intro-played'
+const introAlreadyPlayed = () => {
+  try {
+    return sessionStorage.getItem(INTRO_SEEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const markIntroPlayed = () => {
+  try {
+    sessionStorage.setItem(INTRO_SEEN_KEY, '1')
+  } catch {
+    // best-effort
+  }
+}
+
 // Lazy so the heavy Three.js/postprocessing bundle (vendor-3d) does not block
 // first paint of the loading screen. The dithered backdrop sits behind the
 // terminal content and fades in once the chunk arrives.
@@ -11,8 +30,13 @@ interface LoadingScreenProps {
 }
 
 export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
+  // Captured once on mount, before we mark it played. Starting in 'complete'
+  // means a skipped intro never paints at all — no flash on refresh.
+  const skipIntroRef = useRef(introAlreadyPlayed())
   const [progress, setProgress] = useState(0)
-  const [phase, setPhase] = useState<'init' | 'loading' | 'complete'>('init')
+  const [phase, setPhase] = useState<'init' | 'loading' | 'complete'>(
+    skipIntroRef.current ? 'complete' : 'init'
+  )
   const [logs, setLogs] = useState<string[]>([])
   // Defer mounting the WebGL Dither backdrop until AFTER the loading-screen
   // text has painted. Otherwise the dynamic import() of the 764KB three.js
@@ -38,19 +62,29 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
   }, [onComplete])
 
   useEffect(() => {
+    // Refresh mid-session? The screen never rendered (phase starts 'complete');
+    // just hand off to the site.
+    if (skipIntroRef.current) {
+      skippedRef.current = true
+      const handoff = setTimeout(onComplete, 50)
+      return () => clearTimeout(handoff)
+    }
+    markIntroPlayed()
     // Mount the Dither backdrop one tick after first paint so the terminal
     // content paints first and three.js loads in the background.
     const ditherTimer = setTimeout(() => setShowDither(true), 80)
 
     const timer1 = setTimeout(() => setPhase('loading'), 100)
 
+    // Pacing: logs finish typing at ~1.6s, the bar lands around ~2.4s, then a
+    // short beat before the fade — a deliberate boot sequence, not a flash.
     let logIndex = 0
     const logInterval = setInterval(() => {
       if (logIndex < logMessages.length) {
         setLogs(prev => [...prev, logMessages[logIndex]])
         logIndex++
       }
-    }, 160)
+    }, 260)
 
     const interval = setInterval(() => {
       setProgress(prev => {
@@ -59,14 +93,14 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
           clearInterval(logInterval)
           if (!skippedRef.current) {
             setPhase('complete')
-            setTimeout(onComplete, 250)
+            setTimeout(onComplete, 350)
           }
           return 100
         }
-        const increment = Math.random() * 20 + 8
+        const increment = Math.random() * 6 + 3
         return Math.min(100, prev + increment)
       })
-    }, 100)
+    }, 140)
 
     return () => {
       clearTimeout(ditherTimer)
@@ -74,7 +108,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
       clearInterval(interval)
       clearInterval(logInterval)
     }
-  }, [onComplete])
+  }, [onComplete, skip])
 
   return (
     <AnimatePresence>
@@ -91,7 +125,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
             <Suspense fallback={null}>
               <Dither
                 waveColor={[0.06, 0.24, 0.34]}
-                disableAnimation={false}
+                disableAnimation={window.matchMedia('(prefers-reduced-motion: reduce)').matches}
                 enableMouseInteraction
                 mouseRadius={0.10}
                 colorNum={5}
@@ -158,6 +192,16 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
               </div>
             </motion.div>
           </div>
+
+          <motion.span
+            className="loading-screen__skip-hint"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            aria-hidden="true"
+          >
+            click anywhere to skip
+          </motion.span>
         </motion.div>
       )}
     </AnimatePresence>

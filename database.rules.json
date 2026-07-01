@@ -3,8 +3,8 @@
     "stars": {
       ".read": true,
       "$starId": {
-        ".write": true,
-        ".validate": "newData.hasChildren(['x', 'y', 'color', 'timestamp', 'sessionId']) && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('x').val() <= 1 && newData.child('y').isNumber() && newData.child('y').val() >= 0 && newData.child('y').val() <= 1 && newData.child('color').isString() && newData.child('color').val().length <= 7 && newData.child('message').isString() && newData.child('message').val().length <= 50 && newData.child('timestamp').isNumber() && newData.child('sessionId').isString() && newData.child('sessionId').val().length <= 36"
+        ".write": "newData.exists() || root.child('metadata/mergeLock').exists()",
+        ".validate": "newData.hasChildren(['x', 'y', 'color', 'timestamp', 'sessionId']) && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('x').val() <= 1 && newData.child('y').isNumber() && newData.child('y').val() >= 0 && newData.child('y').val() <= 1 && newData.child('color').isString() && newData.child('color').val().matches(/^#[0-9a-fA-F]{6}$/) && newData.child('message').isString() && newData.child('message').val().length <= 50 && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now + 60000 && newData.child('sessionId').isString() && newData.child('sessionId').val().length <= 36 && (!data.exists() || newData.child('sessionId').val() === data.child('sessionId').val())"
       }
     },
     "metadata": {
@@ -19,7 +19,7 @@
       },
       "mergeLock": {
         ".write": true,
-        ".validate": "newData.isNumber() && newData.val() >= 0"
+        ".validate": "newData.isNumber() && newData.val() >= now - 60000 && newData.val() <= now + 60000"
       },
       "$other": {
         ".validate": false
