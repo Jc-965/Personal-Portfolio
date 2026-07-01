@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react'
 import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
 import Background from './components/Background'
+import ErrorBoundary from './components/ErrorBoundary'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import LazySection from './components/LazySection'
@@ -186,18 +187,20 @@ function App() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Background />
+            <ErrorBoundary label="Background">
+              <Background />
+            </ErrorBoundary>
             <Suspense fallback={null}>
               <ScrollProvider />
             </Suspense>
             <Navbar />
             <main>
               <Hero />
-              <LazySection id="journey" className="section journey" load={loadJourney} />
-              <LazySection id="projects" className="section projects section--wide" load={loadProjects} />
-              <LazySection id="life" className="section beyond" load={loadBeyondBuild} />
-              <LazySection id="skills" className="section toolkit" load={loadToolkit} />
-              <LazySection id="constellation" className="section constellation-section" load={loadConstellation} />
+              <ErrorBoundary label="Journey"><LazySection id="journey" className="section journey" load={loadJourney} /></ErrorBoundary>
+              <ErrorBoundary label="Projects"><LazySection id="projects" className="section projects section--wide" load={loadProjects} /></ErrorBoundary>
+              <ErrorBoundary label="BeyondBuild"><LazySection id="life" className="section beyond" load={loadBeyondBuild} /></ErrorBoundary>
+              <ErrorBoundary label="Toolkit"><LazySection id="skills" className="section toolkit" load={loadToolkit} /></ErrorBoundary>
+              <ErrorBoundary label="Constellation"><LazySection id="constellation" className="section constellation-section" load={loadConstellation} /></ErrorBoundary>
             </main>
             <Footer />
             <GyroPrompt />
@@ -206,14 +209,16 @@ function App() {
       </AnimatePresence>
 
       {(sketchbookOpen || sketchbookExiting) && (
-        <Suspense fallback={null}>
-          <SketchbookOverlay
-            onClose={closeSketchbook}
-            isExiting={sketchbookExiting}
-            onExitAnimationDone={onExitAnimationDone}
-            showTutorialOnStart={showSketchbookTutorial}
-          />
-        </Suspense>
+        <ErrorBoundary label="Sketchbook" fallback={null}>
+          <Suspense fallback={null}>
+            <SketchbookOverlay
+              onClose={closeSketchbook}
+              isExiting={sketchbookExiting}
+              onExitAnimationDone={onExitAnimationDone}
+              showTutorialOnStart={showSketchbookTutorial}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
       <Analytics />
     </GyroscopeProvider>

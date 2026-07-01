@@ -81,8 +81,7 @@
     perspective: none;
   }
 
-  .card-3d-tilt,
-  .magic-bento-card {
+  .card-3d-tilt {
     transform: none !important;
     transition: none;
     will-change: auto;
@@ -542,7 +541,6 @@
 
   .process-grid,
   .projects__grid,
-  .magic-bento-grid,
   .skill-grid {
     gap: 12px;
   }
@@ -566,14 +564,6 @@
 
   .window-frame__glare {
     display: none;
-  }
-
-  .magic-bento-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .magic-bento-card--featured {
-    grid-column: span 2;
   }
 
   .process-grid {
@@ -637,7 +627,6 @@
   .process-card,
   .project-card,
   .mosaic-card,
-  .magic-bento-card,
   .skill-card {
     border-radius: 12px;
   }
@@ -808,79 +797,6 @@
   .project-card:hover .project-card__corner {
     width: 14px;
     height: 14px;
-  }
-
-  .magic-bento-card {
-    min-height: 0;
-    gap: 8px;
-    padding: 14px 12px;
-  }
-
-  .magic-bento-card__header {
-    gap: 10px;
-  }
-
-  .magic-bento-card__badge {
-    width: 30px;
-    height: 30px;
-  }
-
-  .magic-bento-card__titles h3 {
-    font-size: 1.05rem;
-    line-height: 1.06;
-  }
-
-  .magic-bento-card__subtitle {
-    font-size: 0.66rem;
-  }
-
-  .magic-bento-card__stats {
-    gap: 8px;
-    padding-bottom: 6px;
-  }
-
-  .magic-bento-card__stat-label {
-    font-size: 0.5rem;
-    letter-spacing: 0.1em;
-  }
-
-  .magic-bento-card__stat-value {
-    font-size: 0.72rem;
-  }
-
-  .magic-bento-card__list {
-    gap: 6px;
-  }
-
-  .magic-bento-card__list li {
-    gap: 6px;
-    font-size: 0.78rem;
-    line-height: 1.5;
-  }
-
-  .magic-bento-card:not(.magic-bento-card--featured) .magic-bento-card__titles h3 {
-    font-size: 0.92rem;
-  }
-
-  .magic-bento-card:not(.magic-bento-card--featured) .magic-bento-card__subtitle {
-    font-size: 0.58rem;
-  }
-
-  .magic-bento-card:not(.magic-bento-card--featured) .magic-bento-card__list li {
-    font-size: 0.72rem;
-    line-height: 1.45;
-  }
-
-  .magic-bento-card:not(.magic-bento-card--featured) .magic-bento-card__stat-label {
-    font-size: 0.46rem;
-  }
-
-  .magic-bento-card:not(.magic-bento-card--featured) .magic-bento-card__stat-value {
-    font-size: 0.64rem;
-  }
-
-  .magic-bento-card__feature {
-    display: none;
   }
 
   .process-card__metrics {

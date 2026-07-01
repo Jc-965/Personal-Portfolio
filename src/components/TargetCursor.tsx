@@ -103,8 +103,17 @@ export default function TargetCursor({
       y: window.innerHeight / 2,
     })
 
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
     const createSpinTimeline = () => {
       spinTl.current?.kill()
+      // Honour reduced-motion: skip the perpetual rotation entirely. All other
+      // spinTl uses are optional-chained/guarded, so leaving it null is safe and
+      // the reticle simply stays static (snapping to targets still works).
+      if (prefersReducedMotion) {
+        spinTl.current = null
+        return
+      }
       spinTl.current = gsap.timeline({ repeat: -1 }).to(cursor, {
         rotation: '+=360',
         duration: spinDuration,

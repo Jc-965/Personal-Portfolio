@@ -2,21 +2,23 @@
   "rules": {
     "stars": {
       ".read": true,
-      ".write": true,
       "$starId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['x', 'y', 'color', 'timestamp', 'sessionId']) && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('x').val() <= 1 && newData.child('y').isNumber() && newData.child('y').val() >= 0 && newData.child('y').val() <= 1 && newData.child('color').isString() && newData.child('color').val().length <= 7 && newData.child('message').isString() && newData.child('message').val().length <= 50 && newData.child('timestamp').isNumber() && newData.child('sessionId').isString() && newData.child('sessionId').val().length <= 36"
       }
     },
     "metadata": {
       ".read": true,
-      ".write": true,
       "totalStarsEver": {
+        ".write": true,
         ".validate": "newData.isNumber() && newData.val() >= 0"
       },
       "mergeCount": {
+        ".write": true,
         ".validate": "newData.isNumber() && newData.val() >= 0"
       },
       "mergeLock": {
+        ".write": true,
         ".validate": "newData.isNumber() && newData.val() >= 0"
       },
       "$other": {

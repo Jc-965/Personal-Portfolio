@@ -85,7 +85,6 @@ export default function Cursor() {
       clickProgress.current += (clickTarget - clickProgress.current) * 0.28 * dt
       clickImpulse.current *= Math.pow(0.76, dt)
       const clickVisual = Math.max(clickProgress.current, clickImpulse.current)
-      const isClick = clickVisual > 0.02
 
       rotation.current += ((isHover ? 0.04 : 0.02) + clickVisual * 0.025) * dt
 

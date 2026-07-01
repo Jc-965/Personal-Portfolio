@@ -60,10 +60,10 @@ const projects: Project[] = [
     ],
     imageVariant: 'browser',
     images: [
-      { src: '/Agoriai/nexus.jpg', label: 'agoriai.app / nexus', alt: 'Agoriai Nexus relationship graph', aspect: '1600 / 904' },
-      { src: '/Agoriai/dashboard.jpg', label: 'agoriai.app / dashboard', alt: 'Agoriai dashboard overview', aspect: '1600 / 904' },
-      { src: '/Agoriai/feed.jpg', label: 'agoriai.app / feed', alt: 'Agoriai anonymous Q&A feed', aspect: '1600 / 904' },
-      { src: '/Agoriai/connection.jpg', label: 'agoriai.app / profile', alt: 'Agoriai profile and connections', aspect: '1600 / 904' },
+      { src: '/Agoriai/nexus.webp', label: 'agoriai.app / nexus', alt: 'Agoriai Nexus relationship graph', aspect: '1600 / 904' },
+      { src: '/Agoriai/dashboard.webp', label: 'agoriai.app / dashboard', alt: 'Agoriai dashboard overview', aspect: '1600 / 904' },
+      { src: '/Agoriai/feed.webp', label: 'agoriai.app / feed', alt: 'Agoriai anonymous Q&A feed', aspect: '1600 / 904' },
+      { src: '/Agoriai/connection.webp', label: 'agoriai.app / profile', alt: 'Agoriai profile and connections', aspect: '1600 / 904' },
     ],
   },
   {
@@ -112,10 +112,10 @@ const projects: Project[] = [
     ],
     imageVariant: 'browser',
     images: [
-      { src: '/Tarocchi/tarocchi-1.jpg', label: 'tarocchi / oracle', alt: 'Tarocchi pixel-art oracle prompt', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-2.jpg', label: 'tarocchi / countryside', alt: 'Tarocchi countryside branch scene', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-8.jpg', label: 'tarocchi / spread', alt: 'Tarocchi three-card reading spread', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-6.jpg', label: 'tarocchi / city', alt: 'Tarocchi night-city branch scene', aspect: '1600 / 1039' },
+      { src: '/Tarocchi/tarocchi-1.webp', label: 'tarocchi / oracle', alt: 'Tarocchi pixel-art oracle prompt', aspect: '1600 / 1039' },
+      { src: '/Tarocchi/tarocchi-2.webp', label: 'tarocchi / countryside', alt: 'Tarocchi countryside branch scene', aspect: '1600 / 1039' },
+      { src: '/Tarocchi/tarocchi-8.webp', label: 'tarocchi / spread', alt: 'Tarocchi three-card reading spread', aspect: '1600 / 1039' },
+      { src: '/Tarocchi/tarocchi-6.webp', label: 'tarocchi / city', alt: 'Tarocchi night-city branch scene', aspect: '1600 / 1039' },
     ],
   },
   {

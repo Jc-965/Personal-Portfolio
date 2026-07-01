@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unknown-property */
 import { useRef, useEffect, type ComponentType } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { EffectComposer, wrapEffect } from '@react-three/postprocessing'

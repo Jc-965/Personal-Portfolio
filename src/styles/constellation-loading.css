@@ -501,8 +501,7 @@
     perspective: none;
   }
 
-  .card-3d-tilt,
-  .magic-bento-card {
+  .card-3d-tilt {
     transform: none !important;
     transition: none;
     will-change: auto;

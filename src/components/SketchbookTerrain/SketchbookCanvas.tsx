@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unknown-property */
 import { forwardRef, useRef, useEffect, useState, useCallback, useImperativeHandle, type CSSProperties } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -205,7 +204,7 @@ const estimateCameraFocusPoint = (camera: THREE.Camera, sampleTerrainHeight: Ter
   const forward = new THREE.Vector3()
   camera.getWorldDirection(forward)
 
-  let bestPoint = new THREE.Vector3(0, sampleTerrainHeight(0, 0), 0)
+  const bestPoint = new THREE.Vector3(0, sampleTerrainHeight(0, 0), 0)
   let bestScore = Number.POSITIVE_INFINITY
 
   for (let distance = 10; distance <= 92; distance += 2) {
@@ -622,7 +621,6 @@ interface CameraControllerProps {
 }
 
 function CameraController({
-  mouseRef,
   gyroRef,
   keysRef,
   surveyOrbitRef,

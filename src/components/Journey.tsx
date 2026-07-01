@@ -87,10 +87,10 @@ const experiences: Experience[] = [
     media: {
       kind: 'phones',
       items: [
-        { src: '/sorcea/home.jpg', label: 'sorcea · home', alt: 'Sorcea home feed', aspect: '527 / 1080' },
-        { src: '/sorcea/score.jpg', label: 'sorcea · score', alt: 'Sorcea animated score gauge', aspect: '528 / 1080' },
-        { src: '/sorcea/search.jpg', label: 'sorcea · search', alt: 'Sorcea product search', aspect: '528 / 1080' },
-        { src: '/sorcea/compare.jpg', label: 'sorcea · compare', alt: 'Sorcea comparison view', aspect: '527 / 1080' },
+        { src: '/sorcea/home.webp', label: 'sorcea · home', alt: 'Sorcea home feed', aspect: '527 / 1080' },
+        { src: '/sorcea/score.webp', label: 'sorcea · score', alt: 'Sorcea animated score gauge', aspect: '528 / 1080' },
+        { src: '/sorcea/search.webp', label: 'sorcea · search', alt: 'Sorcea product search', aspect: '528 / 1080' },
+        { src: '/sorcea/compare.webp', label: 'sorcea · compare', alt: 'Sorcea comparison view', aspect: '527 / 1080' },
       ],
     },
   },
@@ -110,8 +110,8 @@ const experiences: Experience[] = [
     media: {
       kind: 'maps',
       items: [
-        { src: '/Maps/cmumaps-overview.jpg', label: 'cmumaps · map', alt: 'CMUMaps campus map with building pins', aspect: '554 / 422' },
-        { src: '/Maps/cmumaps-pins.jpg', label: 'cmumaps · pins', alt: 'CMUMaps dense campus building pins', aspect: '538 / 338' },
+        { src: '/Maps/cmumaps-overview.webp', label: 'cmumaps · map', alt: 'CMUMaps campus map with building pins', aspect: '554 / 422' },
+        { src: '/Maps/cmumaps-pins.webp', label: 'cmumaps · pins', alt: 'CMUMaps dense campus building pins', aspect: '538 / 338' },
       ],
     },
   },
