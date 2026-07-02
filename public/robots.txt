@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://jc-965.com/sitemap.xml
+Sitemap: https://www.jc-965.com/sitemap.xml

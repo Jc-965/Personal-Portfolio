@@ -3,47 +3,105 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Jesse Chen - Carnegie Mellon SCS student portfolio. Building technology that solves real problems for real people." />
+    <meta name="description" content="Jesse Chen - Carnegie Mellon SCS student and software engineer portfolio. Projects in full-stack software, mobile health, interactive web, and civic technology." />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="theme-color" content="#000000" />
-    <title>Jesse Chen | Portfolio</title>
+    <title>Jesse Chen | Software Engineer Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="canonical" href="https://jc-965.com/" />
+    <link rel="canonical" href="https://www.jc-965.com/" />
 
     <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://jc-965.com/" />
-    <meta property="og:title" content="Jesse Chen | Portfolio" />
-    <meta property="og:description" content="Carnegie Mellon SCS student building technology that solves real problems for real people." />
-    <meta property="og:image" content="https://jc-965.com/og-image.jpg" />
+    <meta property="og:url" content="https://www.jc-965.com/" />
+    <meta property="og:title" content="Jesse Chen | Software Engineer Portfolio" />
+    <meta property="og:description" content="Carnegie Mellon SCS student and software engineer building full-stack, mobile, interactive web, and civic technology projects." />
+    <meta property="og:image" content="https://www.jc-965.com/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="Jesse Chen" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Jesse Chen | Portfolio" />
-    <meta name="twitter:description" content="Carnegie Mellon SCS student building technology that solves real problems for real people." />
-    <meta name="twitter:image" content="https://jc-965.com/og-image.jpg" />
+    <meta name="twitter:title" content="Jesse Chen | Software Engineer Portfolio" />
+    <meta name="twitter:description" content="Carnegie Mellon SCS student and software engineer building full-stack, mobile, interactive web, and civic technology projects." />
+    <meta name="twitter:image" content="https://www.jc-965.com/og-image.jpg" />
 
     <!-- Structured data: ties the site to its author for search knowledge graphs -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Person",
-      "name": "Jesse Chen",
-      "url": "https://jc-965.com/",
-      "jobTitle": "Software Engineer",
-      "alumniOf": {
-        "@type": "CollegeOrUniversity",
-        "name": "Carnegie Mellon University"
-      },
-      "sameAs": [
-        "https://github.com/Jc-965",
-        "https://www.linkedin.com/in/jessechen2/"
+      "@graph": [
+        {
+          "@type": "Person",
+          "@id": "https://www.jc-965.com/#person",
+          "name": "Jesse Chen",
+          "url": "https://www.jc-965.com/",
+          "image": "https://www.jc-965.com/og-image.jpg",
+          "jobTitle": "Software Engineer",
+          "alumniOf": {
+            "@type": "CollegeOrUniversity",
+            "name": "Carnegie Mellon University"
+          },
+          "knowsAbout": [
+            "Software engineering",
+            "Full-stack development",
+            "Mobile app development",
+            "React",
+            "TypeScript",
+            "Flutter",
+            "PostgreSQL"
+          ],
+          "sameAs": [
+            "https://github.com/Jc-965",
+            "https://www.linkedin.com/in/jessechen2/"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.jc-965.com/#website",
+          "url": "https://www.jc-965.com/",
+          "name": "Jesse Chen Portfolio",
+          "description": "Portfolio for Jesse Chen, a Carnegie Mellon SCS student and software engineer.",
+          "author": {
+            "@id": "https://www.jc-965.com/#person"
+          },
+          "sameAs": [
+            "https://github.com/Jc-965",
+            "https://www.linkedin.com/in/jessechen2/"
+          ]
+        }
       ]
     }
     </script>
+    <!-- Marks JS-capable browsers before <body> parses so the SEO fallback below
+         never paints for them (no flash before React mounts). Crawlers and
+         no-JS visitors still see it. Hash-allowed in the CSP (vercel.json). -->
+    <script>document.documentElement.classList.add('js')</script>
+    <style>
+      /* Stay black while the app boots — prevents any white flash before the
+         stylesheet/loading screen arrive. */
+      html {
+        background: #000;
+      }
+      html.js .seo-fallback {
+        display: none;
+      }
+      .seo-fallback {
+        min-height: 100vh;
+        padding: 48px 24px;
+        background: #000;
+        color: #e6edf3;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+      .seo-fallback__inner {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      .seo-fallback a {
+        color: #7efcff;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Caveat dropped (was only a 3rd-tier fallback in one rule); IBM Plex Mono
@@ -64,7 +122,23 @@
     </noscript>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="seo-fallback" aria-label="Jesse Chen portfolio summary">
+        <div class="seo-fallback__inner">
+          <h1>Jesse Chen - Software Engineer Portfolio</h1>
+          <p>
+            Jesse Chen is a Carnegie Mellon School of Computer Science student and software engineer
+            building full-stack, mobile, interactive web, and civic technology projects.
+          </p>
+          <p>
+            Featured work includes Agoriai, Levio, Tarocchi, and MyCommunity. Read the
+            <a href="/projects/">project case studies</a>, view Jesse Chen on
+            <a href="https://github.com/Jc-965">GitHub</a>, or visit
+            <a href="https://www.linkedin.com/in/jessechen2/">LinkedIn</a>.
+          </p>
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

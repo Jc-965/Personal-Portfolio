@@ -76,8 +76,9 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
 
     const timer1 = setTimeout(() => setPhase('loading'), 100)
 
-    // Pacing: logs finish typing at ~1.6s, the bar lands around ~2.4s, then a
-    // short beat before the fade — a deliberate boot sequence, not a flash.
+    // Pacing: the 6 log lines type out over ~1.6s and the bar glides to 100%
+    // right behind them (~1.75s) — small frequent ticks instead of big random
+    // jumps so the fill reads as one smooth motion.
     let logIndex = 0
     const logInterval = setInterval(() => {
       if (logIndex < logMessages.length) {
@@ -97,10 +98,10 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
           }
           return 100
         }
-        const increment = Math.random() * 6 + 3
+        const increment = Math.random() * 2 + 3
         return Math.min(100, prev + increment)
       })
-    }, 140)
+    }, 70)
 
     return () => {
       clearTimeout(ditherTimer)
@@ -125,14 +126,14 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
             <Suspense fallback={null}>
               <Dither
                 waveColor={[0.06, 0.24, 0.34]}
-                disableAnimation={window.matchMedia('(prefers-reduced-motion: reduce)').matches}
+                disableAnimation={false}
                 enableMouseInteraction
                 mouseRadius={0.10}
                 colorNum={5}
                 pixelSize={1.35}
                 waveAmplitude={0.58}
                 waveFrequency={3.8}
-                waveSpeed={0.03}
+                waveSpeed={0.07}
               />
             </Suspense>
             )}
@@ -187,7 +188,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
                   className="loading-screen__bar-fill"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.1 }}
+                  transition={{ duration: 0.2, ease: 'linear' }}
                 />
               </div>
             </motion.div>

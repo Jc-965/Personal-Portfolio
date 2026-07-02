@@ -1,4 +1,4 @@
-import { useRef, useEffect, type ComponentType } from 'react'
+import { useRef, useEffect, useCallback, useState, type ComponentType } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { EffectComposer, wrapEffect } from '@react-three/postprocessing'
 import { Effect } from 'postprocessing'
@@ -134,10 +134,10 @@ void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
 `
 
 class RetroEffectImpl extends Effect {
-  public uniforms: Map<string, THREE.Uniform<any>>
+  public uniforms: Map<string, THREE.Uniform<number>>
 
   constructor() {
-    const uniforms = new Map<string, THREE.Uniform<any>>([
+    const uniforms = new Map<string, THREE.Uniform<number>>([
       ['colorNum', new THREE.Uniform(4.0)],
       ['pixelSize', new THREE.Uniform(2.0)]
     ])
@@ -173,8 +173,10 @@ function RetroEffect({ colorNum, pixelSize }: RetroEffectProps) {
   return <WrappedRetroEffect colorNum={colorNum} pixelSize={pixelSize} />
 }
 
+type WaveUniformValue = number | THREE.Vector2 | THREE.Color
+
 interface WaveUniforms {
-  [key: string]: THREE.Uniform<any>
+  [key: string]: THREE.IUniform<WaveUniformValue>
   time: THREE.Uniform<number>
   resolution: THREE.Uniform<THREE.Vector2>
   waveSpeed: THREE.Uniform<number>
@@ -209,11 +211,11 @@ function DitheredWaves({
   enableMouseInteraction,
   mouseRadius
 }: DitheredWavesProps) {
-  const mesh = useRef<THREE.Mesh>(null)
+  const mesh = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>>(null)
   const mouseRef = useRef(new THREE.Vector2())
   const { viewport, size, gl } = useThree()
 
-  const waveUniformsRef = useRef<WaveUniforms>({
+  const [initialWaveUniforms] = useState<WaveUniforms>(() => ({
     time: new THREE.Uniform(0),
     resolution: new THREE.Uniform(new THREE.Vector2(0, 0)),
     waveSpeed: new THREE.Uniform(waveSpeed),
@@ -223,24 +225,29 @@ function DitheredWaves({
     mousePos: new THREE.Uniform(new THREE.Vector2(0, 0)),
     enableMouseInteraction: new THREE.Uniform(enableMouseInteraction ? 1 : 0),
     mouseRadius: new THREE.Uniform(mouseRadius)
-  })
+  }))
+
+  const getWaveUniforms = useCallback(
+    () => (mesh.current?.material.uniforms as WaveUniforms | undefined) ?? initialWaveUniforms,
+    [initialWaveUniforms]
+  )
 
   useEffect(() => {
     const dpr = gl.getPixelRatio()
     const newWidth = Math.floor(size.width * dpr)
     const newHeight = Math.floor(size.height * dpr)
-    const currentRes = waveUniformsRef.current.resolution.value
+    const currentRes = getWaveUniforms().resolution.value
     if (currentRes.x !== newWidth || currentRes.y !== newHeight) {
       currentRes.set(newWidth, newHeight)
     }
-  }, [size, gl])
+  }, [size, gl, getWaveUniforms])
 
   const prevColor = useRef([...waveColor])
-  useFrame(({ clock }) => {
-    const u = waveUniformsRef.current
+  useFrame((_, delta) => {
+    const u = getWaveUniforms()
 
     if (!disableAnimation) {
-      u.time.value = clock.getElapsedTime()
+      u.time.value += delta
     }
 
     if (u.waveSpeed.value !== waveSpeed) u.waveSpeed.value = waveSpeed
@@ -274,11 +281,13 @@ function DitheredWaves({
         <shaderMaterial
           vertexShader={waveVertexShader}
           fragmentShader={waveFragmentShader}
-          uniforms={waveUniformsRef.current}
+          uniforms={initialWaveUniforms}
         />
       </mesh>
 
-      <EffectComposer>
+      {/* multisampling=0: the scene is a fullscreen quad, so MSAA (default 8x)
+          changes no pixels — it only multiplies framebuffer fill cost. */}
+      <EffectComposer multisampling={0}>
         <RetroEffect colorNum={colorNum} pixelSize={pixelSize} />
       </EffectComposer>
 
@@ -323,7 +332,11 @@ export default function Dither({
       className="dither-container"
       camera={{ position: [0, 0, 6] }}
       dpr={1}
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
+      frameloop="always"
+      // No preserveDrawingBuffer: nothing reads this canvas back (only the
+      // sketchbook capture needs that), and keeping it forces per-frame GPU
+      // readback stalls ("GPU stall due to ReadPixels") that jank the render.
+      gl={{ antialias: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' }}
     >
       <DitheredWaves
         waveSpeed={waveSpeed}

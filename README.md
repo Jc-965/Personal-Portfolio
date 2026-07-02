@@ -8,13 +8,15 @@ Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Mach
 
 <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=600&size=20&pause=1200&color=00B894&center=true&vCenter=true&width=620&lines=Building+technology+that+solves+real+problems;Mobile+%C2%B7+AI+Platforms+%C2%B7+Interactive+Web" alt="Building technology that solves real problems" />
 
-[![Live Site](https://img.shields.io/badge/Live_Site-Jc--965.com-00B894?style=for-the-badge&logoColor=white)](https://Jc-965.com)
+[![Live Site](https://img.shields.io/badge/Live_Site-www.jc--965.com-00B894?style=for-the-badge&logoColor=white)](https://www.jc-965.com/)
 &nbsp;&nbsp;
 [![GitHub](https://img.shields.io/badge/GitHub-Jc--965-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Jc-965)
 &nbsp;&nbsp;
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-jessechen2-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jessechen2/)
 
 <br />
+
+Canonical portfolio: <a href="https://www.jc-965.com/">https://www.jc-965.com/</a> · Project case studies: <a href="https://www.jc-965.com/projects/">https://www.jc-965.com/projects/</a>
 
 <img src="screenshots/hero.png" alt="Personal portfolio" width="100%" />
 
