@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
-import { ref as dbRef, push, set, onValue, update, increment as fbIncrement, get, runTransaction } from 'firebase/database'
+import { ref as dbRef, push, onValue, update, increment as fbIncrement, get, runTransaction, type Database } from 'firebase/database'
 import { getFirebase } from '../utils/firebase'
 import { storageGet, storageSet } from '../utils/safeStorage'
 import useIsPhone from '../hooks/useIsPhone'
@@ -110,6 +110,15 @@ function getDerivedStarStats(stars: Star[]) {
     totalCount,
     mergeCount,
   }
+}
+
+function parseFiniteNumber(value: unknown): number | null {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function getDisplayedTotal(derivedTotal: number, metadataTotal: number | null): number {
+  return metadataTotal == null ? derivedTotal : Math.max(metadataTotal, derivedTotal)
 }
 
 // Calculate mega stars from all stars (mega stars weighted by mergedCount)
@@ -244,6 +253,10 @@ export default function Constellation() {
   const [filterError, setFilterError] = useState(false)
   const [capacityError, setCapacityError] = useState(false)
   const metaReceivedRef = useRef(false)
+  const metadataTotalRef = useRef<number | null>(null)
+  const derivedTotalRef = useRef(0)
+  const confirmedTotalRef = useRef(0)
+  const lastMetadataRepairTotalRef = useRef(0)
   const metadataUnavailableRef = useRef(false)
   const localFallbackRef = useRef(false)
   const mergeInProgressRef = useRef(false)
@@ -299,6 +312,7 @@ export default function Constellation() {
       const isCurrentVisitStar =
         star.visitId === PAGE_VISIT_ID ||
         (currentVisitStarRef.current?.key != null && star.key === currentVisitStarRef.current.key)
+      const isSessionStar = star.sessionId === sessionId.current
       const isMega = star.isMega
 
       // Size: mega stars only slightly bigger
@@ -334,20 +348,34 @@ export default function Constellation() {
         ctx.stroke()
       }
 
-      if (isCurrentVisitStar && !isMega) {
-        ctx.strokeStyle = star.color + '38'
-        ctx.lineWidth = 4
+      if ((isCurrentVisitStar || isSessionStar) && !isMega) {
+        ctx.strokeStyle = star.color + (isCurrentVisitStar ? '38' : '24')
+        ctx.lineWidth = isCurrentVisitStar ? 4 : 2
         ctx.beginPath()
         ctx.arc(x, y, 12, 0, Math.PI * 2)
         ctx.stroke()
 
-        ctx.strokeStyle = star.color + 'd0'
-        ctx.lineWidth = 1.8
+        ctx.strokeStyle = star.color + (isCurrentVisitStar ? 'd0' : '8a')
+        ctx.lineWidth = isCurrentVisitStar ? 1.8 : 1
         ctx.beginPath()
-        ctx.arc(x, y, 10, 0, Math.PI * 2)
+        ctx.arc(x, y, isCurrentVisitStar ? 10 : 8, 0, Math.PI * 2)
         ctx.stroke()
       }
     })
+  }, [])
+
+  const updateDisplayedTotal = useCallback((derivedTotal: number) => {
+    derivedTotalRef.current = derivedTotal
+    setTotalStarsEver(getDisplayedTotal(derivedTotal, metadataTotalRef.current))
+  }, [])
+
+  const repairStaleMetadataTotal = useCallback((db: Database, derivedTotal: number) => {
+    const metadataTotal = metadataTotalRef.current
+    if (metadataTotal == null || metadataTotal >= derivedTotal) return
+    if (lastMetadataRepairTotalRef.current >= derivedTotal) return
+
+    lastMetadataRepairTotalRef.current = derivedTotal
+    void update(dbRef(db, 'metadata'), { totalStarsEver: derivedTotal }).catch(() => {})
   }, [])
 
   const loadLocalState = useCallback(() => {
@@ -360,18 +388,24 @@ export default function Constellation() {
     currentVisitStarRef.current = getVisitStar(stars)
 
     const derivedStats = getDerivedStarStats(stars)
+    derivedTotalRef.current = derivedStats.totalCount
     setStarsSinceMerge(derivedStats.regularCount)
 
     const savedTotal = storageGet('constellation-totalStarsEver')
-    if (savedTotal != null) {
-      setTotalStarsEver(Number(savedTotal))
+    const savedTotalNumber = savedTotal == null ? null : parseFiniteNumber(savedTotal)
+    const displayTotal = getDisplayedTotal(derivedStats.totalCount, savedTotalNumber)
+    if (savedTotalNumber != null) {
+      setTotalStarsEver(displayTotal)
+      if (displayTotal > savedTotalNumber) {
+        storageSet('constellation-totalStarsEver', String(displayTotal))
+      }
     } else {
-      setTotalStarsEver(derivedStats.totalCount)
-      storageSet('constellation-totalStarsEver', String(derivedStats.totalCount))
+      setTotalStarsEver(displayTotal)
+      storageSet('constellation-totalStarsEver', String(displayTotal))
     }
 
     const savedMergeCount = storageGet('constellation-mergeCount')
-    setMergeCount(savedMergeCount != null ? Number(savedMergeCount) : derivedStats.mergeCount)
+    setMergeCount(savedMergeCount != null ? (parseFiniteNumber(savedMergeCount) ?? derivedStats.mergeCount) : derivedStats.mergeCount)
 
     drawStars()
   }, [drawStars])
@@ -387,10 +421,12 @@ export default function Constellation() {
     if (newStar.visitId === PAGE_VISIT_ID) {
       currentVisitStarRef.current = newStar
     }
+    const derivedStats = getDerivedStarStats(starsRef.current)
+    derivedTotalRef.current = derivedStats.totalCount
     storageSet('constellation-stars', JSON.stringify(starsRef.current))
-    setStarsSinceMerge(prev => prev + 1)
+    setStarsSinceMerge(derivedStats.regularCount)
     setTotalStarsEver(prev => {
-      const nextTotal = prev + 1
+      const nextTotal = Math.max(prev + 1, derivedStats.totalCount)
       storageSet('constellation-totalStarsEver', String(nextTotal))
       return nextTotal
     })
@@ -458,7 +494,7 @@ export default function Constellation() {
         metadataUnavailableRef.current = true
         if (!metaReceivedRef.current) {
           const derivedStats = getDerivedStarStats(starsRef.current)
-          setTotalStarsEver(derivedStats.totalCount)
+          updateDisplayedTotal(derivedStats.totalCount)
           setMergeCount(derivedStats.mergeCount)
         }
       }
@@ -467,23 +503,36 @@ export default function Constellation() {
         starsDbRef,
         (snapshot) => {
           const data = snapshot.val()
-          const starsList: Star[] = data
+          const snapshotStars: Star[] = data
             ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
             : []
+          const snapshotStats = getDerivedStarStats(snapshotStars)
+          confirmedTotalRef.current = snapshotStats.totalCount
+          const visitStar = getVisitStar(snapshotStars)
+          const pendingVisitStar = currentVisitStarRef.current
+          const shouldKeepPendingVisitStar =
+            !visitStar &&
+            pendingVisitStar?.visitId === PAGE_VISIT_ID &&
+            !snapshotStars.some(star =>
+              star.visitId === PAGE_VISIT_ID ||
+              (pendingVisitStar.key != null && star.key === pendingVisitStar.key)
+            )
+          const starsList = shouldKeepPendingVisitStar
+            ? [...snapshotStars, pendingVisitStar]
+            : snapshotStars
+
           starsRef.current = starsList
-          const visitStar = getVisitStar(starsList)
           if (visitStar) {
             currentVisitStarRef.current = visitStar
           }
           const derivedStats = getDerivedStarStats(starsList)
 
           setStarsSinceMerge(derivedStats.regularCount)
+          updateDisplayedTotal(derivedStats.totalCount)
+          repairStaleMetadataTotal(db, snapshotStats.totalCount)
 
-          if (!metaReceivedRef.current) {
-            setTotalStarsEver(derivedStats.totalCount)
-            if (metadataUnavailableRef.current) {
-              setMergeCount(derivedStats.mergeCount)
-            }
+          if (!metaReceivedRef.current && metadataUnavailableRef.current) {
+            setMergeCount(derivedStats.mergeCount)
           }
 
           drawStars()
@@ -497,12 +546,16 @@ export default function Constellation() {
           const data = snapshot.val()
           metadataUnavailableRef.current = false
           if (data) {
-            if (data.totalStarsEver != null) {
+            const metadataTotal = parseFiniteNumber(data.totalStarsEver)
+            if (metadataTotal != null) {
               metaReceivedRef.current = true
-              setTotalStarsEver(data.totalStarsEver)
+              metadataTotalRef.current = metadataTotal
+              updateDisplayedTotal(derivedTotalRef.current)
+              repairStaleMetadataTotal(db, confirmedTotalRef.current)
             }
-            if (data.mergeCount != null) {
-              setMergeCount(data.mergeCount)
+            const nextMergeCount = parseFiniteNumber(data.mergeCount)
+            if (nextMergeCount != null) {
+              setMergeCount(nextMergeCount)
             }
           }
         },
@@ -550,7 +603,7 @@ export default function Constellation() {
     } else {
       loadLocalState()
     }
-  }, [activateLocalFallback, drawStars, loadLocalState])
+  }, [activateLocalFallback, drawStars, loadLocalState, repairStaleMetadataTotal, updateDisplayedTotal])
 
   // Canvas resize
   useEffect(() => {
@@ -699,7 +752,13 @@ export default function Constellation() {
     const db = getFirebase()
     if (db && !localFallbackRef.current) {
       const newStarRef = push(dbRef(db, 'stars'))
-      const optimisticStar = { ...newStar, key: newStarRef.key ?? undefined }
+      const newStarKey = newStarRef.key
+      if (!newStarKey) {
+        addLocalStar(newStar)
+        return
+      }
+
+      const optimisticStar = { ...newStar, key: newStarKey }
       currentVisitStarRef.current = optimisticStar
       starsRef.current = [
         ...starsRef.current.filter(star => star.visitId !== PAGE_VISIT_ID),
@@ -707,9 +766,11 @@ export default function Constellation() {
       ]
       drawStars()
 
-      void set(newStarRef, newStar)
+      void update(dbRef(db), {
+        [`stars/${newStarKey}`]: newStar,
+        'metadata/totalStarsEver': fbIncrement(1),
+      })
         .then(() => {
-          void update(dbRef(db, 'metadata'), { totalStarsEver: fbIncrement(1) }).catch(() => {})
           void checkAndMerge()
         })
         .catch(() => {
