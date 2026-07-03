@@ -252,6 +252,7 @@ export default function Constellation() {
   const [isDraggingVisitStar, setIsDraggingVisitStar] = useState(false)
   const [filterError, setFilterError] = useState(false)
   const [capacityError, setCapacityError] = useState(false)
+  const [isLocalView, setIsLocalView] = useState(false)
   const metaReceivedRef = useRef(false)
   const metadataTotalRef = useRef<number | null>(null)
   const derivedTotalRef = useRef(0)
@@ -413,6 +414,7 @@ export default function Constellation() {
   const activateLocalFallback = useCallback(() => {
     if (localFallbackRef.current) return
     localFallbackRef.current = true
+    setIsLocalView(true)
     loadLocalState()
   }, [loadLocalState])
 
@@ -601,6 +603,7 @@ export default function Constellation() {
 
       return () => { unsubStars(); unsubMeta() }
     } else {
+      setIsLocalView(true)
       loadLocalState()
     }
   }, [activateLocalFallback, drawStars, loadLocalState, repairStaleMetadataTotal, updateDisplayedTotal])
@@ -1007,6 +1010,12 @@ export default function Constellation() {
           <span className="constellation__stat-value">{mergeCount}</span>
           <span className="constellation__stat-label">merges</span>
         </span>
+        {isLocalView && (
+          <span className="constellation__offline" role="status">
+            <span className="constellation__offline-dot" aria-hidden="true" />
+            offline view — live stars unavailable
+          </span>
+        )}
       </div>
 
       <p className="constellation__intro">

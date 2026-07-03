@@ -6,9 +6,34 @@
 .constellation__stats {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
   font-family: var(--font-mono);
+}
+
+/* Shown only when Firebase is unreachable and the constellation falls back to
+   locally saved stars — otherwise outages silently masquerade as live data. */
+.constellation__offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 204, 0, 0.35);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+  background: rgba(255, 204, 0, 0.06);
+}
+
+.constellation__offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
 }
 
 .constellation__stat {
