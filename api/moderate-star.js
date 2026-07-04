@@ -3,6 +3,7 @@ import {
   isAllowedStarMessage,
   readJson,
 } from './_starModeration.js'
+import { guardApiRequest } from './_security.js'
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -10,11 +11,20 @@ export default async function handler(request, response) {
     return response.status(405).json({ allowed: false, checked: false, error: 'method_not_allowed' })
   }
 
+  if (!guardApiRequest(request, response, { route: 'moderate-star', limit: 30, windowMs: 60000 })) {
+    return
+  }
+
   let body
   try {
     body = await readJson(request)
-  } catch {
-    return response.status(400).json({ allowed: false, checked: false, error: 'invalid_json' })
+  } catch (error) {
+    const tooLarge = error?.statusCode === 413
+    return response.status(tooLarge ? 413 : 400).json({
+      allowed: false,
+      checked: false,
+      error: tooLarge ? 'payload_too_large' : 'invalid_json',
+    })
   }
 
   const message = typeof body.message === 'string' ? body.message.trim() : ''

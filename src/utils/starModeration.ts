@@ -11,7 +11,7 @@ interface StarMessageSaveResponse {
 
 interface SaveStarMessageParams {
   starKey: string
-  sessionId: string
+  sessionSecret: string
   message: string
 }
 
@@ -57,7 +57,7 @@ export async function isStarMessageAllowed(message: string): Promise<boolean> {
 
 export async function saveModeratedStarMessage({
   starKey,
-  sessionId,
+  sessionSecret,
   message,
 }: SaveStarMessageParams): Promise<boolean> {
   const controller = new AbortController()
@@ -67,7 +67,7 @@ export async function saveModeratedStarMessage({
     const response = await fetch('/api/star-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ starKey, sessionId, message: message.trim() }),
+      body: JSON.stringify({ starKey, sessionSecret, message: message.trim() }),
       signal: controller.signal,
     })
 

@@ -12,7 +12,10 @@ interface Star {
   color: string
   message: string
   timestamp: number
-  sessionId: string
+  // Legacy stars stored the raw session id (world-readable, so forgeable).
+  // New stars store only sessionHash; the raw secret never leaves the client.
+  sessionId?: string
+  sessionHash?: string
   key?: string
   visitId?: string
   isMega?: boolean
@@ -62,6 +65,37 @@ function getSessionId(): string {
   return id
 }
 
+async function sha256Hex(input: string): Promise<string | null> {
+  try {
+    const subtle = globalThis.crypto?.subtle
+    if (!subtle) return null
+    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(input))
+    return Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+  } catch {
+    return null
+  }
+}
+
+// The session secret stays in localStorage and is never written to the
+// database; stars persist only its SHA-256 hash. Ownership is proven by
+// re-hashing the secret server-side, so a world-readable star row no longer
+// leaks anything an attacker could use to edit someone else's message.
+let sessionHashPromise: Promise<string | null> | null = null
+function ensureSessionHash(secret: string): Promise<string | null> {
+  if (!sessionHashPromise) sessionHashPromise = sha256Hex(secret)
+  return sessionHashPromise
+}
+
+type StarIdentity = { sessionHash: string } | { sessionId: string }
+async function resolveStarIdentity(secret: string): Promise<StarIdentity> {
+  const hash = await ensureSessionHash(secret)
+  // Fallback keeps the feature working on browsers without SubtleCrypto
+  // (non-secure contexts); those rare stars use the legacy readable id.
+  return hash ? { sessionHash: hash } : { sessionId: secret }
+}
+
 function randomStarCoordinate(): number {
   return VISIT_STAR_MARGIN + Math.random() * (1 - VISIT_STAR_MARGIN * 2)
 }
@@ -70,8 +104,24 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
-function getVisitStar(stars: Star[]): Star | null {
-  return stars.find(star => star.visitId === PAGE_VISIT_ID) ?? null
+function isVisitStar(star: Star, visitStar: Star | null): boolean {
+  if (!visitStar) return false
+  if (visitStar.key != null && star.key != null) return star.key === visitStar.key
+  return star === visitStar
+}
+
+function getVisitStar(stars: Star[], visitStarHint: Star | null = null): Star | null {
+  if (visitStarHint?.key) {
+    const byKey = stars.find(star => star.key === visitStarHint.key)
+    if (byKey) return byKey
+  }
+  if (visitStarHint && stars.includes(visitStarHint)) return visitStarHint
+
+  const visitMatches = stars.filter(star => star.visitId === PAGE_VISIT_ID)
+  if (visitMatches.length === 0) return null
+  return visitMatches.reduce((latest, star) =>
+    star.timestamp >= latest.timestamp ? star : latest
+  )
 }
 
 function getDerivedStarStats(stars: Star[]) {
@@ -140,7 +190,6 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
 
   const megaStars: Star[] = []
   const selectedCellKeys = new Set<string>()
-  const sessionId = getSessionId()
 
   for (const cell of cellData) {
     if (megaStars.length >= MEGA_STAR_COUNT) break
@@ -190,7 +239,6 @@ function calculateMegaStarsFromBatch(stars: Star[]): Star[] {
       color: topColor,
       message: topMessage,
       timestamp: Date.now(),
-      sessionId,
       isMega: true,
       mergedCount: cell.count,
     })
@@ -248,7 +296,7 @@ export default function Constellation() {
   const metadataUnavailableRef = useRef(false)
   const localFallbackRef = useRef(false)
   const mergeInProgressRef = useRef(false)
-  const sessionId = useRef(getSessionId())
+  const sessionSecret = useRef(getSessionId())
   const isPhone = useIsPhone()
 
   const sectionRef = useRef(null)
@@ -327,9 +375,7 @@ export default function Constellation() {
     // Draw stars
     starPoints.forEach(({ star, x, y }) => {
       const isHovered = hoveredRef.current === star
-      const isCurrentVisitStar =
-        star.visitId === PAGE_VISIT_ID ||
-        (currentVisitStarRef.current?.key != null && star.key === currentVisitStarRef.current.key)
+      const isCurrentVisitStar = isVisitStar(star, currentVisitStarRef.current)
       const isMega = star.isMega
 
       // Size: mega stars only slightly bigger
@@ -404,11 +450,11 @@ export default function Constellation() {
     // Keep this page's optimistic visit star — it exists only in memory when
     // the Firebase write never settled (stalled connection).
     const pendingVisitStar = currentVisitStarRef.current
-    if (pendingVisitStar && !getVisitStar(stars)) {
+    if (pendingVisitStar && !getVisitStar(stars, pendingVisitStar)) {
       stars = [...stars, pendingVisitStar]
     }
     starsRef.current = stars
-    currentVisitStarRef.current = getVisitStar(stars)
+    currentVisitStarRef.current = getVisitStar(stars, currentVisitStarRef.current)
 
     const derivedStats = getDerivedStarStats(stars)
     derivedTotalRef.current = derivedStats.totalCount
@@ -458,14 +504,14 @@ export default function Constellation() {
   }, [drawStars])
 
   const applyVisitStarPatchLocally = useCallback((patch: EditableStarPatch) => {
-    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (!targetStar) return null
 
     let updatedStar: Star | null = null
     let foundStar = false
 
     starsRef.current = starsRef.current.map(star => {
-      const isTarget = star.visitId === PAGE_VISIT_ID || (targetStar.key != null && star.key === targetStar.key)
+      const isTarget = isVisitStar(star, targetStar)
       if (!isTarget) return star
 
       foundStar = true
@@ -487,7 +533,7 @@ export default function Constellation() {
   }, [drawStars])
 
   const persistVisitStarPatch = useCallback((patch: EditableStarPatch) => {
-    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (!targetStar) return
 
     const db = getFirebase()
@@ -496,7 +542,7 @@ export default function Constellation() {
         const fallbackStar = currentVisitStarRef.current ?? { ...targetStar, ...patch }
         activateLocalFallback()
 
-        if (getVisitStar(starsRef.current)) {
+        if (getVisitStar(starsRef.current, currentVisitStarRef.current)) {
           applyVisitStarPatchLocally(patch)
         } else {
           addLocalStar({ ...fallbackStar, ...patch, key: undefined })
@@ -548,15 +594,12 @@ export default function Constellation() {
             : []
           const snapshotStats = getDerivedStarStats(snapshotStars)
           confirmedTotalRef.current = snapshotStats.totalCount
-          const visitStar = getVisitStar(snapshotStars)
+          const visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
           const pendingVisitStar = currentVisitStarRef.current
           const shouldKeepPendingVisitStar =
             !visitStar &&
             pendingVisitStar?.visitId === PAGE_VISIT_ID &&
-            !snapshotStars.some(star =>
-              star.visitId === PAGE_VISIT_ID ||
-              (pendingVisitStar.key != null && star.key === pendingVisitStar.key)
-            )
+            !snapshotStars.some(star => isVisitStar(star, pendingVisitStar))
           const starsList = shouldKeepPendingVisitStar
             ? [...snapshotStars, pendingVisitStar]
             : snapshotStars
@@ -755,6 +798,10 @@ export default function Constellation() {
       const newMegaStars = calculateMegaStarsFromBatch(freshStars)
       if (newMegaStars.length === 0) return
 
+      // Mega stars aren't editable, but the rules still require an identity
+      // field, so stamp them with this client's hashed session.
+      const identity = await resolveStarIdentity(sessionSecret.current)
+
       const updates: Record<string, unknown> = {}
       freshStars.forEach(s => {
         if (s.key) updates[`stars/${s.key}`] = null
@@ -768,7 +815,7 @@ export default function Constellation() {
             color: ms.color,
             message: '',
             timestamp: ms.timestamp,
-            sessionId: ms.sessionId,
+            ...identity,
             isMega: true,
             mergedCount: ms.mergedCount,
           }
@@ -789,8 +836,8 @@ export default function Constellation() {
     }
   }, [])
 
-  const ensureVisitStar = useCallback(() => {
-    const existingStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+  const ensureVisitStar = useCallback(async () => {
+    const existingStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (existingStar) {
       currentVisitStarRef.current = existingStar
       pageVisitStarStarted = true
@@ -807,13 +854,15 @@ export default function Constellation() {
       return
     }
 
+    const identity = await resolveStarIdentity(sessionSecret.current)
+
     const newStar: Star = {
       x: randomStarCoordinate(),
       y: randomStarCoordinate(),
       color: selectedColor,
       message: '',
       timestamp: Date.now(),
-      sessionId: sessionId.current,
+      ...identity,
       visitId: PAGE_VISIT_ID,
     }
 
@@ -831,7 +880,7 @@ export default function Constellation() {
       const optimisticStar = { ...newStar, key: newStarKey }
       currentVisitStarRef.current = optimisticStar
       starsRef.current = [
-        ...starsRef.current.filter(star => star.visitId !== PAGE_VISIT_ID),
+        ...starsRef.current.filter(star => !isVisitStar(star, optimisticStar)),
         optimisticStar,
       ]
       drawStars()
@@ -846,7 +895,7 @@ export default function Constellation() {
         .catch(() => {
           const fallbackStar = currentVisitStarRef.current ?? newStar
           activateLocalFallback()
-          if (!getVisitStar(starsRef.current)) {
+          if (!getVisitStar(starsRef.current, currentVisitStarRef.current)) {
             addLocalStar({ ...fallbackStar, key: undefined })
           }
         })
@@ -856,7 +905,7 @@ export default function Constellation() {
   }, [activateLocalFallback, addLocalStar, checkAndMerge, drawStars, selectedColor])
 
   useEffect(() => {
-    ensureVisitStar()
+    void ensureVisitStar()
   }, [ensureVisitStar])
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
@@ -900,7 +949,7 @@ export default function Constellation() {
 
   const moveVisitStar = useCallback((clientX: number, clientY: number) => {
     const point = getCanvasPoint(clientX, clientY)
-    const visitStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    const visitStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (!point || !visitStar) return
 
     const patch = { x: point.x, y: point.y }
@@ -942,13 +991,13 @@ export default function Constellation() {
 
   const saveMessage = useCallback(async (nextMessage: string): Promise<boolean> => {
     const msg = nextMessage.trim()
-    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (!targetStar) return false
 
     if (targetStar.key && !localFallbackRef.current) {
       const saved = await saveModeratedStarMessage({
         starKey: targetStar.key,
-        sessionId: targetStar.sessionId,
+        sessionSecret: sessionSecret.current,
         message: msg,
       })
 
