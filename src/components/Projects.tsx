@@ -243,6 +243,7 @@ const ProjectScene = memo(function ProjectScene({
               accent={project.accent}
               defaultVariant={project.imageVariant}
               side={side}
+              priority={index === 0}
             />
           ) : (
             <CodeStage project={project} />

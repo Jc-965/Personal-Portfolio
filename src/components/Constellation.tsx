@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ref as dbRef, push, onValue, update, increment as fbIncrement, get, runTransaction, type Database } from 'firebase/database'
 import { getFirebase } from '../utils/firebase'
 import { storageGet, storageSet } from '../utils/safeStorage'
+import { isStarMessageAllowed, saveModeratedStarMessage } from '../utils/starModeration'
 import useIsPhone from '../hooks/useIsPhone'
 
 interface Star {
@@ -44,23 +45,7 @@ function createId(prefix: string): string {
 
 const PAGE_VISIT_ID = createId('visit')
 let pageVisitStarStarted = false
-
-const BLOCKED_WORDS = [
-  'fuck','shit','bitch','damn','dick','cock','pussy','whore','slut',
-  'fag','nigger','nigga','retard','stfu','gtfo','ass','cunt',
-]
-
-function isClean(text: string): boolean {
-  if (!text) return true
-  // Match whole words only — substring checks reject innocent messages
-  // ("class", "password" both contain "ass"). Also check the fully-collapsed
-  // string against multi-word slurs to catch spaced-out evasion ("f u c k"),
-  // but only for words long enough not to appear inside common words.
-  const words = text.toLowerCase().split(/[^a-z]+/).filter(Boolean)
-  if (words.some(w => BLOCKED_WORDS.includes(w))) return false
-  const collapsed = text.toLowerCase().replace(/[^a-z]/g, '')
-  return !BLOCKED_WORDS.some(w => w.length >= 5 && collapsed.includes(w))
-}
+const CONNECTION_CELL_SIZE = 180
 
 function escapeHtml(text: string): string {
   const el = document.createElement('span')
@@ -253,6 +238,7 @@ export default function Constellation() {
   const [isDraggingVisitStar, setIsDraggingVisitStar] = useState(false)
   const [filterError, setFilterError] = useState(false)
   const [capacityError, setCapacityError] = useState(false)
+  const [isModeratingMessage, setIsModeratingMessage] = useState(false)
   const [isLocalView, setIsLocalView] = useState(false)
   const metaReceivedRef = useRef(false)
   const metadataTotalRef = useRef<number | null>(null)
@@ -290,31 +276,60 @@ export default function Constellation() {
 
     const stars = starsRef.current
 
-    // Draw connections - sparser
-    stars.forEach((star, i) => {
-      const x1 = star.x * w, y1 = star.y * h
-      stars.slice(i + 1).forEach(other => {
-        const x2 = other.x * w, y2 = other.y * h
-        const d = Math.hypot(x1 - x2, y1 - y2)
-        const maxDist = star.isMega || other.isMega ? 180 : 80
-        if (d < maxDist) {
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2)
-          const alpha = (star.isMega || other.isMega) ? 0.12 : 0.08
-          ctx.strokeStyle = `rgba(255,255,255,${alpha * (1 - d / maxDist)})`
-          ctx.lineWidth = star.isMega || other.isMega ? 1 : 0.5
-          ctx.stroke()
+    const starPoints = stars.map((star, index) => ({
+      star,
+      index,
+      x: star.x * w,
+      y: star.y * h,
+    }))
+    const connectionGrid = new Map<string, typeof starPoints>()
+
+    starPoints.forEach(point => {
+      const gx = Math.floor(point.x / CONNECTION_CELL_SIZE)
+      const gy = Math.floor(point.y / CONNECTION_CELL_SIZE)
+      const key = `${gx},${gy}`
+      const cell = connectionGrid.get(key)
+      if (cell) {
+        cell.push(point)
+      } else {
+        connectionGrid.set(key, [point])
+      }
+    })
+
+    // Draw connections - same distance rules, spatially binned to avoid scanning
+    // every pair as the constellation fills up.
+    starPoints.forEach(point => {
+      const gx = Math.floor(point.x / CONNECTION_CELL_SIZE)
+      const gy = Math.floor(point.y / CONNECTION_CELL_SIZE)
+
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const cell = connectionGrid.get(`${gx + ox},${gy + oy}`)
+          if (!cell) continue
+
+          cell.forEach(otherPoint => {
+            if (otherPoint.index <= point.index) return
+
+            const d = Math.hypot(point.x - otherPoint.x, point.y - otherPoint.y)
+            const maxDist = point.star.isMega || otherPoint.star.isMega ? 180 : 80
+            if (d < maxDist) {
+              ctx.beginPath(); ctx.moveTo(point.x, point.y); ctx.lineTo(otherPoint.x, otherPoint.y)
+              const alpha = (point.star.isMega || otherPoint.star.isMega) ? 0.12 : 0.08
+              ctx.strokeStyle = `rgba(255,255,255,${alpha * (1 - d / maxDist)})`
+              ctx.lineWidth = point.star.isMega || otherPoint.star.isMega ? 1 : 0.5
+              ctx.stroke()
+            }
+          })
         }
-      })
+      }
     })
 
     // Draw stars
-    stars.forEach(star => {
-      const x = star.x * w, y = star.y * h
+    starPoints.forEach(({ star, x, y }) => {
       const isHovered = hoveredRef.current === star
       const isCurrentVisitStar =
         star.visitId === PAGE_VISIT_ID ||
         (currentVisitStarRef.current?.key != null && star.key === currentVisitStarRef.current.key)
-      const isSessionStar = star.sessionId === sessionId.current
       const isMega = star.isMega
 
       // Size: mega stars only slightly bigger
@@ -350,17 +365,17 @@ export default function Constellation() {
         ctx.stroke()
       }
 
-      if ((isCurrentVisitStar || isSessionStar) && !isMega) {
-        ctx.strokeStyle = star.color + (isCurrentVisitStar ? '38' : '24')
-        ctx.lineWidth = isCurrentVisitStar ? 4 : 2
+      if (isCurrentVisitStar && !isMega) {
+        ctx.strokeStyle = star.color + '38'
+        ctx.lineWidth = 4
         ctx.beginPath()
         ctx.arc(x, y, 12, 0, Math.PI * 2)
         ctx.stroke()
 
-        ctx.strokeStyle = star.color + (isCurrentVisitStar ? 'd0' : '8a')
-        ctx.lineWidth = isCurrentVisitStar ? 1.8 : 1
+        ctx.strokeStyle = star.color + 'd0'
+        ctx.lineWidth = 1.8
         ctx.beginPath()
-        ctx.arc(x, y, isCurrentVisitStar ? 10 : 8, 0, Math.PI * 2)
+        ctx.arc(x, y, 10, 0, Math.PI * 2)
         ctx.stroke()
       }
     })
@@ -652,23 +667,52 @@ export default function Constellation() {
     return () => window.removeEventListener('resize', resize)
   }, [drawStars])
 
-  // Animation — redraw at ~1.5s intervals; pause when tab hidden to save CPU.
+  // Animation: redraw at ~1.5s intervals; pause when hidden or offscreen.
   // Reduced-motion users get a static field (stars still redraw on data changes).
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let frame = 0, animId: number
-    const tick = () => {
-      if (document.hidden) return // pause: do not schedule next frame
-      frame++
-      if (frame % 90 === 0) drawStars()
-      animId = requestAnimationFrame(tick)
+    const container = containerRef.current
+    if (!container) return
+
+    let intervalId: number | null = null
+    let isNearViewport = false
+
+    const stop = () => {
+      if (intervalId === null) return
+      window.clearInterval(intervalId)
+      intervalId = null
     }
-    const start = () => { animId = requestAnimationFrame(tick) }
-    const onVisibility = () => { if (!document.hidden) start() }
-    start()
+
+    const start = () => {
+      if (intervalId !== null || document.hidden || !isNearViewport) return
+      intervalId = window.setInterval(drawStars, 1500)
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        stop()
+      } else {
+        drawStars()
+        start()
+      }
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      isNearViewport = entry.isIntersecting
+      if (isNearViewport) {
+        drawStars()
+        start()
+      } else {
+        stop()
+      }
+    }, { rootMargin: '200px' })
+
+    observer.observe(container)
     document.addEventListener('visibilitychange', onVisibility)
+
     return () => {
-      cancelAnimationFrame(animId)
+      stop()
+      observer.disconnect()
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [drawStars])
@@ -722,7 +766,7 @@ export default function Constellation() {
             x: ms.x,
             y: ms.y,
             color: ms.color,
-            message: ms.message,
+            message: '',
             timestamp: ms.timestamp,
             sessionId: ms.sessionId,
             isMega: true,
@@ -896,33 +940,56 @@ export default function Constellation() {
     persistVisitStarPatch(patch)
   }, [applyVisitStarPatchLocally, persistVisitStarPatch])
 
-  const saveMessage = useCallback((nextMessage: string) => {
+  const saveMessage = useCallback(async (nextMessage: string): Promise<boolean> => {
     const msg = nextMessage.trim()
-    if (msg && !isClean(msg)) {
+    const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current)
+    if (!targetStar) return false
+
+    if (targetStar.key && !localFallbackRef.current) {
+      const saved = await saveModeratedStarMessage({
+        starKey: targetStar.key,
+        sessionId: targetStar.sessionId,
+        message: msg,
+      })
+
+      if (!saved) {
+        setFilterError(true)
+        return false
+      }
+
+      setFilterError(false)
+      applyVisitStarPatchLocally({ message: msg })
+      return true
+    }
+
+    if (msg && !(await isStarMessageAllowed(msg))) {
       setFilterError(true)
-      return
+      return false
     }
 
     setFilterError(false)
-    const patch = { message: msg }
-    applyVisitStarPatchLocally(patch)
-    persistVisitStarPatch(patch)
-  }, [applyVisitStarPatchLocally, persistVisitStarPatch])
+    applyVisitStarPatchLocally({ message: msg })
+    return true
+  }, [applyVisitStarPatchLocally])
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value)
     setFilterError(false)
   }
 
-  const submitMessage = useCallback(() => {
-    const msg = message.trim()
-    if (msg && !isClean(msg)) {
-      setFilterError(true)
-      return
+  const submitMessage = useCallback(async () => {
+    if (isModeratingMessage) return
+
+    setIsModeratingMessage(true)
+    try {
+      const saved = await saveMessage(message)
+      if (saved) {
+        setMessageSubmitted(true)
+      }
+    } finally {
+      setIsModeratingMessage(false)
     }
-    saveMessage(message)
-    setMessageSubmitted(true)
-  }, [message, saveMessage])
+  }, [isModeratingMessage, message, saveMessage])
 
   const startEditing = useCallback(() => {
     setMessageSubmitted(false)
@@ -1104,27 +1171,29 @@ export default function Constellation() {
             <div className="constellation__message-row">
               <input
                 type="text"
-                className={`constellation__message ${filterError || capacityError ? 'is-error' : ''} ${messageSubmitted ? 'is-submitted' : ''}`}
+                className={`constellation__message ${filterError || capacityError ? 'is-error' : ''} ${messageSubmitted || isModeratingMessage ? 'is-submitted' : ''}`}
                 placeholder="Add a message to your star"
                 aria-label="Message for your star"
                 maxLength={50}
                 value={message}
-                disabled={messageSubmitted}
+                disabled={messageSubmitted || isModeratingMessage}
                 onChange={handleMessageChange}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !messageSubmitted) {
+                  if (e.key === 'Enter' && !messageSubmitted && !isModeratingMessage) {
                     e.preventDefault()
-                    submitMessage()
+                    void submitMessage()
                   }
                 }}
               />
               <motion.button
                 type="button"
                 className={`constellation__msg-btn ${messageSubmitted ? 'constellation__msg-btn--edit' : 'constellation__msg-btn--submit'}`}
-                onClick={messageSubmitted ? startEditing : submitMessage}
+                onClick={messageSubmitted ? startEditing : () => { void submitMessage() }}
+                disabled={isModeratingMessage}
                 whileTap={{ scale: 0.96 }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                aria-label={messageSubmitted ? 'Edit your message' : 'Submit your message'}
+                aria-label={isModeratingMessage ? 'Checking message' : messageSubmitted ? 'Edit your message' : 'Submit your message'}
+                aria-busy={isModeratingMessage}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span

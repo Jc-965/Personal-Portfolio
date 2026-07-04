@@ -19,6 +19,8 @@ interface MediaGalleryProps {
   defaultVariant?: 'browser' | 'terminal'
   /** Direction the deck fans toward (peek away from the copy). */
   side?: 'left' | 'right'
+  /** Eagerly load the front image when the gallery is first onscreen. */
+  priority?: boolean
 }
 
 /**
@@ -31,6 +33,7 @@ export default function MediaGallery({
   accent,
   defaultVariant = 'browser',
   side = 'left',
+  priority = false,
 }: MediaGalleryProps) {
   const [active, setActive] = useState(0)
   const isPhone = useIsPhone()
@@ -81,7 +84,7 @@ export default function MediaGallery({
                 accent={accent}
                 aspect={img.aspect}
                 tilt={false}
-                loading={front ? 'eager' : 'lazy'}
+                loading={front && priority ? 'eager' : 'lazy'}
               />
             </motion.div>
           )

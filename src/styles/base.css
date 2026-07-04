@@ -492,6 +492,25 @@ img {
   padding: var(--section-pad) 32px;
 }
 
+/* Projects expands into four large scenes after its lazy chunk resolves. Reserve
+   that scroll height up front so the scrollbar does not jump at the boundary. */
+#projects > .section__placeholder {
+  min-height: calc(328vh + clamp(360px, 27vh, 584px));
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  #projects > .section__placeholder {
+    min-height: clamp(2400px, 360vh, 3800px);
+  }
+}
+
+@media (max-width: 640px) {
+  #projects > .section__placeholder {
+    min-height: clamp(2600px, 420vh, 3400px);
+  }
+}
+
 /* ============================================================================
    HERO SECTION
    ============================================================================ */

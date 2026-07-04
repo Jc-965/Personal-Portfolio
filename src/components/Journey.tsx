@@ -204,11 +204,13 @@ function ChapterMediaView({
   accent,
   active,
   direction,
+  priority,
 }: {
   media: ExperienceMedia
   accent: string
   active: number
   direction: number
+  priority: boolean
 }) {
   const item = media.items[active] ?? media.items[0]
   const reduce = useReducedMotion()
@@ -237,7 +239,7 @@ function ChapterMediaView({
             accent={accent}
             aspect={item.aspect}
             tilt={false}
-            loading="eager"
+            loading={priority ? 'eager' : 'lazy'}
           />
         </motion.div>
       </div>
@@ -302,6 +304,7 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
             accent={exp.accent}
             active={view.active}
             direction={view.direction}
+            priority={inView}
           />
         )}
       </div>

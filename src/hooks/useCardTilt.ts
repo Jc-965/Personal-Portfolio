@@ -29,9 +29,12 @@ export default function useCardTilt({
 }: TiltOptions = {}) {
   const ref = useRef<HTMLDivElement>(null)
   const rafRef = useRef(0)
+  const rectRef = useRef<DOMRect | null>(null)
   const gyro = useGyroscope()
   const isPhone = useIsPhone()
   const persp = perspective ? `perspective(${perspective}px) ` : ''
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   useEffect(() => {
     const el = ref.current
@@ -44,12 +47,19 @@ export default function useCardTilt({
     })
   }, [gyro, isPhone, gyroEnabled, max, gyroTranslate, perspective])
 
+  const updateRect = () => {
+    if (!isPhone && ref.current) {
+      rectRef.current = ref.current.getBoundingClientRect()
+    }
+  }
+
   const onMouseMove = (e: React.MouseEvent) => {
     if (isPhone || !ref.current) return
     cancelAnimationFrame(rafRef.current)
     const el = ref.current
+    const rect = rectRef.current ?? el.getBoundingClientRect()
+    rectRef.current = rect
     rafRef.current = requestAnimationFrame(() => {
-      const rect = el.getBoundingClientRect()
       const x = Math.max(-1, Math.min(1, ((e.clientX - rect.left) / rect.width - 0.5) * 2))
       const y = Math.max(-1, Math.min(1, ((e.clientY - rect.top) / rect.height - 0.5) * 2))
       el.style.transform = `${persp}rotateX(${y * -max}deg) rotateY(${x * max}deg)`
@@ -58,8 +68,9 @@ export default function useCardTilt({
 
   const onMouseLeave = () => {
     cancelAnimationFrame(rafRef.current)
+    rectRef.current = null
     if (ref.current) ref.current.style.transform = `${persp}rotateX(0deg) rotateY(0deg)`
   }
 
-  return { ref, tiltProps: { onMouseMove, onMouseLeave } }
+  return { ref, tiltProps: { onMouseEnter: updateRect, onMouseMove, onMouseLeave } }
 }

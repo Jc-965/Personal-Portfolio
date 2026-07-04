@@ -289,6 +289,11 @@
     box-shadow 0.25s ease, color 0.25s ease;
 }
 
+.constellation__msg-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .constellation__msg-btn-label {
   display: block;
   grid-area: 1 / 1;

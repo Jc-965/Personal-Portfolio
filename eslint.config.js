@@ -10,6 +10,17 @@ export default tseslint.config(
   // Not source we author/lint: build output, deps, vendored upstream, tooling dumps.
   { ignores: ['dist', 'node_modules', 'react-bits-upstream', 'output', 'scripts', '*.config.*'] },
   js.configs.recommended,
+  {
+    files: ['api/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        fetch: 'readonly',
+      },
+    },
+  },
   ...tseslint.configs.recommended,
   jsxA11y.flatConfigs.recommended,
   {

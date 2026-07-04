@@ -52,6 +52,10 @@ public/videos/
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# Deploy CLI artifacts (contain project/org identifiers; regenerated locally)
+.vercel
+.firebase/
+
 # Editor/agent local settings
 .claude/
 
