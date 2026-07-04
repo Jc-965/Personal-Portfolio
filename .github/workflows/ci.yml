@@ -23,7 +23,7 @@ jobs:
       # npm older than ~11.18, which wrongly prunes wasm optional-dep entries
       # (npm/cli bug). Fix: upgrade local npm, then `npm install --package-lock-only`
       # in a clean checkout (no node_modules) and commit the result.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
