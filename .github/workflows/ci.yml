@@ -18,9 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24 bundles npm 11, matching the npm that maintains package-lock.json
+      # locally. npm 10 (Node 22) rejects the lockfile shape npm 11 produces for
+      # wasm optional deps (@emnapi/*) — "Missing ... from lock file" on npm ci.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies

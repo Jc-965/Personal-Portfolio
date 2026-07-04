@@ -7,7 +7,16 @@ interface StarMessageSaveResponse {
   saved?: boolean
   allowed?: boolean
   checked?: boolean
+  flagged?: boolean
 }
+
+/**
+ * 'flagged' means the message failed moderation; 'unavailable' means the save
+ * could not run at all (endpoint down, missing server config, rate limit,
+ * network failure). Callers must not present 'unavailable' as a content
+ * rejection — that turns every outage into "your message is profanity".
+ */
+export type StarMessageSaveResult = 'saved' | 'flagged' | 'unavailable'
 
 interface SaveStarMessageParams {
   starKey: string
@@ -59,7 +68,7 @@ export async function saveModeratedStarMessage({
   starKey,
   sessionSecret,
   message,
-}: SaveStarMessageParams): Promise<boolean> {
+}: SaveStarMessageParams): Promise<StarMessageSaveResult> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), MESSAGE_SAVE_TIMEOUT_MS)
 
@@ -73,16 +82,17 @@ export async function saveModeratedStarMessage({
 
     if (!response.ok) {
       console.warn('Star message save unavailable:', response.status)
-      return false
+      return 'unavailable'
     }
 
     const result = await response.json() as StarMessageSaveResponse
-    return result.saved === true && result.allowed !== false
+    if (result.saved === true && result.allowed !== false) return 'saved'
+    return result.flagged || result.allowed === false ? 'flagged' : 'unavailable'
   } catch (error) {
     if ((error as Error).name !== 'AbortError') {
       console.warn('Star message save unavailable:', error)
     }
-    return false
+    return 'unavailable'
   } finally {
     window.clearTimeout(timeout)
   }

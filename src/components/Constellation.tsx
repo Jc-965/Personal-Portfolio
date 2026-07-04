@@ -286,6 +286,7 @@ export default function Constellation() {
   const [isDraggingVisitStar, setIsDraggingVisitStar] = useState(false)
   const [filterError, setFilterError] = useState(false)
   const [capacityError, setCapacityError] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const [isModeratingMessage, setIsModeratingMessage] = useState(false)
   const [isLocalView, setIsLocalView] = useState(false)
   const metaReceivedRef = useRef(false)
@@ -995,18 +996,26 @@ export default function Constellation() {
     if (!targetStar) return false
 
     if (targetStar.key && !localFallbackRef.current) {
-      const saved = await saveModeratedStarMessage({
+      const result = await saveModeratedStarMessage({
         starKey: targetStar.key,
         sessionSecret: sessionSecret.current,
         message: msg,
       })
 
-      if (!saved) {
+      if (result === 'flagged') {
         setFilterError(true)
+        setSaveError(false)
+        return false
+      }
+
+      if (result === 'unavailable') {
+        setFilterError(false)
+        setSaveError(true)
         return false
       }
 
       setFilterError(false)
+      setSaveError(false)
       applyVisitStarPatchLocally({ message: msg })
       return true
     }
@@ -1024,6 +1033,7 @@ export default function Constellation() {
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value)
     setFilterError(false)
+    setSaveError(false)
   }
 
   const submitMessage = useCallback(async () => {
@@ -1220,7 +1230,7 @@ export default function Constellation() {
             <div className="constellation__message-row">
               <input
                 type="text"
-                className={`constellation__message ${filterError || capacityError ? 'is-error' : ''} ${messageSubmitted || isModeratingMessage ? 'is-submitted' : ''}`}
+                className={`constellation__message ${filterError || capacityError || saveError ? 'is-error' : ''} ${messageSubmitted || isModeratingMessage ? 'is-submitted' : ''}`}
                 placeholder="Add a message to your star"
                 aria-label="Message for your star"
                 maxLength={50}
@@ -1278,6 +1288,9 @@ export default function Constellation() {
               )}
               {!filterError && capacityError && (
                 <span className="constellation__filter-error">Constellation full, merging stars, try again</span>
+              )}
+              {!filterError && !capacityError && saveError && (
+                <span className="constellation__filter-error">Couldn&apos;t save right now &mdash; try again in a moment</span>
               )}
             </div>
           </div>
