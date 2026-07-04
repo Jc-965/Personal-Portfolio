@@ -34,6 +34,7 @@ const MEGA_STAR_COUNT = 10
 const MIN_MEGA_DISTANCE = 0.12
 const MERGE_LOCK_TIMEOUT_MS = 30000
 const VISIT_STAR_MARGIN = 0.08
+const CONNECTION_STALL_TIMEOUT_MS = 8000
 
 function createId(prefix: string): string {
   const randomId = globalThis.crypto?.randomUUID?.()
@@ -385,6 +386,12 @@ export default function Constellation() {
     if (saved) {
       try { stars = JSON.parse(saved) } catch { stars = [] }
     }
+    // Keep this page's optimistic visit star — it exists only in memory when
+    // the Firebase write never settled (stalled connection).
+    const pendingVisitStar = currentVisitStarRef.current
+    if (pendingVisitStar && !getVisitStar(stars)) {
+      stars = [...stars, pendingVisitStar]
+    }
     starsRef.current = stars
     currentVisitStarRef.current = getVisitStar(stars)
 
@@ -501,9 +508,25 @@ export default function Constellation() {
         }
       }
 
+      // A blocked or unreachable connection (ad blockers, DNS filtering) never
+      // calls either onValue callback — the SDK retries silently forever,
+      // leaving zeroed stats and an empty sky. Treat "no snapshot in time" as
+      // offline; a snapshot arriving later flips back to the live view.
+      let stalled = false
+      const stallTimeout = window.setTimeout(() => {
+        stalled = true
+        activateLocalFallback()
+      }, CONNECTION_STALL_TIMEOUT_MS)
+
       const unsubStars = onValue(
         starsDbRef,
         (snapshot) => {
+          window.clearTimeout(stallTimeout)
+          if (stalled) {
+            stalled = false
+            localFallbackRef.current = false
+            setIsLocalView(false)
+          }
           const data = snapshot.val()
           const snapshotStars: Star[] = data
             ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
@@ -601,7 +624,7 @@ export default function Constellation() {
         })
         .catch(handleMetadataFailure)
 
-      return () => { unsubStars(); unsubMeta() }
+      return () => { window.clearTimeout(stallTimeout); unsubStars(); unsubMeta() }
     } else {
       setIsLocalView(true)
       loadLocalState()
