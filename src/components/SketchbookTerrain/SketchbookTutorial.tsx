@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react'
+import { useCallback, useRef, useState, type CSSProperties } from 'react'
+import useDialogFocus from '../../hooks/useDialogFocus'
 
 interface SketchbookTutorialProps {
   onClose: () => void
@@ -57,19 +58,25 @@ const TUTORIAL_STEPS: TutorialStep[] = [
 ]
 
 export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps) {
+  const dialogRef = useRef<HTMLElement>(null)
   const [stepIndex, setStepIndex] = useState(0)
   const step = TUTORIAL_STEPS[stepIndex]
   const isLastStep = stepIndex === TUTORIAL_STEPS.length - 1
+  const closeTutorial = useCallback(() => onClose(), [onClose])
+  useDialogFocus(dialogRef, closeTutorial)
 
   return (
     <>
       <div className="sketch-tutorial-backdrop" aria-hidden="true" />
       <div className="sketch-tutorial-shell">
         <section
+          ref={dialogRef}
+          tabIndex={-1}
           className={`sketch-tutorial sketch-tutorial--${step.id}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="sketch-tutorial-title"
+          aria-describedby="sketch-tutorial-description"
         >
           <header className="sketch-tutorial__header">
             <div className="sketch-tutorial__copy">
@@ -119,7 +126,7 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
                 <span className="sketch-tutorial__step-tag">{step.eyebrow}</span>
                 <h3 className="sketch-tutorial__panel-title">{step.title}</h3>
               </div>
-              <p className="sketch-tutorial__panel-body">{step.body}</p>
+              <p id="sketch-tutorial-description" className="sketch-tutorial__panel-body">{step.body}</p>
 
               <div className="sketch-tutorial__controls-block">
                 <span className="sketch-tutorial__controls-label">controls</span>
@@ -134,7 +141,7 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
 
           <footer className="sketch-tutorial__footer">
             <div className="sketch-tutorial__actions">
-              <button type="button" className="sketch-btn" onClick={onClose}>skip intro</button>
+              <button type="button" className="sketch-btn" onClick={closeTutorial}>skip intro</button>
               {stepIndex > 0 && (
                 <button type="button" className="sketch-btn" onClick={() => setStepIndex(index => index - 1)}>
                   back
@@ -145,7 +152,7 @@ export default function SketchbookTutorial({ onClose }: SketchbookTutorialProps)
                 className={`sketch-btn ${isLastStep ? 'sketch-btn--active' : ''}`}
                 onClick={() => {
                   if (isLastStep) {
-                    onClose()
+                    closeTutorial()
                     return
                   }
                   setStepIndex(index => index + 1)

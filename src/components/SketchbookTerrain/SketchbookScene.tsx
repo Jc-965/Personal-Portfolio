@@ -7,6 +7,7 @@ import SketchbookCanvas, {
 import SketchCounter from './SketchCounter'
 import SketchbookTutorial from './SketchbookTutorial'
 import useTouchDevice from '../../hooks/useTouchDevice'
+import useDialogFocus from '../../hooks/useDialogFocus'
 
 interface SketchbookSceneProps {
   onClose: () => void
@@ -47,6 +48,7 @@ export default function SketchbookScene({
   showTutorialOnStart = false,
 }: SketchbookSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const photoSheetRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<SketchbookCanvasHandle | null>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
   const [interactionMode, setInteractionMode] = useState<SketchbookInteractionMode>('sculpt')
@@ -109,14 +111,6 @@ export default function SketchbookScene({
     setCursorOverUi(false)
   }, [isTouchDevice])
 
-  // Click effect — ink splat
-  const onClick = useCallback((e: React.MouseEvent) => {
-    if (captureState !== 'idle' || interactionMode !== 'sculpt' || !sculptEnabled) return
-    // Don't splat on buttons
-    if ((e.target as HTMLElement).closest('.sketch-ui-surface, .sketch-btn, .sketch-back-btn, .sketch-photo-sheet, .sketch-counter, .sketch-counter__button')) return
-    spawnSplat(e.clientX, e.clientY, 'ambient')
-  }, [captureState, interactionMode, sculptEnabled, spawnSplat])
-
   // Cursor state callback from canvas (for animal hovering)
   const onCursorChange = useCallback((state: 'default' | 'grab' | 'grabbing') => {
     setCursorState(state)
@@ -153,10 +147,6 @@ export default function SketchbookScene({
   }, [interactionMode, sculptEnabled])
 
   useEffect(() => {
-    setTutorialOpen(showTutorialOnStart)
-  }, [showTutorialOnStart])
-
-  useEffect(() => {
     if (isTouchDevice || !explorePointerLocked || interactionMode !== 'explore') return
     setCursorOverUi(false)
     centerCursor()
@@ -181,6 +171,7 @@ export default function SketchbookScene({
     setCaptureStillImage(null)
     setSelectedCapture('current')
   }, [])
+  useDialogFocus(photoSheetRef, closePreview, captureState === 'preview')
 
   const openTutorial = useCallback(() => {
     if (captureState === 'preview') {
@@ -259,7 +250,7 @@ export default function SketchbookScene({
       setCursorClicking(false)
       clickResetRef.current = null
     }, 220)
-  }, [interactionMode, isTouchDevice, sculptEnabled])
+  }, [isTouchDevice])
 
   const uiToggleLabel = uiHidden ? 'show ui' : 'hide ui'
   const allowNativeExploreCursor = interactionMode === 'explore' && !explorePointerLocked
@@ -276,12 +267,14 @@ export default function SketchbookScene({
   return (
     <div
       ref={containerRef}
+      role="application"
+      aria-label="Interactive 3D sketchbook terrain"
+      tabIndex={0}
       className={`sketchbook-scene sketchbook-scene--${interactionMode} ${allowNativeExploreCursor ? 'sketchbook-scene--cursor-free' : ''} ${visible ? 'sketchbook-scene--visible' : ''}`}
       style={{ cursor: allowNativeExploreCursor ? 'auto' : 'none' }}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
       onMouseDown={triggerCursorClick}
-      onClick={onClick}
     >
       <SketchbookCanvas
         ref={canvasRef}
@@ -360,11 +353,11 @@ export default function SketchbookScene({
             onClick={closePreview}
           />
           <div className="sketch-photo-sheet-shell">
-            <div className="sketch-photo-sheet" role="dialog" aria-modal="true" aria-label="Sketch photos">
+            <div ref={photoSheetRef} tabIndex={-1} className="sketch-photo-sheet" role="dialog" aria-modal="true" aria-labelledby="sketch-photo-title">
               <div className="sketch-photo-sheet__header">
                 <div className="sketch-photo-sheet__copy">
                   <span className="sketch-photo-sheet__eyebrow">field photos</span>
-                  <h2 className="sketch-photo-sheet__title">Choose a frame to save or copy</h2>
+                  <h2 id="sketch-photo-title" className="sketch-photo-sheet__title">Choose a frame to save or copy</h2>
                   <p className="sketch-photo-sheet__sub">Both shots are raw sketch renders without the UI overlay.</p>
                 </div>
                 <button className="sketch-btn" type="button" onClick={closePreview}>close</button>

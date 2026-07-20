@@ -1,83 +1,66 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Projects by Jesse Chen | Software Engineer Portfolio</title>
-    <meta name="description" content="Selected software engineering projects by Jesse Chen, a Carnegie Mellon SCS student, including Agoriai, Levio, Tarocchi, and MyCommunity." />
-    <link rel="canonical" href="https://www.jc-965.com/projects/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.jc-965.com/projects/" />
-    <meta property="og:title" content="Projects by Jesse Chen" />
-    <meta property="og:description" content="Selected full-stack, mobile, interactive web, and civic technology projects by Jesse Chen." />
-    <meta property="og:image" content="https://www.jc-965.com/og-image.jpg" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Projects by Jesse Chen" />
-    <meta name="twitter:description" content="Selected software engineering project case studies by Jesse Chen." />
-    <meta name="twitter:image" content="https://www.jc-965.com/og-image.jpg" />
-    <link rel="stylesheet" href="/projects/project-page.css" />
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      "name": "Projects by Jesse Chen",
-      "url": "https://www.jc-965.com/projects/",
-      "description": "Selected software engineering projects by Jesse Chen.",
-      "author": {
-        "@type": "Person",
-        "name": "Jesse Chen",
-        "url": "https://www.jc-965.com/",
-        "sameAs": [
-          "https://github.com/Jc-965",
-          "https://www.linkedin.com/in/jessechen2/"
-        ]
-      },
-      "mainEntity": {
-        "@type": "ItemList",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "url": "https://www.jc-965.com/projects/agoriai/", "name": "Agoriai" },
-          { "@type": "ListItem", "position": 2, "url": "https://www.jc-965.com/projects/levio/", "name": "Levio" },
-          { "@type": "ListItem", "position": 3, "url": "https://www.jc-965.com/projects/tarocchi/", "name": "Tarocchi" },
-          { "@type": "ListItem", "position": 4, "url": "https://www.jc-965.com/projects/mycommunity/", "name": "MyCommunity" }
-        ]
-      }
-    }
-    </script>
-  </head>
-  <body>
-    <main class="page">
-      <nav class="nav" aria-label="Project navigation">
-        <a href="/">Portfolio</a>
-        <a href="https://github.com/Jc-965">GitHub</a>
-        <a href="https://www.linkedin.com/in/jessechen2/">LinkedIn</a>
-      </nav>
-
-      <p class="eyebrow">Jesse Chen - project case studies</p>
-      <h1>Selected software engineering projects</h1>
-      <p class="lede">
-        Selected work from Jesse Chen's portfolio, covering full-stack software,
-        mobile health, interactive web systems, and civic technology.
-      </p>
-
-      <section class="panel">
-        <h2><a href="/projects/agoriai/">Agoriai</a></h2>
-        <p>Anonymous student career network built with React, TypeScript, Drizzle, PostgreSQL, D3, privacy filtering, threaded discussions, and moderation systems.</p>
-      </section>
-
-      <section class="panel">
-        <h2><a href="/projects/levio/">Levio</a></h2>
-        <p>Offline-first Flutter care platform for Parkinson's patients with symptom tracking, medication schedules, therapy guidance, and secure Supabase/PostgreSQL architecture.</p>
-      </section>
-
-      <section class="panel">
-        <h2><a href="/projects/tarocchi/">Tarocchi</a></h2>
-        <p>Interactive narrative web experience with branching story paths, React/TypeScript route logic, Framer Motion transitions, parallax, and synchronized audio.</p>
-      </section>
-
-      <section class="panel">
-        <h2><a href="/projects/mycommunity/">MyCommunity</a></h2>
-        <p>Native Java Android civic tech platform using Google Maps, Firebase, Google Sign-In, runtime location permissions, and an async NYT API community feed.</p>
-      </section>
-    </main>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Detailed software engineering case studies covering mobile reliability, full-stack systems, privacy, and interactive experiences." />
+  <meta name="theme-color" content="#03070d" />
+  <title>Software engineering case studies | Jesse Chen</title>
+  <link rel="canonical" href="https://www.jc-965.com/projects/" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="./project-page.css" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Software engineering case studies | Jesse Chen" />
+  <meta property="og:description" content="Detailed software engineering case studies covering mobile reliability, full-stack systems, privacy, and interactive experiences." />
+  <meta property="og:url" content="https://www.jc-965.com/projects/" />
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to case studies</a>
+  <main class="page" id="content">
+    <nav class="nav" aria-label="Case study navigation">
+  <a href="/">← Portfolio</a>
+  <a href="/projects/">All case studies</a>
+  <a href="/Jesse_Chen_Resume.pdf" download>Résumé</a>
+  <a href="mailto:jcchen54@gmail.com">Contact</a>
+</nav>
+    <header class="project-hero project-hero--index">
+      <p class="eyebrow">Selected engineering work</p>
+      <h1>Case studies</h1>
+      <p class="lede">The constraints, technical decisions, and measurable outcomes behind four shipped products.</p>
+    </header>
+    <section class="project-grid" aria-label="Project case studies"><article class="project-card" style="--card-accent: #4c8bff">
+    <p class="eyebrow">Full-stack · Social platform · TartanHacks 2026</p>
+    <h2><a href="./agoriai/">Agoriai</a></h2>
+    <p>An anonymous student career network built in one TartanHacks weekend with a typed React client, Bun/Elysia API, Drizzle, PostgreSQL, and privacy controls enforced at the server boundary.</p>
+    <ul class="outcomes"><li>~10K relationship signals</li><li>~2K weighted edges</li><li>16ms p95 graph API</li></ul>
+    <a class="card-link" href="./agoriai/" aria-label="Read the Agoriai case study">Read case study →</a>
+  </article>
+<article class="project-card" style="--card-accent: #6aa5af">
+    <p class="eyebrow">Mobile health · Cross-platform</p>
+    <h2><a href="./parkiwell/">ParkiWell</a></h2>
+    <p>An offline-first Flutter care platform for Parkinson’s patients with journaled writes, idempotent deduplication, parallel reads, and delta sync.</p>
+    <ul class="outcomes"><li>100K fault-injected tests</li><li>Zero observed data loss</li><li>~80% faster synchronization</li></ul>
+    <a class="card-link" href="./parkiwell/" aria-label="Read the ParkiWell case study">Read case study →</a>
+  </article>
+<article class="project-card" style="--card-accent: #9c7fae">
+    <p class="eyebrow">Interactive web · Creative systems</p>
+    <h2><a href="./tarocchi/">Tarocchi</a></h2>
+    <p>An interactive narrative web experience with 24 branching story paths, replayable state-driven progression, parallax, and synchronized audio.</p>
+    <ul class="outcomes"><li>24 replayable paths</li><li>Reusable scene pipeline</li><li>Synchronized motion and audio</li></ul>
+    <a class="card-link" href="./tarocchi/" aria-label="Read the Tarocchi case study">Read case study →</a>
+  </article>
+<article class="project-card" style="--card-accent: #b38e5d">
+    <p class="eyebrow">Android · Civic tech</p>
+    <h2><a href="./mycommunity/">MyCommunity</a></h2>
+    <p>A native Java Android platform for Boy Scouts troop discovery with live Firebase data, Google Maps, runtime location permissions, and Google Sign-In.</p>
+    <ul class="outcomes"><li>Realtime map updates</li><li>Authenticated profile CRUD</li><li>Cached asynchronous news feed</li></ul>
+    <a class="card-link" href="./mycommunity/" aria-label="Read the MyCommunity case study">Read case study →</a>
+  </article></section>
+    <footer class="footer">
+  <span>© 2026 Jesse Chen</span>
+  <a href="https://github.com/Jc-965">GitHub</a>
+  <a href="https://www.linkedin.com/in/jessec2/">LinkedIn</a>
+</footer>
+  </main>
+</body>
 </html>

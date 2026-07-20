@@ -459,6 +459,7 @@ export default function Background() {
     }
 
     let lastFrameTime = 0
+    let lastDecayTime = 0
     let frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
 
     const drawFrame = (now: number) => {
@@ -483,7 +484,13 @@ export default function Background() {
       lastPointer.current.x = p.x
       lastPointer.current.y = p.y
 
-      clickDistortion.strength *= profile.isCompact ? 0.87 : 0.95
+      // Decay factors are tuned for 60fps frames; on throttled profiles (low
+      // power / low-perf devices) frames are skipped, so normalize by elapsed
+      // time or click ripples and halos linger far longer than intended.
+      const decayDt = lastDecayTime === 0 ? 1 : clamp((now - lastDecayTime) / 16.67, 0.25, 4)
+      lastDecayTime = now
+
+      clickDistortion.strength *= Math.pow(profile.isCompact ? 0.87 : 0.95, decayDt)
 
       const pointerFactor = pointerEngaged
         ? clamp(
@@ -739,7 +746,7 @@ export default function Background() {
       ctx.lineCap = 'round'
 
       nodes.forEach(node => {
-        node.halo *= 0.92
+        node.halo *= Math.pow(0.92, decayDt)
         const driftX = Math.sin(time * node.driftSpeed + node.phase) * node.driftRadius
         const driftY = Math.cos(time * node.swirlSpeed + node.phase * 1.2) * node.driftRadius * 0.6
         const jX = Math.sin(time * 0.6 + node.phase * 1.7) * node.jitter

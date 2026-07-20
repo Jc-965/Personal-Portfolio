@@ -87,6 +87,7 @@ export default function TargetCursor({
     if (isMobile || !cursorRef.current) return
 
     const cursor = cursorRef.current
+    const activeStrength = activeStrengthRef.current
     const root = document.documentElement
     const originalCursor = document.body.style.cursor
     cornersRef.current = cursor.querySelectorAll<HTMLDivElement>('.target-cursor-corner')
@@ -191,9 +192,8 @@ export default function TargetCursor({
       const strength = activeStrengthRef.current.current
       if (strength === 0) return
 
-      targetCornerPositionsRef.current = getTargetCornerPositions(activeTarget)
-
       const { x: cursorX, y: cursorY } = getPointerPosition()
+      targetCornerPositionsRef.current = getTargetCornerPositions(activeTarget)
 
       Array.from(cornersRef.current).forEach((corner, i) => {
         const currentX = gsap.getProperty(corner, 'x') as number
@@ -253,10 +253,10 @@ export default function TargetCursor({
 
       const isStartingHover = activeTarget === null
       activeTarget = target
-      targetCornerPositionsRef.current = getTargetCornerPositions(target)
 
       const corners = Array.from(cornersRef.current)
       const { x: cursorX, y: cursorY } = getPointerPosition()
+      targetCornerPositionsRef.current = getTargetCornerPositions(target)
 
       if (isStartingHover) {
         corners.forEach(corner => gsap.killTweensOf(corner))
@@ -395,7 +395,7 @@ export default function TargetCursor({
         document.body.style.cursor = originalCursor
       }
       targetCornerPositionsRef.current = null
-      activeStrengthRef.current.current = 0
+      activeStrength.current = 0
     }
   }, [constants, hideDefaultCursor, hoverDuration, isMobile, moveCursor, parallaxOn, spinDuration, targetSelector])
 

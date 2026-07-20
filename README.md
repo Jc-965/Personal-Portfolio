@@ -12,7 +12,7 @@ Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Mach
 &nbsp;&nbsp;
 [![GitHub](https://img.shields.io/badge/GitHub-Jc--965-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Jc-965)
 &nbsp;&nbsp;
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-jessechen2-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jessechen2/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-jessec2-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jessec2/)
 
 <br />
 
@@ -58,9 +58,9 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <th align="left" width="52%">What I Did</th>
   </tr>
   <tr>
-    <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Mobile SWE Intern · Summer 2026</sub></td>
-    <td align="center" valign="middle"><img title="Android · Kotlin · Jira" alt="Android, Kotlin, Jira" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin,jira" /></td>
-    <td valign="middle">Building mobile healthcare features from Jira tickets into sprint-scoped, production-ready deliverables.</td>
+    <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Mobile SWE Intern · 2026 to Present</sub></td>
+    <td align="center" valign="middle"><img title="Android · Kotlin · Security" alt="Android, Kotlin, Security" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin" /></td>
+    <td valign="middle">Built a differential security audit for 220+ endpoints and shipped navigation and billing redesigns for a 500K+ user Android app.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>ScottyLabs AI · CMUGPT</strong><br/><sub>AI Platform Engineer · 2026 to Present</sub></td>
@@ -154,7 +154,7 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
 
 - **Interactive canvas background:** procedurally generated node network with pointer tracking and gyroscope tilt response
 - **3D sketchbook world:** a Three.js / React Three Fiber procedural terrain scene with sculpting tools and a hand-drawn post-processing pass
-- **Visitor constellation:** a shared star field backed by Firebase Realtime Database, where visitors can leave a star
+- **Visitor constellation:** a shared star field with read-only Firebase clients and rate-limited, ownership-checked server writes
 - **Performance-adaptive:** detects device capabilities and adjusts DPR, frame rate, and rendering complexity
 - **Smooth scrolling:** inertial scroll via Lenis, with code-split sections lazily loaded for fast initial paint
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WindowFrame from './WindowFrame'
+import PhoneFrame from './PhoneFrame'
 import useIsPhone from '../hooks/useIsPhone'
 import { preloadImages } from '../utils/preloadImage'
 
@@ -17,6 +18,8 @@ interface MediaGalleryProps {
   images: GalleryImage[]
   accent: string
   defaultVariant?: 'browser' | 'terminal'
+  /** 'phone' renders screenshots inside a handheld bezel instead of a window. */
+  frame?: 'window' | 'phone'
   /** Direction the deck fans toward (peek away from the copy). */
   side?: 'left' | 'right'
   /** Eagerly load the front image when the gallery is first onscreen. */
@@ -32,6 +35,7 @@ export default function MediaGallery({
   images,
   accent,
   defaultVariant = 'browser',
+  frame = 'window',
   side = 'left',
   priority = false,
 }: MediaGalleryProps) {
@@ -54,12 +58,21 @@ export default function MediaGallery({
   }, [active, images, n])
 
   return (
-    <div className="gallery" style={{ '--gallery-accent': accent } as React.CSSProperties}>
+    <div
+      className={`gallery ${frame === 'phone' ? 'gallery--phone' : ''}`}
+      style={{ '--gallery-accent': accent } as React.CSSProperties}
+    >
       <div className="gallery__deck">
         {cards.map(({ img, i }) => {
           if (!img) return null
           const pos = (i - active + n) % n // 0 = front
           const front = pos === 0
+          // Handheld decks fan much tighter — a tall portrait stack drifting
+          // far up-right reads as clutter rather than depth.
+          const phoneDeck = frame === 'phone'
+          const backOpacity = phoneDeck
+            ? pos > 2 ? 0 : Math.max(0.16, 0.42 - (pos - 1) * 0.18)
+            : Math.max(0.18, 0.66 - (pos - 1) * 0.22)
           return (
             <motion.div
               key={img.src}
@@ -67,25 +80,36 @@ export default function MediaGallery({
               aria-hidden={!front}
               initial={false}
               animate={{
-                x: `${front ? 0 : dir * pos * 7}%`,
-                y: `${front ? 0 : -pos * 6}%`,
-                rotate: front ? 0 : dir * pos * 3.6,
-                scale: front ? 1 : 1 - pos * 0.06,
-                opacity: front ? 1 : Math.max(0.18, 0.66 - (pos - 1) * 0.22),
+                x: `${front ? 0 : dir * pos * (phoneDeck ? 4.5 : 7)}%`,
+                y: `${front ? 0 : -pos * (phoneDeck ? 2.5 : 6)}%`,
+                rotate: front ? 0 : dir * pos * (phoneDeck ? 2.2 : 3.6),
+                scale: front ? 1 : 1 - pos * (phoneDeck ? 0.045 : 0.06),
+                opacity: front ? 1 : backOpacity,
               }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               style={{ zIndex: n - pos }}
             >
-              <WindowFrame
-                src={img.src}
-                alt={img.alt}
-                label={img.label}
-                variant={img.variant ?? defaultVariant}
-                accent={accent}
-                aspect={img.aspect}
-                tilt={false}
-                loading={front && priority ? 'eager' : 'lazy'}
-              />
+              {frame === 'phone' ? (
+                <PhoneFrame
+                  src={img.src}
+                  alt={img.alt}
+                  label={img.label}
+                  accent={accent}
+                  aspect={img.aspect}
+                  loading={front && priority ? 'eager' : 'lazy'}
+                />
+              ) : (
+                <WindowFrame
+                  src={img.src}
+                  alt={img.alt}
+                  label={img.label}
+                  variant={img.variant ?? defaultVariant}
+                  accent={accent}
+                  aspect={img.aspect}
+                  tilt={false}
+                  loading={front && priority ? 'eager' : 'lazy'}
+                />
+              )}
             </motion.div>
           )
         })}

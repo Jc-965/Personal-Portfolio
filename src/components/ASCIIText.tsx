@@ -483,15 +483,6 @@ class CanvAscii {
   animate() {
     if (this.animationFrameId) return
 
-    // Reduced-motion: paint one static frame instead of the perpetual wave.
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      this.animationFrameId = requestAnimationFrame((now) => {
-        this.animationFrameId = 0
-        this.render(now * 0.001, now)
-      })
-      return
-    }
-
     const animateFrame = (now: number) => {
       if (!this.isVisible) {
         this.animationFrameId = 0

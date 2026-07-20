@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="An offline-first Flutter care platform for Parkinson’s patients with journaled writes, idempotent deduplication, parallel reads, and delta sync." />
+  <meta name="theme-color" content="#03070d" />
+  <title>ParkiWell case study | Jesse Chen</title>
+  <link rel="canonical" href="https://www.jc-965.com/projects/parkiwell/" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="../project-page.css" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="ParkiWell case study | Jesse Chen" />
+  <meta property="og:description" content="An offline-first Flutter care platform for Parkinson’s patients with journaled writes, idempotent deduplication, parallel reads, and delta sync." />
+  <meta property="og:url" content="https://www.jc-965.com/projects/parkiwell/" />
+</head>
+<body style="--accent: #6aa5af">
+  <a class="skip-link" href="#content">Skip to case study</a>
+  <main class="page" id="content">
+    <nav class="nav" aria-label="Case study navigation">
+  <a href="/">← Portfolio</a>
+  <a href="/projects/">All case studies</a>
+  <a href="/Jesse_Chen_Resume.pdf" download>Résumé</a>
+  <a href="mailto:jcchen54@gmail.com">Contact</a>
+</nav>
+    <header class="project-hero">
+      <p class="eyebrow">Mobile health · Cross-platform</p>
+      <h1>ParkiWell</h1>
+      <p class="lede">An offline-first Flutter care platform for Parkinson’s patients with journaled writes, idempotent deduplication, parallel reads, and delta sync.</p>
+    </header>
+    <section class="meta" aria-label="Project results"><div><span>FAULT TESTS</span><strong>100K</strong></div>
+<div><span>DATA LOSS</span><strong>ZERO</strong></div>
+<div><span>SYNC</span><strong>~80% FASTER</strong></div></section>
+    <section class="panel">
+      <p class="eyebrow">Role</p>
+      <h2>Founder and sole mobile engineer</h2>
+    </section>
+    <section class="panel">
+      <p class="eyebrow">Challenge</p>
+      <h2>What had to be solved</h2>
+      <p>Care tracking cannot become unavailable when connectivity drops, and reconnecting must never duplicate or erase health records.</p>
+    </section>
+    <section class="panel">
+      <p class="eyebrow">Approach</p>
+      <h2>How I built it</h2>
+      <ol><li>Recorded offline mutations in a journal and replayed them with idempotent deduplication.</li>
+<li>Used versioned snapshots and delta sync to minimize transfer and recovery time.</li>
+<li>Protected every hosted table with row-level security and shipped signed builds through CI/CD.</li></ol>
+    </section>
+    <section class="panel">
+      <p class="eyebrow">Outcomes</p>
+      <h2>What changed</h2>
+      <ul class="outcomes"><li>100K fault-injected tests</li>
+<li>Zero observed data loss</li>
+<li>~80% faster synchronization</li></ul>
+      <div class="tags" aria-label="Technology used"><span>Flutter</span>
+<span>Dart</span>
+<span>Supabase</span>
+<span>PostgreSQL (RLS)</span>
+<span>GitHub Actions CI/CD</span></div>
+    </section>
+    <footer class="footer">
+  <span>© 2026 Jesse Chen</span>
+  <a href="https://github.com/Jc-965">GitHub</a>
+  <a href="https://www.linkedin.com/in/jessec2/">LinkedIn</a>
+</footer>
+  </main>
+</body>
+</html>

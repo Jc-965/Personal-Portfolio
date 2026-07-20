@@ -1,0 +1,482 @@
+{
+  "profile": {
+    "name": "Jesse Chen",
+    "fullName": "Jesse (Zexi) Chen",
+    "eyebrow": "Jesse Chen // Carnegie Mellon SCS",
+    "headline": "Building technology that solves real problems for real people",
+    "description": "Computer science student at Carnegie Mellon building secure mobile, AI, and full-stack systems that addresses meaningful challenges.",
+    "email": "jcchen54@gmail.com",
+    "github": "https://github.com/Jc-965",
+    "linkedin": "https://www.linkedin.com/in/jessec2/",
+    "resumePath": "/Jesse_Chen_Resume.pdf"
+  },
+  "experiences": [
+    {
+      "id": "blue-shield",
+      "icon": "shield",
+      "company": "Blue Shield of California",
+      "role": "Mobile Software Engineer Intern",
+      "track": "Healthcare",
+      "period": "Jun 2026 – Present",
+      "location": "Long Beach, CA",
+      "status": "Active",
+      "summary": "Developing Android/Kotlin mobile features in an Agile healthcare engineering workflow, translating Jira tickets into sprint-scoped implementation tasks and production-ready deliverables.",
+      "stack": [
+        "Android",
+        "Kotlin",
+        "Agile",
+        "Jira"
+      ],
+      "accent": "#2d7ff9"
+    },
+    {
+      "id": "scottylabs-ai",
+      "icon": "brain",
+      "company": "ScottyLabs AI · CMUGPT",
+      "role": "AI Platform Engineer",
+      "track": "AI Platform",
+      "period": "Apr 2026 – Present",
+      "location": "Pittsburgh, PA",
+      "status": "Active",
+      "summary": "Launched a LangGraph/FastAPI campus AI platform at 1.4s p95 first-token latency as the top code contributor, routing OpenRouter LLMs through grounded MCP tools, SSE streaming, and sandboxed outputs. Built the React client, surfacing content 81% sooner and cutting UI updates 90% via frame batching. Engineered persistent agent memory recalling user context across chats via pgvector and injection-resistant controls.",
+      "stack": [
+        "FastAPI",
+        "LangGraph",
+        "MCP",
+        "React 19",
+        "pgvector",
+        "SSE"
+      ],
+      "accent": "#a06bff"
+    },
+    {
+      "id": "sorcea",
+      "icon": "terminal",
+      "company": "Sorcea Labs",
+      "role": "Mobile Software Engineer Intern",
+      "track": "Industry",
+      "period": "Dec 2025 – May 2026",
+      "location": "Remote",
+      "status": "Shipped",
+      "summary": "Shipped core features across 36 of 41 screens in a 10K+ user Flutter app. Engineered a perceptual color engine to recommend the best shade for each user's skin tone, sampling swatch imagery, converting sRGB to CIELAB, and ranking each product's shade lineup by Delta-E in under 0.005ms. Cut homepage load time ~75% via parallel API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
+      "stack": [
+        "Flutter",
+        "Dart",
+        "Dio",
+        "CustomPainter",
+        "CIELAB/Delta-E"
+      ],
+      "accent": "#00ffff",
+      "media": {
+        "kind": "phones",
+        "items": [
+          {
+            "src": "/sorcea/home.webp",
+            "label": "sorcea · home",
+            "alt": "Sorcea home feed",
+            "aspect": "527 / 1080"
+          },
+          {
+            "src": "/sorcea/score.webp",
+            "label": "sorcea · score",
+            "alt": "Sorcea animated score gauge",
+            "aspect": "528 / 1080"
+          },
+          {
+            "src": "/sorcea/search.webp",
+            "label": "sorcea · search",
+            "alt": "Sorcea product search",
+            "aspect": "528 / 1080"
+          },
+          {
+            "src": "/sorcea/compare.webp",
+            "label": "sorcea · compare",
+            "alt": "Sorcea comparison view",
+            "aspect": "527 / 1080"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cmumaps",
+      "icon": "map",
+      "company": "CMUMaps · ScottyLabs",
+      "role": "Data & Software Engineer",
+      "track": "Geospatial",
+      "period": "Sep 2025 – Apr 2026",
+      "location": "Pittsburgh, PA",
+      "status": "Shipped",
+      "summary": "Built the ~350ms geospatial ETL pipeline powering a CMU campus navigation site for 700+ monthly users, fusing 15K+ OpenStreetMap nodes with ArcGIS metadata into footprints, floors, facility IDs, and entrances.",
+      "stack": [
+        "Python",
+        "OpenStreetMap",
+        "ArcGIS",
+        "polylabel",
+        "GeoJSON",
+        "AWS S3"
+      ],
+      "accent": "#00ff41",
+      "media": {
+        "kind": "maps",
+        "items": [
+          {
+            "src": "/Maps/cmumaps-overview.webp",
+            "label": "cmumaps · map",
+            "alt": "CMUMaps campus map with building pins",
+            "aspect": "554 / 422"
+          },
+          {
+            "src": "/Maps/cmumaps-pins.webp",
+            "label": "cmumaps · pins",
+            "alt": "CMUMaps dense campus building pins",
+            "aspect": "538 / 338"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gcs",
+      "icon": "gamepad",
+      "company": "Game Creation Society",
+      "role": "Core Developer",
+      "track": "Game Systems",
+      "period": "Sep 2025 – Dec 2025",
+      "location": "Pittsburgh, PA",
+      "status": "Shipped",
+      "summary": "Built Unreal Engine 5 Blueprint gameplay systems for grappling, tethering, and local multiplayer combat, synchronizing physics-driven interactions, collision feedback, and elimination state in real time.",
+      "stack": [
+        "Unreal Engine 5",
+        "Blueprints",
+        "Physics",
+        "Multiplayer"
+      ],
+      "accent": "#ff00ff"
+    },
+    {
+      "id": "coding-minds",
+      "icon": "graduation",
+      "company": "Coding Minds Academy",
+      "role": "Instructor",
+      "track": "Teaching",
+      "period": "Jun 2025 – Feb 2026",
+      "location": "Remote",
+      "status": "Complete",
+      "summary": "Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving through structured implementation labs.",
+      "stack": [
+        "Python",
+        "C++",
+        "JavaScript",
+        "ACSL"
+      ],
+      "accent": "#ffcc00"
+    },
+    {
+      "id": "softcom",
+      "icon": "flask",
+      "company": "SoftCom Lab · Cal Poly Pomona",
+      "role": "Research Intern",
+      "track": "Research",
+      "period": "Jun 2023 – Aug 2024",
+      "location": "Pomona, CA",
+      "status": "Published",
+      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, achieving 95.4% mean accuracy on controlled exercise videos and co-authoring a peer-reviewed paper presented at CS & IT-CSCP 2024.",
+      "stack": [
+        "Python",
+        "ML/CV",
+        "NumPy",
+        "scikit-learn"
+      ],
+      "accent": "#ff3366"
+    }
+  ],
+  "projects": [
+    {
+      "id": "agoriai",
+      "name": "Agoriai",
+      "tag": "Full-stack · Social platform · TartanHacks 2026",
+      "accent": "#4c8bff",
+      "accentRgb": "76, 139, 255",
+      "kind": "media",
+      "lead": "An anonymous student career network built in one TartanHacks weekend with a typed React client, Bun/Elysia API, Drizzle, PostgreSQL, and privacy controls enforced at the server boundary.",
+      "bullets": [
+        "Converted roughly 10K relationship signals into about 2K weighted graph edges at 16ms p95 API latency while preserving server-side anonymity.",
+        "Added school-email authentication, transactional voting, recursive discussions, and evasion-resistant moderation."
+      ],
+      "tech": [
+        "React 19",
+        "TypeScript",
+        "D3",
+        "Bun/Elysia",
+        "Drizzle",
+        "PostgreSQL"
+      ],
+      "stats": [
+        {
+          "label": "EVENT",
+          "value": "TARTANHACKS 2026"
+        },
+        {
+          "label": "GRAPH",
+          "value": "~2K EDGES"
+        },
+        {
+          "label": "API",
+          "value": "16MS P95"
+        }
+      ],
+      "imageVariant": "browser",
+      "images": [
+        {
+          "src": "/Agoriai/nexus.webp",
+          "label": "agoriai.app / nexus",
+          "alt": "Agoriai Nexus relationship graph",
+          "aspect": "1600 / 904"
+        },
+        {
+          "src": "/Agoriai/dashboard.webp",
+          "label": "agoriai.app / dashboard",
+          "alt": "Agoriai dashboard overview",
+          "aspect": "1600 / 904"
+        },
+        {
+          "src": "/Agoriai/feed.webp",
+          "label": "agoriai.app / feed",
+          "alt": "Agoriai anonymous Q&A feed",
+          "aspect": "1600 / 904"
+        },
+        {
+          "src": "/Agoriai/connection.webp",
+          "label": "agoriai.app / profile",
+          "alt": "Agoriai profile and connections",
+          "aspect": "1600 / 904"
+        }
+      ],
+      "caseStudy": {
+        "role": "Full-stack engineer and product designer",
+        "challenge": "Career networks are useful only when students can discover relevant peers without exposing private identity or academic context. The system needed to preserve anonymity while still supporting search, discussion, and relationship exploration.",
+        "approach": [
+          "Enforced four identity-visibility tiers on the server rather than trusting the client.",
+          "Modeled student-company relationships as weighted edges and rendered them through a D3 force-directed graph.",
+          "Normalized leetspeak and applied fuzzy matching before moderation decisions."
+        ],
+        "outcomes": [
+          "~10K relationship signals",
+          "~2K weighted edges",
+          "16ms p95 graph API"
+        ],
+        "image": "/Agoriai/nexus.webp"
+      }
+    },
+    {
+      "id": "parkiwell",
+      "name": "ParkiWell",
+      "tag": "Mobile health · Cross-platform",
+      "accent": "#6aa5af",
+      "accentRgb": "106, 165, 175",
+      "kind": "media",
+      "lead": "An offline-first Flutter care platform for Parkinson’s patients with journaled writes, idempotent deduplication, parallel reads, and delta sync.",
+      "bullets": [
+        "Validated zero data loss across 100K fault-injected writes while cutting sync time ~80%.",
+        "Built on-device analytics linking 10K medication and therapy events to longitudinal symptom trends."
+      ],
+      "tech": [
+        "Flutter",
+        "Dart",
+        "Supabase",
+        "PostgreSQL (RLS)",
+        "GitHub Actions CI/CD"
+      ],
+      "stats": [
+        {
+          "label": "FAULT TESTS",
+          "value": "100K"
+        },
+        {
+          "label": "DATA LOSS",
+          "value": "ZERO"
+        },
+        {
+          "label": "SYNC",
+          "value": "~80% FASTER"
+        }
+      ],
+      "caseStudy": {
+        "role": "Founder and sole mobile engineer",
+        "challenge": "Care tracking cannot become unavailable when connectivity drops, and reconnecting must never duplicate or erase health records.",
+        "approach": [
+          "Recorded offline mutations in a journal and replayed them with idempotent deduplication.",
+          "Used versioned snapshots and delta sync to minimize transfer and recovery time.",
+          "Protected every hosted table with row-level security and shipped signed builds through CI/CD."
+        ],
+        "outcomes": [
+          "100K fault-injected tests",
+          "Zero observed data loss",
+          "~80% faster synchronization"
+        ]
+      },
+      "frame": "phone",
+      "images": [
+        {
+          "src": "/ParkiWell/onboarding.webp",
+          "label": "parkiwell · onboarding",
+          "alt": "ParkiWell onboarding welcome screen",
+          "aspect": "660 / 1434"
+        },
+        {
+          "src": "/ParkiWell/home.webp",
+          "label": "parkiwell · home",
+          "alt": "ParkiWell home dashboard with symptom and medication summaries",
+          "aspect": "660 / 1434"
+        },
+        {
+          "src": "/ParkiWell/manage.webp",
+          "label": "parkiwell · manage",
+          "alt": "ParkiWell medication and therapy management screen",
+          "aspect": "660 / 1434"
+        },
+        {
+          "src": "/ParkiWell/recovery.webp",
+          "label": "parkiwell · recovery",
+          "alt": "ParkiWell recovery plan with weekly goal tracking",
+          "aspect": "660 / 1434"
+        },
+        {
+          "src": "/ParkiWell/recovery-dark.webp",
+          "label": "parkiwell · recovery dark",
+          "alt": "ParkiWell recovery plan in dark mode",
+          "aspect": "660 / 1434"
+        }
+      ]
+    },
+    {
+      "id": "tarocchi",
+      "name": "Tarocchi",
+      "tag": "Interactive web · Creative systems",
+      "accent": "#9c7fae",
+      "accentRgb": "156, 127, 174",
+      "kind": "media",
+      "lead": "An interactive narrative web experience with 24 branching story paths, replayable state-driven progression, parallax, and synchronized audio.",
+      "bullets": [
+        "Modeled route and scene state explicitly so branching flows remain coherent as narrative complexity grows.",
+        "Built a reusable presentation pipeline for animated transitions, layered parallax, and synchronized sound."
+      ],
+      "tech": [
+        "React & Vite",
+        "TypeScript",
+        "Tailwind CSS",
+        "Framer Motion"
+      ],
+      "stats": [
+        {
+          "label": "PATHS",
+          "value": "24"
+        },
+        {
+          "label": "EFFECTS",
+          "value": "PARALLAX"
+        },
+        {
+          "label": "AUDIO",
+          "value": "SYNCHRONIZED"
+        }
+      ],
+      "imageVariant": "browser",
+      "images": [
+        {
+          "src": "/Tarocchi/tarocchi-1.webp",
+          "label": "tarocchi / oracle",
+          "alt": "Tarocchi pixel-art oracle prompt",
+          "aspect": "1600 / 1039"
+        },
+        {
+          "src": "/Tarocchi/tarocchi-2.webp",
+          "label": "tarocchi / countryside",
+          "alt": "Tarocchi countryside branch scene",
+          "aspect": "1600 / 1039"
+        },
+        {
+          "src": "/Tarocchi/tarocchi-8.webp",
+          "label": "tarocchi / spread",
+          "alt": "Tarocchi three-card reading spread",
+          "aspect": "1600 / 1039"
+        },
+        {
+          "src": "/Tarocchi/tarocchi-6.webp",
+          "label": "tarocchi / city",
+          "alt": "Tarocchi night-city branch scene",
+          "aspect": "1600 / 1039"
+        }
+      ],
+      "caseStudy": {
+        "role": "Front-end engineer and interaction designer",
+        "challenge": "Twenty-four story branches had to feel cinematic without allowing animation, audio, and route state to drift apart.",
+        "approach": [
+          "Represented narrative progress as explicit state instead of coupling it to visual components.",
+          "Synchronized scene transitions and audio cues from the same route events.",
+          "Used reusable parallax and motion primitives to keep visual behavior consistent."
+        ],
+        "outcomes": [
+          "24 replayable paths",
+          "Reusable scene pipeline",
+          "Synchronized motion and audio"
+        ],
+        "image": "/Tarocchi/tarocchi-1.webp"
+      }
+    },
+    {
+      "id": "mycommunity",
+      "name": "MyCommunity",
+      "tag": "Android · Civic tech",
+      "accent": "#b38e5d",
+      "accentRgb": "179, 142, 93",
+      "kind": "code",
+      "lead": "A native Java Android platform for Boy Scouts troop discovery with live Firebase data, Google Maps, runtime location permissions, and Google Sign-In.",
+      "bullets": [
+        "Bound live troop updates to map markers and validated authenticated profile CRUD.",
+        "Streamed and cached a community news feed with OkHttp, Gson, and Glide."
+      ],
+      "tech": [
+        "Java",
+        "Android",
+        "Google Maps",
+        "Firebase",
+        "OkHttp/Gson/Glide"
+      ],
+      "stats": [
+        {
+          "label": "PLATFORM",
+          "value": "ANDROID"
+        },
+        {
+          "label": "DATA",
+          "value": "REALTIME"
+        },
+        {
+          "label": "MAP",
+          "value": "GEOSPATIAL"
+        }
+      ],
+      "terminal": [
+        "gradle assembleRelease",
+        "firebase ▸ realtime listeners live",
+        "maps ▸ markers bound to location",
+        "nyt api ▸ feed cached via glide",
+        "mycommunity ▸ discover nearby"
+      ],
+      "caseStudy": {
+        "role": "Android engineer",
+        "challenge": "Troop discovery data had to stay current on a location-aware map while respecting Android’s authentication and runtime permission model.",
+        "approach": [
+          "Bound Firebase listeners to map marker lifecycle and profile state.",
+          "Handled location permission and Google Sign-In as explicit application states.",
+          "Fetched community news asynchronously and cached images for responsive browsing."
+        ],
+        "outcomes": [
+          "Realtime map updates",
+          "Authenticated profile CRUD",
+          "Cached asynchronous news feed"
+        ]
+      }
+    }
+  ]
+}

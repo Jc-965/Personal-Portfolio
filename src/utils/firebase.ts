@@ -12,11 +12,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
+const requiredFirebaseConfig = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key)
+
 let firebaseApp: ReturnType<typeof initializeApp> | null = null
 let database: Database | null = null
 
 export function getFirebase(): Database | null {
   if (!firebaseApp) {
+    if (requiredFirebaseConfig.length > 0) {
+      if (import.meta.env.DEV) {
+        console.warn(`Firebase is disabled; missing ${requiredFirebaseConfig.join(', ')}.`)
+      }
+      return null
+    }
     try {
       firebaseApp = initializeApp(firebaseConfig)
 

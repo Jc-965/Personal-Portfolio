@@ -123,14 +123,6 @@
   background: color-mix(in srgb, var(--chapter-accent) 8%, transparent);
 }
 
-.chapter__status {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent-green);
-}
-
 .chapter__company {
   font-size: clamp(1.3rem, 2.4vw, 1.85rem);
   font-weight: 700;
@@ -183,30 +175,22 @@
   min-width: 0;
 }
 
-/* integrated, browsable media on an accent stage */
+/* media floats free on the page like the project scenes — no stage box,
+   just an accent aura anchoring it to the chapter's color */
 .chapter__media {
   position: relative;
-  border-radius: 16px;
-  padding: 26px 22px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--chapter-accent) 9%, rgba(6, 11, 20, 0.62)),
-    rgba(4, 8, 16, 0.5)
-  );
-  border: 1px solid color-mix(in srgb, var(--chapter-accent) 16%, transparent);
-  overflow: hidden;
 }
 
 .chapter__media-glow {
   position: absolute;
-  inset: 0;
+  inset: -14% -20%;
   pointer-events: none;
   background: radial-gradient(
-    70% 80% at 50% 0%,
-    color-mix(in srgb, var(--chapter-accent) 20%, transparent),
-    transparent 72%
+    55% 52% at 50% 50%,
+    color-mix(in srgb, var(--chapter-accent) 17%, transparent),
+    transparent 74%
   );
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 /* single-shot viewer with a quick, stable tab transition */
@@ -217,7 +201,7 @@
 }
 
 .chapter__media--phones .chapter__viewer {
-  max-width: 232px;
+  max-width: 246px;
   margin: 0 auto;
 }
 
@@ -231,35 +215,192 @@
   inset: 0;
 }
 
-.chapter__shot::after {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  z-index: 4;
-  pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 28%,
-    color-mix(in srgb, var(--chapter-accent) 16%, transparent) 45%,
-    rgba(255, 255, 255, 0.12) 50%,
-    transparent 66%
-  );
-  opacity: 0;
-  transform: translateX(-54%);
-  animation: chapter-shot-sheen 0.68s cubic-bezier(0.22, 0.61, 0.36, 1);
+/* the front device drifts gently; the rest of the deck stays dark + still */
+.chapter__media--phones .chapter__shot.is-active .phone-frame {
+  animation: chapter-phone-float 6.5s ease-in-out infinite;
 }
 
-@keyframes chapter-shot-sheen {
+.chapter__media--phones .chapter__shot:not(.is-active) {
+  filter: brightness(0.55) saturate(0.7);
+}
+
+.chapter__media--maps .chapter__shot:not(.is-active) {
+  filter: brightness(0.6) saturate(0.75);
+}
+
+@keyframes chapter-phone-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+/* ---- map viewport HUD (geospatial chapter) ---- */
+
+.map-frame {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--mf-accent) 30%, transparent);
+  background: rgba(4, 9, 16, 0.88);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6),
+    0 0 28px -8px color-mix(in srgb, var(--mf-accent) 26%, transparent);
+}
+
+.map-frame__chrome {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mf-accent) 72%, var(--text-muted));
+  border-bottom: 1px solid color-mix(in srgb, var(--mf-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--mf-accent) 7%, rgba(3, 7, 13, 0.9));
+}
+
+.map-frame__layer {
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.map-frame__coords {
+  white-space: nowrap;
+}
+
+.map-frame__viewport {
+  position: relative;
+  overflow: hidden;
+}
+
+.map-frame__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* survey grid laid over the tiles */
+.map-frame__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--mf-accent) 14%, transparent) 0 1px,
+      transparent 1px 56px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--mf-accent) 14%, transparent) 0 1px,
+      transparent 1px 56px
+    );
+  opacity: 0.5;
+}
+
+.map-frame__crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.map-frame__crosshair::before,
+.map-frame__crosshair::after {
+  content: '';
+  position: absolute;
+  background: var(--mf-accent);
+}
+
+.map-frame__crosshair::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.map-frame__crosshair::after {
+  top: 50%;
+  left: 0;
+  height: 1px;
+  width: 100%;
+}
+
+/* pin locating the campus cluster, pulsing like a live fix */
+.map-frame__pin {
+  position: absolute;
+  left: 38%;
+  top: 34%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mf-accent);
+  box-shadow: 0 0 10px var(--mf-accent);
+  pointer-events: none;
+}
+
+.map-frame__pin::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1px solid var(--mf-accent);
+  animation: map-pin-pulse 2.2s ease-out infinite;
+}
+
+@keyframes map-pin-pulse {
   0% {
-    opacity: 0;
-    transform: translateX(-54%);
-  }
-  18% {
-    opacity: 0.42;
+    transform: scale(0.5);
+    opacity: 0.9;
   }
   100% {
+    transform: scale(2.1);
     opacity: 0;
-    transform: translateX(42%);
+  }
+}
+
+/* viewfinder ticks in each corner */
+.map-frame__tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  border: 0 solid color-mix(in srgb, var(--mf-accent) 85%, transparent);
+}
+
+.map-frame__tick--tl { top: 8px; left: 8px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.map-frame__tick--tr { top: 8px; right: 8px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.map-frame__tick--bl { bottom: 8px; left: 8px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.map-frame__tick--br { bottom: 8px; right: 8px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+.map-frame__label {
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mf-accent) 62%, var(--text-muted));
+  border-top: 1px solid color-mix(in srgb, var(--mf-accent) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter__media--phones .chapter__shot.is-active .phone-frame {
+    animation: none;
+  }
+
+  .map-frame__pin::after {
+    animation: none;
+    opacity: 0;
   }
 }
 
@@ -334,10 +475,6 @@
     will-change: auto;
   }
 
-  .chapter__shot::after {
-    display: none;
-  }
-
   .chapter__view,
   .chapter__view:hover,
   .chapter__view.is-active {
@@ -379,7 +516,6 @@
     gap: 24px;
   }
 
-  .chapter__media { padding: 18px 14px; }
 }
 
 @media (max-width: 640px) {
@@ -441,10 +577,6 @@
     padding: 4px 8px;
   }
 
-  .chapter__status {
-    font-size: 0.56rem;
-  }
-
   .chapter__company {
     font-size: clamp(1.08rem, 6.1vw, 1.42rem);
     line-height: 1.12;
@@ -475,11 +607,6 @@
 
   .chapter--has-media .chapter__body {
     gap: 16px;
-  }
-
-  .chapter__media {
-    border-radius: 12px;
-    padding: 12px;
   }
 
   .chapter__media--phones .chapter__viewer {

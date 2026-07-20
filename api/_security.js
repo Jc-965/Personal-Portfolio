@@ -30,7 +30,13 @@ export function getClientIp(request) {
 
 export function checkRateLimit(key, { limit, windowMs }) {
   const now = Date.now()
-  if (RATE_LIMIT_STORE.size > MAX_TRACKED_KEYS) sweepExpired(now)
+  if (RATE_LIMIT_STORE.size >= MAX_TRACKED_KEYS && !RATE_LIMIT_STORE.has(key)) {
+    sweepExpired(now)
+    if (RATE_LIMIT_STORE.size >= MAX_TRACKED_KEYS) {
+      const oldestKey = RATE_LIMIT_STORE.keys().next().value
+      if (oldestKey) RATE_LIMIT_STORE.delete(oldestKey)
+    }
+  }
 
   const entry = RATE_LIMIT_STORE.get(key)
   if (!entry || now >= entry.resetAt) {

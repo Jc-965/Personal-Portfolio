@@ -9,8 +9,9 @@ import {
   Shield,
   BrainCircuit,
 } from 'lucide-react'
-import WindowFrame from './WindowFrame'
+import PhoneFrame from './PhoneFrame'
 import { preloadImage, preloadImages } from '../utils/preloadImage'
+import portfolio from '../content/portfolio.json'
 
 interface MediaItem {
   src: string
@@ -41,123 +42,21 @@ interface Experience {
 
 const revealEase = [0.22, 1, 0.36, 1] as const
 
-// Reverse-chronological journey, aligned with the résumé.
-const experiences: Experience[] = [
-  {
-    id: 'blue-shield',
-    icon: <Shield size={15} />,
-    company: 'Blue Shield of California',
-    role: 'Incoming Mobile Software Engineer Intern',
-    track: 'Healthcare',
-    period: 'Jun 2026 – Aug 2026',
-    location: 'Long Beach, CA',
-    status: 'Incoming',
-    summary:
-      'Developing Android/Kotlin mobile features in an Agile healthcare engineering workflow, translating Jira tickets into sprint-scoped implementation tasks and production-ready deliverables.',
-    stack: ['Android', 'Kotlin', 'Agile', 'Jira'],
-    accent: '#2d7ff9',
-  },
-  {
-    id: 'scottylabs-ai',
-    icon: <BrainCircuit size={15} />,
-    company: 'ScottyLabs AI · CMUGPT',
-    role: 'AI Platform Engineer',
-    track: 'AI Platform',
-    period: 'Apr 2026 – Present',
-    location: 'Pittsburgh, PA',
-    status: 'Active',
-    summary:
-      'Launched CMUGPT’s agent layer: a FastAPI/LangGraph StateGraph orchestrating LLMs over runtime-discovered MCP tools with deterministic CMU Maps route embeds. Piped authenticated SSE through an Express/tsoa BFF into NDJSON in a React 19/TanStack client with frame-batched rendering, and hardened it against prompt-injection across 16 live adversarial tests.',
-    stack: ['FastAPI', 'LangGraph', 'MCP', 'React 19', 'TanStack', 'SSE/NDJSON'],
-    accent: '#a06bff',
-  },
-  {
-    id: 'sorcea',
-    icon: <Terminal size={15} />,
-    company: 'Sorcea Labs',
-    role: 'Mobile Software Engineer Intern',
-    track: 'Industry',
-    period: 'Dec 2025 – May 2026',
-    location: 'Remote',
-    status: 'Shipped',
-    summary:
-      'Shipped onboarding, routine builder, product pages, feed, search, compare, and SHA-256 contact-matched friend discovery for a production Flutter app serving 10k+ users, 80k+ products, and 8M+ reviews. Engineered a CIELAB / Delta-E perceptual color engine with parallelized sampling, and cut home-load latency up to 75% by batching Dio fetches into one parallel call.',
-    stack: ['Flutter', 'Dart', 'Dio', 'CustomPainter', 'CIELAB/Delta-E'],
-    accent: '#00ffff',
-    media: {
-      kind: 'phones',
-      items: [
-        { src: '/sorcea/home.webp', label: 'sorcea · home', alt: 'Sorcea home feed', aspect: '527 / 1080' },
-        { src: '/sorcea/score.webp', label: 'sorcea · score', alt: 'Sorcea animated score gauge', aspect: '528 / 1080' },
-        { src: '/sorcea/search.webp', label: 'sorcea · search', alt: 'Sorcea product search', aspect: '528 / 1080' },
-        { src: '/sorcea/compare.webp', label: 'sorcea · compare', alt: 'Sorcea comparison view', aspect: '527 / 1080' },
-      ],
-    },
-  },
-  {
-    id: 'cmumaps',
-    icon: <Map size={15} />,
-    company: 'CMUMaps · ScottyLabs',
-    role: 'Data & Software Engineer',
-    track: 'Geospatial',
-    period: 'Sep 2025 – Apr 2026',
-    location: 'Pittsburgh, PA',
-    status: 'Shipped',
-    summary:
-      'Mapped all 74 campus buildings by engineering a Python geospatial ETL that fuses CMU ArcGIS records with OpenStreetMap extracts (parsing OSM multipolygon relations, entrances, and fuzzy-matched facility IDs), then implemented Mapbox’s polylabel algorithm to compute guaranteed-interior label anchors powering search-zoom navigation and map rendering.',
-    stack: ['Python', 'OpenStreetMap', 'ArcGIS', 'polylabel', 'GeoJSON', 'AWS S3'],
-    accent: '#00ff41',
-    media: {
-      kind: 'maps',
-      items: [
-        { src: '/Maps/cmumaps-overview.webp', label: 'cmumaps · map', alt: 'CMUMaps campus map with building pins', aspect: '554 / 422' },
-        { src: '/Maps/cmumaps-pins.webp', label: 'cmumaps · pins', alt: 'CMUMaps dense campus building pins', aspect: '538 / 338' },
-      ],
-    },
-  },
-  {
-    id: 'gcs',
-    icon: <Gamepad2 size={15} />,
-    company: 'Game Creation Society',
-    role: 'Core Developer',
-    track: 'Game Systems',
-    period: 'Sep 2025 – Dec 2025',
-    location: 'Pittsburgh, PA',
-    status: 'Shipped',
-    summary:
-      'Built Unreal Engine 5 Blueprint gameplay systems for grappling, tethering, and local multiplayer combat, synchronizing physics-driven interactions, collision feedback, and elimination state in real time for responsive first-person play.',
-    stack: ['Unreal Engine 5', 'Blueprints', 'Physics', 'Multiplayer'],
-    accent: '#ff00ff',
-  },
-  {
-    id: 'coding-minds',
-    icon: <GraduationCap size={15} />,
-    company: 'Coding Minds Academy',
-    role: 'Instructor',
-    track: 'Teaching',
-    period: 'Jun 2025 – Feb 2026',
-    location: 'Remote',
-    status: 'Complete',
-    summary:
-      'Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving, translating abstract CS concepts into repeatable implementation workflows through structured labs.',
-    stack: ['Python', 'C++', 'JavaScript', 'ACSL'],
-    accent: '#ffcc00',
-  },
-  {
-    id: 'softcom',
-    icon: <FlaskConical size={15} />,
-    company: 'SoftCom Lab · Cal Poly Pomona',
-    role: 'Research Intern',
-    track: 'Research',
-    period: 'Jun 2023 – Aug 2024',
-    location: 'Pomona, CA',
-    status: 'Published',
-    summary:
-      'Developed and evaluated an applied ML/CV model for Parkinson’s motor-symptom assessment: designing reproducible exercise-video trials, analyzing input-quality failure modes, and validating robustness at 95.42% mean / 96.42% median accuracy. Contributed to a peer-reviewed CCSIT paper.',
-    stack: ['Python', 'ML/CV', 'NumPy', 'scikit-learn'],
-    accent: '#ff3366',
-  },
-]
+// Presentation-only icons are paired with résumé content from one canonical source.
+const experienceIcons = {
+  shield: <Shield size={15} />,
+  brain: <BrainCircuit size={15} />,
+  terminal: <Terminal size={15} />,
+  map: <Map size={15} />,
+  gamepad: <Gamepad2 size={15} />,
+  graduation: <GraduationCap size={15} />,
+  flask: <FlaskConical size={15} />,
+}
+
+const experiences = portfolio.experiences.map(({ icon, ...experience }) => ({
+  ...experience,
+  icon: experienceIcons[icon as keyof typeof experienceIcons] ?? <Terminal size={15} />,
+})) as unknown as Experience[]
 
 /* Journey media uses a text-integrated tabbed viewer (distinct from the
    Projects deck): labelled "screen" tabs live with the copy and switch a single
@@ -199,49 +98,101 @@ function ChapterTabs({
   )
 }
 
+/* Map viewport HUD — coordinates chrome, survey grid, crosshair, and a
+   pulsing pin so the geospatial chapter reads as live campus tooling. */
+function MapFrame({
+  item,
+  accent,
+  priority,
+}: {
+  item: MediaItem
+  accent: string
+  priority: boolean
+}) {
+  return (
+    <figure className="map-frame" style={{ '--mf-accent': accent } as React.CSSProperties}>
+      <div className="map-frame__chrome">
+        <span className="map-frame__coords">40.4433° N · 79.9436° W</span>
+        <span className="map-frame__layer">osm · campus · z17</span>
+      </div>
+      <div className="map-frame__viewport" style={{ aspectRatio: item.aspect }}>
+        <img
+          className="map-frame__img"
+          src={item.src}
+          alt={item.alt}
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          draggable={false}
+        />
+        <span className="map-frame__grid" aria-hidden="true" />
+        <span className="map-frame__crosshair" aria-hidden="true" />
+        <span className="map-frame__pin" aria-hidden="true" />
+        <span className="map-frame__tick map-frame__tick--tl" aria-hidden="true" />
+        <span className="map-frame__tick map-frame__tick--tr" aria-hidden="true" />
+        <span className="map-frame__tick map-frame__tick--bl" aria-hidden="true" />
+        <span className="map-frame__tick map-frame__tick--br" aria-hidden="true" />
+      </div>
+      <figcaption className="map-frame__label">{item.label}</figcaption>
+    </figure>
+  )
+}
+
+/* Fanned deck, same interaction language as the Projects gallery: the active
+   shot sits in front and the rest stack behind, swapping places on tab
+   change. Tabs stay in the copy column. */
 function ChapterMediaView({
   media,
   accent,
   active,
-  direction,
   priority,
 }: {
   media: ExperienceMedia
   accent: string
   active: number
-  direction: number
   priority: boolean
 }) {
-  const item = media.items[active] ?? media.items[0]
   const reduce = useReducedMotion()
-  if (!item) return null
-
-  const enterX = media.kind === 'phones' ? direction * 22 : direction * 7
-  const enterY = media.kind === 'phones' ? 0 : 4
-  const duration = media.kind === 'phones' ? 0.44 : 0.34
+  const n = media.items.length
+  const phones = media.kind === 'phones'
 
   return (
     <div className={`chapter__media chapter__media--${media.kind}`}>
       <span className="chapter__media-glow" aria-hidden="true" />
       <div className="chapter__viewer">
-        <motion.div
-          key={item.src}
-          className="chapter__shot chapter__shot--base"
-          initial={reduce ? false : { opacity: 0.72, x: enterX, y: enterY, scale: 0.986, filter: 'blur(2.5px)' }}
-          animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
-          transition={reduce ? { duration: 0 } : { duration, ease: [0.22, 0.61, 0.36, 1] }}
-        >
-          <WindowFrame
-            src={item.src}
-            alt={item.alt}
-            label={item.label}
-            variant={media.kind === 'maps' ? 'browser' : 'terminal'}
-            accent={accent}
-            aspect={item.aspect}
-            tilt={false}
-            loading={priority ? 'eager' : 'lazy'}
-          />
-        </motion.div>
+        {media.items.map((item, i) => {
+          const pos = (i - active + n) % n // 0 = front
+          const front = pos === 0
+          return (
+            <motion.div
+              key={item.src}
+              className={`chapter__shot ${i === 0 ? 'chapter__shot--base' : ''} ${front ? 'is-active' : ''}`}
+              aria-hidden={!front}
+              initial={false}
+              animate={{
+                x: `${front ? 0 : pos * (phones ? 9 : 5)}%`,
+                y: `${front ? 0 : -pos * (phones ? 3 : 4.5)}%`,
+                rotate: front ? 0 : pos * (phones ? 3 : 1.6),
+                scale: front ? 1 : 1 - pos * (phones ? 0.05 : 0.04),
+                opacity: front ? 1 : pos > 2 ? 0 : Math.max(0.16, 0.42 - (pos - 1) * 0.18),
+              }}
+              transition={reduce ? { duration: 0 } : { duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              style={{ zIndex: n - pos }}
+            >
+              {phones ? (
+                <PhoneFrame
+                  src={item.src}
+                  alt={item.alt}
+                  label={item.label}
+                  accent={accent}
+                  aspect={item.aspect}
+                  loading={front && priority ? 'eager' : 'lazy'}
+                />
+              ) : (
+                <MapFrame item={item} accent={accent} priority={front && priority} />
+              )}
+            </motion.div>
+          )
+        })}
       </div>
     </div>
   )
@@ -250,13 +201,10 @@ function ChapterMediaView({
 const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, amount: 0.3, margin: '0px 0px -12% 0px' })
-  const [view, setView] = useState({ active: 0, direction: 1 })
+  const [active, setActive] = useState(0)
   const select = (i: number) => {
     if (exp.media) preloadImage(exp.media.items[i]?.src)
-    setView((current) => {
-      if (i === current.active) return current
-      return { active: i, direction: i > current.active ? 1 : -1 }
-    })
+    setActive(i)
   }
 
   useEffect(() => {
@@ -286,7 +234,6 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
         <div className="chapter__text">
           <div className="chapter__heading">
             <span className="chapter__track">{exp.track}</span>
-            {exp.status && <span className="chapter__status">● {exp.status}</span>}
           </div>
           <h3 className="chapter__company">{exp.company}</h3>
           <p className="chapter__role">{exp.role}</p>
@@ -296,14 +243,13 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
               <span key={s} className="chapter__chip">{s}</span>
             ))}
           </div>
-          {exp.media && <ChapterTabs media={exp.media} active={view.active} setActive={select} />}
+          {exp.media && <ChapterTabs media={exp.media} active={active} setActive={select} />}
         </div>
         {exp.media && (
           <ChapterMediaView
             media={exp.media}
             accent={exp.accent}
-            active={view.active}
-            direction={view.direction}
+            active={active}
             priority={inView}
           />
         )}

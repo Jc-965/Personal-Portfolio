@@ -113,7 +113,9 @@
 }
 
 .skill-card__tags {
-  padding: 0 16px 16px;
+  /* top padding gives hovered first-row tags room to lift without clipping
+     against this scroll container's edge */
+  padding: 4px 16px 16px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

@@ -2,6 +2,8 @@ import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense, useR
 import { createPortal } from 'react-dom'
 import EntryAnimation from './EntryAnimation'
 import ExitAnimation from './ExitAnimation'
+import '../../styles/sketchbook.css'
+import '../../styles/sketchbook-overrides.css'
 
 const SketchbookScene = lazy(() => import('./SketchbookScene'))
 
@@ -32,16 +34,22 @@ export default function SketchbookOverlay({
   }, [onExitAnimationDone])
 
   useLayoutEffect(() => {
+    const appRoot = document.getElementById('root')
+    const previousOverflow = document.body.style.overflow
+    const previousBodyCursor = document.body.style.cursor
+    const previousRootCursor = document.documentElement.style.cursor
     document.documentElement.classList.add('sketchbook-mode')
+    appRoot?.setAttribute('inert', '')
     document.body.style.overflow = 'hidden'
     document.body.style.setProperty('cursor', 'none', 'important')
     document.documentElement.style.setProperty('cursor', 'none', 'important')
 
     return () => {
       document.documentElement.classList.remove('sketchbook-mode')
-      document.body.style.overflow = ''
-      document.body.style.removeProperty('cursor')
-      document.documentElement.style.removeProperty('cursor')
+      appRoot?.removeAttribute('inert')
+      document.body.style.overflow = previousOverflow
+      document.body.style.cursor = previousBodyCursor
+      document.documentElement.style.cursor = previousRootCursor
     }
   }, [])
 
@@ -61,7 +69,7 @@ export default function SketchbookOverlay({
   }, [phase, onClose, isExiting])
 
   const content = (
-    <div className="sketchbook-overlay">
+    <div className="sketchbook-overlay" role="dialog" aria-modal="true" aria-label="Interactive sketchbook">
       <div className="sketchbook-overlay__paper" />
 
       {phase === 'entering' && (

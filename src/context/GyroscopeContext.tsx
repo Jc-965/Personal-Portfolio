@@ -20,6 +20,16 @@ function shouldDisableGyroOnMobile() {
   return DISABLE_GYRO_ON_MOBILE && (isMobileUa || (isTouchDevice && window.innerWidth <= 1024))
 }
 
+type DeviceOrientationPermissionConstructor = typeof DeviceOrientationEvent & {
+  requestPermission?: () => Promise<'granted' | 'denied'>
+}
+
+function supportsGyroscope() {
+  if (typeof window === 'undefined') return false
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  return 'DeviceOrientationEvent' in window && isTouchDevice && !shouldDisableGyroOnMobile()
+}
+
 export interface GyroValue {
   x: number
   y: number
@@ -39,7 +49,7 @@ const GyroscopeContext = createContext<GyroValue>({
 })
 
 export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
-  const [supported, setSupported] = useState(false)
+  const [supported] = useState(supportsGyroscope)
   const [permitted, setPermitted] = useState(false)
   const current = useRef({ x: 0, y: 0 })
   const target = useRef({ x: 0, y: 0 })
@@ -84,30 +94,21 @@ export function GyroscopeProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-attach on Android / older iOS (only on touch devices to avoid desktop laptops)
   useEffect(() => {
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-    const hasAPI = 'DeviceOrientationEvent' in window && isTouchDevice
-    const disabledOnMobile = shouldDisableGyroOnMobile()
-    setSupported(hasAPI && !disabledOnMobile)
-
-    if (disabledOnMobile) {
-      setPermitted(false)
-      current.current = { x: 0, y: 0 }
-      target.current = { x: 0, y: 0 }
-      return
-    }
-
-    if (hasAPI && !(DeviceOrientationEvent as any).requestPermission) {
-      setPermitted(true)
+    const orientation = DeviceOrientationEvent as DeviceOrientationPermissionConstructor
+    if (supported && !orientation.requestPermission) {
+      const frame = window.requestAnimationFrame(() => setPermitted(true))
       attachListeners()
+      return () => window.cancelAnimationFrame(frame)
     }
-  }, [attachListeners])
+    return undefined
+  }, [attachListeners, supported])
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!supported || shouldDisableGyroOnMobile()) return false
-    const DOE = DeviceOrientationEvent as any
-    if (typeof DOE.requestPermission === 'function') {
+    const orientation = DeviceOrientationEvent as DeviceOrientationPermissionConstructor
+    if (typeof orientation.requestPermission === 'function') {
       try {
-        const result = await DOE.requestPermission()
+        const result = await orientation.requestPermission()
         if (result === 'granted') {
           setPermitted(true)
           attachListeners()

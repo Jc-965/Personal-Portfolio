@@ -1,0 +1,114 @@
+/* ============ PhoneFrame — in-theme handheld device bezel ============ */
+
+.phone-frame {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.phone-frame__device {
+  position: relative;
+  width: 100%;
+  padding: clamp(7px, 2.6%, 11px);
+  border-radius: clamp(26px, 11%, 40px);
+  background: linear-gradient(
+    165deg,
+    rgba(38, 46, 60, 0.95),
+    rgba(12, 17, 26, 0.98) 42%,
+    rgba(5, 9, 16, 1)
+  );
+  border: 1px solid color-mix(in srgb, var(--pf-accent) 30%, rgba(255, 255, 255, 0.08));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 24px 48px -18px rgba(0, 0, 0, 0.65),
+    0 0 34px -6px color-mix(in srgb, var(--pf-accent) 28%, transparent);
+}
+
+/* side keys sit just outside the casing edge */
+.phone-frame__key {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--pf-accent) 36%, rgba(120, 132, 150, 0.5));
+}
+
+.phone-frame__key--volume {
+  left: -3px;
+  top: 24%;
+  height: 17%;
+}
+
+.phone-frame__key--power {
+  right: -3px;
+  top: 30%;
+  height: 12%;
+}
+
+.phone-frame__screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(19px, 8.4%, 30px);
+  background: #04070d;
+}
+
+.phone-frame__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.phone-frame__glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    transparent 26%,
+    transparent 78%,
+    color-mix(in srgb, var(--pf-accent) 8%, transparent) 100%
+  );
+}
+
+.phone-frame__label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pf-accent) 62%, var(--text-muted));
+  white-space: nowrap;
+}
+
+/* ---- gallery in phone mode (ParkiWell project deck) ---- */
+
+.gallery--phone .gallery__deck {
+  max-width: min(312px, 72vw);
+  margin: 0 auto;
+}
+
+/* back-of-deck screens go dark so light-mode screenshots don't ghost white */
+.gallery--phone .gallery__card:not(.is-active) {
+  filter: brightness(0.55) saturate(0.7);
+}
+
+.gallery--phone .gallery__nav--prev { left: -52px; }
+.gallery--phone .gallery__nav--next { right: -52px; }
+
+@media (max-width: 900px) {
+  .gallery--phone .gallery__nav--prev { left: -44px; }
+  .gallery--phone .gallery__nav--next { right: -44px; }
+}
+
+@media (max-width: 640px) {
+  .gallery--phone .gallery__deck {
+    max-width: min(248px, 64vw);
+  }
+
+  .gallery--phone .gallery__nav--prev { left: -40px; }
+  .gallery--phone .gallery__nav--next { right: -40px; }
+}

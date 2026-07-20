@@ -36,7 +36,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 32px;
-  border-top: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--text-muted);

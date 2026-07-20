@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ref as dbRef, get, update, increment as fbIncrement } from 'firebase/database'
-import { getFirebase } from '../../utils/firebase'
+import { storageGet, storageSet } from '../../utils/safeStorage'
 
 interface SketchCounterProps {
   className?: string
@@ -10,28 +9,33 @@ export default function SketchCounter({ className = '' }: SketchCounterProps) {
   const [count, setCount] = useState<number | null>(null)
 
   useEffect(() => {
-    const db = getFirebase()
-    if (!db) {
-      const stored = parseInt(localStorage.getItem('sketch-visitors') || '0', 10)
+    let active = true
+    const incrementLocal = () => {
+      const stored = parseInt(storageGet('sketch-visitors') || '0', 10)
       const next = stored + 1
-      localStorage.setItem('sketch-visitors', String(next))
-      setCount(next)
-      return
+      storageSet('sketch-visitors', String(next))
+      if (active) setCount(next)
     }
 
-    const counterRef = dbRef(db, 'metadata/sketchVisitors')
-    update(dbRef(db, 'metadata'), { sketchVisitors: fbIncrement(1) })
-      .then(() => get(counterRef))
-      .then(snap => {
-        const val = snap.val()
-        setCount(typeof val === 'number' ? val : 1)
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 6000)
+    fetch('/api/sketch-visit', { method: 'POST', signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('counter_unavailable')
+        return response.json() as Promise<{ count?: number }>
+      })
+      .then(result => {
+        if (active) setCount(typeof result.count === 'number' ? result.count : 1)
       })
       .catch(() => {
-        const stored = parseInt(localStorage.getItem('sketch-visitors') || '0', 10)
-        const next = stored + 1
-        localStorage.setItem('sketch-visitors', String(next))
-        setCount(next)
+        if (active) incrementLocal()
       })
+
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
   }, [])
 
   if (count === null) return null

@@ -61,4 +61,24 @@ export default tseslint.config(
       'jsx-a11y/no-static-element-interactions': 'warn',
     },
   },
+  {
+    // React Three Fiber is intentionally imperative: frame callbacks mutate
+    // Three.js uniforms/refs, and canvas interaction state is synchronized in
+    // effects. React Compiler's DOM-oriented purity rules misclassify these.
+    files: ['src/components/SketchbookTerrain/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/immutability': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'jsx-a11y/no-noninteractive-element-interactions': 'off',
+      'jsx-a11y/no-noninteractive-tabindex': 'off',
+    },
+  },
+  {
+    // This module exports the provider and its paired consumer hook by design.
+    files: ['src/context/GyroscopeContext.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )
