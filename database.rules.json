@@ -2,28 +2,11 @@
   "rules": {
     "stars": {
       ".read": true,
-      "$starId": {
-        ".write": "newData.exists() || root.child('metadata/mergeLock').exists()",
-        ".validate": "newData.hasChildren(['x', 'y', 'color', 'timestamp']) && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('x').val() <= 1 && newData.child('y').isNumber() && newData.child('y').val() >= 0 && newData.child('y').val() <= 1 && newData.child('color').isString() && newData.child('color').val().matches(/^#[0-9a-fA-F]{6}$/) && newData.child('message').isString() && newData.child('message').val().length <= 50 && ((!data.exists() && newData.child('message').val() === '') || (data.exists() && newData.child('message').val() === data.child('message').val())) && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now + 60000 && (newData.hasChild('sessionHash') || newData.hasChild('sessionId')) && (!newData.hasChild('sessionId') || (newData.child('sessionId').isString() && newData.child('sessionId').val().length <= 36)) && (!newData.hasChild('sessionHash') || (newData.child('sessionHash').isString() && newData.child('sessionHash').val().matches(/^[0-9a-f]{64}$/))) && (!data.exists() || ((data.hasChild('sessionHash') ? (newData.hasChild('sessionHash') && newData.child('sessionHash').val() === data.child('sessionHash').val()) : !newData.hasChild('sessionHash')) && (data.hasChild('sessionId') ? (newData.hasChild('sessionId') && newData.child('sessionId').val() === data.child('sessionId').val()) : !newData.hasChild('sessionId'))))"
-      }
+      ".write": false
     },
     "metadata": {
       ".read": true,
-      "totalStarsEver": {
-        ".write": true,
-        ".validate": "newData.isNumber() && newData.val() >= 0"
-      },
-      "mergeCount": {
-        ".write": true,
-        ".validate": "newData.isNumber() && newData.val() >= 0"
-      },
-      "mergeLock": {
-        ".write": true,
-        ".validate": "newData.isNumber() && newData.val() >= now - 60000 && newData.val() <= now + 60000"
-      },
-      "$other": {
-        ".validate": false
-      }
+      ".write": false
     },
     ".read": false,
     ".write": false

@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run env:validate && npm run content:generate && tsc -b && vite build && npm run bundle:check",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
-    "images:webp": "node scripts/images-to-webp.mjs"
+    "images:webp": "node scripts/images-to-webp.mjs",
+    "content:generate": "node scripts/generate-project-pages.mjs",
+    "env:validate": "node scripts/validate-env.mjs",
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:e2e": "playwright test",
+    "bundle:check": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",
@@ -28,7 +34,9 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.61.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.0",

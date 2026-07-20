@@ -2,6 +2,7 @@ import { useState, useCallback, type SVGProps } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Mail } from 'lucide-react'
 import EmailPopup from './EmailPopup'
+import portfolio from '../content/portfolio.json'
 
 type BrandIconProps = SVGProps<SVGSVGElement> & {
   size?: number
@@ -29,11 +30,11 @@ export default function Footer() {
 
   return (
     <footer className="footer">
-      <p>&copy; {new Date().getFullYear()} Jesse Chen</p>
+      <p>&copy; {new Date().getFullYear()} {portfolio.profile.name}</p>
       <div className="footer__socials" aria-label="Social links">
         <a
           className="footer__social-link"
-          href="https://github.com/Jc-965"
+          href={portfolio.profile.github}
           target="_blank"
           rel="noreferrer"
           aria-label="GitHub"
@@ -53,7 +54,7 @@ export default function Footer() {
         </button>
         <a
           className="footer__social-link"
-          href="https://www.linkedin.com/in/jessechen2/"
+          href={portfolio.profile.linkedin}
           target="_blank"
           rel="noreferrer"
           aria-label="LinkedIn"

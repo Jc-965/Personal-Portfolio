@@ -192,7 +192,7 @@ export function useTerrainDeformation({
     needsUploadRef.current = true
     hasActiveData.current = true
     lastDeformTime.current = performance.now()
-  }, [])
+  }, [getBaseHeights])
 
   const update = useCallback(() => {
     if (!hasActiveData.current) return

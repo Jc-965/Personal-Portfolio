@@ -1,7 +1,6 @@
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Analytics } from '@vercel/analytics/react'
-import LoadingScreen from './components/LoadingScreen'
 import Cursor from './components/Cursor'
 import Background from './components/Background'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -23,11 +22,11 @@ const TargetCursor = lazy(() => import('./components/TargetCursor'))
 // paint, once the main view is up.
 const ScrollProvider = lazy(() => import('./scroll/ScrollProvider'))
 
-const loadJourney = () => import('./components/Journey')
-const loadProjects = () => import('./components/Projects')
-const loadBeyondBuild = () => import('./components/BeyondBuild')
-const loadToolkit = () => import('./components/Toolkit')
-const loadConstellation = () => import('./components/Constellation')
+const Journey = lazy(() => import('./components/Journey'))
+const Projects = lazy(() => import('./components/Projects'))
+const BeyondBuild = lazy(() => import('./components/BeyondBuild'))
+const Toolkit = lazy(() => import('./components/Toolkit'))
+const Constellation = lazy(() => import('./components/Constellation'))
 
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
@@ -44,14 +43,15 @@ const SectionFallback = ({ id, className }: { id: string; className: string }) =
 )
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true)
+  const analyticsEnabled = !['localhost', '127.0.0.1'].includes(window.location.hostname)
   const [useCustomCursor, setUseCustomCursor] = useState(() => shouldUseCustomCursor())
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
-  const [hasSeenSketchbook, setHasSeenSketchbook] = useState(false)
+  const [hasSeenSketchbook, setHasSeenSketchbook] = useState(
+    () => storageGet('sketchbook-visited') === '1',
+  )
   const [showSketchbookTutorial, setShowSketchbookTutorial] = useState(false)
   const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
   const returnTimerRef = useRef<number | null>(null)
-  const onLoadingComplete = useCallback(() => setIsLoading(false), [])
 
   useEffect(() => {
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -112,11 +112,6 @@ function App() {
     }, 900)
   }, [])
 
-  useEffect(() => {
-    const seen = storageGet('sketchbook-visited') === '1'
-    setHasSeenSketchbook(seen)
-  }, [])
-
   // Native drag-and-drop (e.g. dragging an image) suppresses mousemove, which
   // freezes the custom cursor mid-drag. Cancelling dragstart keeps the pointer
   // in normal mouse-move mode so the cursor keeps following.
@@ -174,7 +169,7 @@ function App() {
   return (
     <GyroscopeProvider>
       {useCustomCursor && <Cursor />}
-      {!isLoading && useCustomCursor && (
+      {useCustomCursor && (
         <Suspense fallback={null}>
           <TargetCursor
             targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
@@ -186,16 +181,12 @@ function App() {
         </Suspense>
       )}
       <div className="vintage-overlay" />
-      <AnimatePresence mode="wait">
-        {isLoading ? (
-          <LoadingScreen key="loading" onComplete={onLoadingComplete} />
-        ) : (
-          <motion.div
-            key="main"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
+      <motion.div
+        key="main"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.35 }}
+      >
             <ErrorBoundary label="Background">
               <Background />
             </ErrorBoundary>
@@ -206,17 +197,15 @@ function App() {
             <Navbar />
             <main id="main-content">
               <Hero />
-              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" load={loadJourney} /></ErrorBoundary>
-              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" load={loadProjects} /></ErrorBoundary>
-              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" load={loadBeyondBuild} /></ErrorBoundary>
-              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" load={loadToolkit} /></ErrorBoundary>
-              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" load={loadConstellation} /></ErrorBoundary>
+              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} /></ErrorBoundary>
+              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} /></ErrorBoundary>
+              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" component={BeyondBuild} /></ErrorBoundary>
+              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" component={Toolkit} /></ErrorBoundary>
+              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} /></ErrorBoundary>
             </main>
             <Footer />
             <GyroPrompt />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </motion.div>
 
       {(sketchbookOpen || sketchbookExiting) && (
         <ErrorBoundary label="Sketchbook" fallback={null}>
@@ -230,7 +219,7 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       )}
-      <Analytics />
+      {analyticsEnabled && <Analytics />}
     </GyroscopeProvider>
   )
 }

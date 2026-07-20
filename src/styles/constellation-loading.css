@@ -153,6 +153,30 @@
   flex-wrap: wrap;
 }
 
+.constellation__place-btn {
+  border: 1px solid rgba(0, 255, 255, 0.45);
+  background: rgba(0, 255, 255, 0.1);
+  color: var(--accent-cyan);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 8px 14px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.constellation__place-btn:hover:not(:disabled),
+.constellation__place-btn:focus-visible {
+  background: rgba(0, 255, 255, 0.18);
+  border-color: var(--accent-cyan);
+}
+
+.constellation__place-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .constellation__editor {
   border: 1px solid rgba(0, 255, 255, 0.12);
   background: rgba(4, 9, 18, 0.42);

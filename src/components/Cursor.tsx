@@ -14,7 +14,6 @@ export default function Cursor() {
   const trailPool = useRef(Array.from({ length: 12 }, () => ({ x: 0, y: 0, alpha: 0 })))
   const trailHead = useRef(0)
   const trailCount = useRef(0)
-  const pulseWaves = useRef<{ x: number; y: number; radius: number; alpha: number }[]>([])
 
   useEffect(() => {
     const isTouchDevice = !shouldUseCustomCursor()
@@ -49,7 +48,6 @@ export default function Cursor() {
     const hasActiveEffects = () =>
       visible.current ||
       trailCount.current > 0 ||
-      pulseWaves.current.length > 0 ||
       clickProgress.current > 0.01 ||
       clickImpulse.current > 0.01
 
@@ -94,14 +92,9 @@ export default function Cursor() {
       trailHead.current = (trailHead.current + 1) % 12
       if (trailCount.current < 12) trailCount.current++
       for (let i = 0; i < trailCount.current; i++) {
-        pool[i].alpha *= 0.85
-      }
-
-      for (let i = pulseWaves.current.length - 1; i >= 0; i--) {
-        const pw = pulseWaves.current[i]
-        pw.radius += 3 * dt
-        pw.alpha *= 0.94
-        if (pw.alpha < 0.01) pulseWaves.current.splice(i, 1)
+        // Decay must be time-based, not frame-based: on throttled displays
+        // (low power mode) per-frame decay makes effects linger for seconds.
+        pool[i].alpha *= Math.pow(0.85, dt)
       }
 
       for (let i = 0; i < trailCount.current; i++) {
@@ -113,24 +106,8 @@ export default function Cursor() {
         ctx.fill()
       }
 
-      pulseWaves.current.forEach(pw => {
-        ctx.strokeStyle = `rgba(0, 255, 255, ${pw.alpha})`
-        ctx.lineWidth = 1.5 * pw.alpha
-        ctx.beginPath()
-        ctx.arc(pw.x, pw.y, pw.radius, 0, Math.PI * 2)
-        ctx.stroke()
-
-        if (pw.radius > 8) {
-          ctx.strokeStyle = `rgba(0, 255, 255, ${pw.alpha * 0.5})`
-          ctx.lineWidth = 0.8
-          ctx.beginPath()
-          ctx.arc(pw.x, pw.y, pw.radius * 0.6, 0, Math.PI * 2)
-          ctx.stroke()
-        }
-      })
-
-      const crossLen = (isHover ? 20 : 14) + clickVisual * 5
-      const crossGap = (isHover ? 12 : 8) + clickVisual * 2
+      const crossLen = (isHover ? 16 : 14) + clickVisual * 5
+      const crossGap = (isHover ? 10 : 8) + clickVisual * 2
       const crossAlpha = (isHover ? 0.4 : 0.2) + clickVisual * 0.15
       ctx.strokeStyle = `rgba(0, 255, 255, ${crossAlpha})`
       ctx.lineWidth = 0.8 + clickVisual * 0.6
@@ -164,7 +141,7 @@ export default function Cursor() {
       ctx.lineTo(px + crossLen + crossGap - bracketSize, py)
       ctx.stroke()
 
-      const ringRadius = (isHover ? 24 : 18) - clickProgress.current * 7 + clickImpulse.current * 4
+      const ringRadius = (isHover ? 21 : 18) - clickProgress.current * 7 + clickImpulse.current * 4
       const segments = 8
       const segmentAngle = (Math.PI * 2) / segments
       const gapRatio = 0.35
@@ -181,7 +158,7 @@ export default function Cursor() {
       ctx.stroke()
 
       if (!clicking.current) {
-        const outerRadius = isHover ? 32 : 24
+        const outerRadius = isHover ? 27 : 24
         ctx.strokeStyle = `rgba(0, 255, 255, ${isHover ? 0.2 : 0.1})`
         ctx.lineWidth = 0.6
         const outerSegments = 12
@@ -197,7 +174,7 @@ export default function Cursor() {
         ctx.stroke()
       }
 
-      const tickRadius = (isHover ? 24 : 18) + clickVisual * 2
+      const tickRadius = (isHover ? 21 : 18) + clickVisual * 2
       const tickLength = 3 + clickVisual * 1.5
       ctx.strokeStyle = `rgba(0, 255, 255, ${(isHover ? 0.3 : 0.15) + clickVisual * 0.12})`
       ctx.lineWidth = 0.5 + clickVisual * 0.35
@@ -262,10 +239,6 @@ export default function Cursor() {
     const onDown = () => {
       clicking.current = true
       clickImpulse.current = 1
-      pulseWaves.current.push({
-        x: pos.current.x, y: pos.current.y,
-        radius: 6, alpha: 0.82,
-      })
       requestTick()
     }
 

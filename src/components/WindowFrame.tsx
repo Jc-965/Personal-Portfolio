@@ -79,7 +79,6 @@ function WindowFrameShell({
             style={{ objectFit: fit }}
           />
           <span className="window-frame__scan" aria-hidden="true" />
-          <span className="window-frame__glare" aria-hidden="true" />
           {children}
         </div>
 

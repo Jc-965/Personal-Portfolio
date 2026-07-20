@@ -4,6 +4,7 @@ import DecryptedText from './DecryptedText'
 import Magnet from './Magnet'
 import useIsPhone from '../hooks/useIsPhone'
 import { useGyroscope } from '../context/GyroscopeContext'
+import portfolio from '../content/portfolio.json'
 
 // Lazy so the Three.js bundle isn't pulled into the eager hero chunk. The
 // parent .hero__title-line--ascii reserves a fixed height, so the null
@@ -88,7 +89,7 @@ export default function Hero() {
         >
           <span className="hero__prompt">&gt; </span>
           <DecryptedText
-            text="Jesse Chen // Carnegie Mellon SCS"
+            text={portfolio.profile.eyebrow}
             speed={18}
             sequential
             revealDirection="start"
@@ -101,7 +102,7 @@ export default function Hero() {
         </motion.p>
 
         <h1 className="hero__title-sr">
-          Building technology that solves real problems for real people
+          {portfolio.profile.headline}
         </h1>
 
         <div ref={titleRef} className="hero__title hero__title--centered" aria-hidden="true">
@@ -137,8 +138,7 @@ export default function Hero() {
           animate={showContent ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.65 }}
         >
-          First-year CS student at Carnegie Mellon focused on developing
-          technology that addresses meaningful challenges.
+          {portfolio.profile.description}
         </motion.p>
 
         <motion.div

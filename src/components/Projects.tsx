@@ -9,6 +9,7 @@ import {
 } from 'framer-motion'
 import MediaGallery from './MediaGallery'
 import useCardTilt from '../hooks/useCardTilt'
+import portfolio from '../content/portfolio.json'
 
 interface ProjectImage {
   src: string
@@ -35,116 +36,13 @@ interface Project {
   kind: 'media' | 'code'
   images?: ProjectImage[]
   imageVariant?: 'browser' | 'terminal'
+  frame?: 'window' | 'phone'
   terminal?: string[]
 }
 
-// Interleaved media / code so the rhythm alternates as you scroll.
-const projects: Project[] = [
-  {
-    id: 'agoriai',
-    name: 'Agoriai',
-    tag: 'Full-stack · Social platform · Tartan Hacks 2026',
-    accent: '#4c8bff',
-    accentRgb: '76, 139, 255',
-    kind: 'media',
-    lead: 'An anonymous student career network built in one TartanHacks weekend: a REST API over Drizzle/PostgreSQL with school-email auth, SHA-256-hashed bearer sessions, and a typed React 19 client.',
-    bullets: [
-      'Safeguarded anonymity with server-enforced 4-tier identity privacy: alias generation, per-request visibility filtering, and evasion-resistant moderation (leetspeak normalization, edit-distance fuzzy matching).',
-      'Powered exploration with transactional voting, recursive threaded discussions, and an interactive D3 force-directed student–company graph.',
-    ],
-    tech: ['React 19', 'TypeScript', 'D3', 'Drizzle', 'PostgreSQL', 'SHA-256'],
-    stats: [
-      { label: 'EVENT', value: 'TARTANHACKS 2026' },
-      { label: 'PRIVACY', value: '4-TIER' },
-      { label: 'GRAPH', value: 'D3 FORCE' },
-    ],
-    imageVariant: 'browser',
-    images: [
-      { src: '/Agoriai/nexus.webp', label: 'agoriai.app / nexus', alt: 'Agoriai Nexus relationship graph', aspect: '1600 / 904' },
-      { src: '/Agoriai/dashboard.webp', label: 'agoriai.app / dashboard', alt: 'Agoriai dashboard overview', aspect: '1600 / 904' },
-      { src: '/Agoriai/feed.webp', label: 'agoriai.app / feed', alt: 'Agoriai anonymous Q&A feed', aspect: '1600 / 904' },
-      { src: '/Agoriai/connection.webp', label: 'agoriai.app / profile', alt: 'Agoriai profile and connections', aspect: '1600 / 904' },
-    ],
-  },
-  {
-    id: 'levio',
-    name: 'Levio',
-    tag: 'Mobile health · Cross-platform',
-    accent: '#6aa5af',
-    accentRgb: '106, 165, 175',
-    kind: 'code',
-    lead: "An offline-first Flutter care platform for Parkinson's patients: symptom tracking, medication schedules, guided LSVT/PWR! therapy, and a crisis-screening community that stays fully usable through total connectivity loss via versioned snapshot sync.",
-    bullets: [
-      'Ran production release engineering solo: row-level security on every Supabase/PostgreSQL table, tamper-proof RPC counters, and anonymous-to-OAuth bootstrap.',
-      'Shipped signed iOS and Android builds through multi-environment GitHub Actions CI/CD.',
-    ],
-    tech: ['Flutter', 'Dart', 'Supabase', 'PostgreSQL (RLS)', 'GitHub Actions CI/CD'],
-    stats: [
-      { label: 'ARCH', value: 'OFFLINE-FIRST' },
-      { label: 'SECURITY', value: 'ROW-LEVEL' },
-      { label: 'PIPELINE', value: 'CI/CD' },
-    ],
-    terminal: [
-      'flutter build ios --release',
-      'supabase ▸ row-level security enforced',
-      'snapshot sync ▸ offline cache restored',
-      'ci/cd ▸ signed ios + android shipped',
-      'levio ▸ ready for care',
-    ],
-  },
-  {
-    id: 'tarocchi',
-    name: 'Tarocchi',
-    tag: 'Interactive web · Creative systems',
-    accent: '#9c7fae',
-    accentRgb: '156, 127, 174',
-    kind: 'media',
-    lead: 'An interactive narrative web experience with 24 branching story paths and a replayable, state-driven progression model.',
-    bullets: [
-      'Route logic and scene transitions in React/TypeScript keep branching flows coherent as narrative complexity grows.',
-      'Framer Motion, parallax systems, and synchronized audio deliver a cinematic, high-immersion presentation pipeline.',
-    ],
-    tech: ['React & Vite', 'TypeScript', 'Tailwind CSS', 'Framer Motion'],
-    stats: [
-      { label: 'PATHS', value: '24' },
-      { label: 'EFFECTS', value: 'PARALLAX' },
-      { label: 'AUDIO', value: 'IMMERSIVE' },
-    ],
-    imageVariant: 'browser',
-    images: [
-      { src: '/Tarocchi/tarocchi-1.webp', label: 'tarocchi / oracle', alt: 'Tarocchi pixel-art oracle prompt', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-2.webp', label: 'tarocchi / countryside', alt: 'Tarocchi countryside branch scene', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-8.webp', label: 'tarocchi / spread', alt: 'Tarocchi three-card reading spread', aspect: '1600 / 1039' },
-      { src: '/Tarocchi/tarocchi-6.webp', label: 'tarocchi / city', alt: 'Tarocchi night-city branch scene', aspect: '1600 / 1039' },
-    ],
-  },
-  {
-    id: 'mycommunity',
-    name: 'MyCommunity',
-    tag: 'Android · Civic tech',
-    accent: '#b38e5d',
-    accentRgb: '179, 142, 93',
-    kind: 'code',
-    lead: 'A native Java Android platform for live Boy Scouts troop discovery, binding Google Maps markers to real-time Firebase listeners with runtime location permissions and Google Sign-In.',
-    bullets: [
-      'Validated profile CRUD over Firebase with runtime location permissions and Google Sign-In auth.',
-      'Streamed an async NYT API community feed using OkHttp, Gson, and Glide for fast on-device browsing.',
-    ],
-    tech: ['Java', 'Android', 'Google Maps', 'Firebase', 'OkHttp/Gson/Glide'],
-    stats: [
-      { label: 'PLATFORM', value: 'ANDROID' },
-      { label: 'DATA', value: 'FIREBASE RT' },
-      { label: 'MAP', value: 'GEOSPATIAL' },
-    ],
-    terminal: [
-      'gradle assembleRelease',
-      'firebase ▸ realtime troop listeners live',
-      'maps ▸ markers bound to location',
-      'nyt api ▸ feed cached via glide',
-      'mycommunity ▸ discover nearby',
-    ],
-  },
-]
+// Interleaved media / code so the rhythm alternates as you scroll. The same
+// source also generates the static case-study pages and sitemap.
+const projects = portfolio.projects as unknown as Project[]
 
 const copyContainer: Variants = {
   hidden: {},
@@ -242,6 +140,7 @@ const ProjectScene = memo(function ProjectScene({
               images={project.images ?? []}
               accent={project.accent}
               defaultVariant={project.imageVariant}
+              frame={project.frame}
               side={side}
               priority={index === 0}
             />

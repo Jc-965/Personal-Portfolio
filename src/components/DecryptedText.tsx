@@ -53,6 +53,8 @@ export default function DecryptedText({
   const [hasAnimated, setHasAnimated] = useState(false)
   const containerRef = useRef<HTMLSpanElement>(null)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- This effect is the animation
+     controller: interaction deliberately resets scrambling state before timers run. */
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>
     let currentIteration = 0
@@ -179,6 +181,7 @@ export default function DecryptedText({
     text,
     useOriginalCharsOnly,
   ])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (animateOn !== 'view' && animateOn !== 'both') return

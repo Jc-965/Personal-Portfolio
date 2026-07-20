@@ -89,10 +89,21 @@ async function getAccessToken(config) {
 }
 
 export async function firebaseRest(path, init = {}) {
+  const response = await firebaseRequest(path, init)
+
+  if (response.status === 204) return null
+  return response.json()
+}
+
+async function firebaseRequest(path, init = {}) {
   const config = getFirebaseConfig()
   const accessToken = await getAccessToken(config)
+  const timeoutSignal = typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(10000)
+    : undefined
   const response = await fetch(`${config.databaseUrl}/${path}.json`, {
     ...init,
+    signal: init.signal || timeoutSignal,
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
@@ -105,6 +116,40 @@ export async function firebaseRest(path, init = {}) {
     throw new Error(`firebase_rest_failed:${response.status}:${text}`)
   }
 
-  if (response.status === 204) return null
-  return response.json()
+  return response
+}
+
+export async function firebaseRestWithEtag(path) {
+  const response = await firebaseRequest(path, {
+    headers: { 'X-Firebase-ETag': 'true' },
+  })
+  return {
+    data: await response.json(),
+    etag: response.headers.get('etag'),
+  }
+}
+
+export async function firebaseConditionalPut(path, value, etag) {
+  const config = getFirebaseConfig()
+  const accessToken = await getAccessToken(config)
+  const timeoutSignal = typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(10000)
+    : undefined
+  const response = await fetch(`${config.databaseUrl}/${path}.json`, {
+    method: 'PUT',
+    signal: timeoutSignal,
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'If-Match': etag || 'null_etag',
+    },
+    body: JSON.stringify(value),
+  })
+
+  if (response.status === 412) return false
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`firebase_conditional_put_failed:${response.status}:${text}`)
+  }
+  return true
 }

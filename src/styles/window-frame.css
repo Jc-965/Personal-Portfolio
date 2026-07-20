@@ -140,28 +140,6 @@
   opacity: 0.32;
 }
 
-/* moving diagonal sheen */
-.window-frame__glare {
-  position: absolute;
-  inset: -20% -60%;
-  pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 38%,
-    color-mix(in srgb, var(--wf-accent) 16%, transparent) 48%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 62%
-  );
-  transform: translateX(-30%);
-  opacity: 0;
-  transition: opacity 0.5s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.window-frame:hover .window-frame__glare {
-  opacity: 1;
-  transform: translateX(30%);
-}
-
 /* --- corner brackets --- */
 .window-frame__corner {
   position: absolute;
@@ -180,7 +158,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .window-frame__tilt { transition: none; }
-  .window-frame__glare { display: none; }
 }
 
 /* ============================================================================

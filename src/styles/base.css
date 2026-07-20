@@ -768,6 +768,32 @@ img {
   flex-wrap: wrap;
 }
 
+.hero__quick-link {
+  align-self: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-underline-offset: 4px;
+  transition: color 0.2s ease;
+}
+
+.hero__quick-link:hover,
+.hero__quick-link:focus-visible {
+  color: var(--accent-cyan);
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 .btn {
   font-family: var(--font-mono);
   font-size: 0.85rem;

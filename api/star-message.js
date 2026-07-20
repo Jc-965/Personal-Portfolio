@@ -1,32 +1,16 @@
-import crypto from 'node:crypto'
-import { firebaseRest } from './_firebaseRest.js'
+import { firebaseConditionalPut, firebaseRestWithEtag } from './_firebaseRest.js'
 import {
   MAX_STAR_MESSAGE_LENGTH,
   isAllowedStarMessage,
   readJson,
 } from './_starModeration.js'
 import { guardApiRequest } from './_security.js'
+import {
+  MAX_SESSION_SECRET_LENGTH,
+  ownsStar,
+} from './_starIdentity.js'
 
 const FIREBASE_KEY_PATTERN = /^[A-Za-z0-9_-]{1,160}$/
-// Matches the session-secret length ceiling enforced by the database rules.
-const MAX_SESSION_ID_LENGTH = 36
-
-// Ownership proof: the client keeps the raw session secret and only ever
-// stores its SHA-256 hash on the star, so a world-readable star row can't be
-// used to forge edits. Legacy stars (raw sessionId) fall back to a direct
-// compare until they age out through merges.
-function ownsStar(star, sessionSecret) {
-  if (typeof star.sessionHash === 'string' && star.sessionHash) {
-    const hash = crypto.createHash('sha256').update(sessionSecret).digest('hex')
-    if (hash.length !== star.sessionHash.length) return false
-    return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(star.sessionHash))
-  }
-  if (typeof star.sessionId === 'string' && star.sessionId) {
-    return star.sessionId === sessionSecret
-  }
-  return false
-}
-
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST')
@@ -58,7 +42,7 @@ export default async function handler(request, response) {
     : (typeof body.sessionId === 'string' ? body.sessionId : '')
   const message = typeof body.message === 'string' ? body.message.trim() : ''
 
-  if (!FIREBASE_KEY_PATTERN.test(starKey) || !sessionSecret || sessionSecret.length > MAX_SESSION_ID_LENGTH) {
+  if (!FIREBASE_KEY_PATTERN.test(starKey) || !sessionSecret || sessionSecret.length > MAX_SESSION_SECRET_LENGTH) {
     return response.status(400).json({ saved: false, allowed: false, checked: false, error: 'invalid_star' })
   }
 
@@ -71,8 +55,11 @@ export default async function handler(request, response) {
   }
 
   let star
+  let starEtag
   try {
-    star = await firebaseRest(`stars/${starKey}`)
+    const result = await firebaseRestWithEtag(`stars/${starKey}`)
+    star = result.data
+    starEtag = result.etag
   } catch (error) {
     console.error('Star message read failed:', error)
     return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
@@ -87,10 +74,14 @@ export default async function handler(request, response) {
   }
 
   try {
-    await firebaseRest(`stars/${starKey}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ message }),
-    })
+    const updated = await firebaseConditionalPut(
+      `stars/${starKey}`,
+      { ...star, message },
+      starEtag,
+    )
+    if (!updated) {
+      return response.status(409).json({ saved: false, allowed: true, checked: true, error: 'star_changed' })
+    }
   } catch (error) {
     console.error('Star message write failed:', error)
     return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
