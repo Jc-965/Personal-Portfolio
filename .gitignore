@@ -66,3 +66,4 @@ output/
 # Local-only files: personal résumé data dump + internal dev journal (not used by the app)
 profile.json
 progress.md
+/public/Jesse_Chen_Resume.pdf
