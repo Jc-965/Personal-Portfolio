@@ -32,7 +32,7 @@ export default async function handler(request, response) {
 
   const action = typeof body.action === 'string' ? body.action : 'invalid'
   const rateLimit = action === 'update'
-    ? { route: 'star-update', limit: 600 }
+    ? { route: 'star-update', limit: 900 }
     : action === 'create'
       ? { route: 'star-create', limit: 20 }
       : { route: 'star-invalid', limit: 40 }

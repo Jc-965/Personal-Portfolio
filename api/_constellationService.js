@@ -121,9 +121,30 @@ export async function createConstellationStar({ sessionSecret, x, y, color, visi
   return { key, star }
 }
 
+function isPositionOnlyPatch(patch) {
+  const keys = Object.keys(patch)
+  return keys.length > 0 && keys.every(key => key === 'x' || key === 'y')
+}
+
 export async function updateConstellationStar({ starKey, sessionSecret, patch }) {
-  // Position streams can overlap a color or message edit. Re-read and retry a
-  // short-lived ETag conflict so independent edits remain intact.
+  // Dragging streams coordinates several times a second, so the position path
+  // verifies ownership once and then PATCHes only x/y. A read-modify-write of
+  // the whole star would both cost an extra round trip on every frame of the
+  // drag and race a concurrent color or message edit into being overwritten.
+  if (isPositionOnlyPatch(patch)) {
+    const star = await firebaseRest(`stars/${starKey}`)
+    if (!star) return { status: 'not_found' }
+    if (star.isMega || !ownsStar(star, sessionSecret)) return { status: 'forbidden' }
+
+    await firebaseRest(`stars/${starKey}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    })
+    return { status: 'updated' }
+  }
+
+  // Color edits still need read-modify-write, so retry a short-lived ETag
+  // conflict caused by an overlapping position write.
   for (let attempt = 0; attempt < 3; attempt++) {
     const { data: star, etag } = await firebaseRestWithEtag(`stars/${starKey}`)
     if (!star) return { status: 'not_found' }

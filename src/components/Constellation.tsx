@@ -15,9 +15,6 @@ interface Star {
   color: string
   message: string
   timestamp: number
-  // The raw secret is sent only to protected write endpoints and is never
-  // persisted in the world-readable database.
-  sessionHash?: string
   key?: string
   visitId?: string
   isMega?: boolean
@@ -32,6 +29,7 @@ type StarMotion = {
   toX: number
   toY: number
   startedAt: number
+  duration: number
 }
 
 const COLORS = [
@@ -46,8 +44,15 @@ const MERGE_THRESHOLD = 250
 const MEGA_STAR_COUNT = 10
 const VISIT_STAR_MARGIN = 0.08
 const CONNECTION_STALL_TIMEOUT_MS = 8000
-const POSITION_SYNC_INTERVAL_MS = 125
-const REMOTE_MOVE_DURATION_MS = 220
+// Streams roughly 12 positions a second while dragging. The in-flight guard in
+// drainPositionSync keeps the real rate at whatever the round trip allows, so
+// this only stops a fast connection from outrunning the API rate limit.
+const POSITION_SYNC_INTERVAL_MS = 80
+// Remote moves are tweened over the gap between the updates that produced them,
+// clamped so a first hop or a long pause still reads as motion rather than a
+// teleport or a crawl.
+const REMOTE_MOVE_MIN_MS = 90
+const REMOTE_MOVE_MAX_MS = 320
 const CACHE_WRITE_DELAY_MS = 500
 
 function createId(prefix: string): string {
@@ -85,6 +90,39 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
+function parseFiniteNumber(value: unknown): number | null {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+/**
+ * Stars now arrive one child at a time from Firebase and from the local cache,
+ * so every entry is normalized at the boundary. A star missing coordinates or a
+ * color would otherwise throw inside the canvas gradient and blank the sky.
+ */
+function normalizeStar(key: string | undefined, raw: unknown): Star | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = raw as Partial<Star>
+  const x = parseFiniteNumber(value.x)
+  const y = parseFiniteNumber(value.y)
+  if (x == null || y == null) return null
+
+  const mergedCount = parseFiniteNumber(value.mergedCount)
+  const star: Star = {
+    x: clamp01(x),
+    y: clamp01(y),
+    color: typeof value.color === 'string' && value.color ? value.color : COLORS[0].value,
+    message: typeof value.message === 'string' ? value.message : '',
+    timestamp: parseFiniteNumber(value.timestamp) ?? 0,
+    isMega: value.isMega === true,
+  }
+  if (key) star.key = key
+  else if (typeof value.key === 'string') star.key = value.key
+  if (typeof value.visitId === 'string') star.visitId = value.visitId
+  if (mergedCount != null) star.mergedCount = mergedCount
+  return star
+}
+
 function isVisitStar(star: Star, visitStar: Star | null): boolean {
   if (!visitStar) return false
   if (visitStar.key != null && star.key != null) return star.key === visitStar.key
@@ -105,33 +143,15 @@ function getVisitStar(stars: Star[], visitStarHint: Star | null = null): Star | 
   )
 }
 
-function getDerivedStarStats(stars: Star[]) {
-  let regularCount = 0
-  let totalCount = 0
-
-  stars.forEach(star => {
-    if (star.isMega) {
-      totalCount += star.mergedCount || 1
-    } else {
-      regularCount++
-      totalCount++
-    }
-  })
-
-  const mergeCount = stars.some(star => star.isMega)
-    ? Math.max(1, Math.floor(totalCount / MERGE_THRESHOLD))
-    : 0
-
-  return {
-    regularCount,
-    totalCount,
-    mergeCount,
-  }
+function getStarTotalWeight(star: Star): number {
+  return star.isMega ? Math.max(1, star.mergedCount || 1) : 1
 }
 
-function parseFiniteNumber(value: unknown): number | null {
-  const numberValue = Number(value)
-  return Number.isFinite(numberValue) ? numberValue : null
+// Only used until the metadata node reports the authoritative count.
+function getFallbackMergeCount(stars: Star[], totalCount: number): number {
+  return stars.some(star => star.isMega)
+    ? Math.max(1, Math.floor(totalCount / MERGE_THRESHOLD))
+    : 0
 }
 
 function getDisplayedTotal(derivedTotal: number, metadataTotal: number | null): number {
@@ -139,7 +159,7 @@ function getDisplayedTotal(derivedTotal: number, metadataTotal: number | null): 
 }
 
 function getMotionPosition(motion: StarMotion, now: number) {
-  const progress = Math.min(1, Math.max(0, (now - motion.startedAt) / REMOTE_MOVE_DURATION_MS))
+  const progress = Math.min(1, Math.max(0, (now - motion.startedAt) / motion.duration))
   // Smoothstep prevents abrupt starts and stops when remote drag updates land.
   const eased = progress * progress * (3 - 2 * progress)
   return {
@@ -153,7 +173,16 @@ export default function Constellation() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const messageInputRef = useRef<HTMLInputElement>(null)
   const starsRef = useRef<Star[]>([])
+  // Key -> position in starsRef, so a remote move is an O(1) in-place swap
+  // instead of a rebuild of the whole sky.
+  const starIndexRef = useRef(new Map<string, number>())
+  const liveStarKeysRef = useRef(new Set<string>())
+  const regularCountRef = useRef(0)
+  const totalCountRef = useRef(0)
+  const messagesDirtyRef = useRef(true)
+  const derivedSyncScheduledRef = useRef(false)
   const currentVisitStarRef = useRef<Star | null>(null)
   const hoveredRef = useRef<Star | null>(null)
   const tooltipTimeout = useRef<number | null>(null)
@@ -165,12 +194,14 @@ export default function Constellation() {
   const positionSyncDrainRef = useRef<() => void>(() => undefined)
   const pendingVisitPatchRef = useRef<EditableStarPatch>({})
   const starMotionsRef = useRef(new Map<string, StarMotion>())
+  const remoteUpdateAtRef = useRef(new Map<string, number>())
   const drawRequestRef = useRef<number | null>(null)
   const cacheWriteTimeoutRef = useRef<number | null>(null)
   const pendingCacheRef = useRef<{ stars: Star[]; total: number } | null>(null)
   const [selectedColor, setSelectedColor] = useState('#00ffff')
   const [message, setMessage] = useState('')
-  const [messageSubmitted, setMessageSubmitted] = useState(false)
+  const [isEditingMessage, setIsEditingMessage] = useState(false)
+  const [hasSavedMessage, setHasSavedMessage] = useState(false)
   const [totalStarsEver, setTotalStarsEver] = useState(0)
   const [starsSinceMerge, setStarsSinceMerge] = useState(0)
   const [mergeCount, setMergeCount] = useState(0)
@@ -196,6 +227,11 @@ export default function Constellation() {
   // (e.g. deep links to #constellation) and the header never crosses the
   // threshold.
   const skyInView = useInView(containerRef, { once: true })
+
+  // The visit star is placed (and counted) the moment the page loads, so the
+  // caption field is a read-only summary of an existing star until the visitor
+  // asks to edit it.
+  const isMessageLocked = !isEditingMessage
 
   const syncAccessibleMessages = useCallback((stars: Star[]) => {
     const nextMessages = stars
@@ -418,11 +454,150 @@ export default function Constellation() {
     setTotalStarsEver(getDisplayedTotal(derivedTotal, metadataTotalRef.current))
   }, [])
 
+  /* ------------------------------------------------------------------ */
+  /* Star list bookkeeping                                              */
+  /* ------------------------------------------------------------------ */
+
+  const reindexStars = useCallback(() => {
+    const index = starIndexRef.current
+    index.clear()
+    starsRef.current.forEach((star, position) => {
+      if (star.key) index.set(star.key, position)
+    })
+  }, [])
+
+  const applyStarCountDelta = useCallback((star: Star, sign: 1 | -1) => {
+    if (star.isMega) {
+      totalCountRef.current = Math.max(0, totalCountRef.current + sign * getStarTotalWeight(star))
+      return
+    }
+    regularCountRef.current = Math.max(0, regularCountRef.current + sign)
+    totalCountRef.current = Math.max(0, totalCountRef.current + sign)
+  }, [])
+
+  const replaceStarList = useCallback((list: Star[]) => {
+    starsRef.current = list
+    reindexStars()
+    let regular = 0
+    let total = 0
+    list.forEach(star => {
+      if (!star.isMega) regular++
+      total += getStarTotalWeight(star)
+    })
+    regularCountRef.current = regular
+    totalCountRef.current = total
+    messagesDirtyRef.current = true
+  }, [reindexStars])
+
+  const insertStar = useCallback((star: Star) => {
+    if (star.key) starIndexRef.current.set(star.key, starsRef.current.length)
+    starsRef.current.push(star)
+    applyStarCountDelta(star, 1)
+    if (star.message) messagesDirtyRef.current = true
+  }, [applyStarCountDelta])
+
+  const replaceStarAt = useCallback((position: number, star: Star): Star | null => {
+    const previous = starsRef.current[position]
+    if (!previous) return null
+    starsRef.current[position] = star
+    if (star.key) starIndexRef.current.set(star.key, position)
+    applyStarCountDelta(previous, -1)
+    applyStarCountDelta(star, 1)
+    if (
+      previous.message !== star.message ||
+      previous.isMega !== star.isMega ||
+      previous.mergedCount !== star.mergedCount
+    ) {
+      messagesDirtyRef.current = true
+    }
+    return previous
+  }, [applyStarCountDelta])
+
+  const removeStarAt = useCallback((position: number): Star | null => {
+    const [removed] = starsRef.current.splice(position, 1)
+    reindexStars()
+    if (!removed) return null
+    applyStarCountDelta(removed, -1)
+    if (removed.message) messagesDirtyRef.current = true
+    if (removed.key) {
+      starMotionsRef.current.delete(removed.key)
+      remoteUpdateAtRef.current.delete(removed.key)
+    }
+    return removed
+  }, [applyStarCountDelta, reindexStars])
+
+  const findStarPosition = useCallback((star: Star): number => {
+    if (star.key) {
+      const position = starIndexRef.current.get(star.key)
+      if (position !== undefined) return position
+    }
+    return starsRef.current.indexOf(star)
+  }, [])
+
+  const flushDerivedState = useCallback(() => {
+    derivedSyncScheduledRef.current = false
+    setStarsSinceMerge(regularCountRef.current)
+    updateDisplayedTotal(totalCountRef.current)
+    if (messagesDirtyRef.current) {
+      messagesDirtyRef.current = false
+      syncAccessibleMessages(starsRef.current)
+    }
+    scheduleCachedSnapshot(
+      starsRef.current,
+      getDisplayedTotal(totalCountRef.current, metadataTotalRef.current),
+    )
+  }, [scheduleCachedSnapshot, syncAccessibleMessages, updateDisplayedTotal])
+
+  // Firebase delivers a burst of child events for a single server update (a
+  // merge rewrites the whole sky), so the counters and the screen-reader list
+  // settle once per batch instead of once per star.
+  const scheduleDerivedSync = useCallback(() => {
+    if (derivedSyncScheduledRef.current) return
+    derivedSyncScheduledRef.current = true
+    queueMicrotask(flushDerivedState)
+  }, [flushDerivedState])
+
+  const startRemoteMotion = useCallback((key: string, previous: Star, next: Star) => {
+    const now = performance.now()
+    const lastUpdateAt = remoteUpdateAtRef.current.get(key)
+    remoteUpdateAtRef.current.set(key, now)
+    const gap = lastUpdateAt == null ? REMOTE_MOVE_MAX_MS : now - lastUpdateAt
+    const duration = Math.min(REMOTE_MOVE_MAX_MS, Math.max(REMOTE_MOVE_MIN_MS, gap))
+    const activeMotion = starMotionsRef.current.get(key)
+    const from = activeMotion
+      ? getMotionPosition(activeMotion, now)
+      : { x: previous.x, y: previous.y }
+    starMotionsRef.current.set(key, {
+      fromX: from.x,
+      fromY: from.y,
+      toX: next.x,
+      toY: next.y,
+      startedAt: now,
+      duration,
+    })
+  }, [])
+
+  const dropOptimisticVisitStar = useCallback(() => {
+    const position = starsRef.current.findIndex(
+      star => !star.key && star.visitId === PAGE_VISIT_ID,
+    )
+    if (position >= 0) removeStarAt(position)
+  }, [removeStarAt])
+
   const loadLocalState = useCallback(() => {
     const saved = storageGet('constellation-stars')
     let stars: Star[] = []
     if (saved) {
-      try { stars = JSON.parse(saved) } catch { stars = [] }
+      try {
+        const parsed = JSON.parse(saved) as unknown
+        if (Array.isArray(parsed)) {
+          stars = parsed
+            .map(entry => normalizeStar(undefined, entry))
+            .filter((star): star is Star => star !== null)
+        }
+      } catch {
+        stars = []
+      }
     }
     // Keep this page's optimistic visit star — it exists only in memory when
     // the Firebase write never settled (stalled connection).
@@ -430,33 +605,31 @@ export default function Constellation() {
     if (pendingVisitStar && !getVisitStar(stars, pendingVisitStar)) {
       stars = [...stars, pendingVisitStar]
     }
-    starsRef.current = stars
-    currentVisitStarRef.current = getVisitStar(stars, currentVisitStarRef.current)
+    replaceStarList(stars)
+    currentVisitStarRef.current = getVisitStar(starsRef.current, currentVisitStarRef.current)
     setHasVisitStar(Boolean(currentVisitStarRef.current))
-    syncAccessibleMessages(stars)
+    syncAccessibleMessages(starsRef.current)
+    messagesDirtyRef.current = false
 
-    const derivedStats = getDerivedStarStats(stars)
-    derivedTotalRef.current = derivedStats.totalCount
-    setStarsSinceMerge(derivedStats.regularCount)
+    setStarsSinceMerge(regularCountRef.current)
+    derivedTotalRef.current = totalCountRef.current
 
     const savedTotal = storageGet('constellation-totalStarsEver')
     const savedTotalNumber = savedTotal == null ? null : parseFiniteNumber(savedTotal)
-    const displayTotal = getDisplayedTotal(derivedStats.totalCount, savedTotalNumber)
-    if (savedTotalNumber != null) {
-      setTotalStarsEver(displayTotal)
-      if (displayTotal > savedTotalNumber) {
-        storageSet('constellation-totalStarsEver', String(displayTotal))
-      }
-    } else {
-      setTotalStarsEver(displayTotal)
+    const displayTotal = getDisplayedTotal(totalCountRef.current, savedTotalNumber)
+    setTotalStarsEver(displayTotal)
+    if (savedTotalNumber == null || displayTotal > savedTotalNumber) {
       storageSet('constellation-totalStarsEver', String(displayTotal))
     }
 
+    const fallbackMergeCount = getFallbackMergeCount(starsRef.current, totalCountRef.current)
     const savedMergeCount = storageGet('constellation-mergeCount')
-    setMergeCount(savedMergeCount != null ? (parseFiniteNumber(savedMergeCount) ?? derivedStats.mergeCount) : derivedStats.mergeCount)
+    setMergeCount(savedMergeCount != null
+      ? (parseFiniteNumber(savedMergeCount) ?? fallbackMergeCount)
+      : fallbackMergeCount)
 
     requestDraw()
-  }, [requestDraw, syncAccessibleMessages])
+  }, [replaceStarList, requestDraw, syncAccessibleMessages])
 
   const activateLocalFallback = useCallback(() => {
     if (localFallbackRef.current) return
@@ -468,7 +641,7 @@ export default function Constellation() {
 
   // A failed write endpoint doesn't mean the sky is offline — reads may still
   // be live. Keep the view live and let the visitor's star ride along in
-  // memory; the snapshot handler preserves it via its visitId.
+  // memory; the realtime handlers preserve it via its visitId.
   const addPendingVisitStar = useCallback((star: Star) => {
     const existingStar = getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (existingStar) {
@@ -478,13 +651,11 @@ export default function Constellation() {
     }
 
     currentVisitStarRef.current = star
-    starsRef.current = [...starsRef.current, star]
+    insertStar(star)
     setHasVisitStar(true)
-    const derivedStats = getDerivedStarStats(starsRef.current)
-    setStarsSinceMerge(derivedStats.regularCount)
-    updateDisplayedTotal(derivedStats.totalCount)
+    scheduleDerivedSync()
     requestDraw()
-  }, [requestDraw, updateDisplayedTotal])
+  }, [insertStar, requestDraw, scheduleDerivedSync])
 
   const applyVisitStarPatchLocally = useCallback((patch: EditableStarPatch) => {
     const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
@@ -495,34 +666,25 @@ export default function Constellation() {
       ...patch,
     }
 
-    let updatedStar: Star | null = null
-    let foundStar = false
-
-    starsRef.current = starsRef.current.map(star => {
-      const isTarget = isVisitStar(star, targetStar)
-      if (!isTarget) return star
-
-      foundStar = true
-      updatedStar = { ...star, ...patch }
-      return updatedStar
-    })
-
-    if (!foundStar) {
+    const position = findStarPosition(targetStar)
+    let updatedStar: Star
+    if (position >= 0 && starsRef.current[position]) {
+      updatedStar = { ...starsRef.current[position], ...patch }
+      replaceStarAt(position, updatedStar)
+    } else {
       updatedStar = { ...targetStar, ...patch }
-      starsRef.current = [...starsRef.current, updatedStar]
+      insertStar(updatedStar)
+      setHasVisitStar(true)
     }
 
     currentVisitStarRef.current = updatedStar
-    if (!foundStar) setHasVisitStar(true)
     if (localFallbackRef.current) {
       storageSet('constellation-stars', JSON.stringify(starsRef.current))
     }
-    if (Object.prototype.hasOwnProperty.call(patch, 'message')) {
-      syncAccessibleMessages(starsRef.current)
-    }
+    scheduleDerivedSync()
     requestDraw()
     return updatedStar
-  }, [requestDraw, syncAccessibleMessages])
+  }, [findStarPosition, insertStar, replaceStarAt, requestDraw, scheduleDerivedSync])
 
   const persistVisitStarPatch = useCallback((patch: ConstellationStarPatch) => {
     const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
@@ -541,6 +703,99 @@ export default function Constellation() {
       applyVisitStarPatchLocally(patch)
     }
   }, [applyVisitStarPatchLocally])
+
+  /* ------------------------------------------------------------------ */
+  /* Realtime handlers                                                  */
+  /* ------------------------------------------------------------------ */
+
+  const upsertRemoteStar = useCallback((key: string, raw: unknown) => {
+    const incoming = normalizeStar(key, raw)
+    if (!incoming) return
+    liveStarKeysRef.current.add(key)
+
+    const isOwnStar = incoming.visitId === PAGE_VISIT_ID
+    let next = incoming
+
+    if (isOwnStar) {
+      // Local edits the server hasn't echoed yet must survive the round trip,
+      // or a drag snaps backwards each time an older write lands.
+      const pendingPatch = pendingVisitPatchRef.current
+      const unresolvedPatch: EditableStarPatch = {}
+      const reconciled = { ...incoming }
+
+      if (pendingPatch.x !== undefined && pendingPatch.x !== incoming.x) {
+        unresolvedPatch.x = pendingPatch.x
+        reconciled.x = pendingPatch.x
+      }
+      if (pendingPatch.y !== undefined && pendingPatch.y !== incoming.y) {
+        unresolvedPatch.y = pendingPatch.y
+        reconciled.y = pendingPatch.y
+      }
+      if (pendingPatch.color !== undefined && pendingPatch.color !== incoming.color) {
+        unresolvedPatch.color = pendingPatch.color
+        reconciled.color = pendingPatch.color
+      }
+      if (pendingPatch.message !== undefined && pendingPatch.message !== incoming.message) {
+        unresolvedPatch.message = pendingPatch.message
+        reconciled.message = pendingPatch.message
+      }
+
+      pendingVisitPatchRef.current = unresolvedPatch
+      next = reconciled
+      dropOptimisticVisitStar()
+    }
+
+    const position = starIndexRef.current.get(key)
+    if (position === undefined) {
+      insertStar(next)
+    } else {
+      const previous = replaceStarAt(position, next)
+      if (previous && !isOwnStar && (previous.x !== next.x || previous.y !== next.y)) {
+        startRemoteMotion(key, previous, next)
+      }
+    }
+
+    if (isOwnStar) {
+      currentVisitStarRef.current = next
+      setHasVisitStar(true)
+    }
+
+    if (hoveredRef.current?.key === key) {
+      hoveredRef.current = next
+      syncTooltip(next)
+    }
+
+    scheduleDerivedSync()
+    requestDraw()
+  }, [
+    dropOptimisticVisitStar,
+    insertStar,
+    replaceStarAt,
+    requestDraw,
+    scheduleDerivedSync,
+    startRemoteMotion,
+    syncTooltip,
+  ])
+
+  const removeRemoteStar = useCallback((key: string) => {
+    liveStarKeysRef.current.delete(key)
+    const position = starIndexRef.current.get(key)
+    if (position === undefined) return
+    removeStarAt(position)
+
+    if (currentVisitStarRef.current?.key === key) {
+      currentVisitStarRef.current = null
+      pendingVisitPatchRef.current = {}
+      setHasVisitStar(false)
+    }
+    if (hoveredRef.current?.key === key) {
+      hoveredRef.current = null
+      syncTooltip(null)
+    }
+
+    scheduleDerivedSync()
+    requestDraw()
+  }, [removeStarAt, requestDraw, scheduleDerivedSync, syncTooltip])
 
   // Paint cached stars first, then hydrate the live sky behind an async module
   // boundary. Firebase no longer blocks the constellation shell from rendering.
@@ -561,9 +816,8 @@ export default function Constellation() {
     const handleMetadataFailure = () => {
       metadataUnavailableRef.current = true
       if (!metaReceivedRef.current) {
-        const derivedStats = getDerivedStarStats(starsRef.current)
-        updateDisplayedTotal(derivedStats.totalCount)
-        setMergeCount(derivedStats.mergeCount)
+        updateDisplayedTotal(totalCountRef.current)
+        setMergeCount(getFallbackMergeCount(starsRef.current, totalCountRef.current))
       }
     }
 
@@ -573,122 +827,53 @@ export default function Constellation() {
         if (disposed) return
 
         unsubscribe = subscribeToConstellation({
-          onStars: value => {
+          onStarAdded: (key, value) => {
+            if (disposed) return
+            upsertRemoteStar(key, value)
+          },
+          onStarChanged: (key, value) => {
+            if (disposed) return
+            upsertRemoteStar(key, value)
+          },
+          onStarRemoved: key => {
+            if (disposed) return
+            removeRemoteStar(key)
+          },
+          onStarsSynced: isInitial => {
             if (disposed) return
             window.clearTimeout(stallTimeout)
             localFallbackRef.current = false
             setConnectionStatus('live')
 
-            const data = value as Record<string, Star> | null
-            let snapshotStars: Star[] = data
-              ? Object.entries(data).map(([key, star]) => ({ ...star, key }))
-              : []
-
-            let visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
-            if (visitStar) {
-              const pendingPatch = pendingVisitPatchRef.current
-              const unresolvedPatch: EditableStarPatch = {}
-              const reconciledVisitStar = { ...visitStar }
-
-              if (pendingPatch.x !== undefined && pendingPatch.x !== visitStar.x) {
-                unresolvedPatch.x = pendingPatch.x
-                reconciledVisitStar.x = pendingPatch.x
-              }
-              if (pendingPatch.y !== undefined && pendingPatch.y !== visitStar.y) {
-                unresolvedPatch.y = pendingPatch.y
-                reconciledVisitStar.y = pendingPatch.y
-              }
-              if (pendingPatch.color !== undefined && pendingPatch.color !== visitStar.color) {
-                unresolvedPatch.color = pendingPatch.color
-                reconciledVisitStar.color = pendingPatch.color
-              }
-              if (pendingPatch.message !== undefined && pendingPatch.message !== visitStar.message) {
-                unresolvedPatch.message = pendingPatch.message
-                reconciledVisitStar.message = pendingPatch.message
-              }
-
-              pendingVisitPatchRef.current = unresolvedPatch
-              if (Object.keys(unresolvedPatch).length > 0) {
-                snapshotStars = snapshotStars.map(star =>
-                  star.key === visitStar?.key ? reconciledVisitStar : star
+            if (isInitial) {
+              // Cached stars that the server no longer has (merged away while
+              // this browser was closed) never fire child_removed, so the first
+              // full sync is the moment to drop them.
+              const liveKeys = liveStarKeysRef.current
+              const pruned = starsRef.current.filter(star => (
+                star.key ? liveKeys.has(star.key) : star.visitId === PAGE_VISIT_ID
+              ))
+              if (pruned.length !== starsRef.current.length) {
+                replaceStarList(pruned)
+                currentVisitStarRef.current = getVisitStar(
+                  starsRef.current,
+                  currentVisitStarRef.current,
                 )
-                visitStar = reconciledVisitStar
+                setHasVisitStar(Boolean(currentVisitStarRef.current))
               }
             }
-
-            const pendingVisitStar = currentVisitStarRef.current
-            const shouldKeepPendingVisitStar =
-              !visitStar &&
-              !pendingVisitStar?.key &&
-              pendingVisitStar?.visitId === PAGE_VISIT_ID &&
-              !snapshotStars.some(star => isVisitStar(star, pendingVisitStar))
-            const starsList = shouldKeepPendingVisitStar
-              ? [...snapshotStars, pendingVisitStar]
-              : snapshotStars
-
-            const previousByKey = new Map(
-              starsRef.current
-                .filter(star => star.key)
-                .map(star => [star.key as string, star]),
-            )
-            const nextKeys = new Set<string>()
-            const motionStartedAt = performance.now()
-
-            starsList.forEach(star => {
-              if (!star.key) return
-              nextKeys.add(star.key)
-              const previous = previousByKey.get(star.key)
-              const isCurrentStar = visitStar?.key === star.key
-              if (!previous || isCurrentStar || (previous.x === star.x && previous.y === star.y)) {
-                return
-              }
-
-              const activeMotion = starMotionsRef.current.get(star.key)
-              const from = activeMotion
-                ? getMotionPosition(activeMotion, motionStartedAt)
-                : { x: previous.x, y: previous.y }
-              starMotionsRef.current.set(star.key, {
-                fromX: from.x,
-                fromY: from.y,
-                toX: star.x,
-                toY: star.y,
-                startedAt: motionStartedAt,
-              })
-            })
-            for (const key of starMotionsRef.current.keys()) {
-              if (!nextKeys.has(key)) starMotionsRef.current.delete(key)
-            }
-
-            starsRef.current = starsList
-            if (visitStar) {
-              currentVisitStarRef.current = visitStar
-            } else if (!shouldKeepPendingVisitStar) {
-              currentVisitStarRef.current = null
-              pendingVisitPatchRef.current = {}
-            }
-            setHasVisitStar(Boolean(visitStar || shouldKeepPendingVisitStar))
-            syncAccessibleMessages(starsList)
-
-            const derivedStats = getDerivedStarStats(starsList)
-            setStarsSinceMerge(derivedStats.regularCount)
-            updateDisplayedTotal(derivedStats.totalCount)
-            scheduleCachedSnapshot(
-              starsList,
-              getDisplayedTotal(derivedStats.totalCount, metadataTotalRef.current),
-            )
 
             if (!metaReceivedRef.current && metadataUnavailableRef.current) {
-              setMergeCount(derivedStats.mergeCount)
-              storageSet('constellation-mergeCount', String(derivedStats.mergeCount))
+              const fallbackMergeCount = getFallbackMergeCount(
+                starsRef.current,
+                totalCountRef.current,
+              )
+              setMergeCount(fallbackMergeCount)
+              storageSet('constellation-mergeCount', String(fallbackMergeCount))
             }
 
-            const hoveredKey = hoveredRef.current?.key
-            const nextHovered = hoveredKey
-              ? starsList.find(star => star.key === hoveredKey) ?? null
-              : null
-            hoveredRef.current = nextHovered
-            syncTooltip(nextHovered)
             positionSyncDrainRef.current()
+            scheduleDerivedSync()
             requestDraw()
           },
           onMetadata: value => {
@@ -736,11 +921,12 @@ export default function Constellation() {
   }, [
     activateLocalFallback,
     loadLocalState,
+    removeRemoteStar,
+    replaceStarList,
     requestDraw,
-    scheduleCachedSnapshot,
-    syncAccessibleMessages,
-    syncTooltip,
+    scheduleDerivedSync,
     updateDisplayedTotal,
+    upsertRemoteStar,
   ])
 
   // Canvas resize
@@ -803,23 +989,21 @@ export default function Constellation() {
 
       const pendingPatch = pendingVisitPatchRef.current
       const liveStar: Star = {
-        ...created.star,
+        ...(normalizeStar(created.key, created.star) ?? newStar),
         ...pendingPatch,
         key: created.key,
       }
-      const currentStar = currentVisitStarRef.current
-      starsRef.current = [
-        ...starsRef.current.filter(star =>
-          star.visitId !== PAGE_VISIT_ID &&
-          !isVisitStar(star, currentStar) &&
-          star.key !== liveStar.key
-        ),
-        liveStar,
-      ]
+      // The realtime child event for this star may already have landed; either
+      // way the keyless placeholder goes and the keyed row wins.
+      dropOptimisticVisitStar()
+      const position = starIndexRef.current.get(created.key)
+      if (position === undefined) {
+        insertStar(liveStar)
+      } else {
+        replaceStarAt(position, liveStar)
+      }
       currentVisitStarRef.current = liveStar
-      const derivedStats = getDerivedStarStats(starsRef.current)
-      setStarsSinceMerge(derivedStats.regularCount)
-      updateDisplayedTotal(derivedStats.totalCount)
+      setHasVisitStar(true)
       if (localFallbackRef.current) {
         storageSet('constellation-stars', JSON.stringify(starsRef.current))
       }
@@ -837,17 +1021,22 @@ export default function Constellation() {
         })
       }
       positionSyncDrainRef.current()
+      scheduleDerivedSync()
       requestDraw()
     })
   }, [
     addPendingVisitStar,
+    dropOptimisticVisitStar,
+    insertStar,
     persistVisitStarPatch,
+    replaceStarAt,
     requestDraw,
+    scheduleDerivedSync,
     selectedColor,
-    updateDisplayedTotal,
   ])
 
-  // One star is placed automatically per page visit — no button involved.
+  // One star is placed automatically per page visit — no button involved. That
+  // placement *is* the visitor's submission; the caption is an edit on top of it.
   useEffect(() => {
     if (pageVisitStarStarted) return
     pageVisitStarStarted = true
@@ -982,8 +1171,8 @@ export default function Constellation() {
       y: clamp01(star.y + direction[1]),
     }
     applyVisitStarPatchLocally(patch)
-    persistVisitStarPatch(patch)
-  }, [applyVisitStarPatchLocally, persistVisitStarPatch])
+    schedulePositionSave(patch)
+  }, [applyVisitStarPatchLocally, schedulePositionSave])
 
   const saveMessage = useCallback(async (nextMessage: string): Promise<boolean> => {
     const msg = nextMessage.trim()
@@ -1038,7 +1227,8 @@ export default function Constellation() {
     try {
       const saved = await saveMessage(message)
       if (saved) {
-        setMessageSubmitted(true)
+        setIsEditingMessage(false)
+        setHasSavedMessage(true)
       }
     } finally {
       setIsModeratingMessage(false)
@@ -1046,7 +1236,9 @@ export default function Constellation() {
   }, [isModeratingMessage, message, saveMessage])
 
   const startEditing = useCallback(() => {
-    setMessageSubmitted(false)
+    setIsEditingMessage(true)
+    setHasSavedMessage(false)
+    window.requestAnimationFrame(() => messageInputRef.current?.focus())
   }, [])
 
   useEffect(() => {
@@ -1102,6 +1294,10 @@ export default function Constellation() {
     }
   }
 
+  const messageButtonLabel = isEditingMessage
+    ? 'Submit'
+    : (message.trim() ? 'Edit' : 'Add')
+
   return (
     <>
       <motion.header
@@ -1148,7 +1344,8 @@ export default function Constellation() {
       </div>
 
       <p className="constellation__intro">
-        One star is added automatically for each visit. Your current star has a ring around it and stays editable from this browser.
+        Your star was added the moment this page loaded — it is already counted above and visible to
+        everyone here right now. Drag it anywhere, recolor it, and add a message whenever you like.
         {' '}At {MERGE_THRESHOLD} regular stars, they merge into {MEGA_STAR_COUNT} mega stars at the densest areas.
       </p>
 
@@ -1196,7 +1393,9 @@ export default function Constellation() {
 
       <div className="constellation__editor">
         <div className="constellation__editor-header">
-          <span className="constellation__editor-kicker">Your star</span>
+          <span className="constellation__editor-kicker">
+            {hasVisitStar ? 'Your star is live' : 'Placing your star'}
+          </span>
           <span className="constellation__editor-hint">
             {isPhone
               ? 'Tap or drag the sky to reposition it.'
@@ -1206,7 +1405,7 @@ export default function Constellation() {
 
         <div className="constellation__controls" role="group" aria-label="Edit your star">
           <div
-            className={`constellation__color-picker ${messageSubmitted ? 'is-submitted' : ''}`}
+            className="constellation__color-picker"
             aria-label="Choose your star color"
           >
             {COLORS.map(c => (
@@ -1216,7 +1415,7 @@ export default function Constellation() {
                 className={selectedColor === c.value ? 'active' : ''}
                 style={{ '--btn-color': c.value } as React.CSSProperties}
                 onClick={() => handleColorSelect(c.value)}
-                disabled={messageSubmitted}
+                disabled={!hasVisitStar}
                 aria-label={c.label}
               />
             ))}
@@ -1224,16 +1423,19 @@ export default function Constellation() {
           <div className="constellation__input-wrap">
             <div className="constellation__message-row">
               <input
+                ref={messageInputRef}
                 type="text"
-                className={`constellation__message ${filterError || saveError ? 'is-error' : ''} ${messageSubmitted || isModeratingMessage ? 'is-submitted' : ''}`}
-                placeholder="Add a message to your star"
+                className={`constellation__message ${filterError || saveError ? 'is-error' : ''} ${isMessageLocked || isModeratingMessage ? 'is-submitted' : ''}`}
+                placeholder={isMessageLocked && !message
+                  ? 'No message yet — your star is already up'
+                  : 'Add a message to your star'}
                 aria-label="Message for your star"
                 maxLength={50}
                 value={message}
-                disabled={!hasVisitStar || messageSubmitted || isModeratingMessage}
+                readOnly={isMessageLocked || isModeratingMessage}
                 onChange={handleMessageChange}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !messageSubmitted && !isModeratingMessage) {
+                  if (e.key === 'Enter' && isEditingMessage && !isModeratingMessage) {
                     e.preventDefault()
                     void submitMessage()
                   }
@@ -1241,24 +1443,30 @@ export default function Constellation() {
               />
               <motion.button
                 type="button"
-                className={`constellation__msg-btn ${messageSubmitted ? 'constellation__msg-btn--edit' : 'constellation__msg-btn--submit'}`}
-                onClick={messageSubmitted ? startEditing : () => { void submitMessage() }}
+                className={`constellation__msg-btn ${isEditingMessage ? 'constellation__msg-btn--submit' : 'constellation__msg-btn--edit'}`}
+                onClick={isEditingMessage ? () => { void submitMessage() } : startEditing}
                 disabled={!hasVisitStar || isModeratingMessage}
                 whileTap={{ scale: 0.96 }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                aria-label={isModeratingMessage ? 'Checking message' : messageSubmitted ? 'Edit your message' : 'Submit your message'}
+                aria-label={isModeratingMessage
+                  ? 'Checking message'
+                  : isEditingMessage
+                    ? 'Submit your message'
+                    : message.trim()
+                      ? 'Edit your message'
+                      : 'Add a message to your star'}
                 aria-busy={isModeratingMessage}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span
-                    key={messageSubmitted ? 'edit' : 'submit'}
+                    key={messageButtonLabel}
                     className="constellation__msg-btn-label"
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    {messageSubmitted ? 'Edit' : 'Submit'}
+                    {messageButtonLabel}
                   </motion.span>
                 </AnimatePresence>
               </motion.button>
@@ -1266,7 +1474,7 @@ export default function Constellation() {
             {/* role=status makes save/error feedback audible to screen readers */}
             <div role="status" aria-live="polite">
               <AnimatePresence>
-                {messageSubmitted && !filterError && (
+                {hasSavedMessage && !isEditingMessage && !filterError && (
                   <motion.span
                     className="constellation__saved"
                     initial={{ opacity: 0, y: -4 }}

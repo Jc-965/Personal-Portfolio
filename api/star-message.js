@@ -1,4 +1,4 @@
-import { firebaseConditionalPut, firebaseRestWithEtag } from './_firebaseRest.js'
+import { firebaseRest } from './_firebaseRest.js'
 import {
   MAX_STAR_MESSAGE_LENGTH,
   isAllowedStarMessage,
@@ -54,40 +54,34 @@ export default async function handler(request, response) {
     return response.status(200).json({ saved: false, allowed: false, checked: true, flagged: true })
   }
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    let star
-    let starEtag
-    try {
-      const result = await firebaseRestWithEtag(`stars/${starKey}`)
-      star = result.data
-      starEtag = result.etag
-    } catch (error) {
-      console.error('Star message read failed:', error)
-      return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
-    }
-
-    if (!star) {
-      return response.status(404).json({ saved: false, allowed: false, checked: true, error: 'star_not_found' })
-    }
-
-    if (star.isMega || !ownsStar(star, sessionSecret)) {
-      return response.status(403).json({ saved: false, allowed: false, checked: true, error: 'star_not_editable' })
-    }
-
-    try {
-      const updated = await firebaseConditionalPut(
-        `stars/${starKey}`,
-        { ...star, message },
-        starEtag,
-      )
-      if (updated) {
-        return response.status(200).json({ saved: true, allowed: true, checked: true, flagged: false })
-      }
-    } catch (error) {
-      console.error('Star message write failed:', error)
-      return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
-    }
+  let star
+  try {
+    star = await firebaseRest(`stars/${starKey}`)
+  } catch (error) {
+    console.error('Star message read failed:', error)
+    return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
   }
 
-  return response.status(409).json({ saved: false, allowed: true, checked: true, error: 'star_changed' })
+  if (!star) {
+    return response.status(404).json({ saved: false, allowed: false, checked: true, error: 'star_not_found' })
+  }
+
+  if (star.isMega || !ownsStar(star, sessionSecret)) {
+    return response.status(403).json({ saved: false, allowed: false, checked: true, error: 'star_not_editable' })
+  }
+
+  try {
+    // A caption edit touches only `message`. Writing the whole star back would
+    // undo whatever coordinates the visitor's live drag stream wrote between
+    // this read and this write.
+    await firebaseRest(`stars/${starKey}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ message }),
+    })
+  } catch (error) {
+    console.error('Star message write failed:', error)
+    return response.status(503).json({ saved: false, allowed: false, checked: true, error: 'firebase_unavailable' })
+  }
+
+  return response.status(200).json({ saved: true, allowed: true, checked: true, flagged: false })
 }
