@@ -122,11 +122,16 @@ export async function createConstellationStar({ sessionSecret, x, y, color, visi
 }
 
 export async function updateConstellationStar({ starKey, sessionSecret, patch }) {
-  const { data: star, etag } = await firebaseRestWithEtag(`stars/${starKey}`)
-  if (!star) return { status: 'not_found' }
-  if (star.isMega || !ownsStar(star, sessionSecret)) return { status: 'forbidden' }
+  // Position streams can overlap a color or message edit. Re-read and retry a
+  // short-lived ETag conflict so independent edits remain intact.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: star, etag } = await firebaseRestWithEtag(`stars/${starKey}`)
+    if (!star) return { status: 'not_found' }
+    if (star.isMega || !ownsStar(star, sessionSecret)) return { status: 'forbidden' }
 
-  const updated = await firebaseConditionalPut(`stars/${starKey}`, { ...star, ...patch }, etag)
-  if (!updated) return { status: 'conflict' }
-  return { status: 'updated' }
+    const updated = await firebaseConditionalPut(`stars/${starKey}`, { ...star, ...patch }, etag)
+    if (updated) return { status: 'updated' }
+  }
+
+  return { status: 'conflict' }
 }

@@ -26,6 +26,13 @@ interface Star {
 
 type EditableStarPatch = Partial<Pick<Star, 'x' | 'y' | 'color' | 'message'>>
 type PositionPatch = { x: number; y: number }
+type StarMotion = {
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  startedAt: number
+}
 
 const COLORS = [
   { value: '#00ffff', label: 'Cyan' },
@@ -39,6 +46,9 @@ const MERGE_THRESHOLD = 250
 const MEGA_STAR_COUNT = 10
 const VISIT_STAR_MARGIN = 0.08
 const CONNECTION_STALL_TIMEOUT_MS = 8000
+const POSITION_SYNC_INTERVAL_MS = 125
+const REMOTE_MOVE_DURATION_MS = 220
+const CACHE_WRITE_DELAY_MS = 500
 
 function createId(prefix: string): string {
   const randomId = globalThis.crypto?.randomUUID?.()
@@ -128,6 +138,17 @@ function getDisplayedTotal(derivedTotal: number, metadataTotal: number | null): 
   return metadataTotal == null ? derivedTotal : Math.max(metadataTotal, derivedTotal)
 }
 
+function getMotionPosition(motion: StarMotion, now: number) {
+  const progress = Math.min(1, Math.max(0, (now - motion.startedAt) / REMOTE_MOVE_DURATION_MS))
+  // Smoothstep prevents abrupt starts and stops when remote drag updates land.
+  const eased = progress * progress * (3 - 2 * progress)
+  return {
+    x: motion.fromX + (motion.toX - motion.fromX) * eased,
+    y: motion.fromY + (motion.toY - motion.fromY) * eased,
+    active: progress < 1,
+  }
+}
+
 export default function Constellation() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -139,7 +160,14 @@ export default function Constellation() {
   const isDraggingVisitStarRef = useRef(false)
   const positionSaveTimeout = useRef<number | null>(null)
   const latestPositionPatchRef = useRef<PositionPatch | null>(null)
+  const positionSyncInFlightRef = useRef(false)
+  const positionSyncLastSentAtRef = useRef(0)
+  const positionSyncDrainRef = useRef<() => void>(() => undefined)
+  const pendingVisitPatchRef = useRef<EditableStarPatch>({})
+  const starMotionsRef = useRef(new Map<string, StarMotion>())
   const drawRequestRef = useRef<number | null>(null)
+  const cacheWriteTimeoutRef = useRef<number | null>(null)
+  const pendingCacheRef = useRef<{ stars: Star[]; total: number } | null>(null)
   const [selectedColor, setSelectedColor] = useState('#00ffff')
   const [message, setMessage] = useState('')
   const [messageSubmitted, setMessageSubmitted] = useState(false)
@@ -170,23 +198,52 @@ export default function Constellation() {
   const skyInView = useInView(containerRef, { once: true })
 
   const syncAccessibleMessages = useCallback((stars: Star[]) => {
-    setAccessibleMessages(
-      stars
-        .filter(star => star.message?.trim())
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 40)
-        .map(star => star.isMega
-          ? `${star.message} (${star.mergedCount || 0} merged stars)`
-          : star.message.trim())
-    )
+    const nextMessages = stars
+      .filter(star => star.message?.trim())
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 40)
+      .map(star => star.isMega
+        ? `${star.message} (${star.mergedCount || 0} merged stars)`
+        : star.message.trim())
+
+    setAccessibleMessages(current => (
+      current.length === nextMessages.length &&
+      current.every((item, index) => item === nextMessages[index])
+        ? current
+        : nextMessages
+    ))
   }, [])
 
-  const drawStars = useCallback(() => {
+  const syncTooltip = useCallback((star: Star | null) => {
+    const tooltip = tooltipRef.current
+    const container = containerRef.current
+    if (!tooltip || !container || !star || (!star.message && !star.isMega)) {
+      tooltip?.classList.remove('is-visible')
+      return
+    }
+
+    if (star.isMega) {
+      tooltip.innerHTML = `${star.message ? `"${escapeHtml(star.message)}" ` : ''}<span class="constellation__tooltip-count">(${Number(star.mergedCount) || 0} stars)</span>`
+    } else {
+      tooltip.textContent = star.message
+    }
+
+    const rect = container.getBoundingClientRect()
+    const motion = star.key ? starMotionsRef.current.get(star.key) : null
+    const point = motion
+      ? getMotionPosition(motion, performance.now())
+      : { x: star.x, y: star.y }
+    tooltip.style.left = `${point.x * rect.width}px`
+    tooltip.style.top = `${point.y * rect.height - 45}px`
+    tooltip.classList.add('is-visible')
+  }, [])
+
+  const drawStars = useCallback((now = performance.now()) => {
     const canvas = canvasRef.current
     const container = containerRef.current
-    if (!canvas || !container) return
+    if (!canvas || !container) return false
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) return false
     const rect = container.getBoundingClientRect()
     const w = rect.width, h = rect.height
     ctx.clearRect(0, 0, w, h)
@@ -203,12 +260,26 @@ export default function Constellation() {
 
     const stars = starsRef.current
 
-    const starPoints = stars.map((star, index) => ({
-      star,
-      index,
-      x: star.x * w,
-      y: star.y * h,
-    }))
+    let hasActiveMotion = false
+    const starPoints = stars.map((star, index) => {
+      const motion = star.key ? starMotionsRef.current.get(star.key) : null
+      const point = motion
+        ? getMotionPosition(motion, now)
+        : { x: star.x, y: star.y, active: false }
+
+      if (motion && point.active) {
+        hasActiveMotion = true
+      } else if (motion && star.key) {
+        starMotionsRef.current.delete(star.key)
+      }
+
+      return {
+        star,
+        index,
+        x: point.x * w,
+        y: point.y * h,
+      }
+    })
     const connectionGrid = new Map<string, typeof starPoints>()
 
     starPoints.forEach(point => {
@@ -304,17 +375,43 @@ export default function Constellation() {
         ctx.stroke()
       }
     })
+
+    const hoveredPoint = starPoints.find(point => point.star === hoveredRef.current)
+    if (hoveredPoint && tooltipRef.current?.classList.contains('is-visible')) {
+      tooltipRef.current.style.left = `${hoveredPoint.x}px`
+      tooltipRef.current.style.top = `${hoveredPoint.y - 45}px`
+    }
+
+    return hasActiveMotion
   }, [])
 
   // Coalesce pointer, resize, and realtime updates into one canvas paint per
   // frame. Dragging used to redraw repeatedly inside the same frame.
   const requestDraw = useCallback(() => {
     if (drawRequestRef.current !== null) return
-    drawRequestRef.current = window.requestAnimationFrame(() => {
+    const paint = (timestamp: number) => {
       drawRequestRef.current = null
-      drawStars()
-    })
+      if (drawStars(timestamp)) {
+        drawRequestRef.current = window.requestAnimationFrame(paint)
+      }
+    }
+    drawRequestRef.current = window.requestAnimationFrame(paint)
   }, [drawStars])
+
+  const flushCachedSnapshot = useCallback(() => {
+    cacheWriteTimeoutRef.current = null
+    const pending = pendingCacheRef.current
+    pendingCacheRef.current = null
+    if (!pending) return
+    storageSet('constellation-stars', JSON.stringify(pending.stars))
+    storageSet('constellation-totalStarsEver', String(pending.total))
+  }, [])
+
+  const scheduleCachedSnapshot = useCallback((stars: Star[], total: number) => {
+    pendingCacheRef.current = { stars, total }
+    if (cacheWriteTimeoutRef.current !== null) return
+    cacheWriteTimeoutRef.current = window.setTimeout(flushCachedSnapshot, CACHE_WRITE_DELAY_MS)
+  }, [flushCachedSnapshot])
 
   const updateDisplayedTotal = useCallback((derivedTotal: number) => {
     derivedTotalRef.current = derivedTotal
@@ -392,6 +489,11 @@ export default function Constellation() {
   const applyVisitStarPatchLocally = useCallback((patch: EditableStarPatch) => {
     const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (!targetStar) return null
+
+    pendingVisitPatchRef.current = {
+      ...pendingVisitPatchRef.current,
+      ...patch,
+    }
 
     let updatedStar: Star | null = null
     let foundStar = false
@@ -478,22 +580,91 @@ export default function Constellation() {
             setConnectionStatus('live')
 
             const data = value as Record<string, Star> | null
-            const snapshotStars: Star[] = data
+            let snapshotStars: Star[] = data
               ? Object.entries(data).map(([key, star]) => ({ ...star, key }))
               : []
-            const visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
+
+            let visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
+            if (visitStar) {
+              const pendingPatch = pendingVisitPatchRef.current
+              const unresolvedPatch: EditableStarPatch = {}
+              const reconciledVisitStar = { ...visitStar }
+
+              if (pendingPatch.x !== undefined && pendingPatch.x !== visitStar.x) {
+                unresolvedPatch.x = pendingPatch.x
+                reconciledVisitStar.x = pendingPatch.x
+              }
+              if (pendingPatch.y !== undefined && pendingPatch.y !== visitStar.y) {
+                unresolvedPatch.y = pendingPatch.y
+                reconciledVisitStar.y = pendingPatch.y
+              }
+              if (pendingPatch.color !== undefined && pendingPatch.color !== visitStar.color) {
+                unresolvedPatch.color = pendingPatch.color
+                reconciledVisitStar.color = pendingPatch.color
+              }
+              if (pendingPatch.message !== undefined && pendingPatch.message !== visitStar.message) {
+                unresolvedPatch.message = pendingPatch.message
+                reconciledVisitStar.message = pendingPatch.message
+              }
+
+              pendingVisitPatchRef.current = unresolvedPatch
+              if (Object.keys(unresolvedPatch).length > 0) {
+                snapshotStars = snapshotStars.map(star =>
+                  star.key === visitStar?.key ? reconciledVisitStar : star
+                )
+                visitStar = reconciledVisitStar
+              }
+            }
+
             const pendingVisitStar = currentVisitStarRef.current
             const shouldKeepPendingVisitStar =
               !visitStar &&
+              !pendingVisitStar?.key &&
               pendingVisitStar?.visitId === PAGE_VISIT_ID &&
               !snapshotStars.some(star => isVisitStar(star, pendingVisitStar))
             const starsList = shouldKeepPendingVisitStar
               ? [...snapshotStars, pendingVisitStar]
               : snapshotStars
 
+            const previousByKey = new Map(
+              starsRef.current
+                .filter(star => star.key)
+                .map(star => [star.key as string, star]),
+            )
+            const nextKeys = new Set<string>()
+            const motionStartedAt = performance.now()
+
+            starsList.forEach(star => {
+              if (!star.key) return
+              nextKeys.add(star.key)
+              const previous = previousByKey.get(star.key)
+              const isCurrentStar = visitStar?.key === star.key
+              if (!previous || isCurrentStar || (previous.x === star.x && previous.y === star.y)) {
+                return
+              }
+
+              const activeMotion = starMotionsRef.current.get(star.key)
+              const from = activeMotion
+                ? getMotionPosition(activeMotion, motionStartedAt)
+                : { x: previous.x, y: previous.y }
+              starMotionsRef.current.set(star.key, {
+                fromX: from.x,
+                fromY: from.y,
+                toX: star.x,
+                toY: star.y,
+                startedAt: motionStartedAt,
+              })
+            })
+            for (const key of starMotionsRef.current.keys()) {
+              if (!nextKeys.has(key)) starMotionsRef.current.delete(key)
+            }
+
             starsRef.current = starsList
             if (visitStar) {
               currentVisitStarRef.current = visitStar
+            } else if (!shouldKeepPendingVisitStar) {
+              currentVisitStarRef.current = null
+              pendingVisitPatchRef.current = {}
             }
             setHasVisitStar(Boolean(visitStar || shouldKeepPendingVisitStar))
             syncAccessibleMessages(starsList)
@@ -501,16 +672,23 @@ export default function Constellation() {
             const derivedStats = getDerivedStarStats(starsList)
             setStarsSinceMerge(derivedStats.regularCount)
             updateDisplayedTotal(derivedStats.totalCount)
-            storageSet('constellation-stars', JSON.stringify(starsList))
-            storageSet('constellation-totalStarsEver', String(
+            scheduleCachedSnapshot(
+              starsList,
               getDisplayedTotal(derivedStats.totalCount, metadataTotalRef.current),
-            ))
+            )
 
             if (!metaReceivedRef.current && metadataUnavailableRef.current) {
               setMergeCount(derivedStats.mergeCount)
               storageSet('constellation-mergeCount', String(derivedStats.mergeCount))
             }
 
+            const hoveredKey = hoveredRef.current?.key
+            const nextHovered = hoveredKey
+              ? starsList.find(star => star.key === hoveredKey) ?? null
+              : null
+            hoveredRef.current = nextHovered
+            syncTooltip(nextHovered)
+            positionSyncDrainRef.current()
             requestDraw()
           },
           onMetadata: value => {
@@ -555,7 +733,15 @@ export default function Constellation() {
       window.clearTimeout(stallTimeout)
       unsubscribe?.()
     }
-  }, [activateLocalFallback, loadLocalState, requestDraw, syncAccessibleMessages, updateDisplayedTotal])
+  }, [
+    activateLocalFallback,
+    loadLocalState,
+    requestDraw,
+    scheduleCachedSnapshot,
+    syncAccessibleMessages,
+    syncTooltip,
+    updateDisplayedTotal,
+  ])
 
   // Canvas resize
   useEffect(() => {
@@ -615,7 +801,12 @@ export default function Constellation() {
         return
       }
 
-      const liveStar: Star = { ...created.star, key: created.key }
+      const pendingPatch = pendingVisitPatchRef.current
+      const liveStar: Star = {
+        ...created.star,
+        ...pendingPatch,
+        key: created.key,
+      }
       const currentStar = currentVisitStarRef.current
       starsRef.current = [
         ...starsRef.current.filter(star =>
@@ -632,9 +823,29 @@ export default function Constellation() {
       if (localFallbackRef.current) {
         storageSet('constellation-stars', JSON.stringify(starsRef.current))
       }
+
+      if (pendingPatch.color !== undefined && pendingPatch.color !== created.star.color) {
+        persistVisitStarPatch({ color: pendingPatch.color })
+      }
+      if (pendingPatch.message !== undefined && pendingPatch.message !== created.star.message) {
+        void saveModeratedStarMessage({
+          starKey: created.key,
+          sessionSecret: sessionSecret.current,
+          message: pendingPatch.message,
+        }).then(result => {
+          if (result !== 'saved') setSaveError(true)
+        })
+      }
+      positionSyncDrainRef.current()
       requestDraw()
     })
-  }, [addPendingVisitStar, requestDraw, selectedColor, updateDisplayedTotal])
+  }, [
+    addPendingVisitStar,
+    persistVisitStarPatch,
+    requestDraw,
+    selectedColor,
+    updateDisplayedTotal,
+  ])
 
   // One star is placed automatically per page visit — no button involved.
   useEffect(() => {
@@ -653,34 +864,62 @@ export default function Constellation() {
     }
   }, [])
 
+  const drainPositionSync = useCallback(() => {
+    if (
+      positionSyncInFlightRef.current ||
+      positionSaveTimeout.current !== null ||
+      !latestPositionPatchRef.current
+    ) {
+      return
+    }
+
+    const targetStar = currentVisitStarRef.current ??
+      getVisitStar(starsRef.current, currentVisitStarRef.current)
+    if (!targetStar?.key || localFallbackRef.current) return
+
+    const elapsed = performance.now() - positionSyncLastSentAtRef.current
+    const delay = Math.max(0, POSITION_SYNC_INTERVAL_MS - elapsed)
+    positionSaveTimeout.current = window.setTimeout(() => {
+      positionSaveTimeout.current = null
+      const nextPatch = latestPositionPatchRef.current
+      const latestTarget = currentVisitStarRef.current ??
+        getVisitStar(starsRef.current, currentVisitStarRef.current)
+      if (!nextPatch || !latestTarget?.key || localFallbackRef.current) return
+
+      latestPositionPatchRef.current = null
+      positionSyncInFlightRef.current = true
+      positionSyncLastSentAtRef.current = performance.now()
+
+      void updateConstellationStar({
+        starKey: latestTarget.key,
+        sessionSecret: sessionSecret.current,
+        patch: nextPatch,
+      }).finally(() => {
+        positionSyncInFlightRef.current = false
+        if (latestPositionPatchRef.current) {
+          positionSyncDrainRef.current()
+        }
+      })
+    }, delay)
+  }, [])
+
+  useEffect(() => {
+    positionSyncDrainRef.current = drainPositionSync
+  }, [drainPositionSync])
+
   const schedulePositionSave = useCallback((patch: PositionPatch) => {
     latestPositionPatchRef.current = patch
-    if (positionSaveTimeout.current) {
-      window.clearTimeout(positionSaveTimeout.current)
-    }
-
-    positionSaveTimeout.current = window.setTimeout(() => {
-      const nextPatch = latestPositionPatchRef.current
-      latestPositionPatchRef.current = null
-      positionSaveTimeout.current = null
-      if (nextPatch) {
-        persistVisitStarPatch(nextPatch)
-      }
-    }, 600)
-  }, [persistVisitStarPatch])
+    positionSyncDrainRef.current()
+  }, [])
 
   const flushPositionSave = useCallback(() => {
-    if (positionSaveTimeout.current) {
+    if (positionSaveTimeout.current !== null) {
       window.clearTimeout(positionSaveTimeout.current)
       positionSaveTimeout.current = null
     }
-
-    const nextPatch = latestPositionPatchRef.current
-    latestPositionPatchRef.current = null
-    if (nextPatch) {
-      persistVisitStarPatch(nextPatch)
-    }
-  }, [persistVisitStarPatch])
+    positionSyncLastSentAtRef.current = 0
+    positionSyncDrainRef.current()
+  }, [])
 
   const moveVisitStar = useCallback((clientX: number, clientY: number) => {
     const point = getCanvasPoint(clientX, clientY)
@@ -812,15 +1051,20 @@ export default function Constellation() {
 
   useEffect(() => {
     return () => {
-      if (positionSaveTimeout.current) {
+      if (positionSaveTimeout.current !== null) {
         window.clearTimeout(positionSaveTimeout.current)
+        positionSaveTimeout.current = null
+      }
+      if (cacheWriteTimeoutRef.current !== null) {
+        window.clearTimeout(cacheWriteTimeoutRef.current)
+        flushCachedSnapshot()
       }
       if (drawRequestRef.current !== null) {
         window.cancelAnimationFrame(drawRequestRef.current)
         drawRequestRef.current = null
       }
     }
-  }, [])
+  }, [flushCachedSnapshot])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -838,8 +1082,12 @@ export default function Constellation() {
     let found: Star | null = null
 
     for (const star of starsRef.current) {
-      const dx = (star.x - mx) * rect.width
-      const dy = (star.y - my) * rect.height
+      const motion = star.key ? starMotionsRef.current.get(star.key) : null
+      const point = motion
+        ? getMotionPosition(motion, performance.now())
+        : { x: star.x, y: star.y }
+      const dx = (point.x - mx) * rect.width
+      const dy = (point.y - my) * rect.height
       const hitRadius = star.isMega ? 28 : 18
       if (Math.hypot(dx, dy) < hitRadius) {
         found = star
@@ -849,39 +1097,8 @@ export default function Constellation() {
 
     if (found !== hoveredRef.current) {
       hoveredRef.current = found
+      syncTooltip(found)
       requestDraw()
-
-      if (found && tooltipRef.current) {
-        const starX = found.x * rect.width
-        const starY = found.y * rect.height
-
-        let label = ''
-        if (found.isMega) {
-          // Mega star: show "message (X stars)" or just "(X stars)"
-          if (found.message) {
-            label = found.message
-          }
-          // Star count will be shown separately in HTML
-        } else {
-          // Regular star - just show message, no delete instruction
-          label = found.message || ''
-        }
-
-        if (label || found.isMega) {
-          if (found.isMega) {
-            tooltipRef.current.innerHTML = `${found.message ? `"${escapeHtml(found.message)}" ` : ''}<span class="constellation__tooltip-count">(${Number(found.mergedCount) || 0} stars)</span>`
-          } else {
-            tooltipRef.current.textContent = label
-          }
-          tooltipRef.current.style.left = `${starX}px`
-          tooltipRef.current.style.top = `${starY - 45}px`
-          tooltipRef.current.classList.add('is-visible')
-        } else {
-          tooltipRef.current.classList.remove('is-visible')
-        }
-      } else {
-        tooltipRef.current?.classList.remove('is-visible')
-      }
     }
   }
 

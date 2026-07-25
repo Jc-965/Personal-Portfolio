@@ -19,8 +19,6 @@ export default async function handler(request, response) {
     return response.status(405).json({ ok: false, error: 'method_not_allowed' })
   }
 
-  if (!guardApiRequest(request, response, { route: 'star', limit: 40, windowMs: 60000 })) return
-
   let body
   try {
     body = await readJson(request)
@@ -31,6 +29,14 @@ export default async function handler(request, response) {
       error: tooLarge ? 'payload_too_large' : 'invalid_json',
     })
   }
+
+  const action = typeof body.action === 'string' ? body.action : 'invalid'
+  const rateLimit = action === 'update'
+    ? { route: 'star-update', limit: 600 }
+    : action === 'create'
+      ? { route: 'star-create', limit: 20 }
+      : { route: 'star-invalid', limit: 40 }
+  if (!guardApiRequest(request, response, { ...rateLimit, windowMs: 60000 })) return
 
   const sessionSecret = typeof body.sessionSecret === 'string' ? body.sessionSecret : ''
   if (!isValidSessionSecret(sessionSecret)) return invalid(response)
