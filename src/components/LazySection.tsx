@@ -2,18 +2,27 @@ import { useRef } from 'react'
 import { useInView } from 'framer-motion'
 import { Suspense, type ComponentType } from 'react'
 
+type InViewOptions = NonNullable<Parameters<typeof useInView>[1]>
+
 interface LazySectionProps {
   id: string
   className: string
   component: ComponentType
   fallback?: React.ReactNode
+  margin?: InViewOptions['margin']
 }
 
 const sectionPlaceholder = <div className="section__placeholder" aria-hidden="true" />
 
-export default function LazySection({ id, className, component: Component, fallback }: LazySectionProps) {
+export default function LazySection({
+  id,
+  className,
+  component: Component,
+  fallback,
+  margin = '200px 0px',
+}: LazySectionProps) {
   const ref = useRef<HTMLElement>(null)
-  const inView = useInView(ref, { once: true, margin: '200px 0px' })
+  const inView = useInView(ref, { once: true, margin })
 
   return (
     <section id={id} className={className} ref={ref}>

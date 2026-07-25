@@ -1,7 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
-import { ref as dbRef, onValue } from 'firebase/database'
-import { getFirebase } from '../utils/firebase'
 import { storageGet, storageSet } from '../utils/safeStorage'
 import { isStarMessageAllowed, saveModeratedStarMessage } from '../utils/starModeration'
 import {
@@ -141,6 +139,7 @@ export default function Constellation() {
   const isDraggingVisitStarRef = useRef(false)
   const positionSaveTimeout = useRef<number | null>(null)
   const latestPositionPatchRef = useRef<PositionPatch | null>(null)
+  const drawRequestRef = useRef<number | null>(null)
   const [selectedColor, setSelectedColor] = useState('#00ffff')
   const [message, setMessage] = useState('')
   const [messageSubmitted, setMessageSubmitted] = useState(false)
@@ -151,10 +150,9 @@ export default function Constellation() {
   const [filterError, setFilterError] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [isModeratingMessage, setIsModeratingMessage] = useState(false)
-  const [isCreatingStar, setIsCreatingStar] = useState(false)
   const [hasVisitStar, setHasVisitStar] = useState(false)
   const [accessibleMessages, setAccessibleMessages] = useState<string[]>([])
-  const [isLocalView, setIsLocalView] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'syncing' | 'live' | 'offline'>('syncing')
   const metaReceivedRef = useRef(false)
   const metadataTotalRef = useRef<number | null>(null)
   const derivedTotalRef = useRef(0)
@@ -308,6 +306,16 @@ export default function Constellation() {
     })
   }, [])
 
+  // Coalesce pointer, resize, and realtime updates into one canvas paint per
+  // frame. Dragging used to redraw repeatedly inside the same frame.
+  const requestDraw = useCallback(() => {
+    if (drawRequestRef.current !== null) return
+    drawRequestRef.current = window.requestAnimationFrame(() => {
+      drawRequestRef.current = null
+      drawStars()
+    })
+  }, [drawStars])
+
   const updateDisplayedTotal = useCallback((derivedTotal: number) => {
     derivedTotalRef.current = derivedTotal
     setTotalStarsEver(getDisplayedTotal(derivedTotal, metadataTotalRef.current))
@@ -350,45 +358,36 @@ export default function Constellation() {
     const savedMergeCount = storageGet('constellation-mergeCount')
     setMergeCount(savedMergeCount != null ? (parseFiniteNumber(savedMergeCount) ?? derivedStats.mergeCount) : derivedStats.mergeCount)
 
-    drawStars()
-  }, [drawStars, syncAccessibleMessages])
+    requestDraw()
+  }, [requestDraw, syncAccessibleMessages])
 
   const activateLocalFallback = useCallback(() => {
     if (localFallbackRef.current) return
     localFallbackRef.current = true
-    setIsLocalView(true)
+    setConnectionStatus('offline')
     loadLocalState()
+    storageSet('constellation-stars', JSON.stringify(starsRef.current))
   }, [loadLocalState])
 
   // A failed write endpoint doesn't mean the sky is offline — reads may still
   // be live. Keep the view live and let the visitor's star ride along in
   // memory; the snapshot handler preserves it via its visitId.
   const addPendingVisitStar = useCallback((star: Star) => {
+    const existingStar = getVisitStar(starsRef.current, currentVisitStarRef.current)
+    if (existingStar) {
+      currentVisitStarRef.current = existingStar
+      setHasVisitStar(true)
+      return
+    }
+
     currentVisitStarRef.current = star
     starsRef.current = [...starsRef.current, star]
     setHasVisitStar(true)
-    setStarsSinceMerge(getDerivedStarStats(starsRef.current).regularCount)
-    drawStars()
-  }, [drawStars])
-
-  const addLocalStar = useCallback((newStar: Star) => {
-    starsRef.current = [...starsRef.current, newStar]
-    if (newStar.visitId === PAGE_VISIT_ID) {
-      currentVisitStarRef.current = newStar
-      setHasVisitStar(true)
-    }
     const derivedStats = getDerivedStarStats(starsRef.current)
-    derivedTotalRef.current = derivedStats.totalCount
-    storageSet('constellation-stars', JSON.stringify(starsRef.current))
     setStarsSinceMerge(derivedStats.regularCount)
-    setTotalStarsEver(prev => {
-      const nextTotal = Math.max(prev + 1, derivedStats.totalCount)
-      storageSet('constellation-totalStarsEver', String(nextTotal))
-      return nextTotal
-    })
-    syncAccessibleMessages(starsRef.current)
-    drawStars()
-  }, [drawStars, syncAccessibleMessages])
+    updateDisplayedTotal(derivedStats.totalCount)
+    requestDraw()
+  }, [requestDraw, updateDisplayedTotal])
 
   const applyVisitStarPatchLocally = useCallback((patch: EditableStarPatch) => {
     const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
@@ -412,14 +411,16 @@ export default function Constellation() {
     }
 
     currentVisitStarRef.current = updatedStar
-    setHasVisitStar(true)
+    if (!foundStar) setHasVisitStar(true)
     if (localFallbackRef.current) {
       storageSet('constellation-stars', JSON.stringify(starsRef.current))
     }
-    syncAccessibleMessages(starsRef.current)
-    drawStars()
+    if (Object.prototype.hasOwnProperty.call(patch, 'message')) {
+      syncAccessibleMessages(starsRef.current)
+    }
+    requestDraw()
     return updatedStar
-  }, [drawStars, syncAccessibleMessages])
+  }, [requestDraw, syncAccessibleMessages])
 
   const persistVisitStarPatch = useCallback((patch: ConstellationStarPatch) => {
     const targetStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
@@ -439,102 +440,122 @@ export default function Constellation() {
     }
   }, [applyVisitStarPatchLocally])
 
-  // Firebase real-time listener
+  // Paint cached stars first, then hydrate the live sky behind an async module
+  // boundary. Firebase no longer blocks the constellation shell from rendering.
   useEffect(() => {
-    const db = getFirebase()
-    if (db && !localFallbackRef.current) {
-      const starsDbRef = dbRef(db, 'stars')
-      const metaRef = dbRef(db, 'metadata')
-      const handleStarsFailure = () => activateLocalFallback()
-      const handleMetadataFailure = () => {
-        metadataUnavailableRef.current = true
-        if (!metaReceivedRef.current) {
-          const derivedStats = getDerivedStarStats(starsRef.current)
-          updateDisplayedTotal(derivedStats.totalCount)
-          setMergeCount(derivedStats.mergeCount)
-        }
+    let disposed = false
+    let unsubscribe: (() => void) | null = null
+
+    loadLocalState()
+
+    // A blocked or unreachable connection can retry silently forever. The
+    // cached sky remains interactive while this timer decides whether to label
+    // the view offline.
+    const stallTimeout = window.setTimeout(
+      activateLocalFallback,
+      CONNECTION_STALL_TIMEOUT_MS,
+    )
+
+    const handleMetadataFailure = () => {
+      metadataUnavailableRef.current = true
+      if (!metaReceivedRef.current) {
+        const derivedStats = getDerivedStarStats(starsRef.current)
+        updateDisplayedTotal(derivedStats.totalCount)
+        setMergeCount(derivedStats.mergeCount)
       }
+    }
 
-      // A blocked or unreachable connection (ad blockers, DNS filtering) never
-      // calls either onValue callback — the SDK retries silently forever,
-      // leaving zeroed stats and an empty sky. Treat "no snapshot in time" as
-      // offline; a snapshot arriving later flips back to the live view.
-      let stalled = false
-      const stallTimeout = window.setTimeout(() => {
-        stalled = true
-        activateLocalFallback()
-      }, CONNECTION_STALL_TIMEOUT_MS)
+    const connect = async () => {
+      try {
+        const { subscribeToConstellation } = await import('../utils/constellationRealtime')
+        if (disposed) return
 
-      const unsubStars = onValue(
-        starsDbRef,
-        (snapshot) => {
-          window.clearTimeout(stallTimeout)
-          if (stalled) {
-            stalled = false
+        unsubscribe = subscribeToConstellation({
+          onStars: value => {
+            if (disposed) return
+            window.clearTimeout(stallTimeout)
             localFallbackRef.current = false
-            setIsLocalView(false)
-          }
-          const data = snapshot.val()
-          const snapshotStars: Star[] = data
-            ? Object.entries(data).map(([key, val]) => ({ ...(val as Star), key }))
-            : []
-          const visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
-          const pendingVisitStar = currentVisitStarRef.current
-          const shouldKeepPendingVisitStar =
-            !visitStar &&
-            pendingVisitStar?.visitId === PAGE_VISIT_ID &&
-            !snapshotStars.some(star => isVisitStar(star, pendingVisitStar))
-          const starsList = shouldKeepPendingVisitStar
-            ? [...snapshotStars, pendingVisitStar]
-            : snapshotStars
+            setConnectionStatus('live')
 
-          starsRef.current = starsList
-          if (visitStar) {
-            currentVisitStarRef.current = visitStar
-          }
-          setHasVisitStar(Boolean(visitStar || shouldKeepPendingVisitStar))
-          syncAccessibleMessages(starsList)
-          const derivedStats = getDerivedStarStats(starsList)
+            const data = value as Record<string, Star> | null
+            const snapshotStars: Star[] = data
+              ? Object.entries(data).map(([key, star]) => ({ ...star, key }))
+              : []
+            const visitStar = getVisitStar(snapshotStars, currentVisitStarRef.current)
+            const pendingVisitStar = currentVisitStarRef.current
+            const shouldKeepPendingVisitStar =
+              !visitStar &&
+              pendingVisitStar?.visitId === PAGE_VISIT_ID &&
+              !snapshotStars.some(star => isVisitStar(star, pendingVisitStar))
+            const starsList = shouldKeepPendingVisitStar
+              ? [...snapshotStars, pendingVisitStar]
+              : snapshotStars
 
-          setStarsSinceMerge(derivedStats.regularCount)
-          updateDisplayedTotal(derivedStats.totalCount)
+            starsRef.current = starsList
+            if (visitStar) {
+              currentVisitStarRef.current = visitStar
+            }
+            setHasVisitStar(Boolean(visitStar || shouldKeepPendingVisitStar))
+            syncAccessibleMessages(starsList)
 
-          if (!metaReceivedRef.current && metadataUnavailableRef.current) {
-            setMergeCount(derivedStats.mergeCount)
-          }
+            const derivedStats = getDerivedStarStats(starsList)
+            setStarsSinceMerge(derivedStats.regularCount)
+            updateDisplayedTotal(derivedStats.totalCount)
+            storageSet('constellation-stars', JSON.stringify(starsList))
+            storageSet('constellation-totalStarsEver', String(
+              getDisplayedTotal(derivedStats.totalCount, metadataTotalRef.current),
+            ))
 
-          drawStars()
-        },
-        handleStarsFailure
-      )
+            if (!metaReceivedRef.current && metadataUnavailableRef.current) {
+              setMergeCount(derivedStats.mergeCount)
+              storageSet('constellation-mergeCount', String(derivedStats.mergeCount))
+            }
 
-      const unsubMeta = onValue(
-        metaRef,
-        (snapshot) => {
-          const data = snapshot.val()
-          metadataUnavailableRef.current = false
-          if (data) {
+            requestDraw()
+          },
+          onMetadata: value => {
+            if (disposed) return
+            const data = value as Record<string, unknown> | null
+            metadataUnavailableRef.current = false
+            if (!data) return
+
             const metadataTotal = parseFiniteNumber(data.totalStarsEver)
             if (metadataTotal != null) {
               metaReceivedRef.current = true
               metadataTotalRef.current = metadataTotal
               updateDisplayedTotal(derivedTotalRef.current)
+              storageSet('constellation-totalStarsEver', String(
+                getDisplayedTotal(derivedTotalRef.current, metadataTotal),
+              ))
             }
             const nextMergeCount = parseFiniteNumber(data.mergeCount)
             if (nextMergeCount != null) {
               setMergeCount(nextMergeCount)
+              storageSet('constellation-mergeCount', String(nextMergeCount))
             }
-          }
-        },
-        handleMetadataFailure
-      )
+          },
+          onStarsError: activateLocalFallback,
+          onMetadataError: handleMetadataFailure,
+        })
 
-      return () => { window.clearTimeout(stallTimeout); unsubStars(); unsubMeta() }
-    } else {
-      setIsLocalView(true)
-      loadLocalState()
+        if (!unsubscribe) {
+          window.clearTimeout(stallTimeout)
+          activateLocalFallback()
+        }
+      } catch {
+        window.clearTimeout(stallTimeout)
+        activateLocalFallback()
+      }
     }
-  }, [activateLocalFallback, drawStars, loadLocalState, syncAccessibleMessages, updateDisplayedTotal])
+
+    void connect()
+
+    return () => {
+      disposed = true
+      window.clearTimeout(stallTimeout)
+      unsubscribe?.()
+    }
+  }, [activateLocalFallback, loadLocalState, requestDraw, syncAccessibleMessages, updateDisplayedTotal])
 
   // Canvas resize
   useEffect(() => {
@@ -550,64 +571,15 @@ export default function Constellation() {
       canvas.style.height = `${rect.height}px`
       const ctx = canvas.getContext('2d')
       if (ctx) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr) }
-      drawStars()
+      requestDraw()
     }
     resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
-  }, [drawStars])
+    const resizeObserver = new ResizeObserver(resize)
+    resizeObserver.observe(container)
+    return () => resizeObserver.disconnect()
+  }, [requestDraw])
 
-  // Animation: redraw at ~1.5s intervals; pause when hidden or offscreen.
-  // Reduced-motion users get a static field (stars still redraw on data changes).
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const container = containerRef.current
-    if (!container) return
-
-    let intervalId: number | null = null
-    let isNearViewport = false
-
-    const stop = () => {
-      if (intervalId === null) return
-      window.clearInterval(intervalId)
-      intervalId = null
-    }
-
-    const start = () => {
-      if (intervalId !== null || document.hidden || !isNearViewport) return
-      intervalId = window.setInterval(drawStars, 1500)
-    }
-
-    const onVisibility = () => {
-      if (document.hidden) {
-        stop()
-      } else {
-        drawStars()
-        start()
-      }
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      isNearViewport = entry.isIntersecting
-      if (isNearViewport) {
-        drawStars()
-        start()
-      } else {
-        stop()
-      }
-    }, { rootMargin: '200px' })
-
-    observer.observe(container)
-    document.addEventListener('visibilitychange', onVisibility)
-
-    return () => {
-      stop()
-      observer.disconnect()
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
-  }, [drawStars])
-
-  const createVisitStar = useCallback(async () => {
+  const createVisitStar = useCallback(() => {
     const existingStar = currentVisitStarRef.current ?? getVisitStar(starsRef.current, currentVisitStarRef.current)
     if (existingStar) {
       currentVisitStarRef.current = existingStar
@@ -624,48 +596,51 @@ export default function Constellation() {
       visitId: PAGE_VISIT_ID,
     }
 
-    setIsCreatingStar(true)
     setSaveError(false)
-    try {
-      const db = getFirebase()
-      if (db && !localFallbackRef.current) {
-        const created = await createConstellationStar({
-          sessionSecret: sessionSecret.current,
-          visitId: PAGE_VISIT_ID,
-          x: newStar.x,
-          y: newStar.y,
-          color: newStar.color,
-        })
-        if (created) {
-          const liveStar: Star = { ...created.star, key: created.key }
-          currentVisitStarRef.current = liveStar
-          starsRef.current = [...starsRef.current, liveStar]
-          setHasVisitStar(true)
-          setStarsSinceMerge(getDerivedStarStats(starsRef.current).regularCount)
-          drawStars()
-        } else {
-          addPendingVisitStar(newStar)
+    // Place the star before starting any network work. Visitors can drag,
+    // recolor, and caption it immediately even on a slow connection.
+    addPendingVisitStar(newStar)
+
+    void createConstellationStar({
+      sessionSecret: sessionSecret.current,
+      visitId: PAGE_VISIT_ID,
+      x: newStar.x,
+      y: newStar.y,
+      color: newStar.color,
+    }).then(created => {
+      if (!created) {
+        if (localFallbackRef.current) {
+          storageSet('constellation-stars', JSON.stringify(starsRef.current))
         }
-      } else {
-        addLocalStar(newStar)
+        return
       }
-    } catch {
-      // Placement must always succeed visually — if something threw, keep the
-      // star in memory without touching the live/offline state.
-      if (!currentVisitStarRef.current) {
-        addPendingVisitStar(newStar)
+
+      const liveStar: Star = { ...created.star, key: created.key }
+      const currentStar = currentVisitStarRef.current
+      starsRef.current = [
+        ...starsRef.current.filter(star =>
+          star.visitId !== PAGE_VISIT_ID &&
+          !isVisitStar(star, currentStar) &&
+          star.key !== liveStar.key
+        ),
+        liveStar,
+      ]
+      currentVisitStarRef.current = liveStar
+      const derivedStats = getDerivedStarStats(starsRef.current)
+      setStarsSinceMerge(derivedStats.regularCount)
+      updateDisplayedTotal(derivedStats.totalCount)
+      if (localFallbackRef.current) {
+        storageSet('constellation-stars', JSON.stringify(starsRef.current))
       }
-    } finally {
-      setIsCreatingStar(false)
-    }
-  }, [addLocalStar, addPendingVisitStar, drawStars, selectedColor])
+      requestDraw()
+    })
+  }, [addPendingVisitStar, requestDraw, selectedColor, updateDisplayedTotal])
 
   // One star is placed automatically per page visit — no button involved.
   useEffect(() => {
     if (pageVisitStarStarted) return
     pageVisitStarStarted = true
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-shot: placing the visit star writes to Firebase and seeds the local sky on mount
-    void createVisitStar()
+    createVisitStar()
   }, [createVisitStar])
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
@@ -840,6 +815,10 @@ export default function Constellation() {
       if (positionSaveTimeout.current) {
         window.clearTimeout(positionSaveTimeout.current)
       }
+      if (drawRequestRef.current !== null) {
+        window.cancelAnimationFrame(drawRequestRef.current)
+        drawRequestRef.current = null
+      }
     }
   }, [])
 
@@ -870,7 +849,7 @@ export default function Constellation() {
 
     if (found !== hoveredRef.current) {
       hoveredRef.current = found
-      drawStars()
+      requestDraw()
 
       if (found && tooltipRef.current) {
         const starX = found.x * rect.width
@@ -937,7 +916,13 @@ export default function Constellation() {
           <span className="constellation__stat-value">{mergeCount}</span>
           <span className="constellation__stat-label">merges</span>
         </span>
-        {isLocalView && (
+        {connectionStatus === 'syncing' && (
+          <span className="constellation__syncing" role="status">
+            <span className="constellation__syncing-dot" aria-hidden="true" />
+            syncing live sky
+          </span>
+        )}
+        {connectionStatus === 'offline' && (
           <span className="constellation__offline" role="status">
             <span className="constellation__offline-dot" aria-hidden="true" />
             offline view — live stars unavailable
@@ -951,7 +936,7 @@ export default function Constellation() {
       </p>
 
       <motion.div
-        className={`constellation ${isDraggingVisitStar ? 'is-dragging' : ''}`}
+        className={`constellation is-${connectionStatus} ${isDraggingVisitStar ? 'is-dragging' : ''}`}
         ref={containerRef}
         initial={{ opacity: 0 }}
         animate={skyInView ? { opacity: 1 } : {}}
@@ -976,7 +961,7 @@ export default function Constellation() {
             tooltipTimeout.current = window.setTimeout(() => {
               hoveredRef.current = null
               tooltipRef.current?.classList.remove('is-visible')
-              drawStars()
+              requestDraw()
             }, 600)
           }}
         />
@@ -1014,7 +999,7 @@ export default function Constellation() {
                 className={selectedColor === c.value ? 'active' : ''}
                 style={{ '--btn-color': c.value } as React.CSSProperties}
                 onClick={() => handleColorSelect(c.value)}
-                disabled={messageSubmitted || isCreatingStar}
+                disabled={messageSubmitted}
                 aria-label={c.label}
               />
             ))}

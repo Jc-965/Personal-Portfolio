@@ -12,6 +12,7 @@
   font-family: var(--font-mono);
 }
 
+.constellation__syncing,
 /* Shown only when Firebase is unreachable and the constellation falls back to
    locally saved stars — otherwise outages silently masquerade as live data. */
 .constellation__offline {
@@ -24,16 +25,42 @@
   font-size: 0.68rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+.constellation__syncing {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 255, 255, 0.25);
+  background: rgba(0, 255, 255, 0.05);
+}
+
+.constellation__offline {
   color: var(--accent-amber);
   background: rgba(255, 204, 0, 0.06);
 }
 
+.constellation__syncing-dot,
 .constellation__offline-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+}
+
+.constellation__syncing-dot {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
+  animation: constellation-sync-pulse 1.1s ease-in-out infinite;
+}
+
+.constellation__offline-dot {
   background: var(--accent-amber);
   box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
+}
+
+@keyframes constellation-sync-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
 }
 
 .constellation__stat {
@@ -45,6 +72,7 @@
 .constellation__stat-value {
   font-size: 1.5rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--accent-cyan);
   text-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
 }
@@ -99,6 +127,13 @@
   height: 100%;
   cursor: inherit;
   touch-action: none;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+  will-change: opacity;
+}
+
+.constellation.is-syncing .constellation__canvas {
+  opacity: 0.78;
 }
 
 .constellation__ripple {
@@ -117,6 +152,16 @@
     width: 120px;
     height: 120px;
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constellation__syncing-dot {
+    animation: none;
+  }
+
+  .constellation__canvas {
+    transition: none;
   }
 }
 
