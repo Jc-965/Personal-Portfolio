@@ -30,7 +30,7 @@ test('case-study pages render canonical project content and pass accessibility c
   await page.goto('/projects/agoriai/')
   await expect(page.getByRole('heading', { level: 1, name: 'Agoriai' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'What had to be solved' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Résumé' })).toHaveAttribute('href', '/Jesse_Chen_Resume.pdf')
+  await expect(page.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', 'mailto:jcchen54@gmail.com')
   await expectNoSeriousAxeViolations(page)
 })
 

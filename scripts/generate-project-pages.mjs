@@ -30,7 +30,6 @@ const renderHead = ({ title, description, canonical, cssPath }) => `
 const renderNav = () => `<nav class="nav" aria-label="Case study navigation">
   <a href="/">← Portfolio</a>
   <a href="/projects/">All case studies</a>
-  <a href="${escapeHtml(content.profile.resumePath)}" download>Résumé</a>
   <a href="mailto:${escapeHtml(content.profile.email)}">Contact</a>
 </nav>`
 

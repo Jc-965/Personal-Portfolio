@@ -7,8 +7,7 @@
     "description": "Computer science student at Carnegie Mellon building secure mobile, AI, and full-stack systems that addresses meaningful challenges.",
     "email": "jcchen54@gmail.com",
     "github": "https://github.com/Jc-965",
-    "linkedin": "https://www.linkedin.com/in/jessec2/",
-    "resumePath": "/Jesse_Chen_Resume.pdf"
+    "linkedin": "https://www.linkedin.com/in/jessec2/"
   },
   "experiences": [
     {
@@ -38,7 +37,7 @@
       "period": "Apr 2026 – Present",
       "location": "Pittsburgh, PA",
       "status": "Active",
-      "summary": "Launched a LangGraph/FastAPI campus AI platform at 1.4s p95 first-token latency as the top code contributor, routing OpenRouter LLMs through grounded MCP tools, SSE streaming, and sandboxed outputs. Built the React client, surfacing content 81% sooner and cutting UI updates 90% via frame batching. Engineered persistent agent memory recalling user context across chats via pgvector and injection-resistant controls.",
+      "summary": "Launched a LangGraph/FastAPI campus AI platform grounded in live university data via MCP tools, reaching 1.5s p95 first-token latency through OpenRouter model routing. Built the platform's React chat client end to end, surfacing first content 81% sooner via SSE streaming and cutting UI re-renders 88% by batching token updates per animation frame. Deployed cross-chat agent memory with pgvector, isolating user context from untrusted model and tool output.",
       "stack": [
         "FastAPI",
         "LangGraph",
@@ -58,7 +57,7 @@
       "period": "Dec 2025 – May 2026",
       "location": "Remote",
       "status": "Shipped",
-      "summary": "Shipped core features across 36 of 41 screens in a 10K+ user Flutter app. Engineered a perceptual color engine to recommend the best shade for each user's skin tone, sampling swatch imagery, converting sRGB to CIELAB, and ranking each product's shade lineup by Delta-E in under 0.005ms. Cut homepage load time ~75% via parallel API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
+      "summary": "Shipped features across 36 of 41 screens in a 10K+ user Flutter app, owning each from founder spec to release. Engineered a perceptual color engine matching users to their best product shade by sampling swatch imagery, precomputing sRGB-to-CIELAB conversions, and ranking each product's shade lineup by Delta-E. Cut homepage load time ~75% via API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
       "stack": [
         "Flutter",
         "Dart",
@@ -106,7 +105,7 @@
       "period": "Sep 2025 – Apr 2026",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built the ~350ms geospatial ETL pipeline powering a CMU campus navigation site for 700+ monthly users, fusing 15K+ OpenStreetMap nodes with ArcGIS metadata into footprints, floors, facility IDs, and entrances.",
+      "summary": "Built the geospatial ETL pipeline powering CMU's campus navigation site for 700+ monthly users, fusing 15K+ OpenStreetMap nodes with ArcGIS metadata into building footprints, floors, facility IDs, and entrances.",
       "stack": [
         "Python",
         "OpenStreetMap",
@@ -179,7 +178,7 @@
       "period": "Jun 2023 – Aug 2024",
       "location": "Pomona, CA",
       "status": "Published",
-      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, achieving 95.4% mean accuracy on controlled exercise videos and co-authoring a peer-reviewed paper presented at CS & IT-CSCP 2024.",
+      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, achieving 95.4% mean accuracy in controlled video trials, and co-authored a peer-reviewed paper presented at CS & IT-CSCP 2024.",
       "stack": [
         "Python",
         "ML/CV",
