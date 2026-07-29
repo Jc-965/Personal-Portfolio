@@ -50,11 +50,16 @@ function CameraRig({ progressRef, reducedMotion }: { progressRef: MutableRefObje
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      const w = window as typeof window & { __gridCamera?: unknown; __gridScene?: unknown }
+      const w = window as typeof window & {
+        __gridCamera?: unknown
+        __gridScene?: unknown
+        __gridRail?: string[]
+      }
       w.__gridCamera = camera
       w.__gridScene = scene
       // Guard the whole class of "camera flies through a building" bugs.
       const problems = validateRail()
+      w.__gridRail = problems
       if (problems.length > 0) console.warn('[grid] rail collisions:\n' + problems.join('\n'))
     }
   }, [camera, scene])

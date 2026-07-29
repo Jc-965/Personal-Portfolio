@@ -100,11 +100,12 @@ function Sign({
   const sign = useMemo(() => makeSignTexture(spec), [specKey])
   const material = useMemo(
     () =>
+      // Front-side only: from behind, a mirrored glowing sheet reads as a
+      // glitch, and the rail approaches every sign from its front.
       new THREE.MeshBasicMaterial({
         map: sign.texture,
         transparent: true,
         depthWrite: false,
-        side: THREE.DoubleSide,
       }),
     [sign],
   )
@@ -546,12 +547,12 @@ function BeyondShops() {
             windowDensity={0.9}
             seed={23 + i}
           />
-          {/* Awning light-strip over the storefront. */}
-          <NeonBox
-            position={[x + 3.1, 5.4, z]}
-            size={[0.18, 0.18, 5.2]}
-            accent={item.accent}
-          />
+          {/* Awning light-strip over the storefront — solid emissive, so it
+              reads as a lit tube rather than a dark bar. */}
+          <mesh position={[x + 3.05, 5.4, z]}>
+            <boxGeometry args={[0.15, 0.15, 5.2]} />
+            <meshBasicMaterial color={item.accent} />
+          </mesh>
           {/* Rooftop sign angled toward the approaching camera (+Z) so the
               three storefronts never stack edge-on in projection. */}
           <Sign

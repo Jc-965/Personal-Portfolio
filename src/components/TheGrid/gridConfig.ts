@@ -111,10 +111,10 @@ export const STATIONS: GridStation[] = [
     label: 'PROJECTS',
     title: 'Featured builds',
     accent: '#4c8bff',
-    // East of the avenue looking down the tower row — the rail never has to
-    // cross through the jumbotron block to get here.
-    cam: [2, 11, -34],
-    look: [11, 14, -72],
+    // Crosses the avenue BEHIND the jumbotron block (validator-checked), then
+    // faces down the tower row from the west kerb.
+    cam: [-2, 11.5, -31],
+    look: [11, 13, -70],
   },
   {
     id: 'beyond',
@@ -153,7 +153,7 @@ export const STATION_COUNT = STATIONS.length
 export const RAIL_POINTS: Vec3Tuple[] = [
   STATIONS[0].cam,
   STATIONS[1].cam,
-  [6.5, 10, -18], // hug the east side past the jumbotron block
+  [7, 10, -30], // hug the east side, then cross behind the jumbotron block
   STATIONS[2].cam,
   [6, 20, -60], // sweeping climb over the avenue, between the district edges
   STATIONS[3].cam,
@@ -241,10 +241,12 @@ export const SKY_DECK = { x: 0, y: 34, z: -160, size: 12 }
 
 // Neon threshold arches over the arrival plaza (widths keep the eastward
 // rail leg well inside them).
+// Crossbars sit above every sightline from the home station to the identity
+// screen's top edge, so the gates frame the view without ever cutting it.
 export const PLAZA_GATES = [
-  { z: 38, halfWidth: 9, height: 11 },
-  { z: 27, halfWidth: 9, height: 11 },
-  { z: 16, halfWidth: 9, height: 11 },
+  { z: 38, halfWidth: 9, height: 16.5 },
+  { z: 27, halfWidth: 9, height: 16 },
+  { z: 16, halfWidth: 9, height: 15.5 },
 ]
 
 // Corridor kept clear of procedural towers so the rail never clips a building.

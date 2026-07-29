@@ -81,8 +81,11 @@ const fragmentShader = /* glsl */ `
       float brightness = 0.4 + 0.4 * hash(cell + 7.0);
       color += vAccent * lit * window * blink * brightness;
 
-      // Neon edge glow along vertical corners.
-      float edge = smoothstep(0.44, 0.5, max(abs(vLocal.x), abs(vLocal.z)));
+      // Neon edge glow along vertical corners — measured along the face's
+      // tangent axis only (the normal axis is constant 0.5 across the face
+      // and would wash the whole wall in accent).
+      float tangent = abs(vNormal.x) > 0.5 ? abs(vLocal.z) : abs(vLocal.x);
+      float edge = smoothstep(0.44, 0.5, tangent);
       color += vAccent * edge * 0.35;
 
       // Ground-floor haze: streets bleed light up the first meters.

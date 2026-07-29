@@ -65,8 +65,10 @@ const fragmentShader = /* glsl */ `
 
       // Accent wash rising from the street.
       color += uAccent * 0.06 * (1.0 - smoothstep(0.0, 0.4, v));
-      // Corner glow, echoing the skyline's neon edges.
-      float edge = smoothstep(0.44, 0.5, max(abs(vLocal.x / uDims.x), abs(vLocal.z / uDims.z)));
+      // Corner glow along the face's tangent axis only — using the normal
+      // axis too would paint entire walls in accent.
+      float tangent = abs(vNormal.x) > 0.5 ? abs(vLocal.z / uDims.z) : abs(vLocal.x / uDims.x);
+      float edge = smoothstep(0.44, 0.5, tangent);
       color += uAccent * edge * 0.28;
     }
 

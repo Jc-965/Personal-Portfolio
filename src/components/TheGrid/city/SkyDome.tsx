@@ -425,7 +425,7 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
       position.setXYZ(i, scratch.x, scratch.y, scratch.z)
       tint.set(star.color)
       color.setXYZ(i, tint.r, tint.g, tint.b)
-      size.setX(i, star.isMega ? 6 : key === ownKeyRef.current ? 4 : 3.1)
+      size.setX(i, star.isMega ? 6.4 : key === ownKeyRef.current ? 4.4 : 3.6)
       seed.setX(i, (star.x * 137 + star.y * 61) % 100)
       i++
     }
