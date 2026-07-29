@@ -14,15 +14,20 @@ let progress = 0
 let velocity = 0
 let lastY = 0
 let lastTime = 0
+let maxScroll = 0
 
 const listeners = new Set<ScrollListener>()
+
+/** Refresh after viewport or document geometry changes, never in a hot frame loop. */
+export function refreshScrollBounds() {
+  maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+}
 
 /** Called once per animation frame by ScrollProvider's rAF loop. */
 export function updateScrollSignal(time: number) {
   const doc = document.documentElement
-  const max = doc.scrollHeight - window.innerHeight
   const y = window.scrollY || doc.scrollTop || 0
-  const next = max > 0 ? Math.min(1, Math.max(0, y / max)) : 0
+  const next = maxScroll > 0 ? Math.min(1, Math.max(0, y / maxScroll)) : 0
   const dt = lastTime ? Math.max(1, time - lastTime) : 16
   velocity = (y - lastY) / dt
   progress = next

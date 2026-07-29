@@ -2,7 +2,17 @@
   "rules": {
     "stars": {
       ".read": true,
-      ".write": false
+      ".write": false,
+      "$starKey": {
+        "x": {
+          ".write": "auth != null && auth.uid === data.parent().child('ownerUid').val() && !data.parent().child('isMega').exists()",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+        },
+        "y": {
+          ".write": "auth != null && auth.uid === data.parent().child('ownerUid').val() && !data.parent().child('isMega').exists()",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+        }
+      }
     },
     "metadata": {
       ".read": true,

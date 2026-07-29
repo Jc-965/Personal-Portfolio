@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { m } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WindowFrame from './WindowFrame'
 import PhoneFrame from './PhoneFrame'
@@ -40,6 +40,10 @@ export default function MediaGallery({
   priority = false,
 }: MediaGalleryProps) {
   const [active, setActive] = useState(0)
+  const [nearViewport, setNearViewport] = useState(
+    () => priority || typeof IntersectionObserver === 'undefined',
+  )
+  const galleryRef = useRef<HTMLDivElement>(null)
   const isPhone = useIsPhone()
   const n = images.length
   const dir = side === 'right' ? 1 : -1
@@ -49,16 +53,34 @@ export default function MediaGallery({
     : images.map((img, i) => ({ img, i }))
 
   useEffect(() => {
-    if (n === 0) return
+    if (nearViewport) return
+    const gallery = galleryRef.current
+    if (!gallery) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setNearViewport(true)
+        observer.disconnect()
+      },
+      { rootMargin: '1200px 0px' },
+    )
+    observer.observe(gallery)
+    return () => observer.disconnect()
+  }, [nearViewport])
+
+  useEffect(() => {
+    if (n === 0 || !nearViewport) return
     preloadImages([
       images[active]?.src,
       images[(active + 1) % n]?.src,
       images[(active - 1 + n) % n]?.src,
     ])
-  }, [active, images, n])
+  }, [active, images, n, nearViewport])
 
   return (
     <div
+      ref={galleryRef}
       className={`gallery ${frame === 'phone' ? 'gallery--phone' : ''}`}
       style={{ '--gallery-accent': accent } as React.CSSProperties}
     >
@@ -74,7 +96,7 @@ export default function MediaGallery({
             ? pos > 2 ? 0 : Math.max(0.16, 0.42 - (pos - 1) * 0.18)
             : Math.max(0.18, 0.66 - (pos - 1) * 0.22)
           return (
-            <motion.div
+            <m.div
               key={img.src}
               className={`gallery__card ${i === 0 || isPhone ? 'gallery__card--base' : ''} ${front ? 'is-active' : ''}`}
               aria-hidden={!front}
@@ -110,7 +132,7 @@ export default function MediaGallery({
                   loading={front && priority ? 'eager' : 'lazy'}
                 />
               )}
-            </motion.div>
+            </m.div>
           )
         })}
 

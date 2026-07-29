@@ -14,10 +14,25 @@ export default function Navbar() {
   const [hidden, setHidden] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const lastY = useRef(0)
+  const activeRef = useRef('#top')
+  const hiddenRef = useRef(false)
+  const scrolledRef = useRef(false)
 
   useEffect(() => {
-    const sections = document.querySelectorAll('section[id]')
-    let timeout: number
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'))
+    const desktopNav = window.matchMedia('(min-width: 769px)')
+    let sectionMetrics: Array<{ id: string; top: number; height: number }> = []
+    let timeout = 0
+    let measureFrame = 0
+
+    const measureSections = () => {
+      measureFrame = 0
+      const scrollY = window.scrollY
+      sectionMetrics = sections.map(section => {
+        const rect = section.getBoundingClientRect()
+        return { id: section.id, top: rect.top + scrollY, height: rect.height }
+      })
+    }
 
     const update = () => {
       const scrollY = window.scrollY
@@ -25,45 +40,77 @@ export default function Navbar() {
       let best: string | null = null
       let maxVis = 0
 
-      sections.forEach(sec => {
-        const rect = sec.getBoundingClientRect()
-        const top = rect.top + scrollY
+      sectionMetrics.forEach(({ id, top, height }) => {
+        const viewportTop = top - scrollY
         const visTop = Math.max(scrollY, top)
-        const visBot = Math.min(scrollY + windowH, top + rect.height)
+        const visBot = Math.min(scrollY + windowH, top + height)
         const visH = Math.max(0, visBot - visTop)
-        const weight = 1 - Math.min(Math.abs(rect.top) / windowH, 1) * 0.5
+        const weight = 1 - Math.min(Math.abs(viewportTop) / windowH, 1) * 0.5
         const vis = visH * weight
-        if (vis > maxVis) { maxVis = vis; best = `#${sec.id}` }
+        if (vis > maxVis) { maxVis = vis; best = `#${id}` }
       })
 
-      if (best) setActive(best)
+      if (best && best !== activeRef.current) {
+        activeRef.current = best
+        setActive(best)
+      }
+    }
+
+    const scheduleMeasure = () => {
+      if (measureFrame) return
+      measureFrame = window.requestAnimationFrame(() => {
+        measureSections()
+        update()
+      })
     }
 
     const onScroll = () => {
       // Auto-hide on scroll-down, reveal on scroll-up / near top (kept out of
       // the debounce so it feels immediate).
       const y = window.scrollY
-      const shouldAutoHide = window.matchMedia('(min-width: 769px)').matches
-      setScrolled(y > 12)
+      const shouldAutoHide = desktopNav.matches
+      const nextScrolled = y > 12
+      if (nextScrolled !== scrolledRef.current) {
+        scrolledRef.current = nextScrolled
+        setScrolled(nextScrolled)
+      }
       const goingDown = y > lastY.current + 4
       const goingUp = y < lastY.current - 4
-      if (!shouldAutoHide || menuOpen || y < 120) setHidden(false)
-      else if (goingDown) setHidden(true)
-      else if (goingUp) setHidden(false)
+      let nextHidden = hiddenRef.current
+      if (!shouldAutoHide || menuOpen || y < 120) nextHidden = false
+      else if (goingDown) nextHidden = true
+      else if (goingUp) nextHidden = false
+      if (nextHidden !== hiddenRef.current) {
+        hiddenRef.current = nextHidden
+        setHidden(nextHidden)
+      }
       lastY.current = y
 
       if (timeout) return
       timeout = window.setTimeout(() => { update(); timeout = 0 }, 50)
     }
 
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(scheduleMeasure)
+    sections.forEach(section => resizeObserver?.observe(section))
+    window.addEventListener('resize', scheduleMeasure, { passive: true })
     window.addEventListener('scroll', onScroll, { passive: true })
+    measureSections()
     update()
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      if (timeout) window.clearTimeout(timeout)
+      if (measureFrame) window.cancelAnimationFrame(measureFrame)
+      resizeObserver?.disconnect()
+      window.removeEventListener('resize', scheduleMeasure)
+      window.removeEventListener('scroll', onScroll)
+    }
   }, [menuOpen])
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
     event.preventDefault()
     setMenuOpen(false)
+    activeRef.current = href
     setActive(href)
     if (href === '#top') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -86,6 +133,7 @@ export default function Navbar() {
   }
 
   const toggleMenu = () => {
+    hiddenRef.current = false
     setHidden(false)
     setMenuOpen(open => !open)
   }

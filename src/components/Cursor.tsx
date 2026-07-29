@@ -216,7 +216,6 @@ export default function Cursor() {
     }
 
     const onMove = (e: MouseEvent) => {
-      applyNativeCursorSuppression()
       pos.current.x = e.clientX
       pos.current.y = e.clientY
       if (!visible.current) {
@@ -280,10 +279,8 @@ export default function Cursor() {
     window.addEventListener('focus', reinforceCursorSuppression, { passive: true })
     window.addEventListener('mouseenter', reinforceCursorSuppression, { passive: true })
     window.addEventListener('pageshow', reinforceCursorSuppression, { passive: true })
-    document.addEventListener('mousemove', onMove, { passive: true })
-    // Also track pointermove (captures pointer-captured drags, e.g. dragging the
-    // constellation star, where document mousemove can stop firing) and dragover
-    // (native drag fallback) so the custom cursor keeps following while dragging.
+    // Pointer events cover ordinary mouse movement and pointer-captured drags;
+    // dragover remains as a native-drag fallback.
     window.addEventListener('pointermove', onMove as EventListener, { passive: true })
     window.addEventListener('dragover', onMove as EventListener, { passive: true })
     document.addEventListener('mouseleave', onLeave, { passive: true })
@@ -301,7 +298,6 @@ export default function Cursor() {
       window.removeEventListener('focus', reinforceCursorSuppression)
       window.removeEventListener('mouseenter', reinforceCursorSuppression)
       window.removeEventListener('pageshow', reinforceCursorSuppression)
-      document.removeEventListener('mousemove', onMove)
       window.removeEventListener('pointermove', onMove as EventListener)
       window.removeEventListener('dragover', onMove as EventListener)
       document.removeEventListener('mouseleave', onLeave)

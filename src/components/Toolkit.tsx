@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react'
-import { motion, useInView } from 'framer-motion'
+import { m, useInView } from 'framer-motion'
 import { Code, Layers, BarChart3, TerminalSquare, Network } from 'lucide-react'
 import CardSwap, { Card } from './CardSwap'
 import useIsPhone from '../hooks/useIsPhone'
@@ -71,7 +71,7 @@ export default function Toolkit() {
 
   return (
     <>
-      <motion.header
+      <m.header
         ref={headerRef}
         className="section__header"
         initial={{ opacity: 0, y: 30 }}
@@ -83,9 +83,9 @@ export default function Toolkit() {
           Toolkit
         </p>
         <h2>Technologies and tools I work with</h2>
-      </motion.header>
+      </m.header>
 
-      <motion.div
+      <m.div
         ref={swapRef}
         className="toolkit__swap-shell"
         initial={{ opacity: 0, y: 24 }}
@@ -138,7 +138,7 @@ export default function Toolkit() {
             ))}
           </CardSwap>
         ) : null}
-      </motion.div>
+      </m.div>
     </>
   )
 }

@@ -1,7 +1,16 @@
 // Component ported and enhanced from https://codepen.io/JuanFuentes/pen/eYEeoyE
 
 import { useRef, useEffect } from 'react'
-import * as THREE from 'three'
+import { WebGLRenderer } from 'three/src/renderers/WebGLRenderer.js'
+import { Scene } from 'three/src/scenes/Scene.js'
+import { PerspectiveCamera } from 'three/src/cameras/PerspectiveCamera.js'
+import type { Camera } from 'three/src/cameras/Camera.js'
+import { CanvasTexture } from 'three/src/textures/CanvasTexture.js'
+import { NearestFilter } from 'three/src/constants.js'
+import { PlaneGeometry } from 'three/src/geometries/PlaneGeometry.js'
+import { ShaderMaterial } from 'three/src/materials/ShaderMaterial.js'
+import { Mesh } from 'three/src/objects/Mesh.js'
+import { degToRad } from 'three/src/math/MathUtils.js'
 
 const vertexShader = `
 varying vec2 vUv;
@@ -45,6 +54,96 @@ const ASCII_IDLE_FRAME_INTERVAL_MS = 1000 / 24
 const ASCII_ACTIVE_WINDOW_MS = 140
 const ASCII_RESIZE_COOLDOWN_MS = 120
 const ASCII_RESIZE_DEBOUNCE_MS = 140
+const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+const preferLowPowerGpu = window.matchMedia('(pointer: coarse)').matches
+  || (navigator.hardwareConcurrency || 8) <= 4
+  || (deviceMemory !== undefined && deviceMemory <= 4)
+
+const sharedPointer = {
+  viewportX: 0,
+  viewportY: 0,
+  filterX: 0,
+  filterY: 0,
+  mouseTime: 0,
+  hasViewportInput: false,
+  hasMouseInput: false,
+}
+let sharedMouseUsers = 0
+let sharedTouchUsers = 0
+
+const trackSharedMouse = (event: MouseEvent) => {
+  sharedPointer.viewportX = event.clientX
+  sharedPointer.viewportY = event.clientY
+  sharedPointer.filterX = event.clientX * PX_RATIO
+  sharedPointer.filterY = event.clientY * PX_RATIO
+  sharedPointer.mouseTime = performance.now()
+  sharedPointer.hasViewportInput = true
+  sharedPointer.hasMouseInput = true
+}
+
+const trackSharedTouch = (event: TouchEvent) => {
+  const touch = event.touches[0]
+  if (!touch) return
+  sharedPointer.viewportX = touch.clientX
+  sharedPointer.viewportY = touch.clientY
+  sharedPointer.hasViewportInput = true
+}
+
+const acquireSharedMouse = () => {
+  if (sharedMouseUsers++ === 0) {
+    window.addEventListener('mousemove', trackSharedMouse, { passive: true })
+  }
+}
+
+const releaseSharedMouse = () => {
+  sharedMouseUsers = Math.max(0, sharedMouseUsers - 1)
+  if (sharedMouseUsers === 0) {
+    window.removeEventListener('mousemove', trackSharedMouse)
+    sharedPointer.hasMouseInput = false
+    sharedPointer.hasViewportInput = false
+  }
+}
+
+const acquireSharedTouch = () => {
+  if (sharedTouchUsers++ === 0) {
+    window.addEventListener('touchmove', trackSharedTouch, { passive: true })
+  }
+}
+
+const releaseSharedTouch = () => {
+  sharedTouchUsers = Math.max(0, sharedTouchUsers - 1)
+  if (sharedTouchUsers === 0) window.removeEventListener('touchmove', trackSharedTouch)
+}
+
+interface AsciiAnimationClient {
+  renderAnimationFrame: (now: number) => void
+}
+
+const activeAsciiAnimations = new Set<AsciiAnimationClient>()
+let sharedAnimationFrameId = 0
+
+const runAsciiAnimations = (now: number) => {
+  sharedAnimationFrameId = 0
+  activeAsciiAnimations.forEach(client => client.renderAnimationFrame(now))
+  if (activeAsciiAnimations.size > 0) {
+    sharedAnimationFrameId = requestAnimationFrame(runAsciiAnimations)
+  }
+}
+
+const startAsciiAnimation = (client: AsciiAnimationClient) => {
+  activeAsciiAnimations.add(client)
+  if (!sharedAnimationFrameId) {
+    sharedAnimationFrameId = requestAnimationFrame(runAsciiAnimations)
+  }
+}
+
+const stopAsciiAnimation = (client: AsciiAnimationClient) => {
+  activeAsciiAnimations.delete(client)
+  if (activeAsciiAnimations.size === 0 && sharedAnimationFrameId) {
+    cancelAnimationFrame(sharedAnimationFrameId)
+    sharedAnimationFrameId = 0
+  }
+}
 
 interface AsciiFilterOptions {
   fontSize?: number
@@ -54,7 +153,7 @@ interface AsciiFilterOptions {
 }
 
 class AsciiFilter {
-  renderer!: THREE.WebGLRenderer
+  renderer!: WebGLRenderer
   domElement: HTMLDivElement
   pre: HTMLPreElement
   canvas: HTMLCanvasElement
@@ -75,8 +174,9 @@ class AsciiFilter {
   lastRenderTime = 0
   lastInputTime = 0
   resizeCooldownUntil = 0
+  lastHueStyle = ''
 
-  constructor(renderer: THREE.WebGLRenderer, { fontSize, fontFamily, charset, invert }: AsciiFilterOptions = {}) {
+  constructor(renderer: WebGLRenderer, { fontSize, fontFamily, charset, invert }: AsciiFilterOptions = {}) {
     this.renderer = renderer
     this.domElement = document.createElement('div')
     this.domElement.style.position = 'absolute'
@@ -100,11 +200,9 @@ class AsciiFilter {
 
     if (this.context) {
       this.context.imageSmoothingEnabled = false
-      this.context.imageSmoothingEnabled = false
     }
 
-    this.onMouseMove = this.onMouseMove.bind(this)
-    document.addEventListener('mousemove', this.onMouseMove)
+    acquireSharedMouse()
   }
 
   setSize(width: number, height: number) {
@@ -150,7 +248,7 @@ class AsciiFilter {
     }
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera, now: number) {
+  render(scene: Scene, camera: Camera, now: number) {
     this.hue()
 
     if (now < this.resizeCooldownUntil) return
@@ -172,11 +270,6 @@ class AsciiFilter {
     }
   }
 
-  onMouseMove(e: MouseEvent) {
-    this.mouse = { x: e.clientX * PX_RATIO, y: e.clientY * PX_RATIO }
-    this.lastInputTime = performance.now()
-  }
-
   get dx() {
     return this.mouse.x - this.center.x
   }
@@ -186,15 +279,25 @@ class AsciiFilter {
   }
 
   hue() {
+    if (sharedPointer.hasMouseInput) {
+      this.mouse.x = sharedPointer.filterX
+      this.mouse.y = sharedPointer.filterY
+      this.lastInputTime = sharedPointer.mouseTime
+    }
     const deg = (Math.atan2(this.dy, this.dx) * 180) / Math.PI
     this.deg += (deg - this.deg) * 0.075
-    this.domElement.style.filter = `hue-rotate(${this.deg.toFixed(1)}deg)`
+    const hueStyle = `hue-rotate(${this.deg.toFixed(1)}deg)`
+    if (hueStyle !== this.lastHueStyle) {
+      this.domElement.style.filter = hueStyle
+      this.lastHueStyle = hueStyle
+    }
   }
 
   asciify(ctx: CanvasRenderingContext2D, w: number, h: number) {
     const imgData = ctx.getImageData(0, 0, w, h).data
     const charLen = this.charset.length - 1
-    const parts: string[] = []
+    const parts = new Array<string>(w * h + h)
+    let partIndex = 0
     for (let y = 0; y < h; y++) {
       const rowStart = y * 4 * w
       for (let x = 0; x < w; x++) {
@@ -202,24 +305,26 @@ class AsciiFilter {
         const a = imgData[i + 3]
 
         if (a === 0) {
-          parts.push(' ')
+          parts[partIndex++] = ' '
           continue
         }
 
         const gray = (0.3 * imgData[i] + 0.6 * imgData[i + 1] + 0.1 * imgData[i + 2]) / 255
         let idx = Math.floor((1 - gray) * charLen)
         if (this.invert) idx = charLen - idx
-        parts.push(this.charset[idx])
+        parts[partIndex++] = this.charset[idx]
       }
-      parts.push('\n')
+      parts[partIndex++] = '\n'
     }
     const str = parts.join('')
-    this.lastAsciiStr = str
-    this.pre.textContent = str
+    if (str !== this.lastAsciiStr) {
+      this.lastAsciiStr = str
+      this.pre.textContent = str
+    }
   }
 
   dispose() {
-    document.removeEventListener('mousemove', this.onMouseMove)
+    releaseSharedMouse()
   }
 }
 
@@ -309,19 +414,18 @@ class CanvAscii {
   height: number
   enableWaves: boolean
   interactionMode: 'local' | 'viewport'
-  camera: THREE.PerspectiveCamera
-  scene: THREE.Scene
+  camera: PerspectiveCamera
+  scene: Scene
   mouse: { x: number; y: number }
   textCanvas!: CanvasTxt
-  texture!: THREE.CanvasTexture
-  geometry: THREE.PlaneGeometry | undefined
-  material: THREE.ShaderMaterial | undefined
-  mesh!: THREE.Mesh
+  texture!: CanvasTexture
+  geometry: PlaneGeometry | undefined
+  material: ShaderMaterial | undefined
+  mesh!: Mesh
   textAspect = 1
-  renderer!: THREE.WebGLRenderer
+  renderer!: WebGLRenderer
   filter!: AsciiFilter
   center = { x: 0, y: 0 }
-  animationFrameId = 0
   isVisible = true
 
   constructor(
@@ -341,10 +445,10 @@ class CanvAscii {
     this.enableWaves = enableWaves
     this.interactionMode = interactionMode
 
-    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 1, 1000)
+    this.camera = new PerspectiveCamera(45, this.width / this.height, 1, 1000)
     this.camera.position.z = 30
 
-    this.scene = new THREE.Scene()
+    this.scene = new Scene()
     this.mouse = { x: 0.5, y: 0.5 }
 
     this.onMouseMove = this.onMouseMove.bind(this)
@@ -371,14 +475,14 @@ class CanvAscii {
     this.textCanvas.resize()
     this.textCanvas.render()
 
-    this.texture = new THREE.CanvasTexture(this.textCanvas.texture)
-    this.texture.minFilter = THREE.NearestFilter
+    this.texture = new CanvasTexture(this.textCanvas.texture)
+    this.texture.minFilter = NearestFilter
     this.texture.needsUpdate = true
 
     this.textAspect = this.textCanvas.width / this.textCanvas.height
 
-    this.geometry = new THREE.PlaneGeometry(1, 1, 36, 36)
-    this.material = new THREE.ShaderMaterial({
+    this.geometry = new PlaneGeometry(1, 1, 36, 36)
+    this.material = new ShaderMaterial({
       vertexShader,
       fragmentShader,
       transparent: true,
@@ -390,13 +494,22 @@ class CanvAscii {
       }
     })
 
-    this.mesh = new THREE.Mesh(this.geometry, this.material)
+    this.mesh = new Mesh(this.geometry, this.material)
     this.fitMeshToView()
     this.scene.add(this.mesh)
   }
 
   setRenderer() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' })
+    this.renderer = new WebGLRenderer({
+      antialias: false,
+      alpha: true,
+      // A single transparent plane needs neither attachment. Avoid allocating
+      // and clearing those GPU buffers, especially across the stacked mobile
+      // title renderers.
+      depth: false,
+      stencil: false,
+      powerPreference: preferLowPowerGpu ? 'low-power' : 'high-performance',
+    })
     this.renderer.setPixelRatio(1)
     this.renderer.setClearColor(0x000000, 0)
 
@@ -410,13 +523,12 @@ class CanvAscii {
     this.setSize(this.width, this.height)
 
     if (this.interactionMode === 'viewport') {
-      window.addEventListener('mousemove', this.onMouseMove)
-      window.addEventListener('touchmove', this.onMouseMove)
+      acquireSharedTouch()
       return
     }
 
-    this.container.addEventListener('mousemove', this.onMouseMove)
-    this.container.addEventListener('touchmove', this.onMouseMove)
+    this.container.addEventListener('mousemove', this.onMouseMove, { passive: true })
+    this.container.addEventListener('touchmove', this.onMouseMove, { passive: true })
   }
 
   setSize(w: number, h: number) {
@@ -435,7 +547,7 @@ class CanvAscii {
   fitMeshToView() {
     if (!this.mesh || !Number.isFinite(this.textAspect) || this.textAspect <= 0) return
 
-    const verticalFov = THREE.MathUtils.degToRad(this.camera.fov)
+    const verticalFov = degToRad(this.camera.fov)
     const viewHeight = 2 * Math.tan(verticalFov / 2) * this.camera.position.z
     const viewWidth = viewHeight * this.camera.aspect
     const maxPlaneHeight = viewHeight * 0.86
@@ -453,22 +565,13 @@ class CanvAscii {
     this.isVisible = isVisible
     if (isVisible) {
       this.animate()
+    } else {
+      stopAsciiAnimation(this)
     }
   }
 
   onMouseMove(evt: MouseEvent | TouchEvent) {
     const e = (evt as TouchEvent).touches ? (evt as TouchEvent).touches[0] : (evt as MouseEvent)
-
-    if (this.interactionMode === 'viewport') {
-      const viewportWidth = window.innerWidth || 1
-      const viewportHeight = window.innerHeight || 1
-
-      this.mouse = {
-        x: Math.max(0, Math.min(1, e.clientX / viewportWidth)),
-        y: Math.max(0, Math.min(1, e.clientY / viewportHeight))
-      }
-      return
-    }
 
     const bounds = this.container.getBoundingClientRect()
     const width = bounds.width || 1
@@ -481,23 +584,16 @@ class CanvAscii {
   }
 
   animate() {
-    if (this.animationFrameId) return
+    if (this.isVisible) startAsciiAnimation(this)
+  }
 
-    const animateFrame = (now: number) => {
-      if (!this.isVisible) {
-        this.animationFrameId = 0
-        return
-      }
-
-      this.animationFrameId = requestAnimationFrame(animateFrame)
-      this.render(now * 0.001, now)
-    }
-
-    this.animationFrameId = requestAnimationFrame(animateFrame)
+  renderAnimationFrame(now: number) {
+    if (!this.isVisible) return
+    this.render(now * 0.001, now)
   }
 
   render(time: number, now: number) {
-    ;(this.mesh.material as THREE.ShaderMaterial).uniforms.uTime.value = Math.sin(time)
+    ;(this.mesh.material as ShaderMaterial).uniforms.uTime.value = Math.sin(time)
 
     this.updateRotation()
     this.filter.render(this.scene, this.camera, now)
@@ -508,6 +604,12 @@ class CanvAscii {
   }
 
   updateRotation() {
+    if (this.interactionMode === 'viewport' && sharedPointer.hasViewportInput) {
+      const viewportWidth = window.innerWidth || 1
+      const viewportHeight = window.innerHeight || 1
+      this.mouse.x = Math.max(0, Math.min(1, sharedPointer.viewportX / viewportWidth))
+      this.mouse.y = Math.max(0, Math.min(1, sharedPointer.viewportY / viewportHeight))
+    }
     const x = map(this.mouse.y, 0, 1, 0.5, -0.5)
     const y = map(this.mouse.x, 0, 1, -0.5, 0.5)
 
@@ -517,7 +619,7 @@ class CanvAscii {
 
   clear() {
     this.scene.traverse(object => {
-      const obj = object as unknown as THREE.Mesh
+      const obj = object as unknown as Mesh
       if (!obj.isMesh) return
       ;[obj.material].flat().forEach(material => {
         material.dispose()
@@ -534,7 +636,7 @@ class CanvAscii {
   }
 
   dispose() {
-    cancelAnimationFrame(this.animationFrameId)
+    stopAsciiAnimation(this)
     if (this.filter) {
       this.filter.dispose()
       if (this.filter.domElement.parentNode) {
@@ -542,8 +644,7 @@ class CanvAscii {
       }
     }
     if (this.interactionMode === 'viewport') {
-      window.removeEventListener('mousemove', this.onMouseMove)
-      window.removeEventListener('touchmove', this.onMouseMove)
+      releaseSharedTouch()
     } else {
       this.container.removeEventListener('mousemove', this.onMouseMove)
       this.container.removeEventListener('touchmove', this.onMouseMove)
@@ -552,7 +653,6 @@ class CanvAscii {
     if (this.renderer) {
       this.renderer.dispose()
     }
-    this.animationFrameId = 0
   }
 }
 
@@ -687,42 +787,6 @@ export default function ASCIIText({
         width: '100%',
         height: '100%'
       }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap');
-
-        .ascii-text-container canvas {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          height: 100%;
-          image-rendering: optimizeSpeed;
-          image-rendering: -moz-crisp-edges;
-          image-rendering: -o-crisp-edges;
-          image-rendering: -webkit-optimize-contrast;
-          image-rendering: optimize-contrast;
-          image-rendering: crisp-edges;
-          image-rendering: pixelated;
-        }
-
-        .ascii-text-container pre {
-          margin: 0;
-          user-select: none;
-          padding: 0;
-          line-height: 1em;
-          text-align: left;
-          position: absolute;
-          left: 0;
-          top: 0;
-          background-image: radial-gradient(circle, #ff6188 0%, #fc9867 50%, #ffd866 100%);
-          background-attachment: fixed;
-          -webkit-text-fill-color: transparent;
-          -webkit-background-clip: text;
-          z-index: 9;
-          mix-blend-mode: difference;
-        }
-      `}</style>
-    </div>
+    />
   )
 }

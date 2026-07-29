@@ -1,6 +1,5 @@
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Analytics } from '@vercel/analytics/react'
+import { LazyMotion, domAnimation, m } from 'framer-motion'
 import Cursor from './components/Cursor'
 import Background from './components/Background'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -21,6 +20,11 @@ const TargetCursor = lazy(() => import('./components/TargetCursor'))
 // Lazy so lenis stays off the critical path; it activates a beat after first
 // paint, once the main view is up.
 const ScrollProvider = lazy(() => import('./scroll/ScrollProvider'))
+const Analytics = lazy(() =>
+  import('@vercel/analytics/react').then(({ Analytics: AnalyticsComponent }) => ({
+    default: AnalyticsComponent,
+  })),
+)
 
 const Journey = lazy(() => import('./components/Journey'))
 const Projects = lazy(() => import('./components/Projects'))
@@ -62,7 +66,6 @@ function App() {
     const update = () => setUseCustomCursor(shouldUseCustomCursor())
 
     update()
-    window.addEventListener('resize', update, { passive: true })
 
     if ('addEventListener' in finePointer) {
       finePointer.addEventListener('change', update)
@@ -71,7 +74,6 @@ function App() {
     }
 
     return () => {
-      window.removeEventListener('resize', update)
       if ('removeEventListener' in finePointer) {
         finePointer.removeEventListener('change', update)
       } else {
@@ -167,7 +169,8 @@ function App() {
   }, [isSketchbookReturning])
 
   return (
-    <GyroscopeProvider>
+    <LazyMotion features={domAnimation} strict>
+      <GyroscopeProvider>
       {useCustomCursor && <Cursor />}
       {useCustomCursor && (
         <Suspense fallback={null}>
@@ -181,7 +184,7 @@ function App() {
         </Suspense>
       )}
       <div className="vintage-overlay" />
-      <motion.div
+      <m.div
         key="main"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -198,14 +201,14 @@ function App() {
             <main id="main-content">
               <Hero />
               <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} /></ErrorBoundary>
-              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} /></ErrorBoundary>
+              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="80px 0px" /></ErrorBoundary>
               <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" component={BeyondBuild} /></ErrorBoundary>
               <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" component={Toolkit} /></ErrorBoundary>
               <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" /></ErrorBoundary>
             </main>
             <Footer />
             <GyroPrompt />
-      </motion.div>
+      </m.div>
 
       {(sketchbookOpen || sketchbookExiting) && (
         <ErrorBoundary label="Sketchbook" fallback={null}>
@@ -219,8 +222,13 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       )}
-      {analyticsEnabled && <Analytics />}
-    </GyroscopeProvider>
+      {analyticsEnabled && (
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
+      )}
+      </GyroscopeProvider>
+    </LazyMotion>
   )
 }
 

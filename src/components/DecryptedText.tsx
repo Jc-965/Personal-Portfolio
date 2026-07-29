@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion, type HTMLMotionProps } from 'framer-motion'
+import { m, type HTMLMotionProps } from 'framer-motion'
 
 const styles = {
   wrapper: {
@@ -219,7 +219,7 @@ export default function DecryptedText({
       : {}
 
   return (
-    <motion.span
+    <m.span
       ref={containerRef}
       className={parentClassName}
       style={styles.wrapper}
@@ -234,7 +234,7 @@ export default function DecryptedText({
 
           return (
             <span
-              key={`${index}-${char}`}
+              key={index}
               className={isRevealedOrDone ? className : encryptedClassName}
             >
               {char}
@@ -242,6 +242,6 @@ export default function DecryptedText({
           )
         })}
       </span>
-    </motion.span>
+    </m.span>
   )
 }

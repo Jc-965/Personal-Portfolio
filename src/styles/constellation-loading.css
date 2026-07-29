@@ -120,6 +120,17 @@
   cursor: grabbing;
 }
 
+/* Fixed full-viewport canvas the entrance comet streaks across; mounted on
+   body only for the ~1s flight, never intercepts input. */
+.constellation__entrance-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+}
+
 .constellation__canvas {
   position: absolute;
   inset: 0;

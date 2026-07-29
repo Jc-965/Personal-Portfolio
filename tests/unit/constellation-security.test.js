@@ -58,3 +58,22 @@ test('Firebase rules expose reads but reserve every write for server credentials
   assert.equal(rules.metadata['.write'], false)
   assert.equal(rules['.write'], false)
 })
+
+test('Firebase rules open exactly the x/y leaves to the owning anonymous uid', async () => {
+  const rules = JSON.parse(await readFile(new URL('../../database.rules.json', import.meta.url), 'utf8')).rules
+  const starRules = rules.stars.$starKey
+
+  for (const axis of ['x', 'y']) {
+    const leaf = starRules[axis]
+    assert.match(leaf['.write'], /auth != null/)
+    assert.match(leaf['.write'], /auth\.uid === data\.parent\(\)\.child\('ownerUid'\)\.val\(\)/)
+    assert.match(leaf['.write'], /!data\.parent\(\)\.child\('isMega'\)\.exists\(\)/)
+    assert.match(leaf['.validate'], /newData\.isNumber\(\)/)
+    assert.match(leaf['.validate'], />= 0/)
+    assert.match(leaf['.validate'], /<= 1/)
+  }
+
+  // Only x and y are granted — message, color, and ownerUid itself must stay
+  // server-only.
+  assert.deepEqual(Object.keys(starRules).sort(), ['x', 'y'])
+})

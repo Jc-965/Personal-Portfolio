@@ -18,15 +18,15 @@ const allJsSizes = await Promise.all(allJs.map(async (name) => ({ name, bytes: a
 const largestChunk = allJsSizes.sort((a, b) => b.bytes - a.bytes)[0]
 
 const budgets = {
-  initialJs: 145 * 1024,
-  initialCss: 20 * 1024,
-  lazyChunk: 300 * 1024,
+  initialJs: 120 * 1024,
+  initialCss: 18 * 1024,
+  lazyChunk: 220 * 1024,
 }
 const failures = []
 
-if (initialJsBytes > budgets.initialJs) failures.push(`initial JS is ${(initialJsBytes / 1024).toFixed(1)} KiB gzip (budget: 145 KiB)`)
-if (initialCssBytes > budgets.initialCss) failures.push(`initial CSS is ${(initialCssBytes / 1024).toFixed(1)} KiB gzip (budget: 20 KiB)`)
-if (largestChunk.bytes > budgets.lazyChunk) failures.push(`${largestChunk.name} is ${(largestChunk.bytes / 1024).toFixed(1)} KiB gzip (budget: 300 KiB)`)
+if (initialJsBytes > budgets.initialJs) failures.push(`initial JS is ${(initialJsBytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.initialJs / 1024} KiB)`)
+if (initialCssBytes > budgets.initialCss) failures.push(`initial CSS is ${(initialCssBytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.initialCss / 1024} KiB)`)
+if (largestChunk.bytes > budgets.lazyChunk) failures.push(`${largestChunk.name} is ${(largestChunk.bytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.lazyChunk / 1024} KiB)`)
 if (initialAssets.some((path) => /Sketchbook|Constellation|firebase|three/i.test(path))) {
   failures.push('an interactive feature chunk was added to the initial HTML')
 }

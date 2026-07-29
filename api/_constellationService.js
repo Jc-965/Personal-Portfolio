@@ -89,7 +89,7 @@ export async function mergeConstellationIfNeeded() {
   }
 }
 
-export async function createConstellationStar({ sessionSecret, x, y, color, visitId }) {
+export async function createConstellationStar({ sessionSecret, x, y, color, visitId, ownerUid }) {
   // Compact an already-full field before inserting the visitor's star so the
   // newly returned/editable star is never immediately consumed by that merge.
   let mergeStatus = 'busy'
@@ -110,6 +110,9 @@ export async function createConstellationStar({ sessionSecret, x, y, color, visi
     sessionHash: hashSessionSecret(sessionSecret),
     visitId,
   }
+  // Written once here and never client-writable: the database rules compare
+  // auth.uid against this field to allow direct x/y writes for live dragging.
+  if (ownerUid) star.ownerUid = ownerUid
 
   await firebaseRest('', {
     method: 'PATCH',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import DecryptedText from './DecryptedText'
 import Magnet from './Magnet'
 import useIsPhone from '../hooks/useIsPhone'
@@ -74,13 +74,13 @@ export default function Hero() {
     <section className="hero" id="top">
       <div className="hero__scanlines" aria-hidden="true" />
 
-      <motion.div
+      <m.div
         className="hero__content hero__content--centered"
         initial={{ opacity: 0 }}
         animate={showContent ? { opacity: 1 } : {}}
         transition={{ duration: 0.6 }}
       >
-        <motion.p
+        <m.p
           ref={eyebrowRef}
           className="hero__eyebrow"
           initial={{ opacity: 0, y: 20 }}
@@ -99,7 +99,7 @@ export default function Hero() {
             className="hero__eyebrow-char"
             encryptedClassName="hero__eyebrow-char hero__eyebrow-char--encrypted"
           />
-        </motion.p>
+        </m.p>
 
         <h1 className="hero__title-sr">
           {portfolio.profile.headline}
@@ -108,7 +108,7 @@ export default function Hero() {
         <div ref={titleRef} className="hero__title hero__title--centered" aria-hidden="true">
           <Suspense fallback={null}>
             {asciiTitleLines.map(line => (
-              <motion.div
+              <m.div
                 key={line.text}
                 className={`hero__title-line hero__title-line--ascii ${
                   line.accent ? 'hero__title-line--ascii-accent' : 'hero__title-line--ascii-bright'
@@ -126,12 +126,12 @@ export default function Hero() {
                   planeBaseHeight={asciiPlaneHeight}
                   interactionMode="viewport"
                 />
-              </motion.div>
+              </m.div>
             ))}
           </Suspense>
         </div>
 
-        <motion.p
+        <m.p
           ref={descRef}
           className="hero__description hero__description--centered"
           initial={{ opacity: 0, y: 20 }}
@@ -139,9 +139,9 @@ export default function Hero() {
           transition={{ duration: 0.5, delay: 0.65 }}
         >
           {portfolio.profile.description}
-        </motion.p>
+        </m.p>
 
-        <motion.div
+        <m.div
           ref={ctaRef}
           className="hero__cta hero__cta--centered"
           initial={{ opacity: 0, y: 20 }}
@@ -172,8 +172,8 @@ export default function Hero() {
               See the journey
             </a>
           </Magnet>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </section>
   )
 }

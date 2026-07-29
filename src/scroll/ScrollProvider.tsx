@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import Lenis from 'lenis'
-import { updateScrollSignal } from './scrollSignal'
+import { refreshScrollBounds, updateScrollSignal } from './scrollSignal'
 
 /**
  * Owns the site-wide scroll engine. Mounted once (after the loading screen).
@@ -19,6 +19,25 @@ export default function ScrollProvider() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const coarse = window.matchMedia('(pointer: coarse)').matches
     const useLenis = !reduce && !coarse
+    let boundsFrame = 0
+
+    const refreshBounds = () => {
+      if (boundsFrame) return
+      boundsFrame = requestAnimationFrame((time) => {
+        boundsFrame = 0
+        refreshScrollBounds()
+        // Lenis's continuous loop updates the signal in this same frame.
+        if (!useLenis) updateScrollSignal(time)
+      })
+    }
+
+    refreshScrollBounds()
+    updateScrollSignal(performance.now())
+    const boundsObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(refreshBounds)
+    boundsObserver?.observe(document.body)
+    window.addEventListener('resize', refreshBounds, { passive: true })
 
     let lenis: Lenis | null = null
     if (useLenis) {
@@ -42,6 +61,9 @@ export default function ScrollProvider() {
 
       return () => {
         cancelAnimationFrame(rafId)
+        if (boundsFrame) cancelAnimationFrame(boundsFrame)
+        boundsObserver?.disconnect()
+        window.removeEventListener('resize', refreshBounds)
         lenis?.destroy()
         document.documentElement.classList.remove('lenis-active')
       }
@@ -55,15 +77,15 @@ export default function ScrollProvider() {
       })
     }
 
-    updateScrollSignal(performance.now())
     window.addEventListener('scroll', requestSignalUpdate, { passive: true })
-    window.addEventListener('resize', requestSignalUpdate, { passive: true })
     window.addEventListener('pageshow', requestSignalUpdate, { passive: true })
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId)
+      if (boundsFrame) cancelAnimationFrame(boundsFrame)
+      boundsObserver?.disconnect()
+      window.removeEventListener('resize', refreshBounds)
       window.removeEventListener('scroll', requestSignalUpdate)
-      window.removeEventListener('resize', requestSignalUpdate)
       window.removeEventListener('pageshow', requestSignalUpdate)
       document.documentElement.classList.remove('lenis-active')
     }

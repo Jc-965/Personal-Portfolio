@@ -58,6 +58,5 @@ export const bootstrapNativeCursorSuppression = () => {
   window.addEventListener('focus', scheduleApply, { passive: true })
   window.addEventListener('pageshow', scheduleApply, { passive: true })
   window.addEventListener('mouseenter', scheduleApply, { passive: true })
-  document.addEventListener('mouseover', scheduleApply, { capture: true, passive: true })
   document.addEventListener('visibilitychange', handleVisibilityChange)
 }

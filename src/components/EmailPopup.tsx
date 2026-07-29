@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { X, Send } from 'lucide-react'
 
 const FORMSPREE_URL = 'https://formspree.io/f/mykdvoyz'
@@ -88,7 +88,7 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <motion.div
+    <m.div
       className="email-popup__backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -96,7 +96,7 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
       transition={{ duration: 0.2 }}
       onClick={onClose}
     >
-      <motion.div
+      <m.div
         ref={cardRef}
         className="email-popup__card"
         role="dialog"
@@ -179,7 +179,7 @@ export default function EmailPopup({ onClose }: { onClose: () => void }) {
             </button>
           </form>
         )}
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }

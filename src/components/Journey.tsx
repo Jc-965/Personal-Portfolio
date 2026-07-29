@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, memo } from 'react'
-import { motion, useInView, useScroll, useReducedMotion } from 'framer-motion'
+import { m, useInView, useScroll, useReducedMotion } from 'framer-motion'
 import {
   Terminal,
   Gamepad2,
@@ -163,7 +163,7 @@ function ChapterMediaView({
           const pos = (i - active + n) % n // 0 = front
           const front = pos === 0
           return (
-            <motion.div
+            <m.div
               key={item.src}
               className={`chapter__shot ${i === 0 ? 'chapter__shot--base' : ''} ${front ? 'is-active' : ''}`}
               aria-hidden={!front}
@@ -190,7 +190,7 @@ function ChapterMediaView({
               ) : (
                 <MapFrame item={item} accent={accent} priority={front && priority} />
               )}
-            </motion.div>
+            </m.div>
           )
         })}
       </div>
@@ -213,7 +213,7 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
   }, [exp.media, inView])
 
   return (
-    <motion.article
+    <m.article
       ref={ref}
       className={`chapter ${exp.media ? 'chapter--has-media' : ''}`}
       style={{ '--chapter-accent': exp.accent } as React.CSSProperties}
@@ -254,7 +254,7 @@ const Chapter = memo(function Chapter({ exp }: { exp: Experience }) {
           />
         )}
       </div>
-    </motion.article>
+    </m.article>
   )
 })
 
@@ -270,7 +270,7 @@ export default function Journey() {
 
   return (
     <>
-      <motion.header
+      <m.header
         ref={headerRef}
         className="section__header"
         initial={{ opacity: 0, y: 20 }}
@@ -282,11 +282,11 @@ export default function Journey() {
           Journey
         </p>
         <h2>From research labs to shipped products</h2>
-      </motion.header>
+      </m.header>
 
       <div ref={timelineRef} className="timeline">
         <div className="timeline__track" aria-hidden="true">
-          <motion.div
+          <m.div
             className="timeline__fill"
             style={reduce ? { scaleY: 1 } : { scaleY: scrollYProgress }}
           />

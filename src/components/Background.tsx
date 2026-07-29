@@ -68,7 +68,9 @@ export default function Background() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
+    // Every frame paints the full viewport with an opaque gradient, so an
+    // alpha channel only adds compositing work without affecting the result.
+    const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -463,8 +465,6 @@ export default function Background() {
     let frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
 
     const drawFrame = (now: number) => {
-      ctx.clearRect(0, 0, w, h)
-
       ctx.fillStyle = bgGradient
       ctx.fillRect(0, 0, w, h)
 
@@ -745,7 +745,8 @@ export default function Background() {
 
       ctx.lineCap = 'round'
 
-      nodes.forEach(node => {
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+        const node = nodes[nodeIndex]
         node.halo *= Math.pow(0.92, decayDt)
         const driftX = Math.sin(time * node.driftSpeed + node.phase) * node.driftRadius
         const driftY = Math.cos(time * node.swirlSpeed + node.phase * 1.2) * node.driftRadius * 0.6
@@ -781,12 +782,13 @@ export default function Background() {
         node.y += node.vy
         node.x = clamp(node.x, 24, w - 24)
         node.y = clamp(node.y, 24, h - 24)
-      })
+      }
 
-      edges.forEach(([a, b]) => {
+      for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex += 1) {
+        const [a, b] = edges[edgeIndex]
         const from = nodes[a]
         const to = nodes[b]
-        if (!from || !to) return
+        if (!from || !to) continue
         const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.56 : 0.82)
         const hue = 180 + hueShift + highlight * 60
         const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 + highlight * 0.22 : 0.14 + highlight * 0.35
@@ -796,9 +798,10 @@ export default function Background() {
         ctx.moveTo(from.x, from.y)
         ctx.lineTo(to.x, to.y)
         ctx.stroke()
-      })
+      }
 
-      nodes.forEach(node => {
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+        const node = nodes[nodeIndex]
         const r = node.radius * (0.78 + node.depth * 0.26)
         const nodeHue = 180 + hueShift + node.halo * 60
 
@@ -852,7 +855,7 @@ export default function Background() {
           ctx.arc(node.x, node.y, r + (profile.isCompact ? 1.2 : 1.6) + node.halo * (profile.isCompact ? 1.9 : 3.4), 0, Math.PI * 2)
           ctx.stroke()
         }
-      })
+      }
 
     }
 

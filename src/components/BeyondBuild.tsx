@@ -1,5 +1,5 @@
 import { useRef, memo } from 'react'
-import { motion, useInView } from 'framer-motion'
+import { m, useInView } from 'framer-motion'
 import { Smartphone, Compass, Music } from 'lucide-react'
 import useCardTilt from '../hooks/useCardTilt'
 
@@ -86,7 +86,7 @@ const LifeCard = memo(function LifeCard({ item, index }: { item: LifeItem; index
   const pose = poses[index % poses.length]
 
   return (
-    <motion.div
+    <m.div
       ref={ref}
       className="life-card-wrap"
       initial={{ opacity: 0, y: 30 }}
@@ -142,7 +142,7 @@ const LifeCard = memo(function LifeCard({ item, index }: { item: LifeItem; index
           </ul>
         </article>
       </div>
-    </motion.div>
+    </m.div>
   )
 })
 
@@ -152,7 +152,7 @@ export default function BeyondBuild() {
 
   return (
     <>
-      <motion.header
+      <m.header
         ref={headerRef}
         className="section__header"
         initial={{ opacity: 0, y: 20 }}
@@ -164,7 +164,7 @@ export default function BeyondBuild() {
           Beyond the build
         </p>
         <h2>Outside the code</h2>
-      </motion.header>
+      </m.header>
 
       <div className="life-scatter">
         <div className="life-scatter__bg" aria-hidden="true">

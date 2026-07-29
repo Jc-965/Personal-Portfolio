@@ -19,6 +19,17 @@ const requiredFirebaseConfig = Object.entries(firebaseConfig)
 let firebaseApp: ReturnType<typeof initializeApp> | null = null
 let database: Database | null = null
 
+/**
+ * The Firebase app instance, or null when config is missing or init failed.
+ * Exposed for features that need SDKs beyond the database (anonymous auth for
+ * the constellation's direct position writes). Initializes through
+ * getFirebase() so App Check setup is never skipped.
+ */
+export function getFirebaseApp(): ReturnType<typeof initializeApp> | null {
+  getFirebase()
+  return firebaseApp
+}
+
 export function getFirebase(): Database | null {
   if (!firebaseApp) {
     if (requiredFirebaseConfig.length > 0) {

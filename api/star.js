@@ -53,12 +53,20 @@ export default async function handler(request, response) {
         return invalid(response)
       }
 
+      // Anonymous-auth uid for direct position writes. Optional and validated
+      // loosely: a missing or malformed uid just means this visitor falls back
+      // to API-routed position updates, so it must never fail the creation.
+      const ownerUid = typeof body.ownerUid === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(body.ownerUid)
+        ? body.ownerUid
+        : undefined
+
       const result = await createConstellationStar({
         sessionSecret,
         x: body.x,
         y: body.y,
         color: body.color,
         visitId,
+        ownerUid,
       })
       return response.status(200).json({ ok: true, starKey: result.key, star: result.star })
     }

@@ -40,7 +40,7 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
 
-  // Three.js is expected on first load again — the hero's ASCIIText title
-  // renders through it — so only the below-the-fold feature chunks are gated.
-  expect(requested.some((url) => /Sketchbook|firebase|Constellation/.test(url))).toBe(false)
+  // The hero's tree-shaken renderer is expected; the full Three.js engine and
+  // below-the-fold feature chunks must remain gated behind user intent.
+  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation/.test(url))).toBe(false)
 })

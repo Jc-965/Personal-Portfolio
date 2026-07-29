@@ -6,6 +6,7 @@ export interface ConstellationStarPayload {
   timestamp: number
   sessionHash?: string
   visitId?: string
+  ownerUid?: string
 }
 
 export type ConstellationStarPatch =
@@ -18,6 +19,9 @@ interface CreateStarParams {
   x: number
   y: number
   color: string
+  // Anonymous-auth uid; lets database rules accept this browser's direct x/y
+  // writes. Omitted when anonymous sign-in was unavailable at creation time.
+  ownerUid?: string
 }
 
 interface CreateStarResponse {

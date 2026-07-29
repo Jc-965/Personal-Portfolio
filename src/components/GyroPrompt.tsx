@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'framer-motion'
 import { useGyroscope } from '../context/GyroscopeContext'
 
 export default function GyroPrompt() {
@@ -20,7 +20,7 @@ export default function GyroPrompt() {
 
   return (
     <AnimatePresence>
-      <motion.button
+      <m.button
         className="gyro-prompt"
         initial={{ opacity: 0, y: 20, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -35,7 +35,7 @@ export default function GyroPrompt() {
           </svg>
         </span>
         <span className="gyro-prompt__text">Enable motion</span>
-      </motion.button>
+      </m.button>
     </AnimatePresence>
   )
 }

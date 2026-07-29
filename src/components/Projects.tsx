@@ -1,6 +1,6 @@
 import { useRef, memo } from 'react'
 import {
-  motion,
+  m,
   useInView,
   useScroll,
   useTransform,
@@ -123,13 +123,13 @@ const ProjectScene = memo(function ProjectScene({
       } as React.CSSProperties}
     >
       <div className="proj__bigname-wrap" aria-hidden="true">
-        <motion.span className="proj__bigname" style={interactive ? { y: nameY } : undefined}>
+        <m.span className="proj__bigname" style={interactive ? { y: nameY } : undefined}>
           {project.name}
-        </motion.span>
+        </m.span>
       </div>
 
-      <motion.div className="proj__visual" style={interactive ? { y: visualY } : undefined}>
-        <motion.div
+      <m.div className="proj__visual" style={interactive ? { y: visualY } : undefined}>
+        <m.div
           className="proj__visual-inner"
           initial={{ opacity: 0, y: 34, scale: 0.97 }}
           animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
@@ -147,30 +147,30 @@ const ProjectScene = memo(function ProjectScene({
           ) : (
             <CodeStage project={project} />
           )}
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         className="proj__copy"
         variants={copyContainer}
         initial="hidden"
         animate={inView ? 'show' : 'hidden'}
       >
-        <motion.p className="proj__eyebrow" variants={copyItem}>
+        <m.p className="proj__eyebrow" variants={copyItem}>
           <span className="proj__dot" />
           {project.tag}
-        </motion.p>
-        <motion.h3 className="proj__title" variants={copyItem}>{project.name}</motion.h3>
-        <motion.p className="proj__lead" variants={copyItem}>{project.lead}</motion.p>
-        <motion.ul className="proj__bullets" variants={copyItem}>
+        </m.p>
+        <m.h3 className="proj__title" variants={copyItem}>{project.name}</m.h3>
+        <m.p className="proj__lead" variants={copyItem}>{project.lead}</m.p>
+        <m.ul className="proj__bullets" variants={copyItem}>
           {project.bullets.map((b, i) => (
             <li key={i}>
               <span className="proj__bullet-icon">›</span>
               <span>{b}</span>
             </li>
           ))}
-        </motion.ul>
-        <motion.div className="proj__meta" variants={copyItem}>
+        </m.ul>
+        <m.div className="proj__meta" variants={copyItem}>
           <div className="proj__stats">
             {project.stats.map((s) => (
               <div key={s.label} className="proj__stat">
@@ -184,8 +184,8 @@ const ProjectScene = memo(function ProjectScene({
               <span key={t} className="proj__tech-tag">{t}</span>
             ))}
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </section>
   )
 })
@@ -196,7 +196,7 @@ export default function Projects() {
 
   return (
     <>
-      <motion.header
+      <m.header
         ref={headerRef}
         className="section__header"
         initial={{ opacity: 0, y: 20 }}
@@ -208,7 +208,7 @@ export default function Projects() {
           Projects
         </p>
         <h2>Building software that solves meaningful problems</h2>
-      </motion.header>
+      </m.header>
 
       <div className="projects__scenes">
         {projects.map((p, i) => (
