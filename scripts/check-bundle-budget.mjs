@@ -27,7 +27,7 @@ const failures = []
 if (initialJsBytes > budgets.initialJs) failures.push(`initial JS is ${(initialJsBytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.initialJs / 1024} KiB)`)
 if (initialCssBytes > budgets.initialCss) failures.push(`initial CSS is ${(initialCssBytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.initialCss / 1024} KiB)`)
 if (largestChunk.bytes > budgets.lazyChunk) failures.push(`${largestChunk.name} is ${(largestChunk.bytes / 1024).toFixed(1)} KiB gzip (budget: ${budgets.lazyChunk / 1024} KiB)`)
-if (initialAssets.some((path) => /Sketchbook|Constellation|firebase|three/i.test(path))) {
+if (initialAssets.some((path) => /Sketchbook|Constellation|firebase|three|Grid/i.test(path))) {
   failures.push('an interactive feature chunk was added to the initial HTML')
 }
 

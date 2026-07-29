@@ -477,5 +477,146 @@
         ]
       }
     }
+  ],
+  "toolkit": [
+    {
+      "id": "languages",
+      "name": "Languages",
+      "accent": "#00ffff",
+      "items": [
+        "Python",
+        "TypeScript",
+        "JavaScript",
+        "C++",
+        "Dart",
+        "Java",
+        "C",
+        "SQL",
+        "Assembly"
+      ]
+    },
+    {
+      "id": "frameworks",
+      "name": "Frameworks",
+      "accent": "#00ff41",
+      "items": [
+        "React",
+        "Flutter",
+        "Firebase",
+        "Framer Motion",
+        "Tailwind CSS",
+        "Unreal Engine 5",
+        "Android SDK"
+      ]
+    },
+    {
+      "id": "data",
+      "name": "Data & ML",
+      "accent": "#ff00ff",
+      "items": [
+        "NumPy",
+        "Pandas",
+        "scikit-learn",
+        "Data Pipelines",
+        "Signal Processing",
+        "GeoJSON",
+        "ArcGIS",
+        "OpenStreetMap"
+      ]
+    },
+    {
+      "id": "systems",
+      "name": "Systems & Tools",
+      "accent": "#ffcc00",
+      "items": [
+        "Git",
+        "Unix Shell",
+        "SSH",
+        "VS Code",
+        "GitHub Actions",
+        "CI/CD",
+        "Docker",
+        "Figma"
+      ]
+    },
+    {
+      "id": "concepts",
+      "name": "Concepts",
+      "accent": "#ff3366",
+      "items": [
+        "Full-stack Dev",
+        "System Design",
+        "Agile Development",
+        "Technical Writing"
+      ]
+    }
+  ],
+  "beyond": [
+    {
+      "id": "arcadia",
+      "title": "Arcadia App Development",
+      "subtitle": "Developer & Treasurer",
+      "accent": "#3aa39b",
+      "accentRgb": "58, 163, 155",
+      "stats": [
+        {
+          "label": "STUDENTS",
+          "value": "2K+"
+        },
+        {
+          "label": "EVENTS",
+          "value": "50+"
+        }
+      ],
+      "bullets": [
+        "Helped build a digital student-ID system that streamlined check-ins for thousands of students.",
+        "Designed features alongside administrators around real student and faculty needs.",
+        "Managed finances and outreach, expanding the club's reach and project capacity."
+      ]
+    },
+    {
+      "id": "eagle",
+      "title": "Eagle Scout",
+      "subtitle": "Boy Scouts of America",
+      "accent": "#b38e5d",
+      "accentRgb": "179, 142, 93",
+      "stats": [
+        {
+          "label": "SERVICE HRS",
+          "value": "200+"
+        },
+        {
+          "label": "VOLUNTEERS",
+          "value": "15"
+        }
+      ],
+      "bullets": [
+        "Led the planning and construction of wooden signage and a large outdoor banner for a local elementary school.",
+        "Organized volunteers and coordinated logistics for safety, accuracy, and meaningful results.",
+        "Mentored younger Scouts on leadership, communication, and responsibility."
+      ]
+    },
+    {
+      "id": "clarinet",
+      "title": "Clarinetist",
+      "subtitle": "Soloist & Performer",
+      "accent": "#9c7fae",
+      "accentRgb": "156, 127, 174",
+      "stats": [
+        {
+          "label": "YEARS",
+          "value": "4"
+        },
+        {
+          "label": "ANNUAL HRS",
+          "value": "200+"
+        }
+      ],
+      "bullets": [
+        "Perform with Carnegie Mellon’s All-University Orchestra (AUO).",
+        "Selected for the California All-State Honor Band and performed as a soloist in high school.",
+        "Performed nationally with the Pasadena Symphony and Pops."
+      ]
+    }
   ]
 }

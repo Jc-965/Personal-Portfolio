@@ -65,7 +65,10 @@ export default tseslint.config(
     // React Three Fiber is intentionally imperative: frame callbacks mutate
     // Three.js uniforms/refs, and canvas interaction state is synchronized in
     // effects. React Compiler's DOM-oriented purity rules misclassify these.
-    files: ['src/components/SketchbookTerrain/**/*.{ts,tsx}'],
+    files: [
+      'src/components/SketchbookTerrain/**/*.{ts,tsx}',
+      'src/components/TheGrid/**/*.{ts,tsx}',
+    ],
     rules: {
       'react-hooks/immutability': 'off',
       'react-hooks/set-state-in-effect': 'off',

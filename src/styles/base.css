@@ -396,6 +396,39 @@ img {
   opacity: 0.85;
 }
 
+/* Entry to the hidden Grid: an unlabeled glyph at the end of the menu. One
+   glitch-flicker a beat after load hints that it's more than decoration. */
+.nav__grid {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: all 0.25s ease;
+  animation: nav-grid-flicker 2.4s steps(1, end) 2.2s 1;
+}
+
+.nav__grid:hover,
+.nav__grid:focus-visible {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 255, 255, 0.28);
+  background: rgba(0, 255, 255, 0.07);
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+}
+
+@keyframes nav-grid-flicker {
+  0%, 86%, 91%, 96%, 100% { color: var(--text-muted); text-shadow: none; }
+  88%, 93%, 98% { color: var(--accent-cyan); text-shadow: 0 0 10px rgba(0, 255, 255, 0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__grid { animation: none; }
+}
+
 .nav__toggle {
   position: relative;
   z-index: 1;

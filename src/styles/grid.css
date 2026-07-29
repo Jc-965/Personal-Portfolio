@@ -1,0 +1,551 @@
+/* ============================================================================
+   THE GRID — hidden 3D city overlay
+   Loaded with the GridOverlay chunk; never part of the initial CSS bundle.
+   Layering inside the overlay: scene 0 · HUD 2 · boot 10000 (all local to the
+   overlay's stacking context). The overlay itself sits at 40000 — below the
+   site's custom cursors (50000+), which keep running over the city.
+   ============================================================================ */
+
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40000;
+  background: #020409;
+  isolation: isolate;
+  animation: grid-power-on 0.5s ease-out both;
+  outline: none;
+}
+
+.grid-overlay.is-exiting {
+  animation: grid-power-off 0.5s cubic-bezier(0.7, 0, 0.9, 0.4) forwards;
+  pointer-events: none;
+}
+
+@keyframes grid-power-on {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* CRT power-off: flash bright, collapse to a scanline, wink out. */
+@keyframes grid-power-off {
+  0% { transform: scaleY(1); filter: brightness(1); opacity: 1; }
+  35% { transform: scaleY(1); filter: brightness(1.9); opacity: 1; }
+  85% { transform: scaleY(0.006); filter: brightness(2.4); opacity: 1; }
+  100% { transform: scaleY(0.002); filter: brightness(0.4); opacity: 0; }
+}
+
+.grid-overlay__scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  /* Travel is a virtual scroll owned by the overlay; the browser must never
+     interpret gestures here itself. */
+  touch-action: none;
+}
+
+/* Constellation hover tooltip — follows the pointer over the sky deck. */
+.grid-tooltip {
+  position: fixed;
+  z-index: 3;
+  transform: translate(-50%, calc(-100% - 14px));
+  max-width: 260px;
+  padding: 7px 12px;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #eaffff;
+  background: rgba(2, 8, 16, 0.88);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  white-space: normal;
+}
+
+.grid-hud__body--accent {
+  color: var(--accent-cyan, #00ffff);
+}
+
+/* --- HUD ------------------------------------------------------------------ */
+
+.grid-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  animation: grid-power-on 0.6s ease-out both;
+}
+
+.grid-hud__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+}
+
+.grid-hud__back,
+.grid-hud__nav-btn,
+.grid-hud__tab,
+.grid-hud__cta {
+  pointer-events: auto;
+  font-family: var(--font-mono);
+  background: rgba(2, 8, 16, 0.66);
+  color: var(--text-secondary, #9fb6c9);
+  border: 1px solid rgba(0, 255, 255, 0.18);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grid-hud__back {
+  font-size: 0.78rem;
+  padding: 9px 16px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.grid-hud__back:hover,
+.grid-hud__back:focus-visible {
+  color: var(--accent-cyan, #00ffff);
+  border-color: rgba(0, 255, 255, 0.5);
+}
+
+.grid-hud__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 70vw;
+}
+
+.grid-hud__nav-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 0.7rem;
+  letter-spacing: 0.6px;
+  padding: 8px 13px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.grid-hud__nav-index {
+  color: var(--grid-accent, #00ffff);
+  opacity: 0.7;
+}
+
+.grid-hud__nav-btn:hover,
+.grid-hud__nav-btn:focus-visible {
+  color: #eaffff;
+  border-color: var(--grid-accent, #00ffff);
+}
+
+.grid-hud__nav-btn.is-active {
+  color: #eaffff;
+  border-color: var(--grid-accent, #00ffff);
+  background: rgba(2, 8, 16, 0.85);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--grid-accent, #00ffff) 35%, transparent);
+}
+
+/* --- Station panel --------------------------------------------------------- */
+
+.grid-hud__panel {
+  position: absolute;
+  left: 26px;
+  bottom: 92px;
+  width: min(400px, calc(100vw - 52px));
+  max-height: 54vh;
+  overflow-y: auto;
+  pointer-events: auto;
+  padding: 18px 20px 16px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.016) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, rgba(4, 12, 22, 0.85), rgba(2, 7, 14, 0.72));
+  border: 1px solid color-mix(in srgb, var(--grid-accent, #00ffff) 32%, transparent);
+  border-left: 2px solid var(--grid-accent, #00ffff);
+  /* Chamfered corners: holographic terminal plate, not a rounded card. */
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 255, 255, 0.03);
+  opacity: 0;
+  transform: translateY(14px);
+  visibility: hidden;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+  scrollbar-width: thin;
+}
+
+.grid-hud__panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.grid-hud__station-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.66rem;
+  letter-spacing: 2px;
+  color: var(--grid-accent, #00ffff);
+  margin-bottom: 12px;
+}
+
+/* Trailing rule after the station id — a HUD readout, not a heading. */
+.grid-hud__station-id::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--grid-accent, #00ffff) 55%, transparent), transparent);
+}
+
+.grid-hud__eyebrow {
+  font-size: 0.74rem;
+  color: var(--accent-green, #00ff41);
+  margin-bottom: 8px;
+}
+
+.grid-hud__headline {
+  font-family: var(--font-sans, 'Space Grotesk', sans-serif);
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: #eaffff;
+  margin: 0 0 10px;
+}
+
+.grid-hud__headline--small {
+  font-size: 1.15rem;
+}
+
+.grid-hud__tag {
+  font-size: 0.7rem;
+  color: var(--grid-accent, #00ffff);
+  margin-bottom: 8px;
+}
+
+.grid-hud__body {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-secondary, #9fb6c9);
+  margin-bottom: 12px;
+}
+
+.grid-hud__microcopy {
+  font-size: 0.66rem;
+  color: var(--text-muted, #6d8296);
+  margin: -4px 0 10px;
+  letter-spacing: 0.4px;
+}
+
+.grid-hud__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.grid-hud__row {
+  display: grid;
+  grid-template-columns: 10px auto 1fr;
+  gap: 4px 10px;
+  align-items: baseline;
+  font-size: 0.76rem;
+}
+
+.grid-hud__row--tall {
+  grid-template-columns: 10px 1fr;
+}
+
+/* Journey rows double as buttons that select a transit stop in the world. */
+.grid-hud__row--button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.grid-hud__row--button:hover,
+.grid-hud__row--button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.grid-hud__row--button.is-selected {
+  border-color: rgba(255, 179, 71, 0.55);
+  background: rgba(255, 179, 71, 0.07);
+}
+
+.grid-hud__detail {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--grid-accent, #ffb347);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.grid-hud__detail-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.6px;
+  color: var(--grid-accent, #ffb347);
+  margin: 0 0 6px;
+}
+
+.grid-hud__row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+  align-self: center;
+}
+
+.grid-hud__row-period {
+  color: var(--text-muted, #6d8296);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.grid-hud__row-title {
+  color: #eaffff;
+}
+
+.grid-hud__row-sub {
+  grid-column: 3;
+  color: var(--text-muted, #6d8296);
+}
+
+.grid-hud__row--tall .grid-hud__row-sub,
+.grid-hud__row--tall .grid-hud__row-detail {
+  grid-column: 2;
+}
+
+.grid-hud__row-detail {
+  color: var(--text-secondary, #9fb6c9);
+  font-size: 0.7rem;
+}
+
+.grid-hud__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 12px;
+}
+
+.grid-hud__stat dt {
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  color: var(--text-muted, #6d8296);
+}
+
+.grid-hud__stat dd {
+  margin: 2px 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--grid-accent, #00ffff);
+}
+
+.grid-hud__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.grid-hud__chip {
+  font-size: 0.66rem;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: var(--text-secondary, #9fb6c9);
+}
+
+.grid-hud__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.grid-hud__tab {
+  font-size: 0.7rem;
+  padding: 6px 12px;
+}
+
+.grid-hud__tab.is-active {
+  color: #eaffff;
+  border-color: var(--grid-accent, #00ffff);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--grid-accent, #00ffff) 30%, transparent);
+}
+
+.grid-hud__links {
+  margin: 0;
+}
+
+.grid-hud__links a {
+  pointer-events: auto;
+  font-size: 0.78rem;
+  color: var(--accent-cyan, #00ffff);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.35);
+}
+
+.grid-hud__links a:hover,
+.grid-hud__links a:focus-visible {
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+}
+
+.grid-hud__cta {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 10px 18px;
+  color: #04121c;
+  background: linear-gradient(180deg, var(--accent-cyan, #00ffff), #00c8e6);
+  border-color: var(--accent-cyan, #00ffff);
+  box-shadow: 0 0 18px rgba(0, 255, 255, 0.3);
+}
+
+.grid-hud__cta:hover,
+.grid-hud__cta:focus-visible {
+  box-shadow: 0 0 26px rgba(0, 255, 255, 0.55);
+}
+
+.grid-hud__skill-group {
+  margin-bottom: 12px;
+}
+
+.grid-hud__skill-name {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.grid-hud__contact {
+  display: flex;
+  gap: 14px;
+  margin: 14px 0 0;
+}
+
+.grid-hud__contact a {
+  pointer-events: auto;
+  font-size: 0.74rem;
+  color: var(--text-secondary, #9fb6c9);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.grid-hud__contact a:hover,
+.grid-hud__contact a:focus-visible {
+  color: var(--accent-cyan, #00ffff);
+}
+
+/* --- Persistent identity + hint -------------------------------------------- */
+
+.grid-hud__identity {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: var(--text-muted, #6d8296);
+}
+
+.grid-hud__identity-name {
+  color: #eaffff;
+}
+
+.grid-hud__identity-sub {
+  margin-left: 6px;
+  color: var(--accent-cyan, #00ffff);
+  opacity: 0.75;
+}
+
+.grid-hud__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-cyan, #00ffff);
+  text-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+  animation: grid-hint-bob 2s ease-in-out infinite;
+}
+
+.grid-hud__hint-arrow {
+  display: inline-block;
+}
+
+@keyframes grid-hint-bob {
+  50% { transform: translateX(-50%) translateY(5px); }
+}
+
+.grid-boot__error {
+  color: var(--accent-red, #ff3366) !important;
+}
+
+/* --- Small screens ---------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .grid-hud__top {
+    padding: 12px 14px;
+  }
+
+  .grid-hud__nav-label {
+    display: none;
+  }
+
+  .grid-hud__nav-btn {
+    padding: 8px 10px;
+  }
+
+  .grid-hud__panel {
+    left: 14px;
+    right: 14px;
+    bottom: 64px;
+    width: auto;
+    max-height: 46vh;
+    padding: 16px;
+  }
+
+  .grid-hud__identity {
+    right: 14px;
+    bottom: 12px;
+    font-size: 0.64rem;
+  }
+}
+
+/* --- Reduced motion ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .grid-overlay,
+  .grid-hud,
+  .grid-hud__panel {
+    animation: none;
+    transition: none;
+  }
+
+  .grid-overlay.is-exiting {
+    animation: grid-power-off 0.01s linear forwards;
+  }
+
+  .grid-hud__hint {
+    animation: none;
+  }
+}

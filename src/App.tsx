@@ -26,6 +26,10 @@ const Analytics = lazy(() =>
   })),
 )
 
+// Hidden 3D city, discoverable from the navbar glyph. Everything heavy
+// (three, R3F, postprocessing) stays behind this lazy boundary.
+const GridOverlay = lazy(() => import('./components/TheGrid/GridOverlay'))
+
 const Journey = lazy(() => import('./components/Journey'))
 const Projects = lazy(() => import('./components/Projects'))
 const BeyondBuild = lazy(() => import('./components/BeyondBuild'))
@@ -56,6 +60,25 @@ function App() {
   const [showSketchbookTutorial, setShowSketchbookTutorial] = useState(false)
   const [isSketchbookReturning, setIsSketchbookReturning] = useState(false)
   const returnTimerRef = useRef<number | null>(null)
+  // ?grid=1 deep-links straight into the Grid (mirrors ?sketchTutorial=1).
+  const [gridOpen, setGridOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('grid') === '1',
+  )
+
+  const openGrid = useCallback(() => setGridOpen(true), [])
+  const closeGrid = useCallback(() => {
+    setGridOpen(false)
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('grid')) {
+      params.delete('grid')
+      const query = params.toString()
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+      )
+    }
+  }, [])
 
   useEffect(() => {
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -197,7 +220,7 @@ function App() {
               <ScrollProvider />
             </Suspense>
             <a href="#main-content" className="skip-link">Skip to content</a>
-            <Navbar />
+            <Navbar onEnterGrid={openGrid} />
             <main id="main-content">
               <Hero />
               <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} /></ErrorBoundary>
@@ -209,6 +232,14 @@ function App() {
             <Footer />
             <GyroPrompt />
       </m.div>
+
+      {gridOpen && (
+        <ErrorBoundary label="TheGrid" fallback={null}>
+          <Suspense fallback={null}>
+            <GridOverlay onClose={closeGrid} />
+          </Suspense>
+        </ErrorBoundary>
+      )}
 
       {(sketchbookOpen || sketchbookExiting) && (
         <ErrorBoundary label="Sketchbook" fallback={null}>

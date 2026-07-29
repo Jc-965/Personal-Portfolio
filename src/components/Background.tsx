@@ -918,14 +918,22 @@ export default function Background() {
       endInteraction()
     }
 
-    const handleVisibility = () => {
-      if (document.hidden) {
+    // The Grid overlay fully covers this canvas; keep the node-field loop
+    // parked while it's open so the 3D city gets the whole frame budget.
+    let gridOpen = false
+    const applyRunState = () => {
+      if (document.hidden || gridOpen) {
         cancelAnimationFrame(frameId)
         frameId = 0
       } else {
         lastFrameTime = 0
         if (!frameId) frameId = requestAnimationFrame(animate)
       }
+    }
+    const handleVisibility = () => applyRunState()
+    const handleGridMode = (event: Event) => {
+      gridOpen = (event as CustomEvent<{ open?: boolean }>).detail?.open === true
+      applyRunState()
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
@@ -945,8 +953,10 @@ export default function Background() {
     document.addEventListener('touchend', onTouchEnd, { passive: true })
     document.addEventListener('touchcancel', onTouchEnd, { passive: true })
     document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('grid-mode', handleGridMode)
 
     return () => {
+      window.removeEventListener('grid-mode', handleGridMode)
       cancelAnimationFrame(frameId)
       if (resizeTimer) clearTimeout(resizeTimer)
       window.removeEventListener('resize', debouncedResize)

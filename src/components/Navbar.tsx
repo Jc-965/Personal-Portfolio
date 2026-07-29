@@ -8,7 +8,7 @@ const links = [
   { href: '#skills', label: 'Skills' },
 ]
 
-export default function Navbar() {
+export default function Navbar({ onEnterGrid }: { onEnterGrid?: () => void }) {
   const [active, setActive] = useState('#top')
   const [menuOpen, setMenuOpen] = useState(false)
   const [hidden, setHidden] = useState(false)
@@ -160,6 +160,21 @@ export default function Navbar() {
             {l.label}
           </a>
         ))}
+        {onEnterGrid && (
+          <button
+            type="button"
+            className="nav__grid"
+            data-target-cursor="off"
+            aria-label="Enter the Grid — interactive 3D mode"
+            title="enter the grid"
+            onClick={() => {
+              setMenuOpen(false)
+              onEnterGrid()
+            }}
+          >
+            [&gt;_]
+          </button>
+        )}
       </nav>
       <button
         type="button"
