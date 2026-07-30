@@ -144,7 +144,7 @@ export default function GridScene({
       }}
     >
       <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} />
-      <CityWorld towerDensity={quality.towerDensity} tier={quality.tier} interaction={interaction} />
+      <CityWorld quality={quality} interaction={interaction} />
       <GridEffects enabled={quality.postEnabled} />
     </Canvas>
   )

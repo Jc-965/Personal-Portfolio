@@ -12,6 +12,10 @@ export interface GridQuality {
   towerDensity: number
   postEnabled: boolean
   antialias: boolean
+  /** Planar-reflection wet street (an extra scene render per frame). */
+  reflections: boolean
+  reflectionSize: number
+  rainCount: number
 }
 
 export function getGridQuality(): GridQuality {
@@ -22,10 +26,10 @@ export function getGridQuality(): GridQuality {
     && window.matchMedia?.('(pointer: coarse)').matches === true
 
   if (cores >= 8 && memory >= 8 && !coarse) {
-    return { tier: 'high', maxDpr: 2, towerDensity: 0.62, postEnabled: true, antialias: true }
+    return { tier: 'high', maxDpr: 2, towerDensity: 0.62, postEnabled: true, antialias: true, reflections: true, reflectionSize: 1024, rainCount: 1100 }
   }
   if (cores <= 4 || memory <= 4) {
-    return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false }
+    return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, reflections: false, reflectionSize: 0, rainCount: 260 }
   }
-  return { tier: 'mid', maxDpr: 1.6, towerDensity: 0.52, postEnabled: true, antialias: true }
+  return { tier: 'mid', maxDpr: 1.6, towerDensity: 0.52, postEnabled: true, antialias: true, reflections: true, reflectionSize: 640, rainCount: 650 }
 }

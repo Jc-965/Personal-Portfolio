@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 
 /**
@@ -95,6 +95,10 @@ export interface BillboardProps {
   /** Extra screenshots to rotate through while `cycleActive` (selected project). */
   cycleImages?: string[]
   cycleActive?: boolean
+  onClick?: (event: ThreeEvent<MouseEvent>) => void
+  onPointerOver?: (event: ThreeEvent<PointerEvent>) => void
+  onPointerMove?: (event: ThreeEvent<PointerEvent>) => void
+  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void
 }
 
 const CYCLE_INTERVAL_S = 4
@@ -109,6 +113,10 @@ export default function Billboard({
   focusDistance = 26,
   cycleImages,
   cycleActive = false,
+  onClick,
+  onPointerOver,
+  onPointerMove,
+  onPointerOut,
 }: BillboardProps) {
   const material = useMemo(
     () =>
@@ -202,5 +210,16 @@ export default function Billboard({
     }
   })
 
-  return <mesh geometry={geometry} material={material} position={position} rotation-y={rotationY} />
+  return (
+    <mesh
+      geometry={geometry}
+      material={material}
+      position={position}
+      rotation-y={rotationY}
+      onClick={onClick}
+      onPointerOver={onPointerOver}
+      onPointerMove={onPointerMove}
+      onPointerOut={onPointerOut}
+    />
+  )
 }

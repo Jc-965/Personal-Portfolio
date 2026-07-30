@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import Billboard from './Billboards'
 import { makeSignTexture, makeTerminalTexture, type SignSpec } from './signTexture'
-import { makePanelMaterial } from './panelMaterial'
-import { SCENE_BG, SCENE_PROGRESS } from './sceneColor'
+import { makePanelMaterial, makeDarkPbrMaterial } from './panelMaterial'
+import { SCENE_PROGRESS } from './sceneColor'
 import type { GridInteraction } from './interaction'
 import {
   content,
@@ -27,38 +27,6 @@ import {
  * towers and transit stops are click targets synced with the HUD.
  */
 
-const darkBodyVertex = /* glsl */ `
-  varying float vViewDist;
-  void main() {
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vViewDist = -mv.z;
-    gl_Position = projectionMatrix * mv;
-  }
-`
-
-const darkBodyFragment = /* glsl */ `
-  uniform vec3 uBg;
-  uniform vec3 uTint;
-  varying float vViewDist;
-  void main() {
-    vec3 color = vec3(0.02, 0.032, 0.062) + uTint * 0.05;
-    color = mix(color, uBg, smoothstep(70.0, 210.0, vViewDist));
-    // Near dissolve: a pylon grazing the lens must melt away, not blot the frame.
-    color = mix(uBg, color, smoothstep(2.0, 9.0, vViewDist));
-    gl_FragColor = vec4(color, 1.0);
-  }
-`
-
-function makeDarkBodyMaterial(accent: string) {
-  return new THREE.ShaderMaterial({
-    vertexShader: darkBodyVertex,
-    fragmentShader: darkBodyFragment,
-    uniforms: {
-      uBg: { value: SCENE_BG },
-      uTint: { value: new THREE.Color(accent) },
-    },
-  })
-}
 
 function NeonBox({
   position,
@@ -89,7 +57,7 @@ function NeonBox({
     const edges = new THREE.EdgesGeometry(geometry)
     const bodyMaterial = lit
       ? makePanelMaterial(accent, size, seed, windowDensity)
-      : makeDarkBodyMaterial(accent)
+      : makeDarkPbrMaterial(accent)
     const lineMaterial = new THREE.LineBasicMaterial({
       color: accent,
       transparent: true,
@@ -101,6 +69,7 @@ function NeonBox({
   useEffect(() => () => {
     geometry.dispose()
     edges.dispose()
+    for (const texture of (bodyMaterial.userData.ownedTextures ?? []) as THREE.Texture[]) texture.dispose()
     bodyMaterial.dispose()
     lineMaterial.dispose()
   }, [geometry, edges, bodyMaterial, lineMaterial])
@@ -108,9 +77,6 @@ function NeonBox({
   const positionKey = position.join(',')
   const worldPos = useMemo(() => new THREE.Vector3(...position), [positionKey])
   useFrame(state => {
-    if (lit && bodyMaterial instanceof THREE.ShaderMaterial) {
-      bodyMaterial.uniforms.uTime.value = state.clock.elapsedTime
-    }
     // Emissive edges ignore fog; fade them by distance so far districts
     // recede instead of photobombing the active station's frame.
     const dist = state.camera.position.distanceTo(worldPos)
@@ -436,11 +402,18 @@ function PlazaGates() {
             accent="#00ffff"
             edgeOpacity={0.55}
           />
+          {/* Torii silhouette: overhanging top lintel + inset second beam. */}
           <NeonBox
             position={[0, gate.height, gate.z]}
-            size={[gate.halfWidth * 2 + 0.5, 0.5, 0.5]}
+            size={[gate.halfWidth * 2 + 2.4, 0.55, 0.6]}
             accent="#00ffff"
             edgeOpacity={0.75}
+          />
+          <NeonBox
+            position={[0, gate.height - 1.8, gate.z]}
+            size={[gate.halfWidth * 2 - 1.2, 0.4, 0.45]}
+            accent="#00ffff"
+            edgeOpacity={0.55}
           />
         </group>
       ))}
@@ -470,7 +443,6 @@ function Tram({ interaction }: { interaction: GridInteraction }) {
   }, [bodyGeometry, bodyMaterial, edges, edgeMaterial])
 
   useFrame(state => {
-    bodyMaterial.uniforms.uTime.value = state.clock.elapsedTime
     if (!ref.current) return
     // Ease-paused traversal: a full run each ~26s, slowing into each stop.
     const cycle = (state.clock.elapsedTime % 26) / 26
@@ -521,6 +493,7 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
   const beamLength = Math.abs(TRANSIT.zStep) * (stops.length - 1) + 8
   const beamZ = (transitStopZ(0) + transitStopZ(stops.length - 1)) / 2
   const { onTooltip, onSelectRole, selection } = interaction
+  const [hoveredStop, setHoveredStop] = useState<number | null>(null)
 
   return (
     <group>
@@ -536,6 +509,7 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
         const selected = selection.role === i
         const showTooltip = (e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
+          setHoveredStop(i)
           onTooltip?.({
             x: e.nativeEvent.clientX,
             y: e.nativeEvent.clientY,
@@ -552,7 +526,10 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
             }}
             onPointerOver={showTooltip}
             onPointerMove={showTooltip}
-            onPointerOut={() => onTooltip?.(null)}
+            onPointerOut={() => {
+              setHoveredStop(current => (current === i ? null : current))
+              onTooltip?.(null)
+            }}
           >
             <NeonBox
               position={[TRANSIT.x, TRANSIT.beamY - 0.7, z]}
@@ -602,13 +579,45 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
               <meshBasicMaterial color={exp.accent} />
             </mesh>
             <Beacon position={[TRANSIT.x, TRANSIT.beamY + 0.6, z]} accent={exp.accent} size={0.35} />
-            {selected && (
+            {(selected || hoveredStop === i) && (
               <HoloRing
                 position={[TRANSIT.x, TRANSIT.beamY + 1.2, z]}
                 accent={exp.accent}
                 radius={2.4}
-                active
+                active={selected}
               />
+            )}
+            {/* Selected stop projects its record into the street. */}
+            {selected && (
+              <>
+                <Sign
+                  spec={{
+                    accent: exp.accent,
+                    width: 560,
+                    background: 'rgba(3, 9, 16, 0.72)',
+                    lines: [
+                      { text: exp.period, size: 42 },
+                      { text: exp.location, size: 32, color: '#9fb6c9' },
+                    ],
+                  }}
+                  position={[TRANSIT.x + 0.4, TRANSIT.beamY - 2.6, z]}
+                  rotationY={Math.PI / 2}
+                  height={1.5}
+                />
+                <Sign
+                  spec={{
+                    accent: exp.accent,
+                    width: 560,
+                    background: 'rgba(3, 9, 16, 0.72)',
+                    lines: [
+                      { text: exp.stack.slice(0, 3).join(' · '), size: 34, color: exp.accent },
+                    ],
+                  }}
+                  position={[TRANSIT.x + 0.4, TRANSIT.beamY - 4.1, z]}
+                  rotationY={Math.PI / 2}
+                  height={1.1}
+                />
+              </>
             )}
           </group>
         )
@@ -620,6 +629,7 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
 
 function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
   const { onTooltip, onSelectProject, selection } = interaction
+  const [hovered, setHovered] = useState<number | null>(null)
   const terminalCards = useMemo(
     () =>
       new Map(
@@ -649,6 +659,7 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
         const selected = selection.project === i
         const showTooltip = (e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
+          setHovered(i)
           onTooltip?.({
             x: e.nativeEvent.clientX,
             y: e.nativeEvent.clientY,
@@ -665,7 +676,10 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
             }}
             onPointerOver={showTooltip}
             onPointerMove={showTooltip}
-            onPointerOut={() => onTooltip?.(null)}
+            onPointerOut={() => {
+              setHovered(current => (current === i ? null : current))
+              onTooltip?.(null)
+            }}
           >
             <NeonBox
               position={[site.x, site.height / 2, site.z]}
@@ -695,11 +709,58 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
               image={site.image ?? terminalCards.get(project.id)?.texture ?? null}
               cycleImages={project.images?.map(image => image.src)}
               cycleActive={selected}
+              onClick={e => {
+                e.stopPropagation()
+                onSelectProject(i)
+                window.open(`/projects/${project.id}/`, '_blank', 'noopener')
+              }}
+              onPointerOver={e => {
+                e.stopPropagation()
+                onTooltip?.({
+                  x: e.nativeEvent.clientX,
+                  y: e.nativeEvent.clientY,
+                  text: `${project.name} — open case study ↗`,
+                  color: project.accent,
+                })
+              }}
+              onPointerMove={e => {
+                e.stopPropagation()
+                onTooltip?.({
+                  x: e.nativeEvent.clientX,
+                  y: e.nativeEvent.clientY,
+                  text: `${project.name} — open case study ↗`,
+                  color: project.accent,
+                })
+              }}
+              onPointerOut={() => onTooltip?.(null)}
             />
+            {/* In-world stat holograms fan out beside the selected tower. */}
+            {selected &&
+              project.stats.slice(0, 3).map((stat, statIndex) => (
+                <Sign
+                  key={stat.label}
+                  spec={{
+                    accent: project.accent,
+                    width: 420,
+                    background: 'rgba(3, 9, 16, 0.72)',
+                    lines: [
+                      { text: stat.value, size: 64 },
+                      { text: stat.label, size: 30, color: '#9fb6c9' },
+                    ],
+                  }}
+                  position={[
+                    site.x - 5.2,
+                    screenY + 4.6 - statIndex * 3.1,
+                    site.z - 6.4,
+                  ]}
+                  rotationY={-Math.PI / 2}
+                  height={1.7}
+                />
+              ))}
             <HoloRing
               position={[site.x, site.height + 5.5, site.z]}
               accent={project.accent}
-              active={selected}
+              active={selected || hovered === i}
             />
             {selected && (
               <HoloRing
@@ -761,6 +822,17 @@ function BeyondShops() {
             height={1.9}
           />
           <GlowPad position={[x + 3, 0, z]} accent={item.accent} radius={6} />
+          {/* Paper-lantern string sagging across the storefront. */}
+          {[0, 1, 2, 3, 4].map(i => {
+            const t = i / 4
+            const sag = Math.sin(t * Math.PI) * 0.7
+            return (
+              <mesh key={i} position={[x + 3.35, 6.6 - sag, z - 2.4 + t * 4.8]}>
+                <sphereGeometry args={[0.16, 8, 8]} />
+                <meshBasicMaterial color={i % 2 === 0 ? '#ffb36b' : item.accent} />
+              </mesh>
+            )
+          })}
         </group>
       ))}
     </group>

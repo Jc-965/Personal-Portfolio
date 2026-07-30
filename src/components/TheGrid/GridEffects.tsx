@@ -1,5 +1,6 @@
 import { EffectComposer, Bloom, Noise, Vignette, Scanline, ToneMapping } from '@react-three/postprocessing'
 import { BlendFunction, ToneMappingMode } from 'postprocessing'
+import { UnsignedByteType } from 'three'
 
 /**
  * The neon look is mostly bloom: emissive windows, edge lines, and signage
@@ -9,7 +10,9 @@ import { BlendFunction, ToneMappingMode } from 'postprocessing'
 export default function GridEffects({ enabled }: { enabled: boolean }) {
   if (!enabled) return null
   return (
-    <EffectComposer>
+    // Half-float composer targets render as a partial black frame on some
+    // WebGL implementations. An 8-bit target is both reliable and cheaper.
+    <EffectComposer frameBufferType={UnsignedByteType} multisampling={0}>
       <Bloom intensity={1.0} luminanceThreshold={0.48} luminanceSmoothing={0.3} mipmapBlur />
       <Scanline blendFunction={BlendFunction.OVERLAY} density={1.1} opacity={0.06} />
       <Noise premultiply opacity={0.05} />
