@@ -98,8 +98,11 @@ const fragmentShader = /* glsl */ `
       float v = vLocal.y + 0.5;
       float faceW = xFace ? vDims.z : vDims.x;
       float faceH = vDims.y;
-      float cols = max(3.0, floor(faceW * 1.25));
-      float rows = max(4.0, floor(faceH * 1.05));
+      // REAL architectural scale: ~3.1 m storeys, ~2.5 m window bays. This is
+      // the single thing that separates "building" from "LED panel" — a 30 m
+      // tower gets 9 floors, not 30.
+      float cols = max(1.0, floor(faceW / 2.5));
+      float rows = max(1.0, floor(faceH / 3.1));
       vec2 cellUv = vec2(u * cols, v * rows);
       vec2 cell = floor(cellUv);
       vec2 inCell = fract(cellUv);
@@ -107,25 +110,31 @@ const fragmentShader = /* glsl */ `
       vec2 aa = max(fwidth(cellUv) * 0.75, vec2(1e-4));
 
       // ---------------- concrete wall ----------------
-      // Sky ambient from above, two scales of mottle, rain-streak grime
-      // running down the face, dirt under every sill and at street level.
-      vec3 wall = base * (0.75 + 0.5 * v);
+      // Orientation shading (one implied moon direction), cool sky ambient
+      // strengthening upward, warm sodium streetlight bounce on the first
+      // floors, two scales of mottle, sill grime, storey slab shadows, and
+      // ambient occlusion tucked into the corners.
+      float faceLight = xFace ? (n.x > 0.0 ? 0.9 : 1.0) : (n.z > 0.0 ? 1.14 : 0.78);
+      vec3 wall = base * faceLight * (0.72 + 0.55 * v);
       wall *= 0.76 + 0.34 * vnoise(vec2(u * faceW, v * faceH) * 0.85 + vSeed);
-      wall *= 0.8 + 0.2 * vnoise(vec2(u * faceW * 2.3 + vSeed, v * faceH * 0.13));
-      wall *= 1.0 - 0.22 * (1.0 - smoothstep(0.0, 0.45, inCell.y));
+      wall *= 0.82 + 0.18 * vnoise(vec2(u * faceW * 2.3 + vSeed, v * faceH * 0.13));
       float metres = v * faceH;
-      wall *= 0.68 + 0.32 * smoothstep(0.0, 2.4, metres);
-      wall += vAccent * 0.05 * (1.0 - smoothstep(0.0, 0.3, v));
-      // Storey slabs.
+      wall *= 0.7 + 0.3 * smoothstep(0.0, 2.6, metres);
+      wall += vec3(0.05, 0.03, 0.011) * (1.0 - smoothstep(0.0, 7.0, metres)) * 0.55;
+      wall += vAccent * 0.03 * (1.0 - smoothstep(0.0, 0.25, v));
       float slabDist = min(inCell.y, 1.0 - inCell.y);
-      wall *= 1.0 - 0.3 * (1.0 - smoothstep(0.02, 0.09, slabDist));
+      wall *= 1.0 - 0.28 * (1.0 - smoothstep(0.02, 0.08, slabDist));
+      wall *= 1.0 - 0.16 * (1.0 - smoothstep(0.0, 0.4, inCell.y));
+      // Corner AO instead of neon corner glow.
+      float tangent = xFace ? abs(vLocal.z) : abs(vLocal.x);
+      wall *= 1.0 - 0.35 * smoothstep(0.42, 0.5, tangent);
 
       // ---------------- window cut by archetype ----------------
       float pattern = fract(vSeed * 0.617);
       vec2 wMin; vec2 wMax; float litChance;
-      if (pattern < 0.55) { wMin = vec2(0.18, 0.26); wMax = vec2(0.82, 0.76); litChance = 0.22; }
-      else if (pattern < 0.8) { wMin = vec2(0.07, 0.3); wMax = vec2(0.93, 0.84); litChance = 0.16; }
-      else { wMin = vec2(0.05, 0.07); wMax = vec2(0.95, 0.93); litChance = 0.12; }
+      if (pattern < 0.55) { wMin = vec2(0.2, 0.24); wMax = vec2(0.8, 0.78); litChance = 0.24; }
+      else if (pattern < 0.8) { wMin = vec2(0.06, 0.3); wMax = vec2(0.94, 0.85); litChance = 0.17; }
+      else { wMin = vec2(0.03, 0.05); wMax = vec2(0.97, 0.95); litChance = 0.12; }
 
       float wnd =
           (smoothstep(wMin.x - aa.x, wMin.x + aa.x, inCell.x) - smoothstep(wMax.x - aa.x, wMax.x + aa.x, inCell.x))
@@ -138,86 +147,98 @@ const fragmentShader = /* glsl */ `
       // City glow swells toward the horizon in the reflection.
       vec3 skyRef = mix(vec3(0.045, 0.08, 0.15), uBg * 5.0 + vec3(0.12, 0.07, 0.11), pow(horizon, 2.4));
       float fresnel = pow(1.0 - clamp(dot(-rd, n), 0.0, 1.0), 3.0);
-      vec3 glass = skyRef * (0.16 + 0.6 * fresnel) + vec3(0.012, 0.02, 0.034);
+      // Recessed reveals: panes darken toward their jambs — the fake inset
+      // that makes flat geometry read as punched openings.
+      vec2 wSize = max(wMax - wMin, vec2(1e-3));
+      vec2 wUv = clamp((inCell - wMin) / wSize, 0.0, 1.0);
+      float rimDist = min(min(wUv.x, 1.0 - wUv.x), min(wUv.y, 1.0 - wUv.y));
+      float reveal = 0.5 + 0.5 * smoothstep(0.0, 0.14, rimDist);
+      vec3 glass = (skyRef * (0.16 + 0.6 * fresnel) + vec3(0.012, 0.02, 0.034)) * reveal;
+      // Mullions: a centre stile on every pane; curtain glass adds a transom.
+      float mull = 1.0 - smoothstep(0.015, 0.045, abs(wUv.x - 0.5));
+      if (pattern >= 0.8) {
+        mull = max(mull, 1.0 - smoothstep(0.015, 0.045, abs(wUv.y - 0.68)));
+      }
 
       // ---------------- lit rooms: interior mapping ----------------
       // A real box room behind every lit pane — back wall, ceiling with a
       // hot light panel, floor, side walls — so windows parallax like rooms
-      // instead of glowing like stickers.
+      // instead of glowing like stickers. Heavily skewed brightness: most
+      // rooms burn low, a few blaze.
       float lit = step(1.0 - litChance, hash(cell));
-      float blinkKey = hash(cell + 31.0);
-      float blink = blinkKey > 0.96
-        ? 0.4 + 0.6 * (0.5 + 0.5 * sin(uTime * (1.5 + blinkKey * 3.0)))
-        : 1.0;
-      float palKey = hash(cell + 53.0);
-      vec3 roomCol = palKey < 0.55 ? vec3(1.0, 0.8, 0.55)
-                   : palKey < 0.8  ? vec3(0.82, 0.9, 1.02)
-                   : palKey < 0.92 ? vec3(1.0, 0.6, 0.38)
-                   : vec3(0.5, 0.72, 1.25) * (0.7 + 0.5 * sin(uTime * 9.0 + palKey * 90.0));
-      roomCol *= 0.75 + 0.5 * hash(cell + 7.0);
-
-      vec2 wSize = max(wMax - wMin, vec2(1e-3));
-      vec2 wUv = clamp((inCell - wMin) / wSize, 0.0, 1.0);
-      float rdU = xFace ? rd.z : rd.x;
       float rdN = xFace ? -rd.x * sign(n.x) : -rd.z * sign(n.z);
-      vec3 interior = roomCol * 0.4;
-      if (rdN > 0.02) {
-        vec3 d = vec3(rdU, rd.y, rdN);
-        d.x /= max(wSize.x * faceW / cols, 0.5);
-        d.y /= max(wSize.y * faceH / rows, 0.5);
-        d.z /= 2.6; // room depth, metres
-        vec3 p0 = vec3(wUv, 0.0);
-        float tz = 1.0 / d.z;
-        float dx = abs(d.x) > 1e-4 ? d.x : 1e-4;
-        float dy = abs(d.y) > 1e-4 ? d.y : 1e-4;
-        float tx = (step(0.0, dx) - p0.x) / dx;
-        float ty = (step(0.0, dy) - p0.y) / dy;
-        float t = min(tz, min(tx, ty));
-        vec3 hpos = p0 + d * t;
-        float depthFade = 1.0 - 0.4 * clamp(hpos.z, 0.0, 1.0);
-        if (t >= tz - 1e-4) {
-          // Back wall, darker furniture band along its base.
-          interior = roomCol * (0.5 + 0.25 * hpos.y) * depthFade;
-          interior *= 0.55 + 0.45 * smoothstep(0.1, 0.4, hpos.y);
-        } else if (t >= ty - 1e-4) {
-          if (d.y > 0.0) {
-            // Ceiling with a hot light panel mid-room.
-            interior = roomCol * (1.1 - 0.4 * clamp(hpos.z, 0.0, 1.0));
-            interior += roomCol * (1.0 - smoothstep(0.06, 0.3, abs(hpos.z - 0.45)));
-          } else {
-            interior = roomCol * 0.32 * depthFade;
-          }
-        } else {
-          interior = roomCol * (0.6 - 0.2 * clamp(hpos.z, 0.0, 1.0));
-        }
-      }
-      // Some tenants pulled the blinds partway.
-      float blindKey = hash(cell + 71.0);
-      float blindFrac = blindKey < 0.3 ? blindKey * 2.0 : 0.0;
-      float blind = step(1.0 - blindFrac, wUv.y);
-      interior = mix(interior, roomCol * 0.26 * (0.85 + 0.15 * sin(wUv.y * 80.0)), blind);
-
-      float roomOn = lit * blink * litGate;
-      // Windows seen edge-on read as reflective glass, not glowing rooms —
-      // the interior only takes over as the face swings toward the eye.
-      roomOn *= 0.25 + 0.75 * smoothstep(0.04, 0.3, rdN);
-      // Distant rooms collapse to a soft glow — interior detail is subpixel.
+      float roomOn = lit * litGate * (0.25 + 0.75 * smoothstep(0.04, 0.3, rdN));
       float lodBlend = smoothstep(45.0, 110.0, vViewDist);
-      vec3 flatGlow = roomCol * 0.42;
-      vec3 windowCol = mix(glass, mix(interior, flatGlow, lodBlend) * 0.85, roomOn);
+
+      vec3 windowCol = glass;
+      // Whole block skipped for unlit panes and pure-glow distances — the
+      // interior raycast only runs where its parallax is actually visible.
+      if (roomOn > 0.004) {
+        float blinkKey = hash(cell + 31.0);
+        float blink = blinkKey > 0.96
+          ? 0.4 + 0.6 * (0.5 + 0.5 * sin(uTime * (1.5 + blinkKey * 3.0)))
+          : 1.0;
+        float palKey = hash(cell + 53.0);
+        vec3 roomCol = palKey < 0.55 ? vec3(1.0, 0.8, 0.55)
+                     : palKey < 0.8  ? vec3(0.82, 0.9, 1.02)
+                     : palKey < 0.92 ? vec3(1.0, 0.6, 0.38)
+                     : vec3(0.5, 0.72, 1.25) * (0.7 + 0.5 * sin(uTime * 9.0 + palKey * 90.0));
+        roomCol *= 0.4 + 1.0 * pow(hash(cell + 7.0), 2.0);
+
+        vec3 interior = roomCol * 0.4;
+        if (rdN > 0.02 && lodBlend < 0.998) {
+          float rdU = xFace ? rd.z : rd.x;
+          vec3 d = vec3(rdU, rd.y, rdN);
+          d.x /= max(wSize.x * faceW / cols, 0.5);
+          d.y /= max(wSize.y * faceH / rows, 0.5);
+          d.z /= 3.4; // room depth, metres
+          vec3 p0 = vec3(wUv, 0.0);
+          float tz = 1.0 / d.z;
+          float dx = abs(d.x) > 1e-4 ? d.x : 1e-4;
+          float dy = abs(d.y) > 1e-4 ? d.y : 1e-4;
+          float tx = (step(0.0, dx) - p0.x) / dx;
+          float ty = (step(0.0, dy) - p0.y) / dy;
+          float t = min(tz, min(tx, ty));
+          vec3 hpos = p0 + d * t;
+          float depthFade = 1.0 - 0.4 * clamp(hpos.z, 0.0, 1.0);
+          if (t >= tz - 1e-4) {
+            // Back wall, darker furniture band along its base.
+            interior = roomCol * (0.5 + 0.25 * hpos.y) * depthFade;
+            interior *= 0.55 + 0.45 * smoothstep(0.1, 0.4, hpos.y);
+          } else if (t >= ty - 1e-4) {
+            if (d.y > 0.0) {
+              // Ceiling with a hot light panel mid-room.
+              interior = roomCol * (1.1 - 0.4 * clamp(hpos.z, 0.0, 1.0));
+              interior += roomCol * (1.0 - smoothstep(0.06, 0.3, abs(hpos.z - 0.45)));
+            } else {
+              interior = roomCol * 0.32 * depthFade;
+            }
+          } else {
+            interior = roomCol * (0.6 - 0.2 * clamp(hpos.z, 0.0, 1.0));
+          }
+        }
+        // Some tenants pulled the blinds partway.
+        float blindKey = hash(cell + 71.0);
+        float blindFrac = blindKey < 0.3 ? blindKey * 2.0 : 0.0;
+        float blind = step(1.0 - blindFrac, wUv.y);
+        interior = mix(interior, roomCol * 0.26 * (0.85 + 0.15 * sin(wUv.y * 80.0)), blind);
+        interior *= reveal;
+
+        vec3 flatGlow = roomCol * 0.42;
+        windowCol = mix(glass, mix(interior, flatGlow, lodBlend) * 0.85 * blink, roomOn);
+      }
+      // Mullion bars cut dark across glass and rooms alike.
+      windowCol *= 1.0 - 0.85 * mull;
 
       color = mix(wall, windowCol, wnd);
 
-      // Street-level storefronts: broken band of shopfront light.
-      float shopBand = (1.0 - smoothstep(2.3, 3.0, metres)) * smoothstep(0.4, 0.9, metres);
-      vec2 shopCell = vec2(floor(u * cols * 0.5), 51.0);
+      // Street-level storefronts: broken band of shopfront light filling the
+      // ground floor between the neon signs.
+      float shopBand = (1.0 - smoothstep(2.4, 3.1, metres)) * smoothstep(0.5, 1.0, metres);
+      vec2 shopCell = vec2(floor(u * max(1.0, floor(faceW / 5.0))), 51.0);
       float shopSeg = step(0.3, hash(shopCell));
       vec3 shopColor = mix(vec3(1.0, 0.72, 0.45), vec3(1.0, 0.45, 0.68), step(0.75, hash(shopCell + 36.0)));
       color += shopColor * shopBand * shopSeg * litGate * 0.5 * clamp(1.3 - vViewDist / 80.0, 0.0, 1.0);
-
-      // The faintest corner accent — style continuity, not outline.
-      float tangent = xFace ? abs(vLocal.z) : abs(vLocal.x);
-      color += vAccent * smoothstep(0.47, 0.5, tangent) * 0.05;
     }
 
     // Distance fade replaces scene fog (the star dome must stay un-fogged);
@@ -250,8 +271,9 @@ export default function Towers({ density }: { density: number }) {
   const { mesh, material, beacons, beaconMaterial } = useMemo(() => {
     const rng = mulberry32(96543)
     // `y0` lifts a box off the ground (roof plant, skybridges); `dark` mutes
-    // its glow to silhouette level.
-    const placements: Array<{ x: number; z: number; w: number; h: number; d: number; y0?: number; dim?: boolean; dark?: boolean }> = []
+    // its glow to silhouette level; `seed` fixes the facade archetype so the
+    // TS side can match geometry (balconies) to the shader's pattern choice.
+    const placements: Array<{ x: number; z: number; w: number; h: number; d: number; y0?: number; dim?: boolean; dark?: boolean; seed?: number }> = []
     const beaconSpots: Array<{ x: number; y: number; z: number }> = []
 
     // Overlap test against the block's full z-extent — a block whose CENTER
@@ -287,9 +309,29 @@ export default function Towers({ density }: { density: number }) {
         const front = STREET.wallX + rng() * 1.6
         const xc = side * (front + width / 2)
         const h = 10 + Math.pow(rng(), 1.7) * 24
-        placements.push({ x: xc, z: zc, w: width, h, d: depth })
+        const seed = rng() * 100
+        placements.push({ x: xc, z: zc, w: width, h, d: depth, seed })
         if (h <= 20) addRoofPlant(xc, zc, width, h)
         else if (rng() > 0.55) beaconSpots.push({ x: xc, y: h + 0.4, z: zc })
+
+        // Punched-window blocks (the shader's residential archetype) grow
+        // real balcony slabs at every storey line — silhouette depth no
+        // facade shader can fake.
+        const pattern = (seed * 0.617) % 1
+        if (pattern < 0.55 && h >= 12 && rng() < 0.6) {
+          const floors = Math.floor(h / 3.1)
+          for (let f = 1; f < floors; f++) {
+            placements.push({
+              x: side * (front - 0.42),
+              z: zc,
+              w: 0.95,
+              h: 0.14,
+              d: depth * 0.82,
+              y0: f * 3.1 - 0.14,
+              dark: true,
+            })
+          }
+        }
 
         // Bolt-on AC units breaking up the street face — the small physical
         // clutter that makes a flat wall read as a lived-in building.
@@ -395,7 +437,7 @@ export default function Towers({ density }: { density: number }) {
       if (p.dim) accent.multiplyScalar(0.55)
       if (p.dark) accent.multiplyScalar(0.18)
       accents.set([accent.r, accent.g, accent.b], i * 3)
-      seeds[i] = rng() * 100
+      seeds[i] = p.seed ?? rng() * 100
       dims.set([p.w, p.h, p.d], i * 3)
     })
     geometry.setAttribute('aAccent', new THREE.InstancedBufferAttribute(accents, 3))

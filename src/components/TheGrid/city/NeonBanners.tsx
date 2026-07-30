@@ -102,15 +102,48 @@ export default function NeonBanners() {
       }
     }
 
+    // One merged mesh per design (8 draw calls total instead of one per
+    // banner): quads are pre-rotated and baked into a single geometry.
     const group = new THREE.Group()
+    const byDesign = new Map<number, BannerPlacement[]>()
     for (const p of placements) {
-      const design = designs[p.design]
-      const height = 4.6 * p.scale
-      const geometry = new THREE.PlaneGeometry(height * design.aspect, height)
-      const mesh = new THREE.Mesh(geometry, materials[p.design])
-      mesh.position.set(p.x, p.y + height / 2, p.z)
-      mesh.rotation.y = p.rotationY
-      mesh.userData.flicker = p.flicker
+      const list = byDesign.get(p.design) ?? []
+      list.push(p)
+      byDesign.set(p.design, list)
+    }
+    for (const [designIndex, list] of byDesign) {
+      const design = designs[designIndex]
+      const positions = new Float32Array(list.length * 12)
+      const uvs = new Float32Array(list.length * 8)
+      const index: number[] = []
+      list.forEach((p, i) => {
+        const height = 4.6 * p.scale
+        const halfW = (height * design.aspect) / 2
+        const cy = p.y + height / 2
+        const cos = Math.cos(p.rotationY)
+        const sin = Math.sin(p.rotationY)
+        // Plane corners (±halfW, ±height/2) rotated about Y: (x, y, z) =
+        // (cx·cos, cy, −cx·sin) relative to the banner anchor.
+        const corners: Array<[number, number]> = [
+          [-halfW, height / 2],
+          [halfW, height / 2],
+          [halfW, -height / 2],
+          [-halfW, -height / 2],
+        ]
+        corners.forEach(([cx, dy], j) => {
+          positions.set([p.x + cx * cos, cy + dy, p.z - cx * sin], i * 12 + j * 3)
+        })
+        uvs.set([0, 1, 1, 1, 1, 0, 0, 0], i * 8)
+        // Single winding — the material is double-sided already.
+        const base = i * 4
+        index.push(base, base + 2, base + 1, base, base + 3, base + 2)
+      })
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+      geometry.setIndex(index)
+      const mesh = new THREE.Mesh(geometry, materials[designIndex])
+      mesh.frustumCulled = false
       group.add(mesh)
     }
     return { group, materials, designs }

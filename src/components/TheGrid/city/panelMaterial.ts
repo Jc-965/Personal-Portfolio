@@ -22,8 +22,9 @@ function bakeWindowMap(
   if (ctx) {
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    const cols = Math.max(3, Math.floor(Math.max(dims[0], dims[2]) * 1.1))
-    const rows = Math.max(4, Math.floor(dims[1] * 0.9))
+    // Real architectural scale: ~3.1 m storeys, ~2.6 m bays.
+    const cols = Math.max(2, Math.floor(Math.max(dims[0], dims[2]) / 2.6))
+    const rows = Math.max(2, Math.floor(dims[1] / 3.1))
     const cw = canvas.width / cols
     const rh = canvas.height / rows
     const litChance = windowDensity * 0.3

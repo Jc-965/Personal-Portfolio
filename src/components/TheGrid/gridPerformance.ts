@@ -30,7 +30,9 @@ export function getGridQuality(): GridQuality {
     && window.matchMedia?.('(pointer: coarse)').matches === true
 
   if (cores >= 8 && memory >= 8 && !coarse) {
-    return { tier: 'high', maxDpr: 2, towerDensity: 0.62, postEnabled: true, antialias: true, msaa: 4, reflections: true, reflectionSize: 1024, rainCount: 1100 }
+    // DPR 1.8 (not 2): ~19% fewer pixels through the whole post chain for a
+    // sharpness difference MSAA 4 already hides.
+    return { tier: 'high', maxDpr: 1.8, towerDensity: 0.62, postEnabled: true, antialias: true, msaa: 4, reflections: true, reflectionSize: 1024, rainCount: 900 }
   }
   if (cores <= 4 || memory <= 4) {
     return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, msaa: 0, reflections: false, reflectionSize: 0, rainCount: 260 }
