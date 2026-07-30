@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import CityWorld from './city/CityWorld'
 import GridEffects from './GridEffects'
 import { sampleRail, nearestStation, validateRail } from './city/rail'
+import { gradeSceneBg } from './city/sceneColor'
 import { stationT, BG_COLOR } from './gridConfig'
 import type { GridQuality } from './gridPerformance'
 import type { SkyState, SkyTooltip, GridSelection } from './city/interaction'
@@ -30,7 +31,7 @@ export interface GridSceneProps {
  * of travel: progress snaps to the nearest station, no sustained dolly.
  */
 function CameraRig({ progressRef, reducedMotion }: { progressRef: MutableRefObject<number>; reducedMotion: boolean }) {
-  const { camera, scene } = useThree()
+  const { camera, scene, gl } = useThree()
   const current = useRef(0)
   const pointer = useRef({ x: 0, y: 0 })
   const sample = useMemo(
@@ -86,6 +87,9 @@ function CameraRig({ progressRef, reducedMotion }: { progressRef: MutableRefObje
       const k = 1 - Math.exp(-Math.min(delta, 0.1) * 4.2)
       current.current += (target - current.current) * k
     }
+
+    // District color script: one shared Color grades every material + clear.
+    gl.setClearColor(gradeSceneBg(current.current))
 
     sampleRail(current.current, sample)
     camera.position.copy(sample.position)

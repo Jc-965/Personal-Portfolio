@@ -3,7 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { subscribeToConstellation } from '../../../utils/constellationRealtime'
 import { mulberry32 } from './rand'
-import { BG_COLOR } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 import type { GridInteraction } from './interaction'
 
 /**
@@ -24,6 +24,9 @@ const DOME_RADIUS = 295
 // dome is scenery and pointer work would be wasted.
 const INTERACTIVE_PROGRESS = 0.78
 const DRAG_WRITE_INTERVAL_MS = 140
+const MAX_LINES = 900
+// Normalized-space reach for constellation links (~9% of the sky).
+const LINE_REACH_SQ = 0.09 * 0.09
 
 const starVertexShader = /* glsl */ `
   attribute float aSize;
@@ -55,7 +58,7 @@ const starFragmentShader = /* glsl */ `
       smoothstep(0.5, 0.0, abs(p.y)) * smoothstep(0.06, 0.0, abs(p.x))
     );
     float twinkle = 0.55 + 0.45 * sin(uTime * (0.4 + fract(vSeed) * 1.4) + vSeed * 43.0);
-    float alpha = (core + cross * 0.35) * twinkle;
+    float alpha = (core + cross * 0.55) * twinkle;
     gl_FragColor = vec4(vColor * (0.75 + 0.5 * twinkle), alpha);
   }
 `
@@ -164,17 +167,21 @@ function GradientDome() {
             vec3 color = mix(uBg, zenith, pow(up, 0.6));
             // Light pollution: cyan city glow hugging the horizon, strongest
             // down the avenue (-z) where the skyline is densest.
-            float horizon = pow(1.0 - abs(vDir.y), 6.0);
+            // Wide reach (pow 3.2) so the glow still kisses the frame
+            // bottom when the sky-deck camera pitches up at the stars.
+            float horizon = pow(1.0 - abs(vDir.y), 3.2);
             float avenue = 0.6 + 0.4 * smoothstep(0.2, 1.0, -vDir.z);
-            color += vec3(0.0, 0.15, 0.17) * horizon * avenue;
-            color += vec3(0.1, 0.02, 0.13) * pow(1.0 - abs(vDir.y), 10.0) * (1.0 - avenue);
-            // Faint nebula banding so the upper sky isn't a flat gradient.
+            color += vec3(0.0, 0.11, 0.13) * horizon * avenue;
+            color += vec3(0.07, 0.015, 0.1) * pow(1.0 - abs(vDir.y), 8.0) * (1.0 - avenue);
+            // Two-octave value-noise nebula so the upper sky has weather.
+            vec2 sky = vec2(atan(vDir.x, -vDir.z) * 2.0, vDir.y * 4.0);
+            float n = hash(floor(sky * 2.0)) * 0.6 + hash(floor(sky * 5.0)) * 0.4;
             float band = sin(vDir.y * 9.0 + vDir.x * 3.0) * sin(vDir.x * 7.0 - vDir.z * 4.0);
-            color += vec3(0.012, 0.02, 0.045) * smoothstep(0.2, 1.0, up) * (0.5 + 0.5 * band);
+            color += vec3(0.014, 0.024, 0.055) * smoothstep(0.15, 1.0, up) * (0.35 + 0.4 * band + 0.5 * n);
             gl_FragColor = vec4(color, 1.0);
           }
         `,
-        uniforms: { uBg: { value: new THREE.Color(BG_COLOR) } },
+        uniforms: { uBg: { value: SCENE_BG } },
       }),
     [],
   )
@@ -254,6 +261,25 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
     points.frustumCulled = false
     return { geometry, material, points }
   }, [pixelRatio])
+
+  // Constellation web: faint additive lines joining near-neighbor stars —
+  // what makes 95 dots read as one shared sky instead of scattered specks.
+  const { lineGeometry, linePoints } = useMemo(() => {
+    const lineGeometry = new THREE.BufferGeometry()
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_LINES * 6), 3))
+    lineGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_LINES * 6), 3))
+    lineGeometry.setDrawRange(0, 0)
+    const material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    const linePoints = new THREE.LineSegments(lineGeometry, material)
+    linePoints.frustumCulled = false
+    return { lineGeometry, linePoints }
+  }, [])
 
   const { ringGeometry, ringMaterial, ringPoints } = useMemo(() => {
     const ringGeometry = new THREE.BufferGeometry()
@@ -373,6 +399,11 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
     material.uniforms.uTime.value = time
     ringMaterial.uniforms.uTime.value = time
 
+    // The constellation web is the sky station's reveal — down in the city
+    // it reads as clutter over the skyline, so it fades in on approach.
+    const reveal = THREE.MathUtils.smoothstep(progressRef.current, 0.62, 0.88)
+    ;(linePoints.material as THREE.LineBasicMaterial).opacity = 0.32 * reveal
+
     // Lazily identify this browser's star once the visitor nears the sky.
     if (!uidRequestedRef.current && progressRef.current > 0.5) {
       uidRequestedRef.current = true
@@ -435,6 +466,45 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
     size.needsUpdate = true
     seed.needsUpdate = true
 
+    // Connect each star to its nearest neighbors (in constellation space).
+    const linePosition = lineGeometry.getAttribute('position') as THREE.BufferAttribute
+    const lineColor = lineGeometry.getAttribute('color') as THREE.BufferAttribute
+    const entries: Array<{ x: number; y: number; px: number; py: number; pz: number; r: number; g: number; b: number }> = []
+    let k = 0
+    for (const star of starsRef.current.values()) {
+      if (k >= i) break
+      tint.set(star.color)
+      entries.push({
+        x: star.x, y: star.y,
+        px: position.getX(k), py: position.getY(k), pz: position.getZ(k),
+        r: tint.r, g: tint.g, b: tint.b,
+      })
+      k++
+    }
+    let seg = 0
+    const linkCount = new Uint8Array(entries.length)
+    outer: for (let a = 0; a < entries.length; a++) {
+      if (linkCount[a] >= 2) continue
+      for (let b = a + 1; b < entries.length; b++) {
+        if (linkCount[b] >= 2) continue
+        const dx = entries[a].x - entries[b].x
+        const dy = entries[a].y - entries[b].y
+        if (dx * dx + dy * dy > LINE_REACH_SQ) continue
+        linePosition.setXYZ(seg * 2, entries[a].px, entries[a].py, entries[a].pz)
+        linePosition.setXYZ(seg * 2 + 1, entries[b].px, entries[b].py, entries[b].pz)
+        lineColor.setXYZ(seg * 2, entries[a].r * 0.5, entries[a].g * 0.5, entries[a].b * 0.5)
+        lineColor.setXYZ(seg * 2 + 1, entries[b].r * 0.5, entries[b].g * 0.5, entries[b].b * 0.5)
+        linkCount[a]++
+        linkCount[b]++
+        seg++
+        if (seg >= MAX_LINES) break outer
+        if (linkCount[a] >= 2) break
+      }
+    }
+    lineGeometry.setDrawRange(0, seg * 2)
+    linePosition.needsUpdate = true
+    lineColor.needsUpdate = true
+
     // Own-star ring + grab pad follow the star.
     const own = ownKeyRef.current ? starsRef.current.get(ownKeyRef.current) : null
     if (own) {
@@ -467,10 +537,13 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
     ringMaterial.dispose()
     grabGeometry.dispose()
     grabMaterial.dispose()
-  }, [geometry, material, ringGeometry, ringMaterial, grabGeometry, grabMaterial])
+    lineGeometry.dispose()
+    ;(linePoints.material as THREE.Material).dispose()
+  }, [geometry, material, ringGeometry, ringMaterial, grabGeometry, grabMaterial, lineGeometry, linePoints])
 
   return (
     <group>
+      <primitive object={linePoints} />
       <primitive object={points} onPointerMove={onStarsMove} onPointerOut={onStarsOut} />
       <primitive object={ringPoints} />
       <mesh

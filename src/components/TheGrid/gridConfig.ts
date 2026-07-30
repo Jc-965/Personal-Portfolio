@@ -94,8 +94,10 @@ export const STATIONS: GridStation[] = [
     label: 'HOME',
     title: content.profile.headline,
     accent: '#00ffff',
-    cam: [0, 7, 46],
-    look: [-2, 13, -17],
+    // Slightly low and far so both gate arches frame the identity screen,
+    // which sits dead on the sightline.
+    cam: [0, 6.5, 50],
+    look: [-3, 13.5, -18],
   },
   {
     id: 'journey',

@@ -22,14 +22,16 @@ export interface SignTexture {
  * comes free from shadowBlur.
  */
 export function makeSignTexture(spec: SignSpec): SignTexture {
-  const width = spec.width ?? 512
-  const padding = spec.padding ?? 28
-  const lineGap = 10
+  // Rendered at 2x the layout size for crisp glyphs at close range.
+  const RES = 2
+  const width = (spec.width ?? 512) * RES
+  const padding = (spec.padding ?? 28) * RES
+  const lineGap = 10 * RES
 
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   const lines = spec.lines
-  const totalText = lines.reduce((sum, line) => sum + (line.size ?? 64) + lineGap, -lineGap)
+  const totalText = lines.reduce((sum, line) => sum + (line.size ?? 64) * RES + lineGap, -lineGap)
   const height = Math.ceil(totalText + padding * 2)
   canvas.width = width
   canvas.height = height
@@ -43,7 +45,7 @@ export function makeSignTexture(spec: SignSpec): SignTexture {
     ctx.textBaseline = 'top'
     let y = padding
     for (const line of lines) {
-      const size = line.size ?? 64
+      const size = (line.size ?? 64) * RES
       ctx.font = `700 ${size}px "JetBrains Mono", ui-monospace, monospace`
       ctx.shadowColor = spec.accent
       ctx.shadowBlur = size * 0.35
@@ -57,7 +59,7 @@ export function makeSignTexture(spec: SignSpec): SignTexture {
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
+  texture.anisotropy = 8
   return { texture, aspect: width / height }
 }
 

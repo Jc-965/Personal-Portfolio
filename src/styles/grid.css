@@ -104,8 +104,9 @@
 }
 
 .grid-hud__back {
-  font-size: 0.78rem;
-  padding: 9px 16px;
+  font-size: 0.7rem;
+  letter-spacing: 0.6px;
+  padding: 8px 13px;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -187,6 +188,19 @@
   visibility: visible;
 }
 
+/* Scroll cue: content dissolves at the panel's bottom edge instead of
+   guillotining mid-line. */
+.grid-hud__panel::after {
+  content: '';
+  display: block;
+  position: sticky;
+  bottom: -16px;
+  height: 30px;
+  margin: -14px -20px -16px;
+  background: linear-gradient(180deg, transparent, rgba(2, 7, 14, 0.92));
+  pointer-events: none;
+}
+
 .grid-hud__station-id {
   display: flex;
   align-items: center;
@@ -254,7 +268,7 @@
 
 .grid-hud__row {
   display: grid;
-  grid-template-columns: 10px auto 1fr;
+  grid-template-columns: 10px 8.6rem 1fr;
   gap: 4px 10px;
   align-items: baseline;
   font-size: 0.76rem;
@@ -314,8 +328,10 @@
 
 .grid-hud__row-period {
   color: var(--text-muted, #6d8296);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .grid-hud__row-title {
@@ -441,10 +457,14 @@
 
 .grid-hud__contact a {
   pointer-events: auto;
-  font-size: 0.74rem;
-  color: var(--text-secondary, #9fb6c9);
+  font-size: 0.8rem;
+  color: #eaffff;
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 8px 14px;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  border-radius: 3px;
+  background: rgba(0, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .grid-hud__contact a:hover,

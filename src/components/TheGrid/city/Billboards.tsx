@@ -11,9 +11,14 @@ import * as THREE from 'three'
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
+  varying vec3 vViewDir;
+  varying vec3 vViewNormal;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vViewDir = normalize(-mv.xyz);
+    vViewNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * mv;
   }
 `
 
@@ -24,6 +29,8 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uFocus;
   varying vec2 vUv;
+  varying vec3 vViewDir;
+  varying vec3 vViewNormal;
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -43,9 +50,9 @@ const fragmentShader = /* glsl */ `
         texture2D(uMap, uv - vec2(shift, 0.0)).b
       );
       // Screenshots are mostly light-UI pages; damp them below the bloom
-      // threshold and tint toward the night palette so screens sit IN the
-      // city instead of blowing out white.
-      color = color * 0.52 + vec3(0.0, 0.02, 0.03);
+      // threshold, hard-cap luminance, and tint toward the night palette so
+      // screens sit IN the city instead of blowing out white.
+      color = min(color * 0.52 + vec3(0.0, 0.02, 0.03), vec3(0.68, 0.72, 0.74));
     } else {
       // No screenshot: animated signal bars in the project's accent.
       float bar = step(0.5, fract(uv.y * 14.0 + uTime * 0.4 + hash(vec2(floor(uv.y * 14.0)))));
@@ -60,6 +67,10 @@ const fragmentShader = /* glsl */ `
     // Screen bezel glow.
     float edge = max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0;
     color += uAccent * smoothstep(0.94, 1.0, edge) * 0.7;
+
+    // Grazing screens dim like real displays — no white slivers in flyovers.
+    float facing = abs(dot(vViewDir, vViewNormal));
+    color *= mix(0.12, 1.0, smoothstep(0.08, 0.45, facing));
 
     gl_FragColor = vec4(color, 1.0);
   }
@@ -120,6 +131,7 @@ export default function Billboard({
           return
         }
         texture.colorSpace = THREE.SRGBColorSpace
+        texture.anisotropy = 8
         owned = texture
         material.uniforms.uMap.value = texture
         material.uniforms.uHasMap.value = 1
@@ -156,7 +168,10 @@ export default function Billboard({
     const time = state.clock.elapsedTime
     material.uniforms.uTime.value = time
     const dist = state.camera.position.distanceTo(worldPos)
-    const focus = 1 - THREE.MathUtils.clamp((dist - focusDistance) / 45, 0, 1)
+    let focus = 1 - THREE.MathUtils.clamp((dist - focusDistance) / 45, 0, 1)
+    // Screens power down to static during the high flyover — a white page
+    // floating in a night flyover reads as a glitch, not a monitor.
+    focus *= 1 - THREE.MathUtils.smoothstep(state.camera.position.y, 15, 23)
     material.uniforms.uFocus.value = focus
 
     // Selected-project screens rotate through every screenshot; the swap
@@ -172,6 +187,7 @@ export default function Billboard({
       } else {
         new THREE.TextureLoader().load(url, texture => {
           texture.colorSpace = THREE.SRGBColorSpace
+          texture.anisotropy = 8
           textureCache.current.set(url, texture)
           material.uniforms.uMap.value = texture
           material.uniforms.uHasMap.value = 1

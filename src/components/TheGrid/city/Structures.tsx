@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import Billboard from './Billboards'
 import { makeSignTexture, makeTerminalTexture, type SignSpec } from './signTexture'
 import { makePanelMaterial } from './panelMaterial'
+import { SCENE_BG } from './sceneColor'
 import type { GridInteraction } from './interaction'
 import {
   content,
@@ -25,7 +26,38 @@ import {
  * towers and transit stops are click targets synced with the HUD.
  */
 
-const BODY_COLOR = '#050a12'
+const darkBodyVertex = /* glsl */ `
+  varying float vViewDist;
+  void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vViewDist = -mv.z;
+    gl_Position = projectionMatrix * mv;
+  }
+`
+
+const darkBodyFragment = /* glsl */ `
+  uniform vec3 uBg;
+  uniform vec3 uTint;
+  varying float vViewDist;
+  void main() {
+    vec3 color = vec3(0.02, 0.032, 0.062) + uTint * 0.05;
+    color = mix(color, uBg, smoothstep(70.0, 210.0, vViewDist));
+    // Near dissolve: a pylon grazing the lens must melt away, not blot the frame.
+    color = mix(uBg * 0.6, color, smoothstep(2.0, 7.0, vViewDist));
+    gl_FragColor = vec4(color, 1.0);
+  }
+`
+
+function makeDarkBodyMaterial(accent: string) {
+  return new THREE.ShaderMaterial({
+    vertexShader: darkBodyVertex,
+    fragmentShader: darkBodyFragment,
+    uniforms: {
+      uBg: { value: SCENE_BG },
+      uTint: { value: new THREE.Color(accent) },
+    },
+  })
+}
 
 function NeonBox({
   position,
@@ -53,7 +85,7 @@ function NeonBox({
     const edges = new THREE.EdgesGeometry(geometry)
     const bodyMaterial = lit
       ? makePanelMaterial(accent, size, seed, windowDensity)
-      : new THREE.MeshBasicMaterial({ color: BODY_COLOR })
+      : makeDarkBodyMaterial(accent)
     const lineMaterial = new THREE.LineBasicMaterial({
       color: accent,
       transparent: true,
@@ -69,10 +101,16 @@ function NeonBox({
     lineMaterial.dispose()
   }, [geometry, edges, bodyMaterial, lineMaterial])
 
+  const positionKey = position.join(',')
+  const worldPos = useMemo(() => new THREE.Vector3(...position), [positionKey])
   useFrame(state => {
     if (lit && bodyMaterial instanceof THREE.ShaderMaterial) {
       bodyMaterial.uniforms.uTime.value = state.clock.elapsedTime
     }
+    // Emissive edges ignore fog; fade them by distance so far districts
+    // recede instead of photobombing the active station's frame.
+    const dist = state.camera.position.distanceTo(worldPos)
+    lineMaterial.opacity = edgeOpacity * THREE.MathUtils.clamp(1.7 - dist / 70, 0.12, 1)
   })
 
   return (
@@ -119,6 +157,14 @@ function Sign({
     material.dispose()
     geometry.dispose()
   }, [sign, material, geometry])
+
+  const worldPos = useMemo(() => new THREE.Vector3(...position), [position])
+  useFrame(state => {
+    // Signs are unlit sprites that ignore fog — fade them by distance so a
+    // district's signage never photobombs another station's frame.
+    const dist = state.camera.position.distanceTo(worldPos)
+    material.opacity = THREE.MathUtils.clamp(1.65 - dist / 55, 0, 1)
+  })
 
   return (
     <mesh
@@ -248,6 +294,61 @@ function HoloRing({
   )
 }
 
+/** Scrolling news-ticker strip — canvas texture on repeat, offset by time. */
+function TickerSign({
+  text,
+  position,
+  width,
+  height = 0.8,
+  accent,
+  rotationY = 0,
+}: {
+  text: string
+  position: [number, number, number]
+  width: number
+  height?: number
+  accent: string
+  rotationY?: number
+}) {
+  const { texture, material, geometry } = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 2048
+    canvas.height = 96
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#03070d'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.font = '700 58px "JetBrains Mono", ui-monospace, monospace'
+      ctx.textBaseline = 'middle'
+      ctx.shadowColor = accent
+      ctx.shadowBlur = 16
+      ctx.fillStyle = accent
+      ctx.fillText(text, 12, canvas.height / 2)
+    }
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.wrapS = THREE.RepeatWrapping
+    texture.anisotropy = 8
+    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+    const geometry = new THREE.PlaneGeometry(width, height)
+    return { texture, material, geometry }
+  }, [text, width, height, accent])
+
+  useEffect(() => () => {
+    texture.dispose()
+    material.dispose()
+    geometry.dispose()
+  }, [texture, material, geometry])
+
+  useFrame((_, delta) => {
+    texture.offset.x += delta * 0.045
+  })
+
+  return (
+    <mesh geometry={geometry} material={material} position={position} rotation-y={rotationY} renderOrder={5} />
+  )
+}
+
 function Jumbotron() {
   const { tower, screen } = JUMBOTRON
   const identity = useMemo(
@@ -256,10 +357,11 @@ function Jumbotron() {
         width: 1024,
         accent: '#00ffff',
         background: '#03080f',
+        // Two lines only — the headline lives in the HUD; squeezing it onto
+        // the sign made all three lines illegible.
         lines: [
-          { text: '> JESSE CHEN', size: 96 },
-          { text: 'CARNEGIE MELLON // SCS', size: 44, color: '#7efcff' },
-          { text: content.profile.headline.toUpperCase(), size: 34, color: '#9fb6c9' },
+          { text: '> JESSE CHEN', size: 118 },
+          { text: 'CARNEGIE MELLON // SCS', size: 52, color: '#7efcff' },
         ],
       }),
     [],
@@ -288,6 +390,13 @@ function Jumbotron() {
         focusDistance={68}
       />
       <Beacon position={[tower.x, tower.height + 1, tower.z]} accent="#00ffff" />
+      <TickerSign
+        text="··· WELCOME TO THE GRID ··· SCROLL TO TRAVEL · 6 STATIONS · CLICK TOWERS AND TRANSIT STOPS ··· JESSE CHEN // CMU SCS "
+        position={[tower.x, 2.4, tower.z + JUMBOTRON.tower.depth / 2 + 0.06]}
+        width={JUMBOTRON.tower.width - 1}
+        height={0.75}
+        accent="#00ffff"
+      />
       <GlowPad position={[tower.x, 0, tower.z + 4]} accent="#00ffff" radius={10} />
     </group>
   )
@@ -416,15 +525,25 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
                 accent: exp.accent,
                 width: 640,
                 lines: [
-                  { text: exp.company.toUpperCase(), size: 54 },
-                  { text: exp.role, size: 30, color: '#9fb6c9' },
-                  { text: exp.period, size: 26, color: exp.accent },
+                  { text: exp.company.toUpperCase(), size: 58 },
+                  { text: exp.role, size: 32, color: '#9fb6c9' },
                 ],
               }}
               position={[TRANSIT.x + 0.2, TRANSIT.beamY + 2.3, z]}
               rotationY={Math.PI / 2}
               height={2.2}
             />
+            {/* Platform canopy + lit edge make stops read as stations. */}
+            <NeonBox
+              position={[TRANSIT.x, TRANSIT.beamY + 1.3, z]}
+              size={[3.4, 0.14, 3.8]}
+              accent={exp.accent}
+              edgeOpacity={0.5}
+            />
+            <mesh position={[TRANSIT.x - 1.5, TRANSIT.beamY - 0.48, z]}>
+              <boxGeometry args={[0.1, 0.1, 3.4]} />
+              <meshBasicMaterial color={exp.accent} />
+            </mesh>
             <Beacon position={[TRANSIT.x, TRANSIT.beamY + 0.6, z]} accent={exp.accent} size={0.35} />
             {selected && (
               <HoloRing
@@ -525,6 +644,14 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
               accent={project.accent}
               active={selected}
             />
+            {selected && (
+              <HoloRing
+                position={[site.x, 2.2, site.z]}
+                accent={project.accent}
+                radius={6.8}
+                active
+              />
+            )}
             <Beacon position={[site.x, site.height + 0.8, site.z]} accent={project.accent} size={0.4} />
             <GlowPad position={[site.x - 4, 0, site.z]} accent={project.accent} radius={8} />
           </group>
@@ -547,14 +674,22 @@ function BeyondShops() {
             windowDensity={0.9}
             seed={23 + i}
           />
-          {/* Awning light-strip over the storefront — solid emissive, so it
-              reads as a lit tube rather than a dark bar. */}
-          <mesh position={[x + 3.05, 5.4, z]}>
-            <boxGeometry args={[0.15, 0.15, 5.2]} />
+          {/* Storefront kit: angled awning, inset doorway with warm glow,
+              display window — so these read as shops, not containers. */}
+          <mesh position={[x + 3.35, 4.6, z]} rotation-z={-0.35}>
+            <boxGeometry args={[1.1, 0.08, 5.4]} />
             <meshBasicMaterial color={item.accent} />
           </mesh>
-          {/* Rooftop sign angled toward the approaching camera (+Z) so the
-              three storefronts never stack edge-on in projection. */}
+          <mesh position={[x + 3.02, 1.4, z - 1.5]} rotation-y={Math.PI / 2}>
+            <planeGeometry args={[1.2, 2.8]} />
+            <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} />
+          </mesh>
+          <mesh position={[x + 3.02, 2.2, z + 1.2]} rotation-y={Math.PI / 2}>
+            <planeGeometry args={[2.4, 1.6]} />
+            <meshBasicMaterial color={item.accent} transparent opacity={0.5} />
+          </mesh>
+          {/* Sign mounted on the facade above the door, angled to the
+              approaching camera so the three never stack in projection. */}
           <Sign
             spec={{
               accent: item.accent,
@@ -564,9 +699,9 @@ function BeyondShops() {
                 { text: item.subtitle, size: 30, color: '#9fb6c9' },
               ],
             }}
-            position={[x, 8.6, z + 3.2]}
-            rotationY={0.35}
-            height={2}
+            position={[x + 1, 8.4, z + 3.1]}
+            rotationY={0.3}
+            height={1.9}
           />
           <GlowPad position={[x + 3, 0, z]} accent={item.accent} radius={6} />
         </group>
@@ -602,10 +737,9 @@ function RelayTower() {
               spec={{
                 accent: group.accent,
                 width: 640,
-                lines: [
-                  { text: group.name.toUpperCase(), size: 54 },
-                  { text: `${group.items.length} TOOLS`, size: 28, color: group.accent },
-                ],
+                // Name only: sublabels were illegible at rest distance, and
+                // the HUD already counts the tools.
+                lines: [{ text: group.name.toUpperCase(), size: 64 }],
               }}
               position={[t.x, y + 1.6, t.z + t.width / 2 + 0.3]}
               height={2}
@@ -640,6 +774,13 @@ function SkyDeck() {
           monolith parked in the avenue. */}
       <NeonBox position={[d.x, d.y / 2, d.z]} size={[1.1, d.y, 1.1]} accent="#7efcff" edgeOpacity={0.35} />
       <NeonBox position={[d.x, d.y, d.z]} size={[d.size, 0.5, d.size]} accent="#7efcff" />
+      <TickerSign
+        text="··· NOW ARRIVING // 05 SKY — THE CONSTELLATION ··· LOOK UP · HOVER A STAR · DRAG YOURS ··· THE GRID // JESSE CHEN "
+        position={[d.x, d.y - 0.65, d.z + d.size / 2 + 0.05]}
+        width={d.size}
+        height={0.7}
+        accent="#7efcff"
+      />
       <HoloRing position={[d.x, d.y - 3.2, d.z]} accent="#7efcff" radius={4} />
       {posts.map((p, i) => (
         <NeonBox key={i} position={p} size={[0.12, 1.4, 0.12]} accent="#7efcff" edgeOpacity={0.5} />

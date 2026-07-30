@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BG_COLOR } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 
 /**
  * The street plane: a shader grid (the site's background grid made literal)
@@ -52,7 +52,7 @@ const fragmentShader = /* glsl */ `
       color += uLine * packet * onLane * 0.9;
     }
 
-    float fade = smoothstep(60.0, 200.0, vViewDist);
+    float fade = smoothstep(50.0, 175.0, vViewDist);
     color = mix(color, uBg, fade);
     gl_FragColor = vec4(color, 1.0);
   }
@@ -66,13 +66,13 @@ export default function Ground() {
         fragmentShader,
         uniforms: {
           uTime: { value: 0 },
-          uBg: { value: new THREE.Color(BG_COLOR) },
+          uBg: { value: SCENE_BG },
           uLine: { value: new THREE.Color('#00ffff') },
         },
       }),
     [],
   )
-  const geometry = useMemo(() => new THREE.PlaneGeometry(460, 460), [])
+  const geometry = useMemo(() => new THREE.PlaneGeometry(700, 700), [])
 
   useEffect(() => () => {
     geometry.dispose()

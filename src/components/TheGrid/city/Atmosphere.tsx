@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
-import { JUMBOTRON, PROJECT_SITES, RELAY_TOWER } from '../gridConfig'
+import { JUMBOTRON, PROJECT_SITES, RELAY_TOWER, BEYOND_SHOPS } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 import type { GridTier } from '../gridPerformance'
 
 /**
@@ -16,6 +17,7 @@ const moteVertexShader = /* glsl */ `
   uniform float uTime;
   uniform float uScale;
   varying float vSeed;
+  varying float vDist;
   void main() {
     vSeed = aSeed;
     vec3 p = position;
@@ -23,7 +25,9 @@ const moteVertexShader = /* glsl */ `
     p.y += sin(uTime * 0.1 + aSeed * 29.0) * 1.6;
     p.z += cos(uTime * 0.12 + aSeed * 7.0) * 2.2;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
-    gl_PointSize = (0.8 + fract(aSeed) * 1.4) * (uScale / -mv.z);
+    vDist = -mv.z;
+    // Hard cap so near motes never balloon into lens dirt.
+    gl_PointSize = min((0.8 + fract(aSeed) * 1.4) * (uScale / -mv.z), 20.0);
     gl_Position = projectionMatrix * mv;
   }
 `
@@ -31,16 +35,19 @@ const moteVertexShader = /* glsl */ `
 const moteFragmentShader = /* glsl */ `
   uniform float uTime;
   varying float vSeed;
+  varying float vDist;
   void main() {
     float d = length(gl_PointCoord - 0.5);
     float disc = smoothstep(0.5, 0.05, d);
     float breathe = 0.4 + 0.6 * (0.5 + 0.5 * sin(uTime * (0.5 + fract(vSeed)) + vSeed * 40.0));
-    gl_FragColor = vec4(vec3(0.35, 0.85, 0.9), disc * breathe * 0.2);
+    // Fade out anything close to the lens.
+    float near = smoothstep(5.0, 14.0, vDist);
+    gl_FragColor = vec4(vec3(0.35, 0.85, 0.9), disc * breathe * near * 0.18);
   }
 `
 
 function Motes({ tier }: { tier: GridTier }) {
-  const count = tier === 'high' ? 320 : tier === 'mid' ? 200 : 90
+  const count = tier === 'high' ? 200 : tier === 'mid' ? 130 : 60
 
   const { points, material } = useMemo(() => {
     const rng = mulberry32(4242)
@@ -152,9 +159,173 @@ function LightShaft({
   )
 }
 
+const ringVertexShader = /* glsl */ `
+  varying vec2 vUv;
+  varying vec3 vWorld;
+  void main() {
+    vUv = uv;
+    vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`
+
+const ringFragmentShader = /* glsl */ `
+  uniform vec3 uBg;
+  varying vec2 vUv;
+  varying vec3 vWorld;
+
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+  void main() {
+    // Jagged skyline silhouette with sparse window noise, dissolving upward.
+    float column = floor(vUv.x * 160.0);
+    float skyline = 0.25 + 0.75 * hash(vec2(column, 7.0));
+    if (vUv.y > skyline) discard;
+    vec3 color = uBg * 1.4;
+    vec2 cell = vec2(floor(vUv.x * 480.0), floor(vUv.y * 40.0));
+    float lit = step(0.9, hash(cell));
+    color += vec3(0.1, 0.35, 0.4) * lit * 0.35;
+    float fadeTop = smoothstep(skyline, skyline - 0.3, vUv.y);
+    gl_FragColor = vec4(mix(uBg, color, fadeTop), 1.0);
+  }
+`
+
+const streakVertexShader = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`
+
+const streakFragmentShader = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uIntensity;
+  varying vec2 vUv;
+  void main() {
+    float along = pow(1.0 - vUv.y, 1.7);
+    float across = pow(max(0.0, 1.0 - abs(vUv.x - 0.5) * 2.0), 1.6);
+    gl_FragColor = vec4(uColor, along * across * 0.2 * uIntensity);
+  }
+`
+
+interface StreakSource {
+  x: number
+  z: number
+  color: string
+  length: number
+  intensity: number
+}
+
+/**
+ * Wet-street reflections: an additive streak on the ground under each light
+ * source, re-aimed at the camera every frame — the cheap trick that makes a
+ * neon city read as rained-on asphalt instead of dry plastic.
+ */
+function WetReflections() {
+  const sources = useMemo<StreakSource[]>(() => {
+    const list: StreakSource[] = [
+      { x: JUMBOTRON.tower.x, z: JUMBOTRON.tower.z + 3, color: '#00ffff', length: 18, intensity: 1.2 },
+      { x: RELAY_TOWER.x, z: RELAY_TOWER.z, color: '#ffcc00', length: 15, intensity: 1 },
+    ]
+    for (const site of PROJECT_SITES) {
+      list.push({ x: site.x - 4, z: site.z, color: site.project.accent, length: 14, intensity: 1 })
+    }
+    for (const shop of BEYOND_SHOPS) {
+      list.push({ x: shop.x + 3, z: shop.z, color: shop.item.accent, length: 10, intensity: 0.9 })
+    }
+    return list
+  }, [])
+
+  const meshes = useRef<Array<THREE.Mesh | null>>([])
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(2.4, 1)
+    g.translate(0, 0.5, 0) // anchor at the light's base; scale stretches outward
+    return g
+  }, [])
+  const materials = useMemo(
+    () =>
+      sources.map(
+        source =>
+          new THREE.ShaderMaterial({
+            vertexShader: streakVertexShader,
+            fragmentShader: streakFragmentShader,
+            uniforms: {
+              uColor: { value: new THREE.Color(source.color) },
+              uIntensity: { value: source.intensity },
+            },
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          }),
+      ),
+    [sources],
+  )
+
+  useEffect(() => () => {
+    geometry.dispose()
+    for (const material of materials) material.dispose()
+  }, [geometry, materials])
+
+  useFrame(state => {
+    const cam = state.camera.position
+    sources.forEach((source, i) => {
+      const mesh = meshes.current[i]
+      if (!mesh) return
+      const dx = cam.x - source.x
+      const dz = cam.z - source.z
+      // Local +Y (after laying flat) points to -Z; aim it at the camera.
+      mesh.rotation.order = 'YXZ'
+      mesh.rotation.y = Math.atan2(-dx, -dz) + Math.PI
+      mesh.rotation.x = -Math.PI / 2
+      mesh.scale.y = source.length
+    })
+  })
+
+  return (
+    <group>
+      {sources.map((source, i) => (
+        <mesh
+          key={i}
+          ref={el => { meshes.current[i] = el }}
+          geometry={geometry}
+          material={materials[i]}
+          position={[source.x, 0.07, source.z]}
+          renderOrder={3}
+        />
+      ))}
+    </group>
+  )
+}
+
+/** Distant silhouette skyline circling the city — hides the world's edge. */
+function SkylineRing() {
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: ringVertexShader,
+        fragmentShader: ringFragmentShader,
+        uniforms: { uBg: { value: SCENE_BG } },
+        side: THREE.BackSide,
+      }),
+    [],
+  )
+  const geometry = useMemo(
+    () => new THREE.CylinderGeometry(240, 240, 55, 96, 1, true),
+    [],
+  )
+  useEffect(() => () => {
+    geometry.dispose()
+    material.dispose()
+  }, [geometry, material])
+  return <mesh geometry={geometry} material={material} position={[0, 27, -70]} />
+}
+
 export default function Atmosphere({ tier }: { tier: GridTier }) {
   return (
     <group>
+      <SkylineRing />
+      <WetReflections />
       <Motes tier={tier} />
       <LightShaft
         position={[JUMBOTRON.tower.x, JUMBOTRON.tower.height, JUMBOTRON.tower.z]}

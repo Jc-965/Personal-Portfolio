@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { BG_COLOR } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 
 /**
  * Facade shader for signature structures: dark paneled body, seam lines,
@@ -84,7 +84,7 @@ export function makePanelMaterial(accent: string, dims: [number, number, number]
     fragmentShader,
     uniforms: {
       uTime: { value: 0 },
-      uBg: { value: new THREE.Color(BG_COLOR) },
+      uBg: { value: SCENE_BG },
       uAccent: { value: new THREE.Color(accent) },
       uDims: { value: new THREE.Vector3(...dims) },
       uSeed: { value: seed },

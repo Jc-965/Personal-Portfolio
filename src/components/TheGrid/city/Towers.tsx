@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
 import { isInCorridor } from './rail'
-import { CITY_BOUNDS, BG_COLOR, STATIONS } from '../gridConfig'
+import { CITY_BOUNDS, STATIONS } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 
 /**
  * The procedural skyline: one InstancedMesh of unit boxes, windows and neon
@@ -70,16 +71,34 @@ const fragmentShader = /* glsl */ `
       vec2 cell = vec2(floor(u * cols), floor(v * rows));
       vec2 inCell = fract(vec2(u * cols, v * rows));
 
-      float lit = step(0.74, hash(cell));
-      // A sparse handful of windows blink slowly — life, not strobe.
-      float blinkKey = hash(cell + 31.0);
-      float blink = blinkKey > 0.93
-        ? 0.5 + 0.5 * sin(uTime * (0.6 + blinkKey) + blinkKey * 40.0)
-        : 1.0;
-      float window = step(0.24, inCell.x) * step(inCell.x, 0.76)
-                   * step(0.3, inCell.y) * step(inCell.y, 0.7);
-      float brightness = 0.4 + 0.4 * hash(cell + 7.0);
-      color += vAccent * lit * window * blink * brightness;
+      // Three facade languages, chosen per building, so the skyline doesn't
+      // wear one speckle texture at every scale.
+      float pattern = fract(vSeed * 0.617);
+      float glow = 0.0;
+      if (pattern < 0.55) {
+        // Punched windows.
+        float lit = step(0.74, hash(cell));
+        float blinkKey = hash(cell + 31.0);
+        float blink = blinkKey > 0.93
+          ? 0.5 + 0.5 * sin(uTime * (0.6 + blinkKey) + blinkKey * 40.0)
+          : 1.0;
+        float window = step(0.24, inCell.x) * step(inCell.x, 0.76)
+                     * step(0.3, inCell.y) * step(inCell.y, 0.7);
+        glow = lit * window * blink * (0.4 + 0.4 * hash(cell + 7.0));
+      } else if (pattern < 0.8) {
+        // Vertical light strips (curtain mullions).
+        float stripOn = step(0.72, hash(vec2(cell.x, 3.0)));
+        float strip = step(0.4, inCell.x) * step(inCell.x, 0.6);
+        glow = stripOn * strip * 0.5 * (0.7 + 0.3 * sin(uTime * 0.3 + cell.x));
+      } else {
+        // Horizontal illuminated floor bands.
+        float bandOn = step(0.7, hash(vec2(cell.y, 9.0)));
+        float band = step(0.2, inCell.y) * step(inCell.y, 0.5);
+        glow = bandOn * band * 0.4;
+      }
+      // Distant windows soften instead of shimmering at subpixel size.
+      glow *= clamp(1.5 - vViewDist / 90.0, 0.3, 1.0);
+      color += vAccent * glow;
 
       // Neon edge glow along vertical corners — measured along the face's
       // tangent axis only (the normal axis is constant 0.5 across the face
@@ -92,9 +111,11 @@ const fragmentShader = /* glsl */ `
       color += vAccent * 0.08 * (1.0 - smoothstep(0.0, 0.35, v));
     }
 
-    // Distance fade replaces scene fog (the star dome must stay un-fogged).
+    // Distance fade replaces scene fog (the star dome must stay un-fogged);
+    // the near dissolve keeps grazing walls from smearing across the lens.
     float fade = smoothstep(70.0, 210.0, vViewDist);
     color = mix(color, uBg, fade);
+    color = mix(uBg * 0.6, color, smoothstep(2.5, 8.0, vViewDist));
     gl_FragColor = vec4(color, 1.0);
   }
 `
@@ -162,7 +183,7 @@ export default function Towers({ density }: { density: number }) {
       fragmentShader,
       uniforms: {
         uTime: { value: 0 },
-        uBg: { value: new THREE.Color(BG_COLOR) },
+        uBg: { value: SCENE_BG },
       },
     })
 

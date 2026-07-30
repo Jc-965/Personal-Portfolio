@@ -27,5 +27,5 @@ export function getGridQuality(): GridQuality {
   if (cores <= 4 || memory <= 4) {
     return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false }
   }
-  return { tier: 'mid', maxDpr: 1.4, towerDensity: 0.52, postEnabled: true, antialias: false }
+  return { tier: 'mid', maxDpr: 1.6, towerDensity: 0.52, postEnabled: true, antialias: true }
 }

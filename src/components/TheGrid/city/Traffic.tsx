@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
-import { BG_COLOR } from '../gridConfig'
+import { SCENE_BG } from './sceneColor'
 import type { GridTier } from '../gridPerformance'
 
 /**
@@ -95,7 +95,7 @@ export default function Traffic({ tier }: { tier: GridTier }) {
       fragmentShader,
       uniforms: {
         uTime: { value: 0 },
-        uBg: { value: new THREE.Color(BG_COLOR) },
+        uBg: { value: SCENE_BG },
       },
     })
 
