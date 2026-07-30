@@ -72,6 +72,19 @@ for (let i = 0; i <= 160; i++) {
   corridorSamples.push({ x: p.x, z: p.z })
 }
 
+/** Minimum XZ distance from a point to the camera rail — for placing street
+ * furniture close enough to feel (parallax) but never collide. */
+export function distanceToRail(x: number, z: number): number {
+  let best = Infinity
+  for (const s of corridorSamples) {
+    const dx = x - s.x
+    const dz = z - s.z
+    const d2 = dx * dx + dz * dz
+    if (d2 < best) best = d2
+  }
+  return Math.sqrt(best)
+}
+
 export function isInCorridor(x: number, z: number, extraRadius = 0): boolean {
   const r = CORRIDOR_RADIUS + extraRadius
   const r2 = r * r

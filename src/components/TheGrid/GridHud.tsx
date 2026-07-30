@@ -9,62 +9,106 @@ import type { SkyState, GridSelection } from './city/interaction'
  * keeps receiving wheel and touch everywhere else.
  */
 
-function HomePanel() {
+function HomePanel({ onNavigate }: { onNavigate: (index: number) => void }) {
   return (
     <>
       <p className="grid-hud__eyebrow">{content.profile.eyebrow}</p>
       <h2 className="grid-hud__headline">{content.profile.headline}</h2>
       <p className="grid-hud__body">{content.profile.description}</p>
+      {/* The two districts visitors come for, one click from arrival. */}
+      <div className="grid-hud__tabs">
+        <button type="button" className="grid-hud__tab" onClick={() => onNavigate(1)}>
+          ▸ ride the journey line
+        </button>
+        <button
+          type="button"
+          className="grid-hud__tab"
+          style={{ '--grid-accent': '#4c8bff' } as React.CSSProperties}
+          onClick={() => onNavigate(2)}
+        >
+          ▸ walk the project towers
+        </button>
+      </div>
     </>
   )
 }
 
 function JourneyPanel({
   selectedRole,
+  focused,
   onSelectRole,
+  onClearFocus,
 }: {
   selectedRole: number | null
+  focused: boolean
   onSelectRole: (index: number | null) => void
+  onClearFocus: () => void
 }) {
   const detail = selectedRole !== null ? content.experiences[selectedRole] : null
-  // No list here — the transit stops IN THE WORLD are the list. The panel
-  // stays a thin caption until a stop is clicked, then shows that record.
-  if (!detail) {
-    return (
-      <>
-        <h2 className="grid-hud__headline grid-hud__headline--small">The transit line</h2>
-        <p className="grid-hud__body">
-          Every stop on the elevated line is a role, {content.experiences.length} in all —
-          hover one to identify it, click it to open the record.
-        </p>
-      </>
-    )
-  }
   return (
-    <div className="grid-hud__detail" style={{ '--grid-accent': detail.accent } as React.CSSProperties}>
-      <p className="grid-hud__detail-title">
-        {detail.company} · {detail.location} · {detail.status}
-      </p>
-      <p className="grid-hud__microcopy">{detail.role} — {detail.period}</p>
-      <p className="grid-hud__body">{detail.summary}</p>
-      <p className="grid-hud__chips">
-        {detail.stack.map(item => (
-          <span key={item} className="grid-hud__chip">{item}</span>
+    <>
+      {/* The transit stops in the world are the primary list; these chips are
+          the same list for keyboards and screen readers — picking either
+          flies the camera to that stop. */}
+      <div className="grid-hud__tabs" role="tablist" aria-label="Roles">
+        {content.experiences.map((exp, i) => (
+          <button
+            key={exp.id}
+            type="button"
+            role="tab"
+            aria-selected={i === selectedRole}
+            className={`grid-hud__tab ${i === selectedRole ? 'is-active' : ''}`}
+            style={{ '--grid-accent': exp.accent } as React.CSSProperties}
+            onClick={() => onSelectRole(i === selectedRole ? null : i)}
+          >
+            {exp.company}
+          </button>
         ))}
-      </p>
-      <button type="button" className="grid-hud__tab" onClick={() => onSelectRole(null)}>
-        ✕ close record
-      </button>
-    </div>
+      </div>
+      {!detail && (
+        <p className="grid-hud__microcopy">
+          {content.experiences.length} stops on the elevated line, one per role — pick one
+          (or use ←/→) and the tram meets you there.
+        </p>
+      )}
+      {detail && (
+        <div className="grid-hud__detail" style={{ '--grid-accent': detail.accent } as React.CSSProperties}>
+          <p className="grid-hud__detail-title">
+            {detail.company} · {detail.location} · {detail.status}
+          </p>
+          <p className="grid-hud__microcopy">{detail.role} — {detail.period}</p>
+          <p className="grid-hud__body">{detail.summary}</p>
+          <p className="grid-hud__chips">
+            {detail.stack.map(item => (
+              <span key={item} className="grid-hud__chip">{item}</span>
+            ))}
+          </p>
+          <p className="grid-hud__tabs">
+            <button type="button" className="grid-hud__tab" onClick={() => onSelectRole(null)}>
+              ✕ close record
+            </button>
+            {focused && (
+              <button type="button" className="grid-hud__tab" onClick={onClearFocus}>
+                ⟲ back to the line
+              </button>
+            )}
+          </p>
+        </div>
+      )}
+    </>
   )
 }
 
 function ProjectsPanel({
   selected,
+  focused,
   onSelect,
+  onClearFocus,
 }: {
   selected: number
+  focused: boolean
   onSelect: (index: number) => void
+  onClearFocus: () => void
 }) {
   const project = content.projects[selected]
   return (
@@ -83,8 +127,15 @@ function ProjectsPanel({
             {p.name}
           </button>
         ))}
+        {focused && (
+          <button type="button" className="grid-hud__tab" onClick={onClearFocus}>
+            ⟲ street view
+          </button>
+        )}
       </div>
-      <p className="grid-hud__microcopy">or click a tower — its screen cycles that project's shots</p>
+      <p className="grid-hud__microcopy">
+        picking a tower (tabs, ←/→, or a click) flies you to it — click empty street to pull back
+      </p>
       <h2 className="grid-hud__headline grid-hud__headline--small">{project.name}</h2>
       <p className="grid-hud__tag">{project.tag}</p>
       <p className="grid-hud__body">{project.lead}</p>
@@ -186,6 +237,7 @@ export interface GridHudProps {
   selection: GridSelection
   onSelectProject: (index: number) => void
   onSelectRole: (index: number | null) => void
+  onClearFocus: () => void
   onNavigate: (index: number) => void
   onExit: () => void
   onPlaceStar: () => void
@@ -198,6 +250,7 @@ export default function GridHud({
   selection,
   onSelectProject,
   onSelectRole,
+  onClearFocus,
   onNavigate,
   onExit,
   onPlaceStar,
@@ -237,12 +290,22 @@ export default function GridHud({
             <p className="grid-hud__station-id">
               {String(station).padStart(2, '0')} // {active.label}
             </p>
-            {active.id === 'home' && <HomePanel />}
+            {active.id === 'home' && <HomePanel onNavigate={onNavigate} />}
             {active.id === 'journey' && (
-              <JourneyPanel selectedRole={selection.role} onSelectRole={onSelectRole} />
+              <JourneyPanel
+                selectedRole={selection.role}
+                focused={selection.focus === 'role'}
+                onSelectRole={onSelectRole}
+                onClearFocus={onClearFocus}
+              />
             )}
             {active.id === 'projects' && (
-              <ProjectsPanel selected={selection.project} onSelect={onSelectProject} />
+              <ProjectsPanel
+                selected={selection.project}
+                focused={selection.focus === 'project'}
+                onSelect={onSelectProject}
+                onClearFocus={onClearFocus}
+              />
             )}
             {active.id === 'beyond' && <BeyondPanel />}
             {active.id === 'skills' && <SkillsPanel />}
@@ -250,11 +313,6 @@ export default function GridHud({
           </>
         )}
       </div>
-
-      <p className="grid-hud__identity">
-        <span className="grid-hud__identity-name">{content.profile.name}</span>
-        <span className="grid-hud__identity-sub">// CMU SCS</span>
-      </p>
 
       {showHint && (
         <p className="grid-hud__hint" aria-hidden="true">

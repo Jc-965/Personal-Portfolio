@@ -7,12 +7,14 @@ import { UnsignedByteType } from 'three'
  * blow out into glow. Scanline + noise sit at CRT-whisper levels — the 3D
  * heir of the site's `.vintage-overlay`. Skipped entirely on the low tier.
  */
-export default function GridEffects({ enabled }: { enabled: boolean }) {
+export default function GridEffects({ enabled, msaa = 0 }: { enabled: boolean; msaa?: number }) {
   if (!enabled) return null
   return (
     // Half-float composer targets render as a partial black frame on some
-    // WebGL implementations. An 8-bit target is both reliable and cheaper.
-    <EffectComposer frameBufferType={UnsignedByteType} multisampling={0}>
+    // WebGL implementations. An 8-bit target is both reliable and cheaper —
+    // and 8-bit multisampled renderbuffers are the best-supported MSAA path,
+    // so the tiered `msaa` samples are safe to apply here.
+    <EffectComposer frameBufferType={UnsignedByteType} multisampling={msaa}>
       <Bloom intensity={1.0} luminanceThreshold={0.48} luminanceSmoothing={0.3} mipmapBlur />
       <Scanline blendFunction={BlendFunction.OVERLAY} density={1.1} opacity={0.06} />
       <Noise premultiply opacity={0.05} />

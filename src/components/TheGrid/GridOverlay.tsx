@@ -20,6 +20,8 @@ import {
   stationT,
   STATION_ENTER,
   STATION_EXIT,
+  PROJECT_SITES,
+  content as gridContent,
 } from './gridConfig'
 import type { SkyState, SkyTooltip, GridSelection } from './city/interaction'
 import '../../styles/grid.css'
@@ -41,7 +43,8 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
   const [tooltip, setTooltip] = useState<SkyTooltip | null>(null)
   const [showHint, setShowHint] = useState(() => storageGet('grid-visited') !== '1')
   // Two-way selection: HUD tabs and in-world clicks drive the same state.
-  const [selection, setSelection] = useState<GridSelection>({ project: 0, role: null })
+  // `focus` marks an explicit pick — it flies the camera onto that item.
+  const [selection, setSelection] = useState<GridSelection>({ project: 0, role: null, focus: null })
 
   const rootRef = useRef<HTMLDivElement>(null)
   const stationRef = useRef(0)
@@ -106,6 +109,10 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     if (next !== current) {
       stationRef.current = next
       setStation(next)
+      // Any station transition releases a fly-to focus — the rail owns the
+      // camera again the moment the visitor travels (focus only makes sense
+      // while dwelling at the station it was picked at).
+      setSelection(c => (c.focus ? { ...c, focus: null } : c))
     }
   }, [])
 
@@ -140,10 +147,36 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     }
   }, [onClose])
 
-  // Station-level keyboard travel: PgUp/PgDn/Home/End jump the rail.
+  const onBootDone = useCallback(() => setPhase('active'), [])
+
+  const onPlaceStar = useCallback(() => {
+    exitIntentRef.current = 'constellation'
+    requestClose()
+  }, [requestClose])
+
+  const onSky = useCallback((state: SkyState) => setSky(state), [])
+  const onTooltip = useCallback((next: SkyTooltip | null) => setTooltip(next), [])
+  const onSelectProject = useCallback(
+    (index: number) => setSelection(current => ({ ...current, project: index, focus: 'project' })),
+    [],
+  )
+  const onSelectRole = useCallback(
+    (index: number | null) =>
+      setSelection(current => ({ ...current, role: index, focus: index === null ? null : 'role' })),
+    [],
+  )
+  const onClearFocus = useCallback(
+    () => setSelection(current => (current.focus ? { ...current, focus: null } : current)),
+    [],
+  )
+
+  // Keyboard travel. PgUp/PgDn/Home/End and the digit row jump the rail;
+  // at Journey and Projects, ←/→ cycle roles/towers (with fly-to focus) so
+  // every record is reachable without a pointer.
   useEffect(() => {
     if (phase !== 'active') return undefined
     const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       const clamp = (i: number) => Math.min(STATION_COUNT - 1, Math.max(0, i))
       const near = Math.round(progressRef.current * (STATION_COUNT - 1))
       if (e.key === 'PageDown') {
@@ -158,29 +191,33 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
       } else if (e.key === 'End') {
         e.preventDefault()
         navigate(STATION_COUNT - 1)
+      } else if (e.key >= '1' && e.key <= String(Math.min(9, STATION_COUNT))) {
+        navigate(Number(e.key) - 1)
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const dir = e.key === 'ArrowRight' ? 1 : -1
+        const at = stationRef.current
+        if (at === 1) {
+          e.preventDefault()
+          const count = gridContent.experiences.length
+          setSelection(current => {
+            const from = current.role ?? (dir > 0 ? -1 : 0)
+            const role = ((from + dir) % count + count) % count
+            return { ...current, role, focus: 'role' }
+          })
+        } else if (at === 2) {
+          e.preventDefault()
+          const count = PROJECT_SITES.length
+          setSelection(current => ({
+            ...current,
+            project: ((current.project + dir) % count + count) % count,
+            focus: 'project',
+          }))
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [phase, navigate, progressRef])
-
-  const onBootDone = useCallback(() => setPhase('active'), [])
-
-  const onPlaceStar = useCallback(() => {
-    exitIntentRef.current = 'constellation'
-    requestClose()
-  }, [requestClose])
-
-  const onSky = useCallback((state: SkyState) => setSky(state), [])
-  const onTooltip = useCallback((next: SkyTooltip | null) => setTooltip(next), [])
-  const onSelectProject = useCallback(
-    (index: number) => setSelection(current => ({ ...current, project: index })),
-    [],
-  )
-  const onSelectRole = useCallback(
-    (index: number | null) => setSelection(current => ({ ...current, role: index })),
-    [],
-  )
 
   const onRootAnimationEnd = useCallback(
     (event: React.AnimationEvent<HTMLDivElement>) => {
@@ -213,6 +250,7 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
                 selection={selection}
                 onSelectProject={onSelectProject}
                 onSelectRole={onSelectRole}
+                onClearFocus={onClearFocus}
               />
             </Suspense>
           </div>
@@ -224,6 +262,7 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
               selection={selection}
               onSelectProject={onSelectProject}
               onSelectRole={onSelectRole}
+              onClearFocus={onClearFocus}
               onNavigate={navigate}
               onExit={requestClose}
               onPlaceStar={onPlaceStar}

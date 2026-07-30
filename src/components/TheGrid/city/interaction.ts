@@ -25,6 +25,9 @@ export interface GridSelection {
   project: number
   /** Selected journey role index, or null when none is focused. */
   role: number | null
+  /** Which selection the camera is flown onto, if any. Explicit picks set
+   * this; scrolling off the station or clicking empty street clears it. */
+  focus: 'project' | 'role' | null
 }
 
 export interface GridInteraction {

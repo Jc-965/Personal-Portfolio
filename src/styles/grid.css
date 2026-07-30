@@ -481,27 +481,7 @@
   color: var(--accent-cyan, #00ffff);
 }
 
-/* --- Persistent identity + hint -------------------------------------------- */
-
-.grid-hud__identity {
-  position: absolute;
-  right: 22px;
-  bottom: 18px;
-  margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 1px;
-  color: var(--text-muted, #6d8296);
-}
-
-.grid-hud__identity-name {
-  color: #eaffff;
-}
-
-.grid-hud__identity-sub {
-  margin-left: 6px;
-  color: var(--accent-cyan, #00ffff);
-  opacity: 0.75;
-}
+/* --- Travel hint ------------------------------------------------------------ */
 
 .grid-hud__hint {
   position: absolute;
@@ -551,12 +531,6 @@
     width: auto;
     max-height: 46vh;
     padding: 16px;
-  }
-
-  .grid-hud__identity {
-    right: 14px;
-    bottom: 12px;
-    font-size: 0.64rem;
   }
 }
 

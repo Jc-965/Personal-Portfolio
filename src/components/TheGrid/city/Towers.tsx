@@ -70,11 +70,19 @@ const fragmentShader = /* glsl */ `
       float rows = max(3.0, floor(vDims.y * 0.85));
       vec2 cell = vec2(floor(u * cols), floor(v * rows));
       vec2 inCell = fract(vec2(u * cols, v * rows));
+      // One-pixel window edges via screen-space derivatives: crisp up close,
+      // calm (not shimmering) in the distance. Clamped away from zero so the
+      // smoothstep edges can never collapse into NaN territory.
+      vec2 aa = max(fwidth(vec2(u * cols, v * rows)) * 0.75, vec2(1e-4));
 
       // Three facade languages, chosen per building, so the skyline doesn't
       // wear one speckle texture at every scale.
       float pattern = fract(vSeed * 0.617);
       float glow = 0.0;
+      // Cool accent glass by default; a fraction of tenants burn warm
+      // interior light — the mixed color temperature of a real night city.
+      vec3 winColor = vAccent;
+      float alum = max(vAccent.r, max(vAccent.g, vAccent.b));
       if (pattern < 0.55) {
         // Punched windows.
         float lit = step(0.74, hash(cell));
@@ -82,23 +90,39 @@ const fragmentShader = /* glsl */ `
         float blink = blinkKey > 0.93
           ? 0.5 + 0.5 * sin(uTime * (0.6 + blinkKey) + blinkKey * 40.0)
           : 1.0;
-        float window = step(0.24, inCell.x) * step(inCell.x, 0.76)
-                     * step(0.3, inCell.y) * step(inCell.y, 0.7);
+        float window =
+            (smoothstep(0.24 - aa.x, 0.24 + aa.x, inCell.x) - smoothstep(0.76 - aa.x, 0.76 + aa.x, inCell.x))
+          * (smoothstep(0.3 - aa.y, 0.3 + aa.y, inCell.y) - smoothstep(0.7 - aa.y, 0.7 + aa.y, inCell.y));
         glow = lit * window * blink * (0.4 + 0.4 * hash(cell + 7.0));
+        float warm = step(0.68, hash(cell + 53.0));
+        winColor = mix(vAccent, vec3(1.0, 0.72, 0.42) * alum, warm * 0.85);
       } else if (pattern < 0.8) {
         // Vertical light strips (curtain mullions).
         float stripOn = step(0.72, hash(vec2(cell.x, 3.0)));
-        float strip = step(0.4, inCell.x) * step(inCell.x, 0.6);
+        float strip = smoothstep(0.4 - aa.x, 0.4 + aa.x, inCell.x)
+                    - smoothstep(0.6 - aa.x, 0.6 + aa.x, inCell.x);
         glow = stripOn * strip * 0.5 * (0.7 + 0.3 * sin(uTime * 0.3 + cell.x));
       } else {
         // Horizontal illuminated floor bands.
         float bandOn = step(0.7, hash(vec2(cell.y, 9.0)));
-        float band = step(0.2, inCell.y) * step(inCell.y, 0.5);
+        float band = smoothstep(0.2 - aa.y, 0.2 + aa.y, inCell.y)
+                   - smoothstep(0.5 - aa.y, 0.5 + aa.y, inCell.y);
         glow = bandOn * band * 0.4;
       }
       // Distant windows soften instead of shimmering at subpixel size.
       glow *= clamp(1.5 - vViewDist / 90.0, 0.3, 1.0);
-      color += vAccent * glow;
+      color += winColor * glow;
+
+      // Street-level storefronts: a broken band of bright shopfront light in
+      // the first metres, so blocks read inhabited between the neon signs.
+      float metres = v * vDims.y;
+      float shopBand = (1.0 - smoothstep(2.2, 2.9, metres)) * smoothstep(0.35, 0.8, metres);
+      vec2 shopCell = vec2(floor(u * cols * 0.5), 51.0);
+      float shopSeg = step(0.35, hash(shopCell));
+      vec3 shopColor = mix(winColor, vec3(1.0, 0.5, 0.75), step(0.75, hash(shopCell + 36.0)));
+      // Gated by accent luminance so silhouette pieces (roof plant) stay dark.
+      float shopGate = smoothstep(0.08, 0.22, alum);
+      color += shopColor * shopBand * shopSeg * shopGate * 0.55 * clamp(1.3 - vViewDist / 80.0, 0.0, 1.0);
 
       // Neon edge glow along vertical corners — measured along the face's
       // tangent axis only (the normal axis is constant 0.5 across the face
@@ -140,7 +164,9 @@ function districtAccent(z: number, rng: () => number): THREE.Color {
 export default function Towers({ density }: { density: number }) {
   const { mesh, material, beacons, beaconMaterial } = useMemo(() => {
     const rng = mulberry32(96543)
-    const placements: Array<{ x: number; z: number; w: number; h: number; d: number; dim?: boolean }> = []
+    // `y0` lifts a box off the ground (roof plant, skybridges); `dark` mutes
+    // its glow to silhouette level.
+    const placements: Array<{ x: number; z: number; w: number; h: number; d: number; y0?: number; dim?: boolean; dark?: boolean }> = []
     const beaconSpots: Array<{ x: number; y: number; z: number }> = []
     const cell = 9
 
@@ -169,8 +195,48 @@ export default function Towers({ density }: { density: number }) {
         } else if (h > 26 && rng() > 0.5) {
           beaconSpots.push({ x: jx, y: h + 0.4, z: jz })
         }
+
+        // Mid-rise roofs carry water tanks and AC housings — near-black
+        // greebles whose only job is breaking up the flat rooflines.
+        if (h <= 20 && rng() > 0.55) {
+          const gw = 0.9 + rng() * 1.1
+          placements.push({
+            x: jx + (rng() - 0.5) * w * 0.5,
+            z: jz + (rng() - 0.5) * 2,
+            w: gw,
+            h: 0.9 + rng() * 1.2,
+            d: gw,
+            y0: h,
+            dark: true,
+          })
+        }
       }
     }
+
+    // Outer ring of megatowers: a second, deeper silhouette layer that keeps
+    // the skyline going past the buildable grid, half-swallowed by the fog.
+    for (let i = 0; i < 14; i++) {
+      const side = i % 2 === 0 ? 1 : -1
+      const mx = side * (66 + rng() * 24)
+      const mz = 50 - rng() * 240
+      const mw = 8 + rng() * 7
+      const mh = 46 + rng() * 34
+      placements.push({ x: mx, z: mz, w: mw, h: mh, d: 8 + rng() * 7 })
+      if (rng() > 0.35) beaconSpots.push({ x: mx, y: mh + 0.5, z: mz })
+    }
+
+    // Skybridges: lit walkways threading towers together. The two avenue
+    // crossings sit at y ≥ 31 where the rail never climbs past ~25 (the sky
+    // ascent starts south of z −140), so the camera always passes underneath.
+    const bridges = [
+      { x: 0, z: -47, w: 30, d: 2.0, h: 1.7, y0: 31 },
+      { x: 2, z: -74, w: 26, d: 1.8, h: 1.6, y0: 33.5 },
+      { x: 26, z: -16, w: 16, d: 1.6, h: 1.5, y0: 15 },
+      { x: -27, z: -64, w: 18, d: 1.7, h: 1.6, y0: 19 },
+      { x: 30, z: -96, w: 14, d: 1.5, h: 1.4, y0: 22 },
+      { x: -24, z: 18, w: 15, d: 1.6, h: 1.5, y0: 13 },
+    ]
+    for (const b of bridges) placements.push(b)
 
     const geometry = new THREE.BoxGeometry(1, 1, 1)
     const count = placements.length
@@ -191,11 +257,13 @@ export default function Towers({ density }: { density: number }) {
     const matrix = new THREE.Matrix4()
     placements.forEach((p, i) => {
       matrix.makeScale(p.w, p.h, p.d)
-      matrix.setPosition(p.x, p.h / 2, p.z)
+      matrix.setPosition(p.x, (p.y0 ?? 0) + p.h / 2, p.z)
       mesh.setMatrixAt(i, matrix)
       const accent = districtAccent(p.z, rng)
-      // Tiers and masts glow dimmer than their parent body.
+      // Tiers and masts glow dimmer than their parent body; roof plant is
+      // near-black silhouette.
       if (p.dim) accent.multiplyScalar(0.55)
+      if (p.dark) accent.multiplyScalar(0.18)
       accents.set([accent.r, accent.g, accent.b], i * 3)
       seeds[i] = rng() * 100
       dims.set([p.w, p.h, p.d], i * 3)

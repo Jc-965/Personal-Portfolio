@@ -28,6 +28,7 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uAccent;
   uniform float uTime;
   uniform float uFocus;
+  uniform float uActive;
   varying vec2 vUv;
   varying vec3 vViewDir;
   varying vec3 vViewNormal;
@@ -51,8 +52,10 @@ const fragmentShader = /* glsl */ `
       );
       // Screenshots are mostly light-UI pages; damp them below the bloom
       // threshold, hard-cap luminance, and tint toward the night palette so
-      // screens sit IN the city instead of blowing out white.
-      color = min(color * 0.44 + vec3(0.0, 0.02, 0.035), vec3(0.42, 0.46, 0.5));
+      // screens sit IN the city instead of blowing out white. The selected
+      // screen runs a little hotter — the one lit marquee on the block.
+      color = min(color * (0.44 + 0.1 * uActive) + vec3(0.0, 0.02, 0.035),
+                  vec3(0.42, 0.46, 0.5) + 0.08 * uActive);
       // Powered-down screens collapse to DARK static — sparks over near-black,
       // never confetti over white.
       vec3 dead = vec3(0.045, 0.06, 0.085)
@@ -70,9 +73,11 @@ const fragmentShader = /* glsl */ `
     color *= 0.92 + 0.08 * sin(uTime * 11.0 + vUv.y * 3.0) * (1.0 - focus);
 
     // Bezel: dark frame band with an accent hairline — sells "monitor".
+    // The active screen's hairline breathes so selection reads at a glance.
     float edge = max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0;
     color = mix(color, vec3(0.012, 0.02, 0.032), smoothstep(0.88, 0.94, edge));
-    color += uAccent * smoothstep(0.96, 1.0, edge) * 0.8;
+    color += uAccent * smoothstep(0.96, 1.0, edge)
+           * (0.8 + uActive * (0.5 + 0.4 * sin(uTime * 2.4)));
 
     // Grazing screens dim like real displays — no white slivers in flyovers.
     float facing = abs(dot(vViewDir, vViewNormal));
@@ -95,6 +100,8 @@ export interface BillboardProps {
   /** Extra screenshots to rotate through while `cycleActive` (selected project). */
   cycleImages?: string[]
   cycleActive?: boolean
+  /** Selected state: brighter picture, breathing bezel hairline. */
+  active?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
   onPointerOver?: (event: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (event: ThreeEvent<PointerEvent>) => void
@@ -113,6 +120,7 @@ export default function Billboard({
   focusDistance = 26,
   cycleImages,
   cycleActive = false,
+  active = false,
   onClick,
   onPointerOver,
   onPointerMove,
@@ -129,6 +137,7 @@ export default function Billboard({
           uAccent: { value: new THREE.Color(accent) },
           uTime: { value: 0 },
           uFocus: { value: 0 },
+          uActive: { value: 0 },
         },
       }),
     [accent],
@@ -178,9 +187,12 @@ export default function Billboard({
     }
   }, [])
 
-  useFrame(state => {
+  useFrame((state, delta) => {
     const time = state.clock.elapsedTime
     material.uniforms.uTime.value = time
+    // Eased so select/deselect breathes instead of snapping.
+    const activeUniform = material.uniforms.uActive
+    activeUniform.value += ((active ? 1 : 0) - activeUniform.value) * Math.min(1, delta * 5)
     const dist = state.camera.position.distanceTo(worldPos)
     let focus = 1 - THREE.MathUtils.clamp((dist - focusDistance) / 45, 0, 1)
     // Screens power down to static during the high flyover — a white page

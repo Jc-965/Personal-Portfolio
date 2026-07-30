@@ -5,6 +5,7 @@ import CityWorld from './city/CityWorld'
 import GridEffects from './GridEffects'
 import { sampleRail, nearestStation, validateRail } from './city/rail'
 import { gradeSceneBg } from './city/sceneColor'
+import { focusPose } from './city/focus'
 import { stationT, BG_COLOR } from './gridConfig'
 import type { GridQuality } from './gridPerformance'
 import type { SkyState, SkyTooltip, GridSelection } from './city/interaction'
@@ -21,6 +22,8 @@ export interface GridSceneProps {
   selection: GridSelection
   onSelectProject: (index: number) => void
   onSelectRole: (index: number | null) => void
+  /** Clicking empty street releases a fly-to focus back to the rail view. */
+  onClearFocus?: () => void
 }
 
 /**
@@ -29,10 +32,24 @@ export interface GridSceneProps {
  * scroll — never autonomously — and never rolls; at rest the only motion is
  * a ±1.5° pointer parallax. Reduced-motion visitors get station cuts instead
  * of travel: progress snaps to the nearest station, no sustained dolly.
+ *
+ * One authored exception: an explicit project/role selection blends the rig
+ * off the rail into that item's hero pose (see city/focus.ts). The blend
+ * weight is tied to station proximity, so any scroll immediately starts
+ * handing control back to the rail.
  */
-function CameraRig({ progressRef, reducedMotion }: { progressRef: MutableRefObject<number>; reducedMotion: boolean }) {
+function CameraRig({
+  progressRef,
+  reducedMotion,
+  selection,
+}: {
+  progressRef: MutableRefObject<number>
+  reducedMotion: boolean
+  selection: GridSelection
+}) {
   const { camera, scene, gl } = useThree()
   const current = useRef(0)
+  const focusWeight = useRef(0)
   const pointer = useRef({ x: 0, y: 0 })
   const sample = useMemo(
     () => ({ position: new THREE.Vector3(), lookAt: new THREE.Vector3() }),
@@ -92,6 +109,30 @@ function CameraRig({ progressRef, reducedMotion }: { progressRef: MutableRefObje
     gl.setClearColor(gradeSceneBg(current.current))
 
     sampleRail(current.current, sample)
+
+    // Fly-to focus: blend toward the selected item's hero pose. Weight is
+    // gated by proximity to the pose's station so scrolling away releases
+    // the camera even before the overlay clears the selection.
+    const pose = focusPose(selection)
+    let weightTarget = 0
+    if (pose) {
+      weightTarget = Math.max(
+        0,
+        1 - Math.min(1, Math.abs(current.current - stationT(pose.station)) / 0.06),
+      )
+    }
+    if (reducedMotion) {
+      focusWeight.current = weightTarget
+    } else {
+      const fk = 1 - Math.exp(-Math.min(delta, 0.1) * 3)
+      focusWeight.current += (weightTarget - focusWeight.current) * fk
+    }
+    if (pose && focusWeight.current > 0.001) {
+      const w = focusWeight.current * focusWeight.current * (3 - 2 * focusWeight.current)
+      sample.position.lerp(pose.position, w)
+      sample.lookAt.lerp(pose.lookAt, w)
+    }
+
     camera.position.copy(sample.position)
 
     // Pointer parallax around the authored gaze, eased so it never jitters.
@@ -122,6 +163,7 @@ export default function GridScene({
   selection,
   onSelectProject,
   onSelectRole,
+  onClearFocus,
 }: GridSceneProps) {
   const interaction = useMemo(
     () => ({ progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole }),
@@ -142,10 +184,15 @@ export default function GridScene({
       onCreated={({ gl }) => {
         gl.setClearColor(new THREE.Color(BG_COLOR))
       }}
+      // A click that hits no interactive mesh hands the camera back to the
+      // rail — the "step back from the exhibit" gesture.
+      onPointerMissed={event => {
+        if (event.type === 'click') onClearFocus?.()
+      }}
     >
-      <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} />
+      <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} selection={selection} />
       <CityWorld quality={quality} interaction={interaction} />
-      <GridEffects enabled={quality.postEnabled} />
+      <GridEffects enabled={quality.postEnabled} msaa={quality.msaa} />
     </Canvas>
   )
 }

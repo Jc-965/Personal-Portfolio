@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
 import { JUMBOTRON, PROJECT_SITES, RELAY_TOWER, BEYOND_SHOPS } from '../gridConfig'
+import { STREETLIGHTS } from './streetlights'
 import { SCENE_BG } from './sceneColor'
 import type { GridTier } from '../gridPerformance'
 
@@ -234,6 +235,12 @@ function WetReflections() {
     for (const shop of BEYOND_SHOPS) {
       list.push({ x: shop.x + 3, z: shop.z, color: shop.item.accent, length: 10, intensity: 0.9 })
     }
+    // Every other streetlight doubles into the asphalt — warm sodium smears
+    // between the neon ones.
+    STREETLIGHTS.forEach((lamp, i) => {
+      if (i % 2 !== 0) return
+      list.push({ x: lamp.x - lamp.side * 1.1, z: lamp.z, color: '#ffd9a0', length: 7, intensity: 0.55 })
+    })
     return list
   }, [])
 
@@ -298,6 +305,68 @@ function WetReflections() {
   )
 }
 
+/** Slow searchlight beam sweeping the cloud deck from a distant rooftop —
+ * the city has a life above the visitor's head. */
+function Searchlight({
+  position,
+  color,
+  height = 130,
+  tilt = 0.3,
+  speed = 0.1,
+  phase = 0,
+}: {
+  position: [number, number, number]
+  color: string
+  height?: number
+  tilt?: number
+  speed?: number
+  phase?: number
+}) {
+  const pivot = useRef<THREE.Group>(null)
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: shaftVertexShader,
+        fragmentShader: shaftFragmentShader,
+        uniforms: {
+          uColor: { value: new THREE.Color(color) },
+          uTime: { value: 0 },
+        },
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+      }),
+    [color],
+  )
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(4.5, height)
+    g.translate(0, height / 2, 0) // pivot at the lamp, not the beam's middle
+    return g
+  }, [height])
+
+  useEffect(() => () => {
+    geometry.dispose()
+    material.dispose()
+  }, [geometry, material])
+
+  useFrame(state => {
+    material.uniforms.uTime.value = state.clock.elapsedTime
+    if (pivot.current) pivot.current.rotation.y = phase + state.clock.elapsedTime * speed
+  })
+
+  return (
+    <group position={position}>
+      <group ref={pivot}>
+        <group rotation-z={tilt}>
+          <mesh geometry={geometry} material={material} />
+          <mesh geometry={geometry} material={material} rotation-y={Math.PI / 2} />
+        </group>
+      </group>
+    </group>
+  )
+}
+
 /** Distant silhouette skyline circling the city — hides the world's edge. */
 function SkylineRing() {
   const material = useMemo(
@@ -347,6 +416,10 @@ export default function Atmosphere({ tier }: { tier: GridTier }) {
         height={24}
         width={2.6}
       />
+      {/* Two far rooftop searchlights raking the clouds; both parked well off
+          the avenue so they read as city texture, not signage. */}
+      <Searchlight position={[-64, 30, -18]} color="#9fd8ff" phase={1.2} speed={0.09} />
+      <Searchlight position={[58, 34, -118]} color="#ffd9a0" phase={4.1} speed={-0.07} tilt={0.36} />
       {/* No shaft on the sky deck — the final station belongs to the stars. */}
     </group>
   )

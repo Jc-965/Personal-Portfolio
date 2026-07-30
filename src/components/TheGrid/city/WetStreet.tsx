@@ -101,6 +101,11 @@ const wetStreetShader = {
       float minor = gridLine(vWorld.xz, 2.0, 0.05);
       float major = gridLine(vWorld.xz, 10.0, 0.09);
       color += uLine * (minor * 0.05 + major * 0.14);
+
+      // Kerb light-lines flanking the avenue, softened by the puddle mask so
+      // they shimmer where water pools.
+      float kerb = 1.0 - smoothstep(0.06, 0.22, abs(abs(vWorld.x) - 9.6));
+      color += uLine * kerb * (0.16 + 0.1 * puddle);
       float lane = floor(vWorld.x / 2.0);
       if (abs(vWorld.x) < 9.0) {
         float speed = 0.25 + hash(vec2(lane, 3.0)) * 0.3;

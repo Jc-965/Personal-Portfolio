@@ -5,6 +5,7 @@ import Billboard from './Billboards'
 import { makeSignTexture, makeTerminalTexture, type SignSpec } from './signTexture'
 import { makePanelMaterial, makeDarkPbrMaterial } from './panelMaterial'
 import { SCENE_PROGRESS } from './sceneColor'
+import { STREETLIGHTS, LAMP_HEIGHT, LAMP_ARM } from './streetlights'
 import type { GridInteraction } from './interaction'
 import {
   content,
@@ -17,6 +18,7 @@ import {
   RELAY_TOWER,
   SKY_DECK,
   PLAZA_GATES,
+  type ProjectSite,
 } from '../gridConfig'
 
 /**
@@ -156,6 +158,94 @@ function Sign({
       rotation-y={rotationY}
       renderOrder={5}
     />
+  )
+}
+
+/** Sign laid flat into the street — names inlaid like giant road markings,
+ * read while flying toward them (glyph tops point down-avenue). */
+function FloorSign({
+  spec,
+  position,
+  height,
+  opacity = 0.85,
+}: {
+  spec: SignSpec
+  position: [number, number, number]
+  height: number
+  opacity?: number
+}) {
+  const specKey = JSON.stringify(spec)
+  const sign = useMemo(() => makeSignTexture(spec), [specKey])
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: sign.texture,
+        transparent: true,
+        depthWrite: false,
+        opacity,
+      }),
+    [sign, opacity],
+  )
+  const geometry = useMemo(
+    () => new THREE.PlaneGeometry(height * sign.aspect, height),
+    [height, sign.aspect],
+  )
+  useEffect(() => () => {
+    sign.texture.dispose()
+    material.dispose()
+    geometry.dispose()
+  }, [sign, material, geometry])
+  return (
+    <mesh
+      geometry={geometry}
+      material={material}
+      position={position}
+      rotation-x={-Math.PI / 2}
+      renderOrder={3}
+    />
+  )
+}
+
+/** Instanced sodium streetlights along both kerbs — silhouette poles whose
+ * warm lamp heads bloom into the classic wet-night halos. Placement (and
+ * rail clearance) lives in streetlights.ts. */
+function Streetlights() {
+  const { poles, heads, poleMaterial, headMaterial } = useMemo(() => {
+    const count = STREETLIGHTS.length
+    const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
+    const poleMaterial = new THREE.MeshBasicMaterial({ color: '#0b1220' })
+    const headMaterial = new THREE.MeshBasicMaterial({ color: '#ffd9a0' })
+    const poles = new THREE.InstancedMesh(boxGeometry, poleMaterial, count * 2)
+    const heads = new THREE.InstancedMesh(boxGeometry, headMaterial, count)
+    const matrix = new THREE.Matrix4()
+    STREETLIGHTS.forEach((s, i) => {
+      matrix.makeScale(0.16, LAMP_HEIGHT, 0.16)
+      matrix.setPosition(s.x, LAMP_HEIGHT / 2, s.z)
+      poles.setMatrixAt(i * 2, matrix)
+      // Arm reaching back over the street.
+      matrix.makeScale(LAMP_ARM, 0.1, 0.12)
+      matrix.setPosition(s.x - (s.side * LAMP_ARM) / 2, LAMP_HEIGHT - 0.05, s.z)
+      poles.setMatrixAt(i * 2 + 1, matrix)
+      matrix.makeScale(0.6, 0.14, 0.26)
+      matrix.setPosition(s.x - s.side * (LAMP_ARM - 0.25), LAMP_HEIGHT - 0.16, s.z)
+      heads.setMatrixAt(i, matrix)
+    })
+    poles.instanceMatrix.needsUpdate = true
+    heads.instanceMatrix.needsUpdate = true
+    return { poles, heads, poleMaterial, headMaterial }
+  }, [])
+
+  useEffect(() => () => {
+    poles.geometry.dispose()
+    poleMaterial.dispose()
+    headMaterial.dispose()
+  }, [poles, poleMaterial, headMaterial])
+
+  return (
+    <group>
+      <primitive object={poles} />
+      <primitive object={heads} />
+    </group>
   )
 }
 
@@ -421,10 +511,12 @@ function PlazaGates() {
   )
 }
 
-/** A light-tram gliding the elevated line, parking mid-line while the
- * visitor dwells at the journey station so it's always in the rest frame. */
+/** A light-tram gliding the elevated line. While the visitor dwells at the
+ * journey station it becomes the selection cursor: pick a role and the tram
+ * glides to that stop (defaulting to mid-line so it's always in frame). */
 function Tram({ interaction }: { interaction: GridInteraction }) {
   const ref = useRef<THREE.Group>(null)
+  const parkZ = useRef(transitStopZ(2))
   const stops = content.experiences.length
   const zStart = transitStopZ(0)
   const zEnd = transitStopZ(stops - 1)
@@ -442,16 +534,20 @@ function Tram({ interaction }: { interaction: GridInteraction }) {
     edgeMaterial.dispose()
   }, [bodyGeometry, bodyMaterial, edges, edgeMaterial])
 
-  useFrame(state => {
+  useFrame((state, delta) => {
     if (!ref.current) return
     // Ease-paused traversal: a full run each ~26s, slowing into each stop.
     const cycle = (state.clock.elapsedTime % 26) / 26
     const swing = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2
     const staged = (Math.sin((swing * stops - 0.5) * Math.PI / stops * 2) * 0.06) + swing
     const loopZ = zStart + (zEnd - zStart) * THREE.MathUtils.clamp(staged, 0, 1)
-    // Ease into the mid-line stop while the rail rests at Journey.
+    // While the rail rests at Journey the tram parks at the selected stop
+    // (mid-line when nothing is picked), gliding — not teleporting — between
+    // picks so selection reads as a vehicle answering a call.
+    const targetPark = transitStopZ(interaction.selection.role ?? 2)
+    parkZ.current += (targetPark - parkZ.current) * Math.min(1, delta * 2.2)
     const atJourney = 1 - Math.min(1, Math.abs(interaction.progressRef.current - stationT(1)) / 0.08)
-    const z = THREE.MathUtils.lerp(loopZ, transitStopZ(2), THREE.MathUtils.smoothstep(atJourney, 0.4, 1))
+    const z = THREE.MathUtils.lerp(loopZ, parkZ.current, THREE.MathUtils.smoothstep(atJourney, 0.4, 1))
     ref.current.position.set(TRANSIT.x, TRANSIT.beamY + 0.85, z)
   })
 
@@ -550,11 +646,12 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
                 lines: [
                   { text: exp.company.toUpperCase(), size: 58 },
                   { text: exp.role, size: 32, color: '#9fb6c9' },
+                  { text: exp.period, size: 26, color: '#7f95a8' },
                 ],
               }}
-              position={[TRANSIT.x + 0.2, TRANSIT.beamY + 2.3, z]}
+              position={[TRANSIT.x + 0.2, TRANSIT.beamY + 2.45, z]}
               rotationY={Math.PI / 2}
-              height={2.2}
+              height={2.5}
             />
             {/* Platform canopy, catenary post, and hanging lightbox make
                 stops read as transit stations, not furniture. */}
@@ -627,6 +724,54 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
   )
 }
 
+/** Each project tower wears a different crown — the four stop reading as
+ * copies of one asset and start reading as landmarks you can tell apart
+ * from the far end of the avenue. */
+function TowerCrown({ site, index }: { site: ProjectSite; index: number }) {
+  const { x, z, height } = site
+  const accent = site.project.accent
+  switch (index % 4) {
+    case 0: // comms mast array
+      return (
+        <group>
+          <NeonBox position={[x - 2.2, height + 1.8, z + 2]} size={[0.18, 3.6, 0.18]} accent={accent} edgeOpacity={0.7} />
+          <NeonBox position={[x + 1.6, height + 2.6, z - 1.5]} size={[0.18, 5.2, 0.18]} accent={accent} edgeOpacity={0.7} />
+          <NeonBox position={[x + 2.4, height + 1.2, z + 2.4]} size={[0.18, 2.4, 0.18]} accent={accent} edgeOpacity={0.7} />
+        </group>
+      )
+    case 1: // stepped setback tiers
+      return (
+        <group>
+          <NeonBox position={[x, height + 1.1, z]} size={[5.6, 2.2, 5.6]} accent={accent} lit windowDensity={0.5} seed={41} />
+          <NeonBox position={[x, height + 3.1, z]} size={[3.4, 1.6, 3.4]} accent={accent} lit windowDensity={0.5} seed={43} />
+        </group>
+      )
+    case 2: // twin spires with a crossbeam
+      return (
+        <group>
+          <NeonBox position={[x, height + 2.6, z - 3]} size={[0.5, 5.2, 0.5]} accent={accent} edgeOpacity={0.8} />
+          <NeonBox position={[x, height + 2.6, z + 3]} size={[0.5, 5.2, 0.5]} accent={accent} edgeOpacity={0.8} />
+          <NeonBox position={[x, height + 4.5, z]} size={[0.3, 0.3, 6.6]} accent={accent} edgeOpacity={0.6} />
+        </group>
+      )
+    default: // lantern crown: corner posts carrying a glowing band
+      return (
+        <group>
+          {[[-3, -3], [3, -3], [-3, 3], [3, 3]].map(([dx, dz]) => (
+            <NeonBox
+              key={`${dx},${dz}`}
+              position={[x + dx, height + 1, z + dz]}
+              size={[0.3, 2, 0.3]}
+              accent={accent}
+              edgeOpacity={0.7}
+            />
+          ))}
+          <NeonBox position={[x, height + 2.1, z]} size={[7, 0.4, 7]} accent={accent} />
+        </group>
+      )
+  }
+}
+
 function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
   const { onTooltip, onSelectProject, selection } = interaction
   const [hovered, setHovered] = useState<number | null>(null)
@@ -689,6 +834,18 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
               windowDensity={0.7}
               seed={11 + i}
             />
+            <TowerCrown site={site} index={i} />
+            {/* Project name inlaid into the street ahead of the tower, like a
+                giant road marking — legible long before the billboard is. */}
+            <FloorSign
+              spec={{
+                accent: project.accent,
+                width: 1024,
+                lines: [{ text: `0${i + 1} // ${project.name.toUpperCase()}`, size: 96 }],
+              }}
+              position={[site.x - 11, 0.09, site.z + 1]}
+              height={2.2}
+            />
             {/* Wordmark riding above the roofline. */}
             <Sign
               spec={{
@@ -709,6 +866,7 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
               image={site.image ?? terminalCards.get(project.id)?.texture ?? null}
               cycleImages={project.images?.map(image => image.src)}
               cycleActive={selected}
+              active={selected}
               onClick={e => {
                 e.stopPropagation()
                 onSelectProject(i)
@@ -927,6 +1085,7 @@ export default function Structures({ interaction }: { interaction: GridInteracti
     <group>
       <Jumbotron />
       <PlazaGates />
+      <Streetlights />
       <TransitLine interaction={interaction} />
       <ProjectTowers interaction={interaction} />
       <BeyondShops />

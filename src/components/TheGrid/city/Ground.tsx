@@ -42,6 +42,11 @@ const fragmentShader = /* glsl */ `
     float major = gridLine(vWorld.xz, 10.0, 0.09);
     color += uLine * (minor * 0.06 + major * 0.16);
 
+    // Kerb light-lines flanking the avenue — the street reads as a street,
+    // not an infinite plane with a grid on it.
+    float kerb = 1.0 - smoothstep(0.06, 0.22, abs(abs(vWorld.x) - 9.6));
+    color += uLine * kerb * 0.22;
+
     // Data pulses: bright packets streaming along the avenue lanes.
     float lane = floor(vWorld.x / 2.0);
     if (abs(vWorld.x) < 9.0) {

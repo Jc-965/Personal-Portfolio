@@ -12,6 +12,10 @@ export interface GridQuality {
   towerDensity: number
   postEnabled: boolean
   antialias: boolean
+  /** MSAA samples for the post-processing composer target (0 = off). The
+   * whole city is thin emissive lines — without this the composer pass
+   * undoes the canvas's own antialiasing. */
+  msaa: number
   /** Planar-reflection wet street (an extra scene render per frame). */
   reflections: boolean
   reflectionSize: number
@@ -26,10 +30,10 @@ export function getGridQuality(): GridQuality {
     && window.matchMedia?.('(pointer: coarse)').matches === true
 
   if (cores >= 8 && memory >= 8 && !coarse) {
-    return { tier: 'high', maxDpr: 2, towerDensity: 0.62, postEnabled: true, antialias: true, reflections: true, reflectionSize: 1024, rainCount: 1100 }
+    return { tier: 'high', maxDpr: 2, towerDensity: 0.62, postEnabled: true, antialias: true, msaa: 4, reflections: true, reflectionSize: 1024, rainCount: 1100 }
   }
   if (cores <= 4 || memory <= 4) {
-    return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, reflections: false, reflectionSize: 0, rainCount: 260 }
+    return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, msaa: 0, reflections: false, reflectionSize: 0, rainCount: 260 }
   }
-  return { tier: 'mid', maxDpr: 1.6, towerDensity: 0.52, postEnabled: true, antialias: true, reflections: true, reflectionSize: 640, rainCount: 650 }
+  return { tier: 'mid', maxDpr: 1.6, towerDensity: 0.52, postEnabled: true, antialias: true, msaa: 2, reflections: true, reflectionSize: 640, rainCount: 650 }
 }
