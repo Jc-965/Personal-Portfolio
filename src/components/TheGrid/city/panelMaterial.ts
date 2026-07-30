@@ -42,7 +42,7 @@ const fragmentShader = /* glsl */ `
 
     if (abs(vNormal.y) > 0.5) {
       float rim = smoothstep(0.42, 0.5, max(abs(vLocal.x / uDims.x), abs(vLocal.z / uDims.z)));
-      color = base * 1.8 + uAccent * (rim * 0.35 + 0.04);
+      color = base * 2.4 + uAccent * (rim * 0.4 + 0.07);
     } else {
       float u = (abs(vNormal.x) > 0.5 ? vLocal.z / uDims.z : vLocal.x / uDims.x) + 0.5;
       float v = vLocal.y / uDims.y + 0.5;
@@ -74,6 +74,8 @@ const fragmentShader = /* glsl */ `
 
     float fade = smoothstep(70.0, 210.0, vViewDist);
     color = mix(color, uBg, fade);
+    // Wide near-dissolve: a grazing facade melts to atmosphere, never a wall.
+    color = mix(uBg, color, smoothstep(4.0, 18.0, vViewDist));
     gl_FragColor = vec4(color, 1.0);
   }
 `

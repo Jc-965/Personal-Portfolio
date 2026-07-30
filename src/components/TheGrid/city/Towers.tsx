@@ -62,7 +62,7 @@ const fragmentShader = /* glsl */ `
       // Roofs and setback undersides: lifted slightly above pure black with
       // an accent rim, so tiers read as architecture instead of floating slabs.
       float rim = smoothstep(0.42, 0.5, max(abs(vLocal.x), abs(vLocal.z)));
-      color = base * 1.8 + vAccent * (rim * 0.35 + 0.04);
+      color = base * 2.4 + vAccent * (rim * 0.4 + 0.07);
     } else {
       float u = (abs(vNormal.x) > 0.5 ? vLocal.z : vLocal.x) + 0.5;
       float v = vLocal.y + 0.5;
@@ -115,7 +115,7 @@ const fragmentShader = /* glsl */ `
     // the near dissolve keeps grazing walls from smearing across the lens.
     float fade = smoothstep(70.0, 210.0, vViewDist);
     color = mix(color, uBg, fade);
-    color = mix(uBg * 0.6, color, smoothstep(2.5, 8.0, vViewDist));
+    color = mix(uBg, color, smoothstep(2.5, 12.0, vViewDist));
     gl_FragColor = vec4(color, 1.0);
   }
 `

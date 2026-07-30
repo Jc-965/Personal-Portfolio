@@ -116,7 +116,9 @@ export const STATIONS: GridStation[] = [
     // Crosses the avenue BEHIND the jumbotron block (validator-checked), then
     // faces down the tower row from the west kerb.
     cam: [-2, 11.5, -31],
-    look: [11, 13, -70],
+    // Yawed toward the tower row so the selected tower and its ring sit
+    // fully in frame at the rest pose.
+    look: [15, 12.5, -62],
   },
   {
     id: 'beyond',
@@ -139,7 +141,10 @@ export const STATIONS: GridStation[] = [
     label: 'SKY',
     title: 'The constellation above the city',
     accent: '#7efcff',
-    cam: [0, 36, -158],
+    // High enough that the arrival leg crests ABOVE the deck slab (y 34.25)
+    // instead of passing through it — that read as a black wall while
+    // scrolling into the station.
+    cam: [0, 37.2, -158],
     look: [0, 110, -250],
   },
 ]
@@ -155,15 +160,16 @@ export const STATION_COUNT = STATIONS.length
 export const RAIL_POINTS: Vec3Tuple[] = [
   STATIONS[0].cam,
   STATIONS[1].cam,
-  [7, 10, -30], // hug the east side, then cross behind the jumbotron block
+  [8.5, 10, -29], // wide berth past the jumbotron block, then cross behind it
   STATIONS[2].cam,
   [6, 20, -60], // sweeping climb over the avenue, between the district edges
   STATIONS[3].cam,
   STATIONS[4].cam,
+  [0, 37, -147], // crest the climb before the deck slab's footprint begins
   STATIONS[5].cam,
 ]
 
-const STATION_RAIL_INDEX = [0, 1, 3, 5, 6, 7]
+const STATION_RAIL_INDEX = [0, 1, 3, 5, 6, 8]
 export const STATION_T = STATION_RAIL_INDEX.map(i => i / (RAIL_POINTS.length - 1))
 export const stationT = (index: number) => STATION_T[index]
 
@@ -193,7 +199,7 @@ export const JUMBOTRON = {
   // with real margin (the rail validator enforces this).
   tower: { x: -3, z: -24, width: 10, height: 26, depth: 6 },
   // Screen faces +Z, toward the arrival camera.
-  screen: { x: -3, y: 15, z: -20.85, width: 13, height: 7.3 },
+  screen: { x: -3, y: 15.5, z: -20.85, width: 15.5, height: 8.7 },
 }
 
 export const TRANSIT = {
@@ -271,6 +277,8 @@ PROJECT_SITES.forEach(site => addAabb(`project:${site.project.id}`, site.x, site
 BEYOND_SHOPS.forEach(({ item, x, z }) => addAabb(`beyond:${item.id}`, x, z, 6, 7, 6))
 addAabb('relay', RELAY_TOWER.x, RELAY_TOWER.z, RELAY_TOWER.width, RELAY_TOWER.height, RELAY_TOWER.width)
 addAabb('sky-mast', SKY_DECK.x, SKY_DECK.z, 1.1, SKY_DECK.y - 1, 1.1)
+// The deck slab column: the rail may only cross its footprint from above.
+addAabb('sky-deck-slab', SKY_DECK.x, SKY_DECK.z, SKY_DECK.size, SKY_DECK.y + 0.25, SKY_DECK.size)
 PLAZA_GATES.forEach(gate => {
   addAabb(`gate-w:${gate.z}`, -gate.halfWidth, gate.z, 0.5, gate.height, 0.5)
   addAabb(`gate-e:${gate.z}`, gate.halfWidth, gate.z, 0.5, gate.height, 0.5)

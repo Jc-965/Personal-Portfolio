@@ -52,7 +52,12 @@ const fragmentShader = /* glsl */ `
       // Screenshots are mostly light-UI pages; damp them below the bloom
       // threshold, hard-cap luminance, and tint toward the night palette so
       // screens sit IN the city instead of blowing out white.
-      color = min(color * 0.52 + vec3(0.0, 0.02, 0.03), vec3(0.68, 0.72, 0.74));
+      color = min(color * 0.48 + vec3(0.0, 0.02, 0.035), vec3(0.5, 0.54, 0.58));
+      // Powered-down screens collapse to DARK static — sparks over near-black,
+      // never confetti over white.
+      vec3 dead = vec3(0.045, 0.06, 0.085)
+        + uAccent * step(0.93, hash(floor(vUv * 42.0) + floor(uTime * 3.0))) * 0.35;
+      color = mix(dead, color, smoothstep(0.12, 0.45, focus));
     } else {
       // No screenshot: animated signal bars in the project's accent.
       float bar = step(0.5, fract(uv.y * 14.0 + uTime * 0.4 + hash(vec2(floor(uv.y * 14.0)))));

@@ -9,6 +9,10 @@ import { BG_COLOR, STATIONS, STATION_T } from '../gridConfig'
  */
 export const SCENE_BG = new THREE.Color(BG_COLOR)
 
+/** Shared rail progress, written by the camera rig each frame — lets any
+ * material or component dim by station proximity without prop-drilling. */
+export const SCENE_PROGRESS = { value: 0 }
+
 // Near-black tints, one per station — read as atmosphere, not filters.
 const STATION_BG = [
   '#020409', // home — teal night
@@ -23,6 +27,7 @@ const scratch = new THREE.Color()
 
 /** Update SCENE_BG for a rail progress value; returns it for convenience. */
 export function gradeSceneBg(progress: number): THREE.Color {
+  SCENE_PROGRESS.value = progress
   let leg = 0
   while (leg < STATION_T.length - 2 && progress >= STATION_T[leg + 1]) leg++
   const span = STATION_T[leg + 1] - STATION_T[leg]

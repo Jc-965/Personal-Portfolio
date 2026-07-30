@@ -4,10 +4,11 @@ import * as THREE from 'three'
 import Billboard from './Billboards'
 import { makeSignTexture, makeTerminalTexture, type SignSpec } from './signTexture'
 import { makePanelMaterial } from './panelMaterial'
-import { SCENE_BG } from './sceneColor'
+import { SCENE_BG, SCENE_PROGRESS } from './sceneColor'
 import type { GridInteraction } from './interaction'
 import {
   content,
+  stationT,
   JUMBOTRON,
   TRANSIT,
   transitStopZ,
@@ -43,7 +44,7 @@ const darkBodyFragment = /* glsl */ `
     vec3 color = vec3(0.02, 0.032, 0.062) + uTint * 0.05;
     color = mix(color, uBg, smoothstep(70.0, 210.0, vViewDist));
     // Near dissolve: a pylon grazing the lens must melt away, not blot the frame.
-    color = mix(uBg * 0.6, color, smoothstep(2.0, 7.0, vViewDist));
+    color = mix(uBg, color, smoothstep(2.0, 9.0, vViewDist));
     gl_FragColor = vec4(color, 1.0);
   }
 `
@@ -67,6 +68,7 @@ function NeonBox({
   lit = false,
   windowDensity = 0.8,
   seed = 1,
+  dimStation,
 }: {
   position: [number, number, number]
   size: [number, number, number]
@@ -76,6 +78,8 @@ function NeonBox({
   lit?: boolean
   windowDensity?: number
   seed?: number
+  /** Dim edges when the rail is far from this station (adjacent-district fix). */
+  dimStation?: number
 }) {
   // Keyed on contents, not array identity — selection re-renders must never
   // rebuild geometry.
@@ -110,7 +114,12 @@ function NeonBox({
     // Emissive edges ignore fog; fade them by distance so far districts
     // recede instead of photobombing the active station's frame.
     const dist = state.camera.position.distanceTo(worldPos)
-    lineMaterial.opacity = edgeOpacity * THREE.MathUtils.clamp(1.7 - dist / 70, 0.12, 1)
+    let factor = THREE.MathUtils.clamp(1.7 - dist / 70, 0.12, 1)
+    if (dimStation !== undefined) {
+      const prox = 1 - Math.min(1, Math.abs(SCENE_PROGRESS.value - stationT(dimStation)) / 0.16)
+      factor *= 0.3 + 0.7 * prox
+    }
+    lineMaterial.opacity = edgeOpacity * factor
   })
 
   return (
@@ -126,11 +135,13 @@ function Sign({
   position,
   rotationY = 0,
   height,
+  dimStation,
 }: {
   spec: SignSpec
   position: [number, number, number]
   rotationY?: number
   height: number
+  dimStation?: number
 }) {
   // Content-keyed: parent re-renders with equivalent specs must not redraw
   // the canvas or re-upload the texture.
@@ -163,7 +174,12 @@ function Sign({
     // Signs are unlit sprites that ignore fog — fade them by distance so a
     // district's signage never photobombs another station's frame.
     const dist = state.camera.position.distanceTo(worldPos)
-    material.opacity = THREE.MathUtils.clamp(1.65 - dist / 55, 0, 1)
+    let opacity = THREE.MathUtils.clamp(1.65 - dist / 55, 0, 1)
+    if (dimStation !== undefined) {
+      const prox = 1 - Math.min(1, Math.abs(SCENE_PROGRESS.value - stationT(dimStation)) / 0.16)
+      opacity *= 0.28 + 0.72 * prox
+    }
+    material.opacity = opacity
   })
 
   return (
@@ -376,7 +392,7 @@ function Jumbotron() {
         size={[tower.width, tower.height, tower.depth]}
         accent="#00ffff"
         lit
-        windowDensity={0.18}
+        windowDensity={0.35}
         seed={3}
       />
       {/* Fully resolved from the home station (~67 units out) — the identity
@@ -432,8 +448,9 @@ function PlazaGates() {
   )
 }
 
-/** A light-tram gliding the elevated line, pausing at each stop. */
-function Tram() {
+/** A light-tram gliding the elevated line, parking mid-line while the
+ * visitor dwells at the journey station so it's always in the rest frame. */
+function Tram({ interaction }: { interaction: GridInteraction }) {
   const ref = useRef<THREE.Group>(null)
   const stops = content.experiences.length
   const zStart = transitStopZ(0)
@@ -459,7 +476,10 @@ function Tram() {
     const cycle = (state.clock.elapsedTime % 26) / 26
     const swing = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2
     const staged = (Math.sin((swing * stops - 0.5) * Math.PI / stops * 2) * 0.06) + swing
-    const z = zStart + (zEnd - zStart) * THREE.MathUtils.clamp(staged, 0, 1)
+    const loopZ = zStart + (zEnd - zStart) * THREE.MathUtils.clamp(staged, 0, 1)
+    // Ease into the mid-line stop while the rail rests at Journey.
+    const atJourney = 1 - Math.min(1, Math.abs(interaction.progressRef.current - stationT(1)) / 0.08)
+    const z = THREE.MathUtils.lerp(loopZ, transitStopZ(2), THREE.MathUtils.smoothstep(atJourney, 0.4, 1))
     ref.current.position.set(TRANSIT.x, TRANSIT.beamY + 0.85, z)
   })
 
@@ -471,6 +491,31 @@ function Tram() {
   )
 }
 
+function CatenaryCable() {
+  const { line, material } = useMemo(() => {
+    const stops = content.experiences.length
+    const points: THREE.Vector3[] = []
+    for (let i = 0; i < stops - 1; i++) {
+      const a = new THREE.Vector3(TRANSIT.x, TRANSIT.beamY + 1.9, transitStopZ(i))
+      const b = new THREE.Vector3(TRANSIT.x, TRANSIT.beamY + 1.9, transitStopZ(i + 1))
+      const mid = a.clone().lerp(b, 0.5)
+      mid.y -= 0.55 // sag
+      const curve = new THREE.QuadraticBezierCurve3(a, mid, b)
+      points.push(...curve.getPoints(14))
+    }
+    const geometry = new THREE.BufferGeometry().setFromPoints(points)
+    const material = new THREE.LineBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.4 })
+    const line = new THREE.Line(geometry, material)
+    line.frustumCulled = false
+    return { line, material }
+  }, [])
+  useEffect(() => () => {
+    line.geometry.dispose()
+    material.dispose()
+  }, [line, material])
+  return <primitive object={line} />
+}
+
 function TransitLine({ interaction }: { interaction: GridInteraction }) {
   const stops = content.experiences
   const beamLength = Math.abs(TRANSIT.zStep) * (stops.length - 1) + 8
@@ -479,6 +524,7 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
 
   return (
     <group>
+      <CatenaryCable />
       <NeonBox
         position={[TRANSIT.x, TRANSIT.beamY, beamZ]}
         size={[1.2, 0.5, beamLength]}
@@ -533,13 +579,24 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
               rotationY={Math.PI / 2}
               height={2.2}
             />
-            {/* Platform canopy + lit edge make stops read as stations. */}
+            {/* Platform canopy, catenary post, and hanging lightbox make
+                stops read as transit stations, not furniture. */}
             <NeonBox
               position={[TRANSIT.x, TRANSIT.beamY + 1.3, z]}
               size={[3.4, 0.14, 3.8]}
               accent={exp.accent}
               edgeOpacity={0.5}
             />
+            <NeonBox
+              position={[TRANSIT.x, TRANSIT.beamY + 1.65, z]}
+              size={[0.14, 0.6, 0.14]}
+              accent={exp.accent}
+              edgeOpacity={0.4}
+            />
+            <mesh position={[TRANSIT.x, TRANSIT.beamY + 0.95, z + 1.9]}>
+              <planeGeometry args={[1.7, 0.5]} />
+              <meshBasicMaterial color={exp.accent} transparent opacity={0.8} side={THREE.DoubleSide} />
+            </mesh>
             <mesh position={[TRANSIT.x - 1.5, TRANSIT.beamY - 0.48, z]}>
               <boxGeometry args={[0.1, 0.1, 3.4]} />
               <meshBasicMaterial color={exp.accent} />
@@ -556,7 +613,7 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
           </group>
         )
       })}
-      <Tram />
+      <Tram interaction={interaction} />
     </group>
   )
 }
@@ -699,7 +756,7 @@ function BeyondShops() {
                 { text: item.subtitle, size: 30, color: '#9fb6c9' },
               ],
             }}
-            position={[x + 1, 8.4, z + 3.1]}
+            position={[x + 1.8, 9.4, z + 3.1]}
             rotationY={0.3}
             height={1.9}
           />
@@ -722,6 +779,7 @@ function RelayTower() {
         lit
         windowDensity={0.4}
         seed={31}
+        dimStation={4}
       />
       {content.toolkit.map((group, i) => {
         const y = t.bandStartY + i * t.bandStepY
@@ -732,6 +790,7 @@ function RelayTower() {
               position={[t.x, y, t.z]}
               size={[t.width + 0.6, 0.35, t.width + 0.6]}
               accent={group.accent}
+              dimStation={4}
             />
             <Sign
               spec={{
@@ -741,8 +800,9 @@ function RelayTower() {
                 // the HUD already counts the tools.
                 lines: [{ text: group.name.toUpperCase(), size: 64 }],
               }}
-              position={[t.x, y + 1.6, t.z + t.width / 2 + 0.3]}
+              position={[t.x, y + 1.6, t.z + t.width / 2 + 1.1]}
               height={2}
+              dimStation={4}
             />
           </group>
         )

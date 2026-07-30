@@ -26,7 +26,7 @@ const INTERACTIVE_PROGRESS = 0.78
 const DRAG_WRITE_INTERVAL_MS = 140
 const MAX_LINES = 900
 // Normalized-space reach for constellation links (~9% of the sky).
-const LINE_REACH_SQ = 0.09 * 0.09
+const LINE_REACH_SQ = 0.062 * 0.062
 
 const starVertexShader = /* glsl */ `
   attribute float aSize;
@@ -169,9 +169,9 @@ function GradientDome() {
             // down the avenue (-z) where the skyline is densest.
             // Wide reach (pow 3.2) so the glow still kisses the frame
             // bottom when the sky-deck camera pitches up at the stars.
-            float horizon = pow(1.0 - abs(vDir.y), 3.2);
+            float horizon = pow(1.0 - abs(vDir.y), 2.1);
             float avenue = 0.6 + 0.4 * smoothstep(0.2, 1.0, -vDir.z);
-            color += vec3(0.0, 0.11, 0.13) * horizon * avenue;
+            color += vec3(0.0, 0.105, 0.125) * horizon * avenue;
             color += vec3(0.07, 0.015, 0.1) * pow(1.0 - abs(vDir.y), 8.0) * (1.0 - avenue);
             // Two-octave value-noise nebula so the upper sky has weather.
             vec2 sky = vec2(atan(vDir.x, -vDir.z) * 2.0, vDir.y * 4.0);
@@ -204,7 +204,15 @@ function AmbientStars({ pixelRatio }: { pixelRatio: number }) {
     const v = new THREE.Vector3()
     const tint = new THREE.Color()
     for (let i = 0; i < count; i++) {
-      starPosition(rng() * 1.6 - 0.3, Math.pow(rng(), 1.7), v)
+      // Own elevation mapping: reaches below the constellation band so the
+      // lower third of the sky-deck frame isn't empty.
+      const az = (rng() * 1.6 - 0.8) * Math.PI * 0.78
+      const el = Math.PI * 0.045 + Math.pow(rng(), 1.35) * Math.PI * 0.42
+      v.set(
+        Math.sin(az) * Math.cos(el),
+        Math.sin(el),
+        -Math.cos(az) * Math.cos(el),
+      ).multiplyScalar(DOME_RADIUS).add(DOME_CENTER)
       positions.set([v.x, v.y, v.z], i * 3)
       tint.setHSL(0.5 + rng() * 0.12, 0.5, 0.68 + rng() * 0.24)
       colors.set([tint.r, tint.g, tint.b], i * 3)
@@ -285,7 +293,7 @@ function LiveStars({ pixelRatio, interaction }: { pixelRatio: number; interactio
     const ringGeometry = new THREE.BufferGeometry()
     ringGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3))
     ringGeometry.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array([1, 1, 1]), 3))
-    ringGeometry.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array([9]), 1))
+    ringGeometry.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array([12]), 1))
     ringGeometry.setAttribute('aSeed', new THREE.BufferAttribute(new Float32Array([1]), 1))
     ringGeometry.setDrawRange(0, 0)
     const ringMaterial = makeStarMaterial(pixelRatio, ringFragmentShader)

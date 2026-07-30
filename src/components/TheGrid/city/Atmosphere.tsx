@@ -226,7 +226,7 @@ function WetReflections() {
   const sources = useMemo<StreakSource[]>(() => {
     const list: StreakSource[] = [
       { x: JUMBOTRON.tower.x, z: JUMBOTRON.tower.z + 3, color: '#00ffff', length: 18, intensity: 1.2 },
-      { x: RELAY_TOWER.x, z: RELAY_TOWER.z, color: '#ffcc00', length: 15, intensity: 1 },
+      { x: RELAY_TOWER.x, z: RELAY_TOWER.z, color: '#ffe9b0', length: 13, intensity: 0.6 },
     ]
     for (const site of PROJECT_SITES) {
       list.push({ x: site.x - 4, z: site.z, color: site.project.accent, length: 14, intensity: 1 })
