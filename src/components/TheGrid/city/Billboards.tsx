@@ -52,7 +52,7 @@ const fragmentShader = /* glsl */ `
       // Screenshots are mostly light-UI pages; damp them below the bloom
       // threshold, hard-cap luminance, and tint toward the night palette so
       // screens sit IN the city instead of blowing out white.
-      color = min(color * 0.48 + vec3(0.0, 0.02, 0.035), vec3(0.5, 0.54, 0.58));
+      color = min(color * 0.44 + vec3(0.0, 0.02, 0.035), vec3(0.42, 0.46, 0.5));
       // Powered-down screens collapse to DARK static — sparks over near-black,
       // never confetti over white.
       vec3 dead = vec3(0.045, 0.06, 0.085)
@@ -69,9 +69,10 @@ const fragmentShader = /* glsl */ `
     color *= mix(scan, 1.0, focus * 0.7);
     color *= 0.92 + 0.08 * sin(uTime * 11.0 + vUv.y * 3.0) * (1.0 - focus);
 
-    // Screen bezel glow.
+    // Bezel: dark frame band with an accent hairline — sells "monitor".
     float edge = max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0;
-    color += uAccent * smoothstep(0.94, 1.0, edge) * 0.7;
+    color = mix(color, vec3(0.012, 0.02, 0.032), smoothstep(0.88, 0.94, edge));
+    color += uAccent * smoothstep(0.96, 1.0, edge) * 0.8;
 
     // Grazing screens dim like real displays — no white slivers in flyovers.
     float facing = abs(dot(vViewDir, vViewNormal));

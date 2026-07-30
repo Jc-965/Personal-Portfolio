@@ -177,7 +177,7 @@ function GradientDome() {
             vec2 sky = vec2(atan(vDir.x, -vDir.z) * 2.0, vDir.y * 4.0);
             float n = hash(floor(sky * 2.0)) * 0.6 + hash(floor(sky * 5.0)) * 0.4;
             float band = sin(vDir.y * 9.0 + vDir.x * 3.0) * sin(vDir.x * 7.0 - vDir.z * 4.0);
-            color += vec3(0.014, 0.024, 0.055) * smoothstep(0.15, 1.0, up) * (0.35 + 0.4 * band + 0.5 * n);
+            color += vec3(0.014, 0.024, 0.055) * smoothstep(0.15, 1.0, up) * (0.35 + 0.4 * band + 0.25 * n);
             gl_FragColor = vec4(color, 1.0);
           }
         `,

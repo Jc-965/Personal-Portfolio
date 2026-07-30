@@ -139,7 +139,7 @@ function SkillsPanel() {
   return (
     <>
       <h2 className="grid-hud__headline grid-hud__headline--small">The relay tower</h2>
-      {content.toolkit.map(group => (
+      {[...content.toolkit].reverse().map(group => (
         <div key={group.id} className="grid-hud__skill-group">
           <p className="grid-hud__skill-name" style={{ color: group.accent }}>
             {group.name}

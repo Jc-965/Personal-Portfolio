@@ -329,12 +329,12 @@ function TickerSign({
   const { texture, material, geometry } = useMemo(() => {
     const canvas = document.createElement('canvas')
     canvas.width = 2048
-    canvas.height = 96
+    canvas.height = 118
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.fillStyle = '#03070d'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.font = '700 58px "JetBrains Mono", ui-monospace, monospace'
+      ctx.font = '700 76px "JetBrains Mono", ui-monospace, monospace'
       ctx.textBaseline = 'middle'
       ctx.shadowColor = accent
       ctx.shadowBlur = 16
@@ -756,8 +756,8 @@ function BeyondShops() {
                 { text: item.subtitle, size: 30, color: '#9fb6c9' },
               ],
             }}
-            position={[x + 1.8, 9.4, z + 3.1]}
-            rotationY={0.3}
+            position={[x + 2.6, 9.8, z + 3.1]}
+            rotationY={0.42}
             height={1.9}
           />
           <GlowPad position={[x + 3, 0, z]} accent={item.accent} radius={6} />

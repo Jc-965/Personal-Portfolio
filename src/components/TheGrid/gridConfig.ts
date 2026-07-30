@@ -162,7 +162,7 @@ export const RAIL_POINTS: Vec3Tuple[] = [
   STATIONS[1].cam,
   [8.5, 10, -29], // wide berth past the jumbotron block, then cross behind it
   STATIONS[2].cam,
-  [6, 20, -60], // sweeping climb over the avenue, between the district edges
+  [7, 25, -58], // sweeping climb over the avenue, between the district edges
   STATIONS[3].cam,
   STATIONS[4].cam,
   [0, 37, -147], // crest the climb before the deck slab's footprint begins

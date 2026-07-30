@@ -161,7 +161,7 @@
   left: 26px;
   bottom: 92px;
   width: min(400px, calc(100vw - 52px));
-  max-height: 54vh;
+  max-height: 62vh;
   overflow-y: auto;
   pointer-events: auto;
   padding: 18px 20px 16px;
@@ -194,11 +194,20 @@
   content: '';
   display: block;
   position: sticky;
-  bottom: -16px;
-  height: 30px;
-  margin: -14px -20px -16px;
-  background: linear-gradient(180deg, transparent, rgba(2, 7, 14, 0.92));
+  bottom: 0;
+  height: 26px;
+  margin: -22px -20px -16px;
+  background: linear-gradient(180deg, transparent, rgba(2, 7, 14, 0.94));
   pointer-events: none;
+}
+
+.grid-hud__panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.grid-hud__panel::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--grid-accent, #00ffff) 40%, transparent);
+  border-radius: 3px;
 }
 
 .grid-hud__station-id {
@@ -439,7 +448,7 @@
 }
 
 .grid-hud__skill-group {
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 .grid-hud__skill-name {
