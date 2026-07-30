@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SCENE_BG } from './sceneColor'
+import { STATIONS } from '../gridConfig'
 
 /**
  * The PBR foundation. There is no HDR file to load — the city IS the
@@ -41,6 +42,18 @@ export default function EnvLight() {
     <>
       <directionalLight position={[60, 120, 40]} intensity={0.35} color="#7f9fd8" />
       <ambientLight intensity={0.12} color="#38506e" />
+      {/* One accent streetlight pooling over each station — what makes the
+          PBR bodies read as wet metal under sodium-and-neon light. */}
+      {STATIONS.map(station => (
+        <pointLight
+          key={station.id}
+          position={[station.look[0], 16, station.look[2]]}
+          color={station.accent}
+          intensity={140}
+          distance={60}
+          decay={1.8}
+        />
+      ))}
     </>
   )
 }

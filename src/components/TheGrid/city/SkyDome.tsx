@@ -171,13 +171,13 @@ function GradientDome() {
             // bottom when the sky-deck camera pitches up at the stars.
             float horizon = pow(1.0 - abs(vDir.y), 2.1);
             float avenue = 0.6 + 0.4 * smoothstep(0.2, 1.0, -vDir.z);
-            color += vec3(0.0, 0.105, 0.125) * horizon * avenue;
+            color += vec3(0.0, 0.085, 0.1) * horizon * avenue;
             color += vec3(0.07, 0.015, 0.1) * pow(1.0 - abs(vDir.y), 8.0) * (1.0 - avenue);
             // Two-octave value-noise nebula so the upper sky has weather.
             vec2 sky = vec2(atan(vDir.x, -vDir.z) * 2.0, vDir.y * 4.0);
             float n = hash(floor(sky * 2.0)) * 0.6 + hash(floor(sky * 5.0)) * 0.4;
             float band = sin(vDir.y * 9.0 + vDir.x * 3.0) * sin(vDir.x * 7.0 - vDir.z * 4.0);
-            color += vec3(0.014, 0.024, 0.055) * smoothstep(0.15, 1.0, up) * (0.35 + 0.4 * band + 0.25 * n);
+            color += vec3(0.014, 0.024, 0.055) * smoothstep(0.1, 1.0, up) * (0.3 + 0.35 * band + 0.55 * n);
             gl_FragColor = vec4(color, 1.0);
           }
         `,

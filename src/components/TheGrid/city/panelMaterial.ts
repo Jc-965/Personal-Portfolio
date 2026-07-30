@@ -55,13 +55,13 @@ export function makePanelMaterial(
 ) {
   const emissiveMap = bakeWindowMap(dims, seed, windowDensity)
   const material = new THREE.MeshStandardMaterial({
-    color: '#1b2431',
-    metalness: 0.6,
-    roughness: 0.32,
+    color: '#27313f',
+    metalness: 0.62,
+    roughness: 0.3,
     emissive: new THREE.Color(accent),
-    emissiveIntensity: 1.1,
+    emissiveIntensity: 1.15,
     emissiveMap,
-    envMapIntensity: 1.25,
+    envMapIntensity: 1.6,
   })
   material.userData.ownedTextures = [emissiveMap]
   return material
@@ -70,11 +70,11 @@ export function makePanelMaterial(
 /** Dark PBR body for unlit structural pieces — reflective wet metal. */
 export function makeDarkPbrMaterial(accent: string) {
   return new THREE.MeshStandardMaterial({
-    color: '#151d29',
-    metalness: 0.55,
-    roughness: 0.42,
+    color: '#1f2937',
+    metalness: 0.58,
+    roughness: 0.4,
     emissive: new THREE.Color(accent),
     emissiveIntensity: 0.04,
-    envMapIntensity: 1.1,
+    envMapIntensity: 1.45,
   })
 }
