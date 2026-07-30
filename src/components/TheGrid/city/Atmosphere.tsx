@@ -38,7 +38,7 @@ const moteFragmentShader = /* glsl */ `
   varying float vDist;
   void main() {
     float d = length(gl_PointCoord - 0.5);
-    float disc = smoothstep(0.5, 0.05, d);
+    float disc = 1.0 - smoothstep(0.05, 0.5, d);
     float breathe = 0.4 + 0.6 * (0.5 + 0.5 * sin(uTime * (0.5 + fract(vSeed)) + vSeed * 40.0));
     // Fade out anything close to the lens.
     float near = smoothstep(5.0, 14.0, vDist);
@@ -185,7 +185,7 @@ const ringFragmentShader = /* glsl */ `
     vec2 cell = vec2(floor(vUv.x * 480.0), floor(vUv.y * 40.0));
     float lit = step(0.9, hash(cell));
     color += vec3(0.1, 0.35, 0.4) * lit * 0.35;
-    float fadeTop = smoothstep(skyline, skyline - 0.3, vUv.y);
+    float fadeTop = 1.0 - smoothstep(skyline - 0.3, skyline, vUv.y);
     gl_FragColor = vec4(mix(uBg, color, fadeTop), 1.0);
   }
 `

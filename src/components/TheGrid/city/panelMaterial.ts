@@ -52,8 +52,8 @@ const fragmentShader = /* glsl */ `
       vec2 inCell = fract(vec2(u * cols, v * rows));
 
       // Panel seams: thin dark grout between plates.
-      float seam = smoothstep(0.0, 0.05, inCell.x) * smoothstep(1.0, 0.95, inCell.x)
-                 * smoothstep(0.0, 0.06, inCell.y) * smoothstep(1.0, 0.94, inCell.y);
+      float seam = smoothstep(0.0, 0.05, inCell.x) * (1.0 - smoothstep(0.95, 1.0, inCell.x))
+                 * smoothstep(0.0, 0.06, inCell.y) * (1.0 - smoothstep(0.94, 1.0, inCell.y));
       color = mix(base * 0.4, base, seam);
 
       // Sparse lit windows in the structure's own accent.

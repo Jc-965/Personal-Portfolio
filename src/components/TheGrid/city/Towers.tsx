@@ -235,7 +235,7 @@ export default function Towers({ density }: { density: number }) {
         varying float vBlink;
         void main() {
           float d = length(gl_PointCoord - 0.5);
-          float disc = smoothstep(0.5, 0.1, d);
+          float disc = 1.0 - smoothstep(0.1, 0.5, d);
           gl_FragColor = vec4(vec3(1.0, 0.18, 0.14), disc * vBlink);
         }
       `,

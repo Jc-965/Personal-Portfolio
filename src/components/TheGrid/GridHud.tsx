@@ -27,40 +27,35 @@ function JourneyPanel({
   onSelectRole: (index: number | null) => void
 }) {
   const detail = selectedRole !== null ? content.experiences[selectedRole] : null
+  // No list here — the transit stops IN THE WORLD are the list. The panel
+  // stays a thin caption until a stop is clicked, then shows that record.
+  if (!detail) {
+    return (
+      <>
+        <h2 className="grid-hud__headline grid-hud__headline--small">The transit line</h2>
+        <p className="grid-hud__body">
+          Every stop on the elevated line is a role, {content.experiences.length} in all —
+          hover one to identify it, click it to open the record.
+        </p>
+      </>
+    )
+  }
   return (
-    <>
-      <h2 className="grid-hud__headline grid-hud__headline--small">The transit line</h2>
-      <p className="grid-hud__microcopy">click a stop — on the line or below — for the full record</p>
-      <ul className="grid-hud__list">
-        {content.experiences.map((exp, i) => (
-          <li key={exp.id}>
-            <button
-              type="button"
-              className={`grid-hud__row grid-hud__row--button ${i === selectedRole ? 'is-selected' : ''}`}
-              onClick={() => onSelectRole(i === selectedRole ? null : i)}
-            >
-              <span className="grid-hud__row-dot" style={{ background: exp.accent }} />
-              <span className="grid-hud__row-period">{exp.period}</span>
-              <span className="grid-hud__row-title">{exp.company}</span>
-              <span className="grid-hud__row-sub">{exp.role}</span>
-            </button>
-          </li>
+    <div className="grid-hud__detail" style={{ '--grid-accent': detail.accent } as React.CSSProperties}>
+      <p className="grid-hud__detail-title">
+        {detail.company} · {detail.location} · {detail.status}
+      </p>
+      <p className="grid-hud__microcopy">{detail.role} — {detail.period}</p>
+      <p className="grid-hud__body">{detail.summary}</p>
+      <p className="grid-hud__chips">
+        {detail.stack.map(item => (
+          <span key={item} className="grid-hud__chip">{item}</span>
         ))}
-      </ul>
-      {detail && (
-        <div className="grid-hud__detail" style={{ '--grid-accent': detail.accent } as React.CSSProperties}>
-          <p className="grid-hud__detail-title">
-            {detail.company} · {detail.location} · {detail.status}
-          </p>
-          <p className="grid-hud__body">{detail.summary}</p>
-          <p className="grid-hud__chips">
-            {detail.stack.map(item => (
-              <span key={item} className="grid-hud__chip">{item}</span>
-            ))}
-          </p>
-        </div>
-      )}
-    </>
+      </p>
+      <button type="button" className="grid-hud__tab" onClick={() => onSelectRole(null)}>
+        ✕ close record
+      </button>
+    </div>
   )
 }
 

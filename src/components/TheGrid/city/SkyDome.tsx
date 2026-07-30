@@ -52,10 +52,10 @@ const starFragmentShader = /* glsl */ `
     vec2 p = gl_PointCoord - 0.5;
     float d = length(p);
     // Star core with a faint 4-point diffraction cross.
-    float core = smoothstep(0.5, 0.06, d);
+    float core = 1.0 - smoothstep(0.06, 0.5, d);
     float cross = max(
-      smoothstep(0.5, 0.0, abs(p.x)) * smoothstep(0.06, 0.0, abs(p.y)),
-      smoothstep(0.5, 0.0, abs(p.y)) * smoothstep(0.06, 0.0, abs(p.x))
+      (1.0 - smoothstep(0.0, 0.5, abs(p.x))) * (1.0 - smoothstep(0.0, 0.06, abs(p.y))),
+      (1.0 - smoothstep(0.0, 0.5, abs(p.y))) * (1.0 - smoothstep(0.0, 0.06, abs(p.x)))
     );
     float twinkle = 0.55 + 0.45 * sin(uTime * (0.4 + fract(vSeed) * 1.4) + vSeed * 43.0);
     float alpha = (core + cross * 0.55) * twinkle;
@@ -70,7 +70,7 @@ const ringFragmentShader = /* glsl */ `
   void main() {
     float d = length(gl_PointCoord - 0.5);
     float pulse = 0.36 + 0.05 * sin(uTime * 2.2);
-    float ring = smoothstep(pulse + 0.05, pulse, d) * smoothstep(pulse - 0.09, pulse - 0.04, d);
+    float ring = (1.0 - smoothstep(pulse, pulse + 0.05, d)) * smoothstep(pulse - 0.09, pulse - 0.04, d);
     gl_FragColor = vec4(vColor, ring * 0.9);
   }
 `
