@@ -245,7 +245,7 @@ function FloorSign({
  * warm lamp heads bloom into the classic wet-night halos. Placement (and
  * rail clearance) lives in streetlights.ts. */
 function Streetlights() {
-  const { poles, heads, poleMaterial, headMaterial } = useMemo(() => {
+  const { poles, heads, cones, poleMaterial, headMaterial, coneMaterial } = useMemo(() => {
     const count = STREETLIGHTS.length
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
     const poleMaterial = new THREE.MeshBasicMaterial({ color: '#0b1220' })
@@ -253,6 +253,14 @@ function Streetlights() {
     const poles = new THREE.InstancedMesh(boxGeometry, poleMaterial, count * 2)
     const heads = new THREE.InstancedMesh(boxGeometry, headMaterial, count)
     const matrix = new THREE.Matrix4()
+
+    // One merged geometry of crossed gradient wedges — every lamp gets a
+    // visible cone of light in the rain for a single extra draw call.
+    const conePositions: number[] = []
+    const coneUvs: number[] = []
+    const coneIndex: number[] = []
+    let vi = 0
+
     STREETLIGHTS.forEach((s, i) => {
       matrix.makeScale(0.16, LAMP_HEIGHT, 0.16)
       matrix.setPosition(s.x, LAMP_HEIGHT / 2, s.z)
@@ -264,22 +272,73 @@ function Streetlights() {
       matrix.makeScale(0.6, 0.14, 0.26)
       matrix.setPosition(s.x - s.side * (LAMP_ARM - 0.25), LAMP_HEIGHT - 0.16, s.z)
       heads.setMatrixAt(i, matrix)
+
+      const hx = s.x - s.side * (LAMP_ARM - 0.25)
+      const topY = LAMP_HEIGHT - 0.22
+      for (const [qx, qz] of [
+        [1, 0],
+        [0, 1],
+      ] as const) {
+        const wTop = 0.26
+        const wBot = 1.7
+        conePositions.push(
+          hx - qx * wTop, topY, s.z - qz * wTop,
+          hx + qx * wTop, topY, s.z + qz * wTop,
+          hx + qx * wBot, 0.05, s.z + qz * wBot,
+          hx - qx * wBot, 0.05, s.z - qz * wBot,
+        )
+        coneUvs.push(0, 1, 1, 1, 1, 0, 0, 0)
+        coneIndex.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3)
+        vi += 4
+      }
     })
     poles.instanceMatrix.needsUpdate = true
     heads.instanceMatrix.needsUpdate = true
-    return { poles, heads, poleMaterial, headMaterial }
+
+    const coneGeometry = new THREE.BufferGeometry()
+    coneGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(conePositions), 3))
+    coneGeometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(coneUvs), 2))
+    coneGeometry.setIndex(coneIndex)
+    const coneMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          float across = pow(max(0.0, 1.0 - abs(vUv.x - 0.5) * 2.0), 1.6);
+          float along = mix(0.12, 1.0, vUv.y * vUv.y);
+          gl_FragColor = vec4(vec3(1.0, 0.78, 0.5), across * along * 0.075);
+        }
+      `,
+    })
+    const cones = new THREE.Mesh(coneGeometry, coneMaterial)
+    cones.frustumCulled = false
+    cones.renderOrder = 4
+    return { poles, heads, cones, poleMaterial, headMaterial, coneMaterial }
   }, [])
 
   useEffect(() => () => {
     poles.geometry.dispose()
     poleMaterial.dispose()
     headMaterial.dispose()
-  }, [poles, poleMaterial, headMaterial])
+    cones.geometry.dispose()
+    coneMaterial.dispose()
+  }, [poles, poleMaterial, headMaterial, cones, coneMaterial])
 
   return (
     <group>
       <primitive object={poles} />
       <primitive object={heads} />
+      <primitive object={cones} />
     </group>
   )
 }

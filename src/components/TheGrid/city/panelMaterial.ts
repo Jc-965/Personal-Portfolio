@@ -9,6 +9,7 @@ import { mulberry32 } from './rand'
  */
 
 function bakeWindowMap(
+  accent: string,
   dims: [number, number, number],
   seed: number,
   windowDensity: number,
@@ -26,12 +27,20 @@ function bakeWindowMap(
     const cw = canvas.width / cols
     const rh = canvas.height / rows
     const litChance = windowDensity * 0.3
+    // Real tenancy: warm incandescent, cool fluorescent, and a few rooms
+    // washed in the building's own neon — baked as COLOR (the material's
+    // emissive stays white) so one facade carries mixed light temperatures.
+    const warm = new THREE.Color('#ffd2a0')
+    const cool = new THREE.Color('#d6e6ff')
+    const neon = new THREE.Color(accent).lerp(new THREE.Color('#ffffff'), 0.4)
+    const scratch = new THREE.Color()
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
         if (rng() > litChance) continue
-        const brightness = 0.45 + rng() * 0.55
-        const value = Math.floor(brightness * 255)
-        ctx.fillStyle = `rgb(${value}, ${value}, ${value})`
+        const pick = rng()
+        scratch.copy(pick < 0.5 ? warm : pick < 0.78 ? cool : neon)
+        scratch.multiplyScalar(0.45 + rng() * 0.55)
+        ctx.fillStyle = `rgb(${Math.floor(scratch.r * 255)}, ${Math.floor(scratch.g * 255)}, ${Math.floor(scratch.b * 255)})`
         ctx.fillRect(
           c * cw + cw * 0.24,
           r * rh + rh * 0.3,
@@ -53,13 +62,14 @@ export function makePanelMaterial(
   seed = 1,
   windowDensity = 0.8,
 ) {
-  const emissiveMap = bakeWindowMap(dims, seed, windowDensity)
+  const emissiveMap = bakeWindowMap(accent, dims, seed, windowDensity)
   const material = new THREE.MeshStandardMaterial({
     color: '#27313f',
     metalness: 0.62,
     roughness: 0.3,
-    emissive: new THREE.Color(accent),
-    emissiveIntensity: 1.15,
+    // White emissive: the baked map carries each window's color temperature.
+    emissive: new THREE.Color('#ffffff'),
+    emissiveIntensity: 1.1,
     emissiveMap,
     envMapIntensity: 1.6,
   })

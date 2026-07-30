@@ -16,8 +16,9 @@ export default function EnvLight() {
   const { gl, scene } = useThree()
 
   useEffect(() => {
-    // Fog first so it participates in the environment capture.
-    const fog = new THREE.FogExp2(0x020409, 0.0075)
+    // Fog first so it participates in the environment capture. Dense enough
+    // that every block of the canyon sits in its own aerial-perspective layer.
+    const fog = new THREE.FogExp2(0x020409, 0.009)
     fog.color = SCENE_BG // shared instance — the district grade tints the air
     scene.fog = fog
 

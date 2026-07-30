@@ -87,6 +87,11 @@ const wetStreetShader = {
       // Puddle mask: pooled water reflects hard, damp asphalt only glows.
       float puddle = smoothstep(0.42, 0.62, vnoise(vWorld.xz * 0.07));
       float wet = mix(0.2, 0.9, puddle);
+      // Water Fresnel: reflections strengthen toward grazing angles, so the
+      // distant road turns to mirror while the asphalt underfoot stays
+      // asphalt — the thing that makes wet streets read as WATER.
+      float upDot = clamp(dot(normalize(cameraPosition - vWorld), vec3(0.0, 1.0, 0.0)), 0.0, 1.0);
+      wet *= 0.3 + 0.95 * pow(1.0 - upDot, 2.0);
       // Sidewalks drain — mostly damp concrete, faint sheen only.
       float walk = step(9.7, ax) * (1.0 - step(12.35, ax));
       wet *= 1.0 - walk * 0.62;
