@@ -38,4 +38,7 @@ export interface GridInteraction {
   selection: GridSelection
   onSelectProject: (index: number) => void
   onSelectRole: (index: number | null) => void
+  /** Exit to the main page's constellation to place/edit the visitor's star
+   * — triggered by the in-world CTA at the sky deck. */
+  onPlaceStar?: () => void
 }

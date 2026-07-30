@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
-import { JUMBOTRON, PROJECT_SITES, RELAY_TOWER, BEYOND_SHOPS } from '../gridConfig'
+import { content, gantryZ, JUMBOTRON, PROJECT_SITES, RELAY_TOWER, BEYOND_SHOPS } from '../gridConfig'
 import { STREETLIGHTS } from './streetlights'
 import { SCENE_BG } from './sceneColor'
 import type { GridTier } from '../gridPerformance'
@@ -226,20 +226,25 @@ interface StreakSource {
 function WetReflections() {
   const sources = useMemo<StreakSource[]>(() => {
     const list: StreakSource[] = [
-      { x: JUMBOTRON.tower.x, z: JUMBOTRON.tower.z + 3, color: '#00ffff', length: 18, intensity: 1.2 },
-      { x: RELAY_TOWER.x, z: RELAY_TOWER.z, color: '#ffe9b0', length: 13, intensity: 0.6 },
+      { x: JUMBOTRON.tower.x + 3, z: JUMBOTRON.tower.z + 6, color: '#00ffff', length: 20, intensity: 1.2 },
+      { x: RELAY_TOWER.x - 2, z: RELAY_TOWER.z, color: '#ffe9b0', length: 13, intensity: 0.6 },
     ]
     for (const site of PROJECT_SITES) {
-      list.push({ x: site.x - 4, z: site.z, color: site.project.accent, length: 14, intensity: 1 })
+      // Under the marquee's street-side edge, where its light hits the road.
+      list.push({ x: site.side * 7.5, z: site.z - 4, color: site.project.accent, length: 14, intensity: 1 })
     }
     for (const shop of BEYOND_SHOPS) {
       list.push({ x: shop.x + 3, z: shop.z, color: shop.item.accent, length: 10, intensity: 0.9 })
     }
+    // Role gantries pour their accent onto the road they span.
+    content.experiences.forEach((exp, i) => {
+      list.push({ x: 0, z: gantryZ(i), color: exp.accent, length: 9, intensity: 0.7 })
+    })
     // Every other streetlight doubles into the asphalt — warm sodium smears
     // between the neon ones.
     STREETLIGHTS.forEach((lamp, i) => {
       if (i % 2 !== 0) return
-      list.push({ x: lamp.x - lamp.side * 1.1, z: lamp.z, color: '#ffd9a0', length: 7, intensity: 0.55 })
+      list.push({ x: lamp.x - lamp.side * 1.1, z: lamp.z, color: '#ffd9a0', length: 5.5, intensity: 0.3 })
     })
     return list
   }, [])
@@ -387,7 +392,7 @@ function SkylineRing() {
     geometry.dispose()
     material.dispose()
   }, [geometry, material])
-  return <mesh geometry={geometry} material={material} position={[0, 27, -70]} />
+  return <mesh geometry={geometry} material={material} position={[0, 27, -95]} />
 }
 
 export default function Atmosphere({ tier }: { tier: GridTier }) {
@@ -404,9 +409,9 @@ export default function Atmosphere({ tier }: { tier: GridTier }) {
       {PROJECT_SITES.map(site => (
         <LightShaft
           key={site.project.id}
-          position={[site.x, site.height, site.z]}
+          position={[site.side * 11, site.height, site.z - 4]}
           color={site.project.accent}
-          height={18}
+          height={16}
           width={2.2}
         />
       ))}

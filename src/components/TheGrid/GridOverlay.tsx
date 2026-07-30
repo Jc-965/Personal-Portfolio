@@ -251,6 +251,7 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
                 onSelectProject={onSelectProject}
                 onSelectRole={onSelectRole}
                 onClearFocus={onClearFocus}
+                onPlaceStar={onPlaceStar}
               />
             </Suspense>
           </div>

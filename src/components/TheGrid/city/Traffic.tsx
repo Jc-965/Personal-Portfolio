@@ -6,9 +6,11 @@ import { SCENE_BG } from './sceneColor'
 import type { GridTier } from '../gridPerformance'
 
 /**
- * Air traffic: streams of light-craft crossing the skyline on fixed lanes.
- * All motion happens in the vertex shader (per-instance lane/speed/phase),
- * so a hundred vehicles cost one static draw call and zero per-frame JS.
+ * Traffic, two layers in one draw call: street-level cars running the
+ * avenue's lanes (white headlights oncoming, red tails receding — the
+ * reference shot's traffic), and sparse light-craft threading the skyline
+ * above. All motion happens in the vertex shader (per-instance
+ * lane/speed/phase), zero per-frame JS.
  */
 
 const Z_MIN = -230
@@ -71,7 +73,20 @@ export default function Traffic({ tier }: { tier: GridTier }) {
     const tint = new THREE.Color()
 
     for (let i = 0; i < count; i++) {
-      // Lanes hug the skyline sides and cross high above the avenue.
+      if (i % 5 < 2) {
+        // Street cars: right-hand traffic — west lanes drive toward the
+        // camera's travel direction (−z), east lanes come at it (+z), so
+        // the visitor sees red tails ahead and white headlights oncoming.
+        const lane = [-4.6, -2.1, 2.1, 4.6][Math.floor(rng() * 4)]
+        const dir = lane < 0 ? -1 : 1
+        lanes.set([lane + (rng() - 0.5) * 0.5, 0.55, dir], i * 3)
+        speeds[i] = 11 + rng() * 9
+        phases[i] = rng() * Z_SPAN
+        tint.set(dir < 0 ? '#ff4a3c' : '#ffd9b0')
+        colors.set([tint.r, tint.g, tint.b], i * 3)
+        continue
+      }
+      // Light-craft hugging the skyline sides or crossing high overhead.
       const side = rng() > 0.5 ? 1 : -1
       const nearAvenue = rng() > 0.72
       const x = nearAvenue ? (rng() - 0.5) * 26 : side * (16 + rng() * 60)

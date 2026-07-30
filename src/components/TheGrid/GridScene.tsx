@@ -24,6 +24,8 @@ export interface GridSceneProps {
   onSelectRole: (index: number | null) => void
   /** Clicking empty street releases a fly-to focus back to the rail view. */
   onClearFocus?: () => void
+  /** In-world sky-deck CTA: exit toward the constellation to place a star. */
+  onPlaceStar?: () => void
 }
 
 /**
@@ -164,10 +166,11 @@ export default function GridScene({
   onSelectProject,
   onSelectRole,
   onClearFocus,
+  onPlaceStar,
 }: GridSceneProps) {
   const interaction = useMemo(
-    () => ({ progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole }),
-    [progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole],
+    () => ({ progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole, onPlaceStar }),
+    [progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole, onPlaceStar],
   )
   return (
     <Canvas

@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SCENE_BG } from './sceneColor'
 
 /**
- * The street plane: a shader grid (the site's background grid made literal)
- * with data pulses streaming down the avenue corridor the camera travels.
+ * The dry-tier street: night asphalt with worn painted markings — dashed
+ * centerline, lane dashes, kerb paint, crosswalks — and concrete sidewalks
+ * with paving joints. The wet tier (WetStreet) draws the same road language
+ * over real planar reflections; this is the fallback for low-end GPUs.
  */
 
 const vertexShader = /* glsl */ `
@@ -21,41 +22,46 @@ const vertexShader = /* glsl */ `
 `
 
 const fragmentShader = /* glsl */ `
-  uniform float uTime;
   uniform vec3 uBg;
-  uniform vec3 uLine;
   varying vec3 vWorld;
   varying float vViewDist;
 
-  float gridLine(vec2 p, float spacing, float thickness) {
-    vec2 g = abs(fract(p / spacing - 0.5) - 0.5) * spacing;
-    float d = min(g.x, g.y);
-    return 1.0 - smoothstep(0.0, thickness, d);
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+      f.y
+    );
   }
 
-  float hash(float n) { return fract(sin(n) * 43758.5453); }
-
   void main() {
-    vec3 color = uBg * 0.9;
+    float ax = abs(vWorld.x);
+    vec3 color = vec3(0.02, 0.03, 0.048) * (0.75 + 0.5 * vnoise(vWorld.xz * 1.7));
 
-    float minor = gridLine(vWorld.xz, 2.0, 0.05);
-    float major = gridLine(vWorld.xz, 10.0, 0.09);
-    color += uLine * (minor * 0.06 + major * 0.16);
+    // Painted road markings, worn down by traffic.
+    float marks = 0.0;
+    marks += (1.0 - smoothstep(0.07, 0.2, ax)) * step(fract(vWorld.z / 6.0), 0.5) * 0.9;
+    marks += (1.0 - smoothstep(0.05, 0.15, abs(ax - 4.9))) * step(fract(vWorld.z / 9.0), 0.62) * 0.5;
+    marks += (1.0 - smoothstep(0.1, 0.3, abs(ax - 9.6))) * 0.8;
+    float cw = step(abs(vWorld.z - 34.0), 1.7)
+             + step(abs(vWorld.z + 44.0), 1.7)
+             + step(abs(vWorld.z + 90.0), 1.7)
+             + step(abs(vWorld.z + 154.0), 1.7);
+    marks += min(cw, 1.0) * step(ax, 8.8) * step(0.45, fract(vWorld.x / 1.35)) * 0.55;
+    marks *= 0.55 + 0.45 * vnoise(vWorld.xz * 3.1);
+    color += vec3(0.5, 0.52, 0.5) * marks * 0.32;
 
-    // Kerb light-lines flanking the avenue — the street reads as a street,
-    // not an infinite plane with a grid on it.
-    float kerb = 1.0 - smoothstep(0.06, 0.22, abs(abs(vWorld.x) - 9.6));
-    color += uLine * kerb * 0.22;
-
-    // Data pulses: bright packets streaming along the avenue lanes.
-    float lane = floor(vWorld.x / 2.0);
-    if (abs(vWorld.x) < 9.0) {
-      float speed = 0.25 + hash(lane) * 0.3;
-      float phase = fract(vWorld.z * 0.012 + uTime * speed + hash(lane * 3.7));
-      float packet = smoothstep(0.035, 0.0, abs(phase - 0.5) - 0.012);
-      float onLane = 1.0 - smoothstep(0.12, 0.4, abs(fract(vWorld.x / 2.0 - 0.5) - 0.5) * 2.0);
-      color += uLine * packet * onLane * 0.9;
-    }
+    // Sidewalks: lighter concrete, expansion joints every couple of metres.
+    float walk = step(9.7, ax) * (1.0 - step(12.35, ax));
+    vec3 pave = vec3(0.05, 0.055, 0.062) * (0.8 + 0.4 * vnoise(vWorld.xz * 2.3));
+    float joint = 1.0 - smoothstep(0.02, 0.09, abs(fract(vWorld.z / 2.4) - 0.5) * 2.4);
+    pave *= 1.0 - 0.35 * joint;
+    color = mix(color, pave, walk);
 
     float fade = smoothstep(50.0, 175.0, vViewDist);
     color = mix(color, uBg, fade);
@@ -70,9 +76,7 @@ export default function Ground() {
         vertexShader,
         fragmentShader,
         uniforms: {
-          uTime: { value: 0 },
           uBg: { value: SCENE_BG },
-          uLine: { value: new THREE.Color('#00ffff') },
         },
       }),
     [],
@@ -84,16 +88,12 @@ export default function Ground() {
     material.dispose()
   }, [geometry, material])
 
-  useFrame(state => {
-    material.uniforms.uTime.value = state.clock.elapsedTime
-  })
-
   return (
     <mesh
       geometry={geometry}
       material={material}
       rotation-x={-Math.PI / 2}
-      position={[0, 0, -70]}
+      position={[0, 0, -90]}
     />
   )
 }

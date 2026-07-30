@@ -11,24 +11,41 @@ import {
   content,
   stationT,
   JUMBOTRON,
-  TRANSIT,
-  transitStopZ,
+  ENTRY_GATE,
+  GANTRY,
+  gantryZ,
+  MARQUEE,
+  marqueeCenter,
   PROJECT_SITES,
   BEYOND_SHOPS,
   RELAY_TOWER,
   SKY_DECK,
-  PLAZA_GATES,
-  type ProjectSite,
 } from '../gridConfig'
 
 /**
- * Signature structures, one cluster per district. Generic skyline towers are
- * instanced in Towers.tsx; everything here is bespoke: panel-lit facades,
- * neon edge lines (bloom does the glowing), canvas signage, CRT billboards,
- * kinetic set pieces (tram, holo rings) — and the interactive pieces: project
- * towers and transit stops are click targets synced with the HUD.
+ * Signature structures, one cluster per district, all staged to be read from
+ * the centerline of the street. Roles are overhead sign gantries the visitor
+ * rides under (the career as a series of station bridges, tram parked at the
+ * selected one); projects are giant wall marquees angled up-street. All words
+ * live IN the world — the DOM keeps only a screen-reader document.
  */
 
+/** Break a sentence into sign-sized lines. */
+function wrapText(text: string, maxChars: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let line = ''
+  for (const word of words) {
+    if (line && line.length + word.length + 1 > maxChars) {
+      lines.push(line)
+      line = word
+    } else {
+      line = line ? `${line} ${word}` : word
+    }
+  }
+  if (line) lines.push(line)
+  return lines
+}
 
 function NeonBox({
   position,
@@ -104,12 +121,20 @@ function Sign({
   rotationY = 0,
   height,
   dimStation,
+  onClick,
+  onPointerOver,
+  onPointerMove,
+  onPointerOut,
 }: {
   spec: SignSpec
   position: [number, number, number]
   rotationY?: number
   height: number
   dimStation?: number
+  onClick?: (event: ThreeEvent<MouseEvent>) => void
+  onPointerOver?: (event: ThreeEvent<PointerEvent>) => void
+  onPointerMove?: (event: ThreeEvent<PointerEvent>) => void
+  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void
 }) {
   // Content-keyed: parent re-renders with equivalent specs must not redraw
   // the canvas or re-upload the texture.
@@ -137,10 +162,15 @@ function Sign({
     geometry.dispose()
   }, [sign, material, geometry])
 
-  const worldPos = useMemo(() => new THREE.Vector3(...position), [position])
+  // Measured from the mesh, not the position prop — signs nested in rotated
+  // marquee groups have local coords that say nothing about camera range.
+  const meshRef = useRef<THREE.Mesh>(null)
+  const worldPos = useMemo(() => new THREE.Vector3(), [])
   useFrame(state => {
+    if (!meshRef.current) return
     // Signs are unlit sprites that ignore fog — fade them by distance so a
     // district's signage never photobombs another station's frame.
+    meshRef.current.getWorldPosition(worldPos)
     const dist = state.camera.position.distanceTo(worldPos)
     let opacity = THREE.MathUtils.clamp(1.65 - dist / 55, 0, 1)
     if (dimStation !== undefined) {
@@ -152,11 +182,16 @@ function Sign({
 
   return (
     <mesh
+      ref={meshRef}
       geometry={geometry}
       material={material}
       position={position}
       rotation-y={rotationY}
       renderOrder={5}
+      onClick={onClick}
+      onPointerOver={onPointerOver}
+      onPointerMove={onPointerMove}
+      onPointerOut={onPointerOut}
     />
   )
 }
@@ -421,105 +456,127 @@ function TickerSign({
   )
 }
 
-function Jumbotron() {
+/** The threshold: a sign gantry spanning the street at the north end. */
+function EntryGateway() {
+  const g = ENTRY_GATE
+  return (
+    <group>
+      {[-1, 1].map(side => (
+        <NeonBox
+          key={side}
+          position={[side * g.pylonX, g.height / 2, g.z]}
+          size={[0.7, g.height, 0.7]}
+          accent="#00ffff"
+          edgeOpacity={0.5}
+        />
+      ))}
+      <NeonBox position={[0, g.height, g.z]} size={[g.pylonX * 2 + 2, 0.7, 1.1]} accent="#00ffff" edgeOpacity={0.7} />
+      <NeonBox position={[0, g.height - 1.6, g.z]} size={[g.pylonX * 2 - 1, 0.4, 0.7]} accent="#00ffff" edgeOpacity={0.45} />
+      <Sign
+        spec={{
+          accent: '#00ffff',
+          width: 760,
+          lines: [{ text: 'THE GRID', size: 110 }],
+        }}
+        position={[0, g.height + 1.9, g.z + 0.4]}
+        height={1.9}
+      />
+      <TickerSign
+        text="··· WELCOME TO THE GRID ··· SCROLL TO TRAVEL · 6 STOPS ··· CLICK THE GANTRIES AND MARQUEES ··· JESSE CHEN // CMU SCS "
+        position={[0, g.height - 2.6, g.z + 0.36]}
+        width={g.pylonX * 2 - 2}
+        height={0.72}
+        accent="#00ffff"
+      />
+      <GlowPad position={[-g.pylonX, 0, g.z]} accent="#00ffff" radius={5} />
+      <GlowPad position={[g.pylonX, 0, g.z]} accent="#00ffff" radius={5} />
+    </group>
+  )
+}
+
+/** Vertical billboard tower terminating the arrival vista — the identity
+ * screen rides high on its street face, stacked ads beneath. */
+function BillboardTower() {
   const { tower, screen } = JUMBOTRON
   const identity = useMemo(
     () =>
       makeSignTexture({
-        width: 1024,
+        width: 280,
         accent: '#00ffff',
         background: '#03080f',
-        // Two lines only — the headline lives in the HUD; squeezing it onto
-        // the sign made all three lines illegible.
         lines: [
-          { text: '> JESSE CHEN', size: 118 },
-          { text: 'CARNEGIE MELLON // SCS', size: 52, color: '#7efcff' },
+          { text: '> JESSE', size: 64 },
+          { text: 'CHEN', size: 64 },
+          { text: 'CARNEGIE MELLON', size: 30, color: '#7efcff' },
+          { text: '// SCS', size: 30, color: '#7efcff' },
         ],
       }),
     [],
   )
   useEffect(() => () => identity.texture.dispose(), [identity])
+  const frontZ = tower.z + tower.depth / 2 + 0.08
 
   return (
     <group>
-      {/* Dark, sparsely lit body — the screen is the star; the tower is its plinth. */}
       <NeonBox
         position={[tower.x, tower.height / 2, tower.z]}
         size={[tower.width, tower.height, tower.depth]}
         accent="#00ffff"
         lit
-        windowDensity={0.35}
+        windowDensity={0.3}
         seed={3}
       />
-      {/* Fully resolved from the home station (~67 units out) — the identity
-          screen must be readable the moment the visitor arrives. */}
+      {/* Fully resolved from the home station — the identity screen must be
+          readable the moment the visitor arrives. */}
       <Billboard
-        position={[screen.x, screen.y, screen.z]}
+        position={[screen.x, screen.y, frontZ]}
         width={screen.width}
         height={screen.height}
         accent="#00ffff"
         image={identity.texture}
-        focusDistance={68}
+        focusDistance={85}
       />
-      <Beacon position={[tower.x, tower.height + 1, tower.z]} accent="#00ffff" />
+      <Sign
+        spec={{
+          accent: '#ff2d78',
+          width: 512,
+          background: 'rgba(6, 4, 10, 0.9)',
+          lines: [{ text: '電脳都市', size: 82, color: '#ff9ec4' }],
+        }}
+        position={[screen.x, 17.5, frontZ]}
+        height={2.6}
+      />
+      <Sign
+        spec={{
+          accent: '#ffcc00',
+          width: 512,
+          background: 'rgba(8, 6, 3, 0.9)',
+          lines: [{ text: '未来へ接続中', size: 62, color: '#ffe9b0' }],
+        }}
+        position={[screen.x, 13.8, frontZ]}
+        height={1.9}
+      />
       <TickerSign
-        text="··· WELCOME TO THE GRID ··· SCROLL TO TRAVEL · 6 STATIONS · CLICK TOWERS AND TRANSIT STOPS ··· JESSE CHEN // CMU SCS "
-        position={[tower.x, 2.4, tower.z + JUMBOTRON.tower.depth / 2 + 0.06]}
-        width={JUMBOTRON.tower.width - 1}
-        height={0.75}
+        text="··· JESSE CHEN // CMU SCS ··· BUILDING TECHNOLOGY THAT SOLVES REAL PROBLEMS ··· "
+        position={[screen.x, 10.4, frontZ]}
+        width={tower.width - 1.4}
+        height={0.7}
         accent="#00ffff"
       />
-      <GlowPad position={[tower.x, 0, tower.z + 4]} accent="#00ffff" radius={10} />
+      <Beacon position={[tower.x, tower.height + 1, tower.z]} accent="#00ffff" />
+      <GlowPad position={[tower.x + 4, 0, tower.z + 6]} accent="#00ffff" radius={9} />
     </group>
   )
 }
 
-/** Neon gateway arches over the plaza — the threshold into the Grid. */
-function PlazaGates() {
-  return (
-    <group>
-      {PLAZA_GATES.map(gate => (
-        <group key={gate.z}>
-          <NeonBox
-            position={[-gate.halfWidth, gate.height / 2, gate.z]}
-            size={[0.5, gate.height, 0.5]}
-            accent="#00ffff"
-            edgeOpacity={0.55}
-          />
-          <NeonBox
-            position={[gate.halfWidth, gate.height / 2, gate.z]}
-            size={[0.5, gate.height, 0.5]}
-            accent="#00ffff"
-            edgeOpacity={0.55}
-          />
-          {/* Torii silhouette: overhanging top lintel + inset second beam. */}
-          <NeonBox
-            position={[0, gate.height, gate.z]}
-            size={[gate.halfWidth * 2 + 2.4, 0.55, 0.6]}
-            accent="#00ffff"
-            edgeOpacity={0.75}
-          />
-          <NeonBox
-            position={[0, gate.height - 1.8, gate.z]}
-            size={[gate.halfWidth * 2 - 1.2, 0.4, 0.45]}
-            accent="#00ffff"
-            edgeOpacity={0.55}
-          />
-        </group>
-      ))}
-    </group>
-  )
-}
-
-/** A light-tram gliding the elevated line. While the visitor dwells at the
- * journey station it becomes the selection cursor: pick a role and the tram
- * glides to that stop (defaulting to mid-line so it's always in frame). */
+/** The tram on the monorail above the centerline. While the visitor dwells
+ * at Journey it becomes the selection cursor, gliding to the picked stop. */
 function Tram({ interaction }: { interaction: GridInteraction }) {
   const ref = useRef<THREE.Group>(null)
-  const parkZ = useRef(transitStopZ(2))
+  const parkZ = useRef(gantryZ(2))
   const stops = content.experiences.length
-  const zStart = transitStopZ(0)
-  const zEnd = transitStopZ(stops - 1)
+  const zStart = gantryZ(0) + 9
+  const zEnd = gantryZ(stops - 1) - 9
   const bodyGeometry = useMemo(() => new THREE.BoxGeometry(1.5, 0.7, 3.2), [])
   const bodyMaterial = useMemo(() => makePanelMaterial('#ffb347', [1.5, 0.7, 3.2], 9, 1), [])
   const edges = useMemo(() => new THREE.EdgesGeometry(bodyGeometry), [bodyGeometry])
@@ -541,14 +598,13 @@ function Tram({ interaction }: { interaction: GridInteraction }) {
     const swing = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2
     const staged = (Math.sin((swing * stops - 0.5) * Math.PI / stops * 2) * 0.06) + swing
     const loopZ = zStart + (zEnd - zStart) * THREE.MathUtils.clamp(staged, 0, 1)
-    // While the rail rests at Journey the tram parks at the selected stop
-    // (mid-line when nothing is picked), gliding — not teleporting — between
-    // picks so selection reads as a vehicle answering a call.
-    const targetPark = transitStopZ(interaction.selection.role ?? 2)
+    // Parked at the selected stop while the rail rests at Journey, gliding —
+    // not teleporting — between picks.
+    const targetPark = gantryZ(interaction.selection.role ?? 2)
     parkZ.current += (targetPark - parkZ.current) * Math.min(1, delta * 2.2)
     const atJourney = 1 - Math.min(1, Math.abs(interaction.progressRef.current - stationT(1)) / 0.08)
     const z = THREE.MathUtils.lerp(loopZ, parkZ.current, THREE.MathUtils.smoothstep(atJourney, 0.4, 1))
-    ref.current.position.set(TRANSIT.x, TRANSIT.beamY + 0.85, z)
+    ref.current.position.set(0, GANTRY.railY + 0.65, z)
   })
 
   return (
@@ -564,8 +620,8 @@ function CatenaryCable() {
     const stops = content.experiences.length
     const points: THREE.Vector3[] = []
     for (let i = 0; i < stops - 1; i++) {
-      const a = new THREE.Vector3(TRANSIT.x, TRANSIT.beamY + 1.9, transitStopZ(i))
-      const b = new THREE.Vector3(TRANSIT.x, TRANSIT.beamY + 1.9, transitStopZ(i + 1))
+      const a = new THREE.Vector3(0, GANTRY.railY + 1.5, gantryZ(i))
+      const b = new THREE.Vector3(0, GANTRY.railY + 1.5, gantryZ(i + 1))
       const mid = a.clone().lerp(b, 0.5)
       mid.y -= 0.55 // sag
       const curve = new THREE.QuadraticBezierCurve3(a, mid, b)
@@ -584,24 +640,28 @@ function CatenaryCable() {
   return <primitive object={line} />
 }
 
-function TransitLine({ interaction }: { interaction: GridInteraction }) {
+/** Role gantries: one overhead sign bridge per experience — the visitor
+ * rides down the middle of their own career timeline, every company
+ * readable head-on as its bridge approaches. */
+function RoleGantries({ interaction }: { interaction: GridInteraction }) {
   const stops = content.experiences
-  const beamLength = Math.abs(TRANSIT.zStep) * (stops.length - 1) + 8
-  const beamZ = (transitStopZ(0) + transitStopZ(stops.length - 1)) / 2
   const { onTooltip, onSelectRole, selection } = interaction
   const [hoveredStop, setHoveredStop] = useState<number | null>(null)
+  const beamZ = (gantryZ(0) + gantryZ(stops.length - 1)) / 2
+  const beamLength = Math.abs(GANTRY.zStep) * (stops.length - 1) + 18
 
   return (
     <group>
-      <CatenaryCable />
+      {/* Monorail beam on the centerline, high above the traffic. */}
       <NeonBox
-        position={[TRANSIT.x, TRANSIT.beamY, beamZ]}
-        size={[1.2, 0.5, beamLength]}
+        position={[0, GANTRY.railY, beamZ]}
+        size={[0.9, 0.5, beamLength]}
         accent="#ffb347"
-        edgeOpacity={0.6}
+        edgeOpacity={0.4}
       />
+      <CatenaryCable />
       {stops.map((exp, i) => {
-        const z = transitStopZ(i)
+        const z = gantryZ(i)
         const selected = selection.role === i
         const showTooltip = (e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
@@ -627,95 +687,92 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
               onTooltip?.(null)
             }}
           >
+            {/* Pylons on both sidewalks carrying the sign bridge. */}
+            {[-1, 1].map(side => (
+              <NeonBox
+                key={side}
+                position={[side * GANTRY.pylonX, GANTRY.deckY / 2, z]}
+                size={[0.7, GANTRY.deckY, 0.7]}
+                accent={exp.accent}
+                edgeOpacity={0.3}
+              />
+            ))}
             <NeonBox
-              position={[TRANSIT.x, TRANSIT.beamY - 0.7, z]}
-              size={[3, 0.4, 3.4]}
-              accent={exp.accent}
-            />
-            {/* Pylon to the street. */}
-            <NeonBox
-              position={[TRANSIT.x, (TRANSIT.beamY - 0.9) / 2, z]}
-              size={[0.5, TRANSIT.beamY - 0.9, 0.5]}
-              accent={exp.accent}
-              edgeOpacity={0.35}
-            />
-            <Sign
-              spec={{
-                accent: exp.accent,
-                width: 640,
-                lines: [
-                  { text: exp.company.toUpperCase(), size: 58 },
-                  { text: exp.role, size: 32, color: '#9fb6c9' },
-                  { text: exp.period, size: 26, color: '#7f95a8' },
-                ],
-              }}
-              position={[TRANSIT.x + 0.2, TRANSIT.beamY + 2.45, z]}
-              rotationY={Math.PI / 2}
-              height={2.5}
-            />
-            {/* Platform canopy, catenary post, and hanging lightbox make
-                stops read as transit stations, not furniture. */}
-            <NeonBox
-              position={[TRANSIT.x, TRANSIT.beamY + 1.3, z]}
-              size={[3.4, 0.14, 3.8]}
+              position={[0, GANTRY.deckY + 0.3, z]}
+              size={[GANTRY.pylonX * 2 + 1.8, 0.6, 2.4]}
               accent={exp.accent}
               edgeOpacity={0.5}
             />
-            <NeonBox
-              position={[TRANSIT.x, TRANSIT.beamY + 1.65, z]}
-              size={[0.14, 0.6, 0.14]}
-              accent={exp.accent}
-              edgeOpacity={0.4}
-            />
-            <mesh position={[TRANSIT.x, TRANSIT.beamY + 0.95, z + 1.9]}>
-              <planeGeometry args={[1.7, 0.5]} />
-              <meshBasicMaterial color={exp.accent} transparent opacity={0.8} side={THREE.DoubleSide} />
-            </mesh>
-            <mesh position={[TRANSIT.x - 1.5, TRANSIT.beamY - 0.48, z]}>
-              <boxGeometry args={[0.1, 0.1, 3.4]} />
+            {/* Underdeck light bar — the warm splash on the road below. */}
+            <mesh position={[0, GANTRY.deckY - 0.03, z + 1.0]}>
+              <boxGeometry args={[GANTRY.pylonX * 2 - 1.5, 0.09, 0.32]} />
               <meshBasicMaterial color={exp.accent} />
             </mesh>
-            <Beacon position={[TRANSIT.x, TRANSIT.beamY + 0.6, z]} accent={exp.accent} size={0.35} />
+            {/* The station sign: company · role · period, facing up-street. */}
+            <Sign
+              spec={{
+                accent: exp.accent,
+                width: 880,
+                background: 'rgba(3, 8, 15, 0.55)',
+                lines: [
+                  { text: exp.company.toUpperCase(), size: 72 },
+                  { text: exp.role, size: 38, color: '#cfe3f0' },
+                  { text: exp.period, size: 28, color: '#8fa7ba' },
+                ],
+              }}
+              position={[0, GANTRY.deckY + 2.5, z + 1.28]}
+              height={3.1}
+            />
+            {/* Strut up to the monorail. */}
+            <NeonBox
+              position={[0, GANTRY.deckY + 0.6 + (GANTRY.railY - GANTRY.deckY - 0.85) / 2, z]}
+              size={[0.3, GANTRY.railY - GANTRY.deckY - 0.85, 0.3]}
+              accent={exp.accent}
+              edgeOpacity={0.3}
+            />
+            {/* Sidewalk kiosk at the stop — street furniture with a pulse. */}
+            <NeonBox
+              position={[10.9, 1.3, z + 2.4]}
+              size={[1.6, 2.6, 1.4]}
+              accent={exp.accent}
+              lit
+              windowDensity={1}
+              seed={7 + i}
+            />
+            <Beacon position={[0, GANTRY.deckY + 0.85, z]} accent={exp.accent} size={0.3} />
             {(selected || hoveredStop === i) && (
               <HoloRing
-                position={[TRANSIT.x, TRANSIT.beamY + 1.2, z]}
+                position={[0, GANTRY.deckY + 0.9, z]}
                 accent={exp.accent}
-                radius={2.4}
+                radius={3}
                 active={selected}
               />
             )}
-            {/* Selected stop projects its record into the street. */}
+            {/* The selected stop unfolds its full record as a street-side
+                hologram, angled at the focus camera. */}
             {selected && (
-              <>
-                <Sign
-                  spec={{
-                    accent: exp.accent,
-                    width: 560,
-                    background: 'rgba(3, 9, 16, 0.72)',
-                    lines: [
-                      { text: exp.period, size: 42 },
-                      { text: exp.location, size: 32, color: '#9fb6c9' },
-                    ],
-                  }}
-                  position={[TRANSIT.x + 0.4, TRANSIT.beamY - 2.6, z]}
-                  rotationY={Math.PI / 2}
-                  height={1.5}
-                />
-                <Sign
-                  spec={{
-                    accent: exp.accent,
-                    width: 560,
-                    background: 'rgba(3, 9, 16, 0.72)',
-                    lines: [
-                      { text: exp.stack.slice(0, 3).join(' · '), size: 34, color: exp.accent },
-                    ],
-                  }}
-                  position={[TRANSIT.x + 0.4, TRANSIT.beamY - 4.1, z]}
-                  rotationY={Math.PI / 2}
-                  height={1.1}
-                />
-              </>
+              <Sign
+                spec={{
+                  accent: exp.accent,
+                  width: 760,
+                  background: 'rgba(3, 9, 16, 0.78)',
+                  lines: [
+                    { text: exp.role.toUpperCase(), size: 42 },
+                    { text: `${exp.period} · ${exp.location} · ${exp.status}`, size: 27, color: '#9fb6c9' },
+                    ...wrapText(exp.summary, 42).map(line => ({
+                      text: line,
+                      size: 26,
+                      color: '#cfe3f0',
+                    })),
+                    { text: exp.stack.join(' · '), size: 24, color: exp.accent },
+                  ],
+                }}
+                position={[3.2, 6.5, z + 4.2]}
+                rotationY={-0.42}
+                height={3.1}
+              />
             )}
+            <GlowPad position={[0, 0, z]} accent={exp.accent} radius={6} />
           </group>
         )
       })}
@@ -724,55 +781,9 @@ function TransitLine({ interaction }: { interaction: GridInteraction }) {
   )
 }
 
-/** Each project tower wears a different crown — the four stop reading as
- * copies of one asset and start reading as landmarks you can tell apart
- * from the far end of the avenue. */
-function TowerCrown({ site, index }: { site: ProjectSite; index: number }) {
-  const { x, z, height } = site
-  const accent = site.project.accent
-  switch (index % 4) {
-    case 0: // comms mast array
-      return (
-        <group>
-          <NeonBox position={[x - 2.2, height + 1.8, z + 2]} size={[0.18, 3.6, 0.18]} accent={accent} edgeOpacity={0.7} />
-          <NeonBox position={[x + 1.6, height + 2.6, z - 1.5]} size={[0.18, 5.2, 0.18]} accent={accent} edgeOpacity={0.7} />
-          <NeonBox position={[x + 2.4, height + 1.2, z + 2.4]} size={[0.18, 2.4, 0.18]} accent={accent} edgeOpacity={0.7} />
-        </group>
-      )
-    case 1: // stepped setback tiers
-      return (
-        <group>
-          <NeonBox position={[x, height + 1.1, z]} size={[5.6, 2.2, 5.6]} accent={accent} lit windowDensity={0.5} seed={41} />
-          <NeonBox position={[x, height + 3.1, z]} size={[3.4, 1.6, 3.4]} accent={accent} lit windowDensity={0.5} seed={43} />
-        </group>
-      )
-    case 2: // twin spires with a crossbeam
-      return (
-        <group>
-          <NeonBox position={[x, height + 2.6, z - 3]} size={[0.5, 5.2, 0.5]} accent={accent} edgeOpacity={0.8} />
-          <NeonBox position={[x, height + 2.6, z + 3]} size={[0.5, 5.2, 0.5]} accent={accent} edgeOpacity={0.8} />
-          <NeonBox position={[x, height + 4.5, z]} size={[0.3, 0.3, 6.6]} accent={accent} edgeOpacity={0.6} />
-        </group>
-      )
-    default: // lantern crown: corner posts carrying a glowing band
-      return (
-        <group>
-          {[[-3, -3], [3, -3], [-3, 3], [3, 3]].map(([dx, dz]) => (
-            <NeonBox
-              key={`${dx},${dz}`}
-              position={[x + dx, height + 1, z + dz]}
-              size={[0.3, 2, 0.3]}
-              accent={accent}
-              edgeOpacity={0.7}
-            />
-          ))}
-          <NeonBox position={[x, height + 2.1, z]} size={[7, 0.4, 7]} accent={accent} />
-        </group>
-      )
-  }
-}
-
-function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
+/** Wall marquees: each project is a giant screen hinged off the street wall,
+ * angled up-street so it reads on approach — theater fronts for software. */
+function ProjectMarquees({ interaction }: { interaction: GridInteraction }) {
   const { onTooltip, onSelectProject, selection } = interaction
   const [hovered, setHovered] = useState<number | null>(null)
   const terminalCards = useMemo(
@@ -800,8 +811,8 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
     <group>
       {PROJECT_SITES.map((site, i) => {
         const { project } = site
-        const screenY = site.height * 0.45
         const selected = selection.project === i
+        const center = marqueeCenter(site)
         const showTooltip = (e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
           setHovered(i)
@@ -826,110 +837,102 @@ function ProjectTowers({ interaction }: { interaction: GridInteraction }) {
               onTooltip?.(null)
             }}
           >
+            {/* Mounting column on the wall face. */}
             <NeonBox
-              position={[site.x, site.height / 2, site.z]}
-              size={[8, site.height, 8]}
+              position={[site.side * 12.3, site.screenY, site.z]}
+              size={[0.6, 10, 0.6]}
               accent={project.accent}
-              lit
-              windowDensity={0.7}
-              seed={11 + i}
+              edgeOpacity={0.35}
             />
-            <TowerCrown site={site} index={i} />
-            {/* Project name inlaid into the street ahead of the tower, like a
-                giant road marking — legible long before the billboard is. */}
+            {/* The marquee assembly, hinged off the wall. */}
+            <group position={[center.x, site.screenY, center.z]} rotation-y={center.rotationY}>
+              <Billboard
+                position={[0, 0, 0]}
+                width={MARQUEE.width}
+                height={MARQUEE.height}
+                accent={project.accent}
+                image={site.image ?? terminalCards.get(project.id)?.texture ?? null}
+                focusDistance={30}
+                cycleImages={project.images?.map(image => image.src)}
+                cycleActive={selected}
+                active={selected}
+                onClick={e => {
+                  e.stopPropagation()
+                  onSelectProject(i)
+                  window.open(`/projects/${project.id}/`, '_blank', 'noopener')
+                }}
+                onPointerOver={e => {
+                  e.stopPropagation()
+                  onTooltip?.({
+                    x: e.nativeEvent.clientX,
+                    y: e.nativeEvent.clientY,
+                    text: `${project.name} — open case study ↗`,
+                    color: project.accent,
+                  })
+                }}
+                onPointerMove={e => {
+                  e.stopPropagation()
+                  onTooltip?.({
+                    x: e.nativeEvent.clientX,
+                    y: e.nativeEvent.clientY,
+                    text: `${project.name} — open case study ↗`,
+                    color: project.accent,
+                  })
+                }}
+                onPointerOut={() => onTooltip?.(null)}
+              />
+              {/* Name marquee riding the screen top. */}
+              <Sign
+                spec={{
+                  accent: project.accent,
+                  width: 900,
+                  lines: [
+                    { text: project.name.toUpperCase(), size: 96, color: '#eaffff' },
+                    { text: project.tag, size: 34, color: '#9fb6c9' },
+                  ],
+                }}
+                position={[0, 4.35, 0.05]}
+                height={2.9}
+              />
+              {/* Stat cards under the screen. */}
+              {project.stats.slice(0, 3).map((stat, statIndex) => (
+                <Sign
+                  key={stat.label}
+                  spec={{
+                    accent: project.accent,
+                    width: 400,
+                    background: 'rgba(3, 9, 16, 0.72)',
+                    lines: [
+                      { text: stat.value, size: 56 },
+                      { text: stat.label, size: 26, color: '#9fb6c9' },
+                    ],
+                  }}
+                  position={[(statIndex - 1) * 3.3, -4.35, 0.05]}
+                  height={1.55}
+                />
+              ))}
+              <TickerSign
+                text={`··· ${project.tech.join(' · ')} ··· ${project.lead} `}
+                position={[0, -5.65, 0.05]}
+                width={MARQUEE.width}
+                height={0.62}
+                accent={project.accent}
+              />
+              {(selected || hovered === i) && (
+                <HoloRing position={[0, 5.9, 0]} accent={project.accent} radius={2.6} active={selected} />
+              )}
+            </group>
+            {/* Street inlay: the project number and name painted on the road. */}
             <FloorSign
               spec={{
                 accent: project.accent,
                 width: 1024,
                 lines: [{ text: `0${i + 1} // ${project.name.toUpperCase()}`, size: 96 }],
               }}
-              position={[site.x - 11, 0.09, site.z + 1]}
-              height={2.2}
+              position={[site.side * 4.6, 0.09, site.z + 2]}
+              height={2.1}
             />
-            {/* Wordmark riding above the roofline. */}
-            <Sign
-              spec={{
-                accent: project.accent,
-                width: 768,
-                lines: [{ text: project.name.toUpperCase(), size: 110, color: '#eaffff' }],
-              }}
-              position={[site.x - 4.3, site.height + 2.4, site.z]}
-              rotationY={-Math.PI / 2}
-              height={2.6}
-            />
-            <Billboard
-              position={[site.x - 4.15, screenY, site.z]}
-              rotationY={-Math.PI / 2}
-              width={10}
-              height={6.25}
-              accent={project.accent}
-              image={site.image ?? terminalCards.get(project.id)?.texture ?? null}
-              cycleImages={project.images?.map(image => image.src)}
-              cycleActive={selected}
-              active={selected}
-              onClick={e => {
-                e.stopPropagation()
-                onSelectProject(i)
-                window.open(`/projects/${project.id}/`, '_blank', 'noopener')
-              }}
-              onPointerOver={e => {
-                e.stopPropagation()
-                onTooltip?.({
-                  x: e.nativeEvent.clientX,
-                  y: e.nativeEvent.clientY,
-                  text: `${project.name} — open case study ↗`,
-                  color: project.accent,
-                })
-              }}
-              onPointerMove={e => {
-                e.stopPropagation()
-                onTooltip?.({
-                  x: e.nativeEvent.clientX,
-                  y: e.nativeEvent.clientY,
-                  text: `${project.name} — open case study ↗`,
-                  color: project.accent,
-                })
-              }}
-              onPointerOut={() => onTooltip?.(null)}
-            />
-            {/* In-world stat holograms fan out beside the selected tower. */}
-            {selected &&
-              project.stats.slice(0, 3).map((stat, statIndex) => (
-                <Sign
-                  key={stat.label}
-                  spec={{
-                    accent: project.accent,
-                    width: 420,
-                    background: 'rgba(3, 9, 16, 0.72)',
-                    lines: [
-                      { text: stat.value, size: 64 },
-                      { text: stat.label, size: 30, color: '#9fb6c9' },
-                    ],
-                  }}
-                  position={[
-                    site.x - 5.2,
-                    screenY + 4.6 - statIndex * 3.1,
-                    site.z - 6.4,
-                  ]}
-                  rotationY={-Math.PI / 2}
-                  height={1.7}
-                />
-              ))}
-            <HoloRing
-              position={[site.x, site.height + 5.5, site.z]}
-              accent={project.accent}
-              active={selected || hovered === i}
-            />
-            {selected && (
-              <HoloRing
-                position={[site.x, 2.2, site.z]}
-                accent={project.accent}
-                radius={6.8}
-                active
-              />
-            )}
-            <Beacon position={[site.x, site.height + 0.8, site.z]} accent={project.accent} size={0.4} />
-            <GlowPad position={[site.x - 4, 0, site.z]} accent={project.accent} radius={8} />
+            <GlowPad position={[site.side * 8.2, 0, site.z - 4]} accent={project.accent} radius={8} />
           </group>
         )
       })}
@@ -964,30 +967,35 @@ function BeyondShops() {
             <planeGeometry args={[2.4, 1.6]} />
             <meshBasicMaterial color={item.accent} transparent opacity={0.5} />
           </mesh>
-          {/* Sign mounted on the facade above the door, angled to the
-              approaching camera so the three never stack in projection. */}
+          {/* Sign mounted on the facade above the door, angled up-street with
+              the headline stat — the shop tells its story from the kerb. */}
           <Sign
             spec={{
               accent: item.accent,
-              width: 640,
+              width: 680,
               lines: [
                 { text: item.title.toUpperCase(), size: 50 },
                 { text: item.subtitle, size: 30, color: '#9fb6c9' },
+                {
+                  text: item.stats.map(s => `${s.value} ${s.label.toLowerCase()}`).join(' · '),
+                  size: 26,
+                  color: '#cfe3f0',
+                },
               ],
             }}
-            position={[x + 2.6, 9.8, z + 3.1]}
+            position={[x + 2.6, 9.9, z + 3.1]}
             rotationY={0.42}
-            height={1.9}
+            height={2.3}
           />
           <GlowPad position={[x + 3, 0, z]} accent={item.accent} radius={6} />
           {/* Paper-lantern string sagging across the storefront. */}
-          {[0, 1, 2, 3, 4].map(i => {
-            const t = i / 4
+          {[0, 1, 2, 3, 4].map(j => {
+            const t = j / 4
             const sag = Math.sin(t * Math.PI) * 0.7
             return (
-              <mesh key={i} position={[x + 3.35, 6.6 - sag, z - 2.4 + t * 4.8]}>
+              <mesh key={j} position={[x + 3.35, 6.6 - sag, z - 2.4 + t * 4.8]}>
                 <sphereGeometry args={[0.16, 8, 8]} />
-                <meshBasicMaterial color={i % 2 === 0 ? '#ffb36b' : item.accent} />
+                <meshBasicMaterial color={j % 2 === 0 ? '#ffb36b' : item.accent} />
               </mesh>
             )
           })}
@@ -1026,8 +1034,6 @@ function RelayTower() {
               spec={{
                 accent: group.accent,
                 width: 640,
-                // Name only: sublabels were illegible at rest distance, and
-                // the HUD already counts the tools.
                 lines: [{ text: group.name.toUpperCase(), size: 64 }],
               }}
               position={[t.x, y + 1.6, t.z + t.width / 2 + 1.1]}
@@ -1043,8 +1049,9 @@ function RelayTower() {
   )
 }
 
-function SkyDeck() {
+function SkyDeck({ interaction }: { interaction: GridInteraction }) {
   const d = SKY_DECK
+  const { onTooltip, onPlaceStar } = interaction
   const posts = useMemo(() => {
     const list: Array<[number, number, number]> = []
     const half = d.size / 2 - 0.4
@@ -1057,6 +1064,12 @@ function SkyDeck() {
     }
     return list
   }, [d])
+
+  const contacts = [
+    { id: 'email', label: 'EMAIL', href: `mailto:${content.profile.email}`, x: -6 },
+    { id: 'github', label: 'GITHUB', href: content.profile.github, x: 0 },
+    { id: 'linkedin', label: 'LINKEDIN', href: content.profile.linkedin, x: 6 },
+  ]
 
   return (
     <group>
@@ -1075,6 +1088,59 @@ function SkyDeck() {
       {posts.map((p, i) => (
         <NeonBox key={i} position={p} size={[0.12, 1.4, 0.12]} accent="#7efcff" edgeOpacity={0.5} />
       ))}
+      {/* The send-off, in the world: place your star, or reach out. */}
+      <Sign
+        spec={{
+          accent: '#7efcff',
+          width: 720,
+          background: 'rgba(3, 10, 18, 0.78)',
+          lines: [{ text: '✦ PLACE YOUR STAR', size: 64 }],
+        }}
+        position={[d.x, d.y + 12.5, d.z - 18]}
+        height={1.9}
+        onClick={e => {
+          e.stopPropagation()
+          onPlaceStar?.()
+        }}
+        onPointerOver={e => {
+          e.stopPropagation()
+          onTooltip?.({
+            x: e.nativeEvent.clientX,
+            y: e.nativeEvent.clientY,
+            text: 'leave the Grid and sign the constellation',
+            color: '#7efcff',
+          })
+        }}
+        onPointerOut={() => onTooltip?.(null)}
+      />
+      {contacts.map(contact => (
+        <Sign
+          key={contact.id}
+          spec={{
+            accent: '#7efcff',
+            width: 440,
+            background: 'rgba(3, 10, 18, 0.65)',
+            lines: [{ text: contact.label, size: 44, color: '#eaffff' }],
+          }}
+          position={[d.x + contact.x, d.y + 9, d.z - 18]}
+          height={1.15}
+          onClick={e => {
+            e.stopPropagation()
+            if (contact.href.startsWith('mailto:')) window.location.href = contact.href
+            else window.open(contact.href, '_blank', 'noopener')
+          }}
+          onPointerOver={e => {
+            e.stopPropagation()
+            onTooltip?.({
+              x: e.nativeEvent.clientX,
+              y: e.nativeEvent.clientY,
+              text: `${contact.label.toLowerCase()} ↗`,
+              color: '#7efcff',
+            })
+          }}
+          onPointerOut={() => onTooltip?.(null)}
+        />
+      ))}
       <GlowPad position={[d.x, 0, d.z]} accent="#7efcff" radius={6} />
     </group>
   )
@@ -1083,14 +1149,14 @@ function SkyDeck() {
 export default function Structures({ interaction }: { interaction: GridInteraction }) {
   return (
     <group>
-      <Jumbotron />
-      <PlazaGates />
+      <EntryGateway />
+      <BillboardTower />
       <Streetlights />
-      <TransitLine interaction={interaction} />
-      <ProjectTowers interaction={interaction} />
+      <RoleGantries interaction={interaction} />
+      <ProjectMarquees interaction={interaction} />
       <BeyondShops />
       <RelayTower />
-      <SkyDeck />
+      <SkyDeck interaction={interaction} />
     </group>
   )
 }

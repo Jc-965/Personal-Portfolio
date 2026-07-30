@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
-import { isInCorridor } from './rail'
+import { content, gantryZ, PROJECT_SITES, STREET, WALL_EXCLUSIONS } from '../gridConfig'
 
 /**
  * Vertical katakana/kanji neon banners hung down the avenue's walls — the
@@ -73,20 +73,26 @@ export default function NeonBanners() {
     )
 
     const placements: BannerPlacement[] = []
-    // March both kerbs of the avenue; hang banners just clear of the corridor.
-    for (let z = 44; z > -150; z -= 9) {
+    // Signage keeps clear of the story landmarks: role gantries, project
+    // marquees, and the frontages signature structures own.
+    const gantryZs = content.experiences.map((_, i) => gantryZ(i))
+    const clearOfLandmarks = (side: number, z: number) => {
+      if (gantryZs.some(gz => Math.abs(z - gz) < 2.6)) return false
+      if (PROJECT_SITES.some(site => site.side === side && Math.abs(z - site.z) < 7)) return false
+      if (WALL_EXCLUSIONS.some(rect => rect.side === side && z > rect.zMin - 2 && z < rect.zMax + 2)) return false
+      return true
+    }
+
+    // March both sidewalks, banners bracketed off the wall faces at varied
+    // heights — the dense perpendicular shop signage of a night market street.
+    for (let z = 44; z > STREET.zEnd; z -= 6.5) {
       for (const side of [-1, 1]) {
-        if (rng() > 0.62) continue
-        let x = side * (10.5 + rng() * 3.5)
-        // Nudge outward until clear of the camera corridor.
-        let guard = 0
-        while (isInCorridor(x, z, 1) && guard < 6) {
-          x += side * 1.5
-          guard++
-        }
+        if (rng() > 0.68) continue
+        if (!clearOfLandmarks(side, z)) continue
+        const x = side * (9.9 + rng() * 1.6)
         placements.push({
           x,
-          y: 3.4 + rng() * 7.5,
+          y: 3.2 + rng() * 6.8,
           z,
           rotationY: side > 0 ? -Math.PI / 2 : Math.PI / 2,
           design: Math.floor(rng() * designs.length),

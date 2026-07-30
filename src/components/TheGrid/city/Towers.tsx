@@ -3,14 +3,15 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
 import { isInCorridor } from './rail'
-import { CITY_BOUNDS, STATIONS } from '../gridConfig'
+import { CITY_BOUNDS, STATIONS, STREET, WALL_EXCLUSIONS } from '../gridConfig'
 import { SCENE_BG } from './sceneColor'
 
 /**
- * The procedural skyline: one InstancedMesh of unit boxes, windows and neon
- * edge glow painted per-fragment. No lights — the city is entirely emissive,
- * which is both the aesthetic and the perf budget (a single draw call for
- * every generic tower).
+ * The procedural city: one InstancedMesh of unit boxes, windows and glow
+ * painted per-fragment. The first row is CONTIGUOUS street walls — mid-rise
+ * blocks shoulder to shoulder along both sidewalks, so the avenue reads as a
+ * canyon (the reference night-street framing), with taller rows and a
+ * megatower ring layered behind, all dissolving into fog.
  */
 
 // District hue centers along the avenue; towers blend toward the accent of
@@ -58,6 +59,12 @@ const fragmentShader = /* glsl */ `
     vec3 base = vec3(0.012, 0.02, 0.045);
     vec3 color = base;
 
+    // Per-building albedo drift: concrete blocks lean warm or cool, so the
+    // street wall isn't one material repeated forty times.
+    float tintKey = fract(vSeed * 0.271);
+    base = mix(base, vec3(0.03, 0.027, 0.024), tintKey * 0.55);
+    color = base;
+
     if (abs(vNormal.y) > 0.5) {
       // Roofs and setback undersides: lifted slightly above pure black with
       // an accent rim, so tiers read as architecture instead of floating slabs.
@@ -66,8 +73,8 @@ const fragmentShader = /* glsl */ `
     } else {
       float u = (abs(vNormal.x) > 0.5 ? vLocal.z : vLocal.x) + 0.5;
       float v = vLocal.y + 0.5;
-      float cols = max(2.0, floor((abs(vNormal.x) > 0.5 ? vDims.z : vDims.x) * 0.9));
-      float rows = max(3.0, floor(vDims.y * 0.85));
+      float cols = max(3.0, floor((abs(vNormal.x) > 0.5 ? vDims.z : vDims.x) * 1.25));
+      float rows = max(4.0, floor(vDims.y * 1.05));
       vec2 cell = vec2(floor(u * cols), floor(v * rows));
       vec2 inCell = fract(vec2(u * cols, v * rows));
       // One-pixel window edges via screen-space derivatives: crisp up close,
@@ -93,7 +100,10 @@ const fragmentShader = /* glsl */ `
         float window =
             (smoothstep(0.24 - aa.x, 0.24 + aa.x, inCell.x) - smoothstep(0.76 - aa.x, 0.76 + aa.x, inCell.x))
           * (smoothstep(0.3 - aa.y, 0.3 + aa.y, inCell.y) - smoothstep(0.7 - aa.y, 0.7 + aa.y, inCell.y));
-        glow = lit * window * blink * (0.4 + 0.4 * hash(cell + 7.0));
+        // Interior light falls from the ceiling: windows glow brighter at
+        // their top edge — the cheap cue that there's a ROOM behind the glass.
+        float inset = 0.65 + 0.7 * clamp((inCell.y - 0.3) / 0.4, 0.0, 1.0);
+        glow = lit * window * blink * inset * (0.4 + 0.4 * hash(cell + 7.0));
         float warm = step(0.68, hash(cell + 53.0));
         winColor = mix(vAccent, vec3(1.0, 0.72, 0.42) * alum, warm * 0.85);
       } else if (pattern < 0.8) {
@@ -127,9 +137,15 @@ const fragmentShader = /* glsl */ `
       // Neon edge glow along vertical corners — measured along the face's
       // tangent axis only (the normal axis is constant 0.5 across the face
       // and would wash the whole wall in accent).
+      // Floor slabs: a thin dark shadow line at every storey boundary reads
+      // as real construction instead of a glowing texture.
+      float slabDist = min(inCell.y, 1.0 - inCell.y);
+      float slab = 1.0 - 0.4 * (1.0 - smoothstep(0.015, 0.07, slabDist));
+      color *= slab;
+
       float tangent = abs(vNormal.x) > 0.5 ? abs(vLocal.z) : abs(vLocal.x);
       float edge = smoothstep(0.44, 0.5, tangent);
-      color += vAccent * edge * 0.35;
+      color += vAccent * edge * 0.12;
 
       // Ground-floor haze: streets bleed light up the first meters.
       color += vAccent * 0.08 * (1.0 - smoothstep(0.0, 0.35, v));
@@ -168,73 +184,103 @@ export default function Towers({ density }: { density: number }) {
     // its glow to silhouette level.
     const placements: Array<{ x: number; z: number; w: number; h: number; d: number; y0?: number; dim?: boolean; dark?: boolean }> = []
     const beaconSpots: Array<{ x: number; y: number; z: number }> = []
-    const cell = 9
 
-    for (let x = CITY_BOUNDS.minX; x <= CITY_BOUNDS.maxX; x += cell) {
-      for (let z = CITY_BOUNDS.minZ; z <= CITY_BOUNDS.maxZ; z += cell) {
-        const jx = x + (rng() - 0.5) * 5
-        const jz = z + (rng() - 0.5) * 5
-        if (rng() > density) continue
-        const w = 3 + rng() * 3.5
-        if (isInCorridor(jx, jz, w * 0.75)) continue
-        const awayBoost = Math.min(Math.abs(jx) / 90, 1) * 10
-        const h = 4 + Math.pow(rng(), 1.6) * 28 + awayBoost
-        placements.push({ x: jx, z: jz, w, h, d: 3 + rng() * 3.5 })
+    // Overlap test against the block's full z-extent — a block whose CENTER
+    // clears an exclusion can still poke its shoulder into the sightline.
+    const excluded = (side: number, zMin: number, zMax: number) =>
+      WALL_EXCLUSIONS.some(rect => rect.side === side && zMax > rect.zMin && zMin < rect.zMax)
 
-        // Tall towers get setback tiers, antenna masts, and aviation beacons —
-        // silhouette variety that sells the skyline as architecture.
-        if (h > 20 && rng() > 0.45) {
+    const addRoofPlant = (x: number, z: number, w: number, h: number) => {
+      if (rng() > 0.5) return
+      const gw = 0.9 + rng() * 1.1
+      placements.push({
+        x: x + (rng() - 0.5) * w * 0.5,
+        z: z + (rng() - 0.5) * 2.5,
+        w: gw,
+        h: 0.9 + rng() * 1.2,
+        d: gw,
+        y0: h,
+        dark: true,
+      })
+    }
+
+    // Row 1 — the street walls. Contiguous mid-rise blocks shoulder to
+    // shoulder along both sidewalks (an occasional alley slot), fronts
+    // jittered a lane's width so the canyon face isn't a flat plane.
+    for (const side of [1, -1]) {
+      let z = STREET.zStart + 4
+      while (z > STREET.zEnd) {
+        const depth = 9 + rng() * 7
+        const zc = z - depth / 2
+        z -= depth + (rng() < 0.12 ? 2.5 + rng() * 2.5 : 0.2)
+        if (excluded(side, zc - depth / 2, zc + depth / 2)) continue
+        const width = 7 + rng() * 8
+        const front = STREET.wallX + rng() * 1.6
+        const xc = side * (front + width / 2)
+        const h = 10 + Math.pow(rng(), 1.7) * 24
+        placements.push({ x: xc, z: zc, w: width, h, d: depth })
+        if (h <= 20) addRoofPlant(xc, zc, width, h)
+        else if (rng() > 0.55) beaconSpots.push({ x: xc, y: h + 0.4, z: zc })
+      }
+    }
+
+    // Row 2 — taller blocks looming behind the street walls.
+    for (const side of [1, -1]) {
+      for (let z = STREET.zStart; z > STREET.zEnd - 10; z -= 13) {
+        if (rng() > density + 0.18) continue
+        const xc = side * (30 + rng() * 16)
+        const zc = z + (rng() - 0.5) * 6
+        const w = 8 + rng() * 8
+        const h = 16 + Math.pow(rng(), 1.4) * 28
+        placements.push({ x: xc, z: zc, w, h, d: 8 + rng() * 8 })
+        if (h > 30 && rng() > 0.45) {
           const tierW = w * (0.5 + rng() * 0.2)
           const tierH = 3 + rng() * 6
-          placements.push({ x: jx, z: jz, w: tierW, h: h + tierH, d: tierW, dim: true })
+          placements.push({ x: xc, z: zc, w: tierW, h: h + tierH, d: tierW, dim: true })
           if (rng() > 0.4) {
             const mastH = 2.5 + rng() * 5
-            placements.push({ x: jx, z: jz, w: 0.22, h: h + tierH + mastH, d: 0.22, dim: true })
-            beaconSpots.push({ x: jx, y: h + tierH + mastH + 0.3, z: jz })
+            placements.push({ x: xc, z: zc, w: 0.22, h: h + tierH + mastH, d: 0.22, dim: true })
+            beaconSpots.push({ x: xc, y: h + tierH + mastH + 0.3, z: zc })
           }
-        } else if (h > 26 && rng() > 0.5) {
-          beaconSpots.push({ x: jx, y: h + 0.4, z: jz })
-        }
-
-        // Mid-rise roofs carry water tanks and AC housings — near-black
-        // greebles whose only job is breaking up the flat rooflines.
-        if (h <= 20 && rng() > 0.55) {
-          const gw = 0.9 + rng() * 1.1
-          placements.push({
-            x: jx + (rng() - 0.5) * w * 0.5,
-            z: jz + (rng() - 0.5) * 2,
-            w: gw,
-            h: 0.9 + rng() * 1.2,
-            d: gw,
-            y0: h,
-            dark: true,
-          })
         }
       }
     }
 
-    // Outer ring of megatowers: a second, deeper silhouette layer that keeps
-    // the skyline going past the buildable grid, half-swallowed by the fog.
+    // Row 3 — loose scatter filling the districts beyond, corridor-guarded.
+    for (let x = CITY_BOUNDS.minX; x <= CITY_BOUNDS.maxX; x += 11) {
+      for (let z = CITY_BOUNDS.minZ; z <= CITY_BOUNDS.maxZ; z += 11) {
+        if (Math.abs(x) < 46) continue
+        const jx = x + (rng() - 0.5) * 6
+        const jz = z + (rng() - 0.5) * 6
+        if (rng() > density) continue
+        const w = 4 + rng() * 4
+        if (isInCorridor(jx, jz, w * 0.75)) continue
+        const h = 6 + Math.pow(rng(), 1.5) * 30
+        placements.push({ x: jx, z: jz, w, h, d: 4 + rng() * 4 })
+        if (h > 28 && rng() > 0.55) beaconSpots.push({ x: jx, y: h + 0.4, z: jz })
+      }
+    }
+
+    // Megatower ring: the deepest silhouette layer, half-swallowed by fog.
     for (let i = 0; i < 14; i++) {
       const side = i % 2 === 0 ? 1 : -1
       const mx = side * (66 + rng() * 24)
-      const mz = 50 - rng() * 240
+      const mz = 50 - rng() * 280
       const mw = 8 + rng() * 7
       const mh = 46 + rng() * 34
       placements.push({ x: mx, z: mz, w: mw, h: mh, d: 8 + rng() * 7 })
       if (rng() > 0.35) beaconSpots.push({ x: mx, y: mh + 0.5, z: mz })
     }
 
-    // Skybridges: lit walkways threading towers together. The two avenue
-    // crossings sit at y ≥ 31 where the rail never climbs past ~25 (the sky
-    // ascent starts south of z −140), so the camera always passes underneath.
+    // High skywalks crossing the canyon — well above the marquees and far
+    // above the street-level camera (rail y ≤ 5 until the final climb).
     const bridges = [
-      { x: 0, z: -47, w: 30, d: 2.0, h: 1.7, y0: 31 },
-      { x: 2, z: -74, w: 26, d: 1.8, h: 1.6, y0: 33.5 },
-      { x: 26, z: -16, w: 16, d: 1.6, h: 1.5, y0: 15 },
-      { x: -27, z: -64, w: 18, d: 1.7, h: 1.6, y0: 19 },
+      { x: 0, z: -58, w: 27, d: 2.0, h: 1.7, y0: 17 },
+      { x: 0, z: -108, w: 27, d: 1.8, h: 1.6, y0: 19 },
+      { x: 0, z: -136, w: 27, d: 1.8, h: 1.6, y0: 22 },
+      { x: 0, z: -168, w: 27, d: 1.6, h: 1.5, y0: 16 },
+      { x: -28, z: -64, w: 18, d: 1.7, h: 1.6, y0: 19 },
       { x: 30, z: -96, w: 14, d: 1.5, h: 1.4, y0: 22 },
-      { x: -24, z: 18, w: 15, d: 1.6, h: 1.5, y0: 13 },
     ]
     for (const b of bridges) placements.push(b)
 

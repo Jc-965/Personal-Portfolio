@@ -175,6 +175,9 @@ export default function Billboard({
     material.dispose()
   }, [geometry, material])
 
+  // Measured from the mesh, not the position prop — screens nested in
+  // rotated marquee groups have local coords that say nothing about range.
+  const meshRef = useRef<THREE.Mesh>(null)
   const worldPos = useMemo(() => new THREE.Vector3(...position), [position])
   const cycleRef = useRef({ index: 0, nextAt: CYCLE_INTERVAL_S })
   const textureCache = useRef(new Map<string, THREE.Texture>())
@@ -193,6 +196,7 @@ export default function Billboard({
     // Eased so select/deselect breathes instead of snapping.
     const activeUniform = material.uniforms.uActive
     activeUniform.value += ((active ? 1 : 0) - activeUniform.value) * Math.min(1, delta * 5)
+    if (meshRef.current) meshRef.current.getWorldPosition(worldPos)
     const dist = state.camera.position.distanceTo(worldPos)
     let focus = 1 - THREE.MathUtils.clamp((dist - focusDistance) / 45, 0, 1)
     // Screens power down to static during the high flyover — a white page
@@ -224,6 +228,7 @@ export default function Billboard({
 
   return (
     <mesh
+      ref={meshRef}
       geometry={geometry}
       material={material}
       position={position}

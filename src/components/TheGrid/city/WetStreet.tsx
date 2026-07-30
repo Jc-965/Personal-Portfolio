@@ -21,7 +21,6 @@ const wetStreetShader = {
     textureMatrix: { value: null as unknown },
     uTime: { value: 0 },
     uBg: { value: SCENE_BG },
-    uLine: { value: new THREE.Color('#00ffff') },
   },
   vertexShader: /* glsl */ `
     uniform mat4 textureMatrix;
@@ -41,7 +40,6 @@ const wetStreetShader = {
     uniform sampler2D tDiffuse;
     uniform float uTime;
     uniform vec3 uBg;
-    uniform vec3 uLine;
     varying vec4 vUvRefl;
     varying vec3 vWorld;
     varying float vViewDist;
@@ -71,12 +69,6 @@ const wetStreetShader = {
       return normalize(f + 1e-4) * ring;
     }
 
-    float gridLine(vec2 p, float spacing, float thickness) {
-      vec2 g = abs(fract(p / spacing - 0.5) - 0.5) * spacing;
-      float d = min(g.x, g.y);
-      return 1.0 - smoothstep(0.0, thickness, d);
-    }
-
     void main() {
       // Two ripple octaves distort the mirrored city.
       vec2 distort = ripple(vWorld.xz * 0.9) * 0.4 + ripple(vWorld.xz * 0.9 + 17.3) * 0.3;
@@ -90,30 +82,33 @@ const wetStreetShader = {
       uvRefl.xy += distort * 0.35 * uvRefl.w;
       vec3 reflection = texture2DProj(tDiffuse, uvRefl).rgb;
 
+      float ax = abs(vWorld.x);
+
       // Puddle mask: pooled water reflects hard, damp asphalt only glows.
       float puddle = smoothstep(0.42, 0.62, vnoise(vWorld.xz * 0.07));
-      float wet = mix(0.14, 0.85, puddle);
+      float wet = mix(0.2, 0.9, puddle);
+      // Sidewalks drain — mostly damp concrete, faint sheen only.
+      float walk = step(9.7, ax) * (1.0 - step(12.35, ax));
+      wet *= 1.0 - walk * 0.62;
 
-      vec3 asphalt = vec3(0.022, 0.034, 0.055) * (0.75 + 0.5 * vnoise(vWorld.xz * 1.7));
-      vec3 color = asphalt + reflection * wet;
+      vec3 asphalt = vec3(0.02, 0.03, 0.05) * (0.75 + 0.5 * vnoise(vWorld.xz * 1.7));
+      vec3 pave = vec3(0.05, 0.055, 0.062) * (0.8 + 0.4 * vnoise(vWorld.xz * 2.3));
+      float joint = 1.0 - smoothstep(0.02, 0.09, abs(fract(vWorld.z / 2.4) - 0.5) * 2.4);
+      pave *= 1.0 - 0.35 * joint;
+      vec3 color = mix(asphalt, pave, walk) + reflection * wet;
 
-      // The avenue's grid + data pulses live ON the wet surface.
-      float minor = gridLine(vWorld.xz, 2.0, 0.05);
-      float major = gridLine(vWorld.xz, 10.0, 0.09);
-      color += uLine * (minor * 0.05 + major * 0.14);
-
-      // Kerb light-lines flanking the avenue, softened by the puddle mask so
-      // they shimmer where water pools.
-      float kerb = 1.0 - smoothstep(0.06, 0.22, abs(abs(vWorld.x) - 9.6));
-      color += uLine * kerb * (0.16 + 0.1 * puddle);
-      float lane = floor(vWorld.x / 2.0);
-      if (abs(vWorld.x) < 9.0) {
-        float speed = 0.25 + hash(vec2(lane, 3.0)) * 0.3;
-        float phase = fract(vWorld.z * 0.012 + uTime * speed + hash(vec2(lane * 3.7, 1.0)));
-        float packet = 1.0 - smoothstep(0.0, 0.047, abs(phase - 0.5));
-        float onLane = 1.0 - smoothstep(0.12, 0.4, abs(fract(vWorld.x / 2.0 - 0.5) - 0.5) * 2.0);
-        color += uLine * packet * onLane * 0.85;
-      }
+      // Painted road markings, worn and doubled by the water film.
+      float marks = 0.0;
+      marks += (1.0 - smoothstep(0.07, 0.2, ax)) * step(fract(vWorld.z / 6.0), 0.5) * 0.9;
+      marks += (1.0 - smoothstep(0.05, 0.15, abs(ax - 4.9))) * step(fract(vWorld.z / 9.0), 0.62) * 0.5;
+      marks += (1.0 - smoothstep(0.1, 0.3, abs(ax - 9.6))) * 0.8;
+      float cw = step(abs(vWorld.z - 34.0), 1.7)
+               + step(abs(vWorld.z + 44.0), 1.7)
+               + step(abs(vWorld.z + 90.0), 1.7)
+               + step(abs(vWorld.z + 154.0), 1.7);
+      marks += min(cw, 1.0) * step(ax, 8.8) * step(0.45, fract(vWorld.x / 1.35)) * 0.55;
+      marks *= (0.55 + 0.45 * vnoise(vWorld.xz * 3.1)) * (1.0 - walk);
+      color += vec3(0.5, 0.52, 0.5) * marks * 0.3;
 
       float fade = smoothstep(50.0, 175.0, vViewDist);
       color = mix(color, uBg, fade);
@@ -132,7 +127,7 @@ export default function WetStreet({ textureSize }: { textureSize: number }) {
       shader: wetStreetShader,
     })
     mirror.rotation.x = -Math.PI / 2
-    mirror.position.set(0, 0.02, -70)
+    mirror.position.set(0, 0.02, -90)
     return mirror
   }, [textureSize])
 
