@@ -14,6 +14,7 @@ import GridHud from './GridHud'
 import useDialogFocus from '../../hooks/useDialogFocus'
 import { storageGet, storageSet } from '../../utils/safeStorage'
 import { getGridQuality } from './gridPerformance'
+import { preloadGridAssets } from './gridAssets'
 import { useVirtualScroll } from './useVirtualScroll'
 import {
   STATION_COUNT,
@@ -23,7 +24,12 @@ import {
   PROJECT_SITES,
   content as gridContent,
 } from './gridConfig'
-import type { SkyState, SkyTooltip, GridSelection } from './city/interaction'
+import type {
+  GridSelection,
+  GridSkyController,
+  SkyState,
+  SkyTooltip,
+} from './city/interaction'
 import '../../styles/grid.css'
 
 // Shared promise: the boot bar tracks the same import React.lazy resolves,
@@ -36,19 +42,30 @@ type Phase = 'boot' | 'active' | 'exiting'
 
 export default function GridOverlay({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>('boot')
-  const [chunkReady, setChunkReady] = useState(false)
-  const [chunkFailed, setChunkFailed] = useState(false)
+  const [resourcesReady, setResourcesReady] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadProgress, setLoadProgress] = useState(0)
   const [station, setStation] = useState(0)
-  const [sky, setSky] = useState<SkyState>({ count: 0, live: false, ownStar: false })
+  const [sky, setSky] = useState<SkyState>({
+    count: 0,
+    live: false,
+    ownStar: false,
+    placing: false,
+    color: '#00ffff',
+    message: '',
+    savingMessage: false,
+    error: null,
+  })
   const [tooltip, setTooltip] = useState<SkyTooltip | null>(null)
   const [showHint, setShowHint] = useState(() => storageGet('grid-visited') !== '1')
   // Two-way selection: HUD tabs and in-world clicks drive the same state.
   // `focus` marks an explicit pick — it flies the camera onto that item.
-  const [selection, setSelection] = useState<GridSelection>({ project: 0, role: null, focus: null })
+  const [selection, setSelection] = useState<GridSelection>({ project: 0, role: 0, focus: null })
 
   const rootRef = useRef<HTMLDivElement>(null)
   const stationRef = useRef(0)
   const exitIntentRef = useRef<'constellation' | null>(null)
+  const skyControllerRef = useRef<GridSkyController | null>(null)
   // Set by the sky-station star drag so travel gestures pause while dragging.
   const dragActiveRef = useRef(false)
 
@@ -60,9 +77,28 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     let cancelled = false
-    loadScene().then(
-      () => { if (!cancelled) setChunkReady(true) },
-      () => { if (!cancelled) setChunkFailed(true) },
+    let sceneReady = false
+    let assetProgress = 0
+    const publishProgress = () => {
+      if (!cancelled) setLoadProgress(assetProgress * 0.86 + (sceneReady ? 0.14 : 0))
+    }
+    const sceneLoad = loadScene().then(() => {
+      sceneReady = true
+      publishProgress()
+    })
+    const assetLoad = preloadGridAssets(progress => {
+      assetProgress = progress
+      publishProgress()
+    })
+    void Promise.all([sceneLoad, assetLoad]).then(
+      () => {
+        if (cancelled) return
+        setLoadProgress(1)
+        setResourcesReady(true)
+      },
+      () => {
+        if (!cancelled) setLoadFailed(true)
+      },
     )
     return () => { cancelled = true }
   }, [])
@@ -149,11 +185,26 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
 
   const onBootDone = useCallback(() => setPhase('active'), [])
 
-  const onPlaceStar = useCallback(() => {
+  const onOpenConstellation = useCallback(() => {
     exitIntentRef.current = 'constellation'
     requestClose()
   }, [requestClose])
 
+  const onPlaceStar = useCallback(() => {
+    skyControllerRef.current?.requestPlacement()
+  }, [])
+  const onCancelStarPlacement = useCallback(() => {
+    skyControllerRef.current?.cancelPlacement()
+  }, [])
+  const onSetStarColor = useCallback((color: string) => {
+    skyControllerRef.current?.setColor(color)
+  }, [])
+  const onSaveStarMessage = useCallback((message: string) => (
+    skyControllerRef.current?.saveMessage(message) ?? Promise.resolve(false)
+  ), [])
+  const onSkyController = useCallback((controller: GridSkyController | null) => {
+    skyControllerRef.current = controller
+  }, [])
   const onSky = useCallback((state: SkyState) => setSky(state), [])
   const onTooltip = useCallback((next: SkyTooltip | null) => setTooltip(next), [])
   const onSelectProject = useCallback(
@@ -230,13 +281,17 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     <div
       ref={rootRef}
       className={`grid-overlay ${phase === 'exiting' ? 'is-exiting' : ''}`}
+      data-grid-phase={phase}
+      data-grid-station={station}
+      data-grid-sky-own={sky.ownStar}
+      data-grid-sky-placing={sky.placing}
       role="dialog"
       aria-modal="true"
       aria-label="The Grid — interactive 3D portfolio"
       tabIndex={-1}
       onAnimationEnd={onRootAnimationEnd}
     >
-      {chunkReady && (
+      {resourcesReady && (
         <>
           <div className="grid-overlay__scene" aria-hidden="true">
             <Suspense fallback={null}>
@@ -245,6 +300,7 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
                 reducedMotion={reducedMotion}
                 quality={quality}
                 onSky={onSky}
+                onSkyController={onSkyController}
                 onTooltip={onTooltip}
                 dragActiveRef={dragActiveRef}
                 selection={selection}
@@ -267,6 +323,10 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
               onNavigate={navigate}
               onExit={requestClose}
               onPlaceStar={onPlaceStar}
+              onCancelStarPlacement={onCancelStarPlacement}
+              onSetStarColor={onSetStarColor}
+              onSaveStarMessage={onSaveStarMessage}
+              onOpenConstellation={onOpenConstellation}
             />
           )}
           {tooltip && (
@@ -281,7 +341,13 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
       )}
 
       {phase === 'boot' && (
-        <GridBoot chunkReady={chunkReady} reducedMotion={reducedMotion} onDone={onBootDone} failed={chunkFailed} />
+        <GridBoot
+          ready={resourcesReady}
+          progress={loadProgress}
+          reducedMotion={reducedMotion}
+          onDone={onBootDone}
+          failed={loadFailed}
+        />
       )}
     </div>
   )

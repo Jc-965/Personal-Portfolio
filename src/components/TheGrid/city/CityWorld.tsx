@@ -8,6 +8,7 @@ import Structures from './Structures'
 import Traffic from './Traffic'
 import Atmosphere from './Atmosphere'
 import SkyDome from './SkyDome'
+import StreetDetails from './StreetDetails'
 import type { GridInteraction } from './interaction'
 import type { GridQuality } from '../gridPerformance'
 
@@ -23,6 +24,7 @@ export default function CityWorld({
       <EnvLight />
       <SkyDome interaction={interaction} />
       {quality.reflections ? <WetStreet textureSize={quality.reflectionSize} /> : <Ground />}
+      <StreetDetails />
       <Rain count={quality.rainCount} />
       <Towers density={quality.towerDensity} />
       <NeonBanners />

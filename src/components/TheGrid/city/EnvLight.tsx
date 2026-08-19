@@ -1,48 +1,49 @@
 import { useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useLoader, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
+import { GRID_ENVIRONMENT_URL } from '../gridAssets'
 import { SCENE_BG } from './sceneColor'
 import { STATIONS } from '../gridConfig'
 
 /**
- * The PBR foundation. There is no HDR file to load — the city IS the
- * environment: once the scene exists, it's rendered into a PMREM cubemap and
- * set as `scene.environment`, so every standard material reflects the actual
- * neon skyline around it. Exponential fog (sharing the graded SCENE_BG color
- * instance) gives the air its rainy-night density; a faint cool directional
- * acts as moonlight through the clouds.
+ * The PBR foundation: a real high-dynamic-range city capture provides
+ * physically plausible specular response, while authored local lights keep
+ * the station colors legible inside the rainy canyon.
  */
 export default function EnvLight() {
-  const { gl, scene } = useThree()
+  const { scene } = useThree()
+  const environment = useLoader(HDRLoader, GRID_ENVIRONMENT_URL)
 
   useEffect(() => {
-    // Fog first so it participates in the environment capture. Dense enough
-    // that every block of the canyon sits in its own aerial-perspective layer.
+    const previousEnvironment = scene.environment
+    const previousEnvironmentIntensity = scene.environmentIntensity
+    const previousEnvironmentRotation = scene.environmentRotation.clone()
     const fog = new THREE.FogExp2(0x020409, 0.009)
-    fog.color = SCENE_BG // shared instance — the district grade tints the air
+    fog.color = SCENE_BG
     scene.fog = fog
 
-    const pmrem = new THREE.PMREMGenerator(gl)
-    let target: THREE.WebGLRenderTarget | null = null
-    // One frame later, so all structures/signs have mounted into the capture.
-    const frame = requestAnimationFrame(() => {
-      target = pmrem.fromScene(scene, 0.04, 0.1, 600)
-      scene.environment = target.texture
-    })
+    environment.mapping = THREE.EquirectangularReflectionMapping
+    scene.environment = environment
+    scene.environmentIntensity = 0.68
+    scene.environmentRotation.set(0, Math.PI * 0.62, 0)
 
     return () => {
-      cancelAnimationFrame(frame)
-      scene.environment = null
+      scene.environment = previousEnvironment
+      scene.environmentIntensity = previousEnvironmentIntensity
+      scene.environmentRotation.copy(previousEnvironmentRotation)
       scene.fog = null
-      target?.dispose()
-      pmrem.dispose()
     }
-  }, [gl, scene])
+  }, [environment, scene])
 
   return (
     <>
-      <directionalLight position={[60, 120, 40]} intensity={0.35} color="#7f9fd8" />
-      <ambientLight intensity={0.12} color="#38506e" />
+      <directionalLight
+        position={[48, 92, 26]}
+        intensity={1.25}
+        color="#94abda"
+      />
+      <hemisphereLight args={['#5275a5', '#090607', 0.42]} />
       {/* One accent streetlight pooling over each station — what makes the
           PBR bodies read as wet metal under sodium-and-neon light. */}
       {STATIONS.map(station => (

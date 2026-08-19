@@ -8,6 +8,12 @@ import {
   updateConstellationStar,
   type ConstellationStarPatch,
 } from '../utils/constellationApi'
+import {
+  claimConstellationVisitStarCreation,
+  CONSTELLATION_COLORS,
+  getConstellationSessionSecret,
+  getConstellationVisitId,
+} from '../utils/constellationIdentity'
 import useIsPhone from '../hooks/useIsPhone'
 
 interface Star {
@@ -89,13 +95,7 @@ const WAVE_PHYSICS: Record<SkyEffect['kind'], { push: number; width: number }> =
 
 type DirectWriteModule = typeof import('../utils/constellationDirectWrite')
 
-const COLORS = [
-  { value: '#00ffff', label: 'Cyan' },
-  { value: '#ff00ff', label: 'Magenta' },
-  { value: '#00ff41', label: 'Green' },
-  { value: '#ffcc00', label: 'Yellow' },
-  { value: '#ff3366', label: 'Red' },
-]
+const COLORS = CONSTELLATION_COLORS
 
 const MERGE_THRESHOLD = 250
 const MEGA_STAR_COUNT = 10
@@ -127,31 +127,13 @@ const SPAWN_FLIGHT_DURATION_MS = 1000
 const OWNER_UID_WAIT_MS = 2500
 const SPAWN_CANDIDATES = 14
 
-function createId(prefix: string): string {
-  const randomId = globalThis.crypto?.randomUUID?.()
-  if (randomId) return randomId
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-const PAGE_VISIT_ID = createId('visit')
-// Module-level so StrictMode remounts and re-renders never double-place the
-// automatic visit star.
-let pageVisitStarStarted = false
+const PAGE_VISIT_ID = getConstellationVisitId()
 const CONNECTION_CELL_SIZE = 180
 
 function escapeHtml(text: string): string {
   const el = document.createElement('span')
   el.textContent = text
   return el.innerHTML
-}
-
-function getSessionId(): string {
-  let id = storageGet('constellation-session')
-  if (!id) {
-    id = createId('session')
-    storageSet('constellation-session', id)
-  }
-  return id
 }
 
 function randomStarCoordinate(): number {
@@ -492,7 +474,7 @@ export default function Constellation() {
   const pendingCacheRef = useRef<{ stars: Star[]; total: number } | null>(null)
   // Every visitor starts with a random color — five cyan skies in a row make
   // the constellation look single-player.
-  const [selectedColor, setSelectedColor] = useState(
+  const [selectedColor, setSelectedColor] = useState<string>(
     () => COLORS[Math.floor(Math.random() * COLORS.length)].value,
   )
   const [message, setMessage] = useState('')
@@ -515,7 +497,7 @@ export default function Constellation() {
   const derivedTotalRef = useRef(0)
   const metadataUnavailableRef = useRef(false)
   const localFallbackRef = useRef(false)
-  const sessionSecret = useRef(getSessionId())
+  const sessionSecret = useRef(getConstellationSessionSecret())
   const isPhone = useIsPhone()
 
   const sectionRef = useRef(null)
@@ -1674,8 +1656,7 @@ export default function Constellation() {
   // One star is placed automatically per page visit — no button involved. That
   // placement *is* the visitor's submission; the caption is an edit on top of it.
   useEffect(() => {
-    if (pageVisitStarStarted) return
-    pageVisitStarStarted = true
+    if (!claimConstellationVisitStarCreation()) return
     createVisitStar()
   }, [createVisitStar])
 

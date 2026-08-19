@@ -11,6 +11,12 @@ export interface SkyState {
   live: boolean
   /** This browser owns a star it can drag in the 3D sky. */
   ownStar: boolean
+  /** The next sky click will place or reposition the visitor's star. */
+  placing: boolean
+  color: string
+  message: string
+  savingMessage: boolean
+  error: string | null
 }
 
 export interface SkyTooltip {
@@ -30,15 +36,22 @@ export interface GridSelection {
   focus: 'project' | 'role' | null
 }
 
+export interface GridSkyController {
+  requestPlacement: () => void
+  cancelPlacement: () => void
+  setColor: (color: string) => void
+  saveMessage: (message: string) => Promise<boolean>
+}
+
 export interface GridInteraction {
   progressRef: MutableRefObject<number>
   dragActiveRef?: MutableRefObject<boolean>
   onSky?: (state: SkyState) => void
+  onSkyController?: (controller: GridSkyController | null) => void
   onTooltip?: (tooltip: SkyTooltip | null) => void
   selection: GridSelection
   onSelectProject: (index: number) => void
   onSelectRole: (index: number | null) => void
-  /** Exit to the main page's constellation to place/edit the visitor's star
-   * — triggered by the in-world CTA at the sky deck. */
+  /** Begin an in-world star placement/reposition gesture. */
   onPlaceStar?: () => void
 }

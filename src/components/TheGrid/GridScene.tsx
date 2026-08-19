@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import CityWorld from './city/CityWorld'
-import GridEffects from './GridEffects'
 import { sampleRail, nearestStation, validateRail } from './city/rail'
 import { gradeSceneBg } from './city/sceneColor'
 import { focusPose } from './city/focus'
 import { stationT, BG_COLOR } from './gridConfig'
 import type { GridQuality } from './gridPerformance'
-import type { SkyState, SkyTooltip, GridSelection } from './city/interaction'
+import type { GridSelection, GridSkyController, SkyState, SkyTooltip } from './city/interaction'
 
 export interface GridSceneProps {
   /** Target rail progress 0..1, written by the overlay's virtual scroll. */
@@ -16,6 +15,7 @@ export interface GridSceneProps {
   reducedMotion: boolean
   quality: GridQuality
   onSky?: (state: SkyState) => void
+  onSkyController?: (controller: GridSkyController | null) => void
   onTooltip?: (tooltip: SkyTooltip | null) => void
   /** Set true by the sky-station star drag so travel gestures pause. */
   dragActiveRef?: MutableRefObject<boolean>
@@ -24,7 +24,7 @@ export interface GridSceneProps {
   onSelectRole: (index: number | null) => void
   /** Clicking empty street releases a fly-to focus back to the rail view. */
   onClearFocus?: () => void
-  /** In-world sky-deck CTA: exit toward the constellation to place a star. */
+  /** In-world sky-deck CTA: begin placing a star directly in the 3D sky. */
   onPlaceStar?: () => void
 }
 
@@ -160,6 +160,7 @@ export default function GridScene({
   reducedMotion,
   quality,
   onSky,
+  onSkyController,
   onTooltip,
   dragActiveRef,
   selection,
@@ -169,8 +170,28 @@ export default function GridScene({
   onPlaceStar,
 }: GridSceneProps) {
   const interaction = useMemo(
-    () => ({ progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole, onPlaceStar }),
-    [progressRef, dragActiveRef, onSky, onTooltip, selection, onSelectProject, onSelectRole, onPlaceStar],
+    () => ({
+      progressRef,
+      dragActiveRef,
+      onSky,
+      onSkyController,
+      onTooltip,
+      selection,
+      onSelectProject,
+      onSelectRole,
+      onPlaceStar,
+    }),
+    [
+      progressRef,
+      dragActiveRef,
+      onSky,
+      onSkyController,
+      onTooltip,
+      selection,
+      onSelectProject,
+      onSelectRole,
+      onPlaceStar,
+    ],
   )
   return (
     <Canvas
@@ -186,6 +207,9 @@ export default function GridScene({
       raycaster={{ params: { Mesh: {}, LOD: {}, Sprite: {}, Points: { threshold: 5 }, Line: { threshold: 1 } } }}
       onCreated={({ gl }) => {
         gl.setClearColor(new THREE.Color(BG_COLOR))
+        gl.outputColorSpace = THREE.SRGBColorSpace
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = 0.92
       }}
       // A click that hits no interactive mesh hands the camera back to the
       // rail — the "step back from the exhibit" gesture.
@@ -195,7 +219,6 @@ export default function GridScene({
     >
       <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} selection={selection} />
       <CityWorld quality={quality} interaction={interaction} />
-      <GridEffects enabled={quality.postEnabled} msaa={quality.msaa} />
     </Canvas>
   )
 }

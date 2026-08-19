@@ -1,13 +1,7 @@
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
+import { CONSTELLATION_COLORS } from '../../utils/constellationIdentity'
 import { content, STATIONS } from './gridConfig'
-import type { SkyState, GridSelection } from './city/interaction'
-
-/**
- * The HUD is now chrome only: the back button, the station rail, and the
- * travel hint. Every word of content lives IN the city (gantry signs, wall
- * marquees, shop fronts, the relay tower) — so the DOM's job is the part
- * WebGL can't do: a complete screen-reader document with the same records,
- * real links, and working selection controls, plus an aria-live announcer.
- */
+import type { GridSelection, SkyState } from './city/interaction'
 
 export interface GridHudProps {
   /** Active station index, or -1 while traveling between stations. */
@@ -21,6 +15,274 @@ export interface GridHudProps {
   onNavigate: (index: number) => void
   onExit: () => void
   onPlaceStar: () => void
+  onCancelStarPlacement: () => void
+  onSetStarColor: (color: string) => void
+  onSaveStarMessage: (message: string) => Promise<boolean>
+  onOpenConstellation: () => void
+}
+
+interface SelectionPanelProps {
+  selection: GridSelection
+  onSelectProject: (index: number) => void
+  onSelectRole: (index: number | null) => void
+  onClearFocus: () => void
+}
+
+function JourneyPanel({
+  selection,
+  onSelectRole,
+  onClearFocus,
+}: Pick<SelectionPanelProps, 'selection' | 'onSelectRole' | 'onClearFocus'>) {
+  const roleIndex = selection.role ?? 0
+  const role = content.experiences[roleIndex]
+  const move = (direction: number) => {
+    const next = (roleIndex + direction + content.experiences.length) % content.experiences.length
+    onSelectRole(next)
+  }
+
+  return (
+    <section
+      className="grid-hud__panel grid-hud__panel--journey"
+      style={{ '--grid-panel-accent': role.accent } as CSSProperties}
+      aria-labelledby="grid-journey-title"
+    >
+      <div className="grid-hud__panel-scan" aria-hidden="true" />
+      <header className="grid-hud__panel-header">
+        <div>
+          <p className="grid-hud__panel-kicker">career archive / {role.track}</p>
+          <h2 id="grid-journey-title">{role.company}</h2>
+          <p className="grid-hud__panel-subtitle">{role.role}</p>
+        </div>
+        <span className={`grid-hud__status ${role.status === 'Active' ? 'is-live' : ''}`}>
+          {role.status}
+        </span>
+      </header>
+
+      <div className="grid-hud__meta">
+        <span>{role.period}</span>
+        <span>{role.location}</span>
+        <span>{String(roleIndex + 1).padStart(2, '0')} / {String(content.experiences.length).padStart(2, '0')}</span>
+      </div>
+      <p className="grid-hud__summary">{role.summary}</p>
+      <ul className="grid-hud__chips" aria-label="Role technologies">
+        {role.stack.map(item => <li key={item}>{item}</li>)}
+      </ul>
+
+      <div className="grid-hud__record-strip" role="list" aria-label="Career roles">
+        {content.experiences.map((experience, index) => (
+          <button
+            key={experience.id}
+            type="button"
+            className={index === roleIndex ? 'is-active' : ''}
+            style={{ '--record-accent': experience.accent } as CSSProperties}
+            aria-pressed={index === roleIndex}
+            onClick={() => onSelectRole(index)}
+          >
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {experience.company}
+          </button>
+        ))}
+      </div>
+
+      <footer className="grid-hud__panel-actions">
+        <button type="button" onClick={() => move(-1)} aria-label="Previous role">← previous</button>
+        {selection.focus === 'role' && (
+          <button type="button" onClick={onClearFocus}>release camera</button>
+        )}
+        <button type="button" onClick={() => move(1)} aria-label="Next role">next →</button>
+      </footer>
+    </section>
+  )
+}
+
+function ProjectPanel({
+  selection,
+  onSelectProject,
+  onClearFocus,
+}: Pick<SelectionPanelProps, 'selection' | 'onSelectProject' | 'onClearFocus'>) {
+  const project = content.projects[selection.project]
+  const image = project.images?.[0]
+  const move = (direction: number) => {
+    const next = (selection.project + direction + content.projects.length) % content.projects.length
+    onSelectProject(next)
+  }
+
+  return (
+    <section
+      className="grid-hud__panel grid-hud__panel--project"
+      style={{ '--grid-panel-accent': project.accent } as CSSProperties}
+      aria-labelledby="grid-project-title"
+    >
+      <div className="grid-hud__panel-scan" aria-hidden="true" />
+      <div className="grid-hud__project-layout">
+        {image && (
+          <figure className="grid-hud__project-visual">
+            <img src={image.src} alt={image.alt} />
+            <figcaption>{image.label}</figcaption>
+          </figure>
+        )}
+        <div className="grid-hud__project-copy">
+          <header className="grid-hud__panel-header">
+            <div>
+              <p className="grid-hud__panel-kicker">featured build / {String(selection.project + 1).padStart(2, '0')}</p>
+              <h2 id="grid-project-title">{project.name}</h2>
+              <p className="grid-hud__panel-subtitle">{project.tag}</p>
+            </div>
+          </header>
+          <div className="grid-hud__stats" aria-label="Project results">
+            {project.stats.map(stat => (
+              <span key={stat.label}>
+                <strong>{stat.value}</strong>
+                <small>{stat.label}</small>
+              </span>
+            ))}
+          </div>
+          <p className="grid-hud__summary">{project.lead}</p>
+          <ul className="grid-hud__chips" aria-label="Project technologies">
+            {project.tech.map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+      </div>
+
+      <div className="grid-hud__record-strip" role="list" aria-label="Featured projects">
+        {content.projects.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            className={index === selection.project ? 'is-active' : ''}
+            style={{ '--record-accent': item.accent } as CSSProperties}
+            aria-pressed={index === selection.project}
+            onClick={() => onSelectProject(index)}
+          >
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {item.name}
+          </button>
+        ))}
+      </div>
+
+      <footer className="grid-hud__panel-actions">
+        <button type="button" onClick={() => move(-1)} aria-label="Previous project">← previous</button>
+        {selection.focus === 'project' && (
+          <button type="button" onClick={onClearFocus}>release camera</button>
+        )}
+        <a href={`/projects/${project.id}/`} target="_blank" rel="noopener noreferrer">
+          open case study ↗
+        </a>
+        <button type="button" onClick={() => move(1)} aria-label="Next project">next →</button>
+      </footer>
+    </section>
+  )
+}
+
+interface SkyPanelProps {
+  sky: SkyState
+  onPlaceStar: () => void
+  onCancelStarPlacement: () => void
+  onSetStarColor: (color: string) => void
+  onSaveStarMessage: (message: string) => Promise<boolean>
+  onOpenConstellation: () => void
+}
+
+function SkyPanel({
+  sky,
+  onPlaceStar,
+  onCancelStarPlacement,
+  onSetStarColor,
+  onSaveStarMessage,
+  onOpenConstellation,
+}: SkyPanelProps) {
+  const [draftMessage, setDraftMessage] = useState(sky.message)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setDraftMessage(sky.message)
+  }, [sky.message])
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSaved(await onSaveStarMessage(draftMessage))
+  }
+
+  return (
+    <section
+      className={`grid-hud__panel grid-hud__panel--sky ${sky.placing ? 'is-placing' : ''}`}
+      style={{ '--grid-panel-accent': sky.color } as CSSProperties}
+      aria-labelledby="grid-sky-title"
+    >
+      <div className="grid-hud__panel-scan" aria-hidden="true" />
+      <header className="grid-hud__panel-header">
+        <div>
+          <p className="grid-hud__panel-kicker">shared sky / live uplink</p>
+          <h2 id="grid-sky-title">{sky.ownStar ? 'Your star is in orbit' : 'Place your star in the city sky'}</h2>
+          <p className="grid-hud__panel-subtitle">
+            {sky.placing
+              ? 'Choose any open point in the sky. The star will fly to that exact position.'
+              : 'Every light is a real visitor. Hover to read transmissions; drag your ringed star to move it.'}
+          </p>
+        </div>
+        <span className={`grid-hud__status ${sky.live ? 'is-live' : 'is-offline'}`}>
+          {sky.live ? `${sky.count} live` : 'local sky'}
+        </span>
+      </header>
+
+      <div className="grid-hud__sky-controls">
+        <div>
+          <span className="grid-hud__control-label">spectrum</span>
+          <div className="grid-hud__star-colors" role="group" aria-label="Star color">
+            {CONSTELLATION_COLORS.map(color => (
+              <button
+                key={color.value}
+                type="button"
+                className={sky.color.toLowerCase() === color.value ? 'is-active' : ''}
+                style={{ '--star-color': color.value } as CSSProperties}
+                aria-label={color.label}
+                aria-pressed={sky.color.toLowerCase() === color.value}
+                onClick={() => onSetStarColor(color.value)}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="grid-hud__place-actions">
+          {sky.placing ? (
+            <button type="button" className="grid-hud__primary" onClick={onCancelStarPlacement}>
+              cancel placement
+            </button>
+          ) : (
+            <button type="button" className="grid-hud__primary" onClick={onPlaceStar}>
+              {sky.ownStar ? 'reposition in sky' : 'choose sky position'}
+            </button>
+          )}
+          <button type="button" className="grid-hud__secondary" onClick={onOpenConstellation}>
+            open full constellation editor ↗
+          </button>
+        </div>
+      </div>
+
+      <form className="grid-hud__transmission" onSubmit={submit}>
+        <label htmlFor="grid-star-message">transmission attached to your star</label>
+        <div>
+          <input
+            id="grid-star-message"
+            type="text"
+            maxLength={50}
+            value={draftMessage}
+            disabled={!sky.ownStar || sky.savingMessage}
+            placeholder={sky.ownStar ? 'Add a short message' : 'Place your star first'}
+            onChange={event => {
+              setDraftMessage(event.target.value)
+              setSaved(false)
+            }}
+          />
+          <button type="submit" disabled={!sky.ownStar || sky.savingMessage}>
+            {sky.savingMessage ? 'sending…' : 'send'}
+          </button>
+        </div>
+      </form>
+      <p className="grid-hud__feedback" role="status">
+        {sky.error ?? (saved ? 'Transmission saved to your star.' : '')}
+      </p>
+    </section>
+  )
 }
 
 export default function GridHud({
@@ -34,6 +296,10 @@ export default function GridHud({
   onNavigate,
   onExit,
   onPlaceStar,
+  onCancelStarPlacement,
+  onSetStarColor,
+  onSaveStarMessage,
+  onOpenConstellation,
 }: GridHudProps) {
   const active = station >= 0 ? STATIONS[station] : null
 
@@ -44,113 +310,78 @@ export default function GridHud({
           ← back to portfolio
         </button>
         <nav className="grid-hud__nav" aria-label="Grid stations">
-          {STATIONS.map((s, i) => (
+          {STATIONS.map((item, index) => (
             <button
-              key={s.id}
+              key={item.id}
               type="button"
-              className={`grid-hud__nav-btn ${i === station ? 'is-active' : ''}`}
-              style={{ '--grid-accent': s.accent } as React.CSSProperties}
-              aria-current={i === station ? 'true' : undefined}
-              onClick={() => onNavigate(i)}
+              className={`grid-hud__nav-btn ${index === station ? 'is-active' : ''}`}
+              style={{ '--grid-accent': item.accent } as CSSProperties}
+              aria-current={index === station ? 'true' : undefined}
+              onClick={() => onNavigate(index)}
             >
-              <span className="grid-hud__nav-index">{String(i).padStart(2, '0')}</span>
-              <span className="grid-hud__nav-label">{s.label}</span>
+              <span className="grid-hud__nav-index">{String(index).padStart(2, '0')}</span>
+              <span className="grid-hud__nav-label">{item.label}</span>
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Station announcer for assistive tech — the canvas is aria-hidden. */}
       <p className="sr-only" aria-live="polite">
         {active ? `${String(station).padStart(2, '0')} ${active.label} — ${active.title}` : 'traveling'}
       </p>
 
-      {/* The whole portfolio as a real document. Buttons drive the same
-          selection state as clicking the 3D city. */}
       <div className="sr-only">
         <h2>{content.profile.headline}</h2>
         <p>{content.profile.description}</p>
-
-        <h3>Journey — one elevated stop per role. Use Left and Right arrows at the Journey station, or these buttons.</h3>
+        <h3>Journey</h3>
         <ul>
-          {content.experiences.map((exp, i) => (
-            <li key={exp.id}>
-              <button
-                type="button"
-                aria-pressed={selection.role === i}
-                onClick={() => onSelectRole(selection.role === i ? null : i)}
-              >
-                {exp.company} — {exp.role}, {exp.period}
-              </button>
-              <p>
-                {exp.location} · {exp.status}. {exp.summary} Stack: {exp.stack.join(', ')}.
-              </p>
+          {content.experiences.map(experience => (
+            <li key={experience.id}>
+              {experience.company} — {experience.role}, {experience.period}. {experience.summary}
             </li>
           ))}
         </ul>
-
-        <h3>Projects — giant street marquees. Use Left and Right arrows at the Projects station, or these buttons.</h3>
+        <h3>Projects</h3>
         <ul>
-          {content.projects.map((project, i) => (
+          {content.projects.map(project => (
             <li key={project.id}>
-              <button
-                type="button"
-                aria-pressed={selection.project === i}
-                onClick={() => onSelectProject(i)}
-              >
-                {project.name} — {project.tag}
-              </button>
-              <p>
-                {project.lead} Stack: {project.tech.join(', ')}.{' '}
-                {project.stats.map(stat => `${stat.value} ${stat.label}`).join(', ')}.
-              </p>
-              <a href={`/projects/${project.id}/`} target="_blank" rel="noopener noreferrer">
-                {project.name} case study
-              </a>
+              {project.name} — {project.tag}. {project.lead}
             </li>
           ))}
         </ul>
-        {selection.focus && (
-          <button type="button" onClick={onClearFocus}>
-            release camera back to the street
-          </button>
-        )}
-
-        <h3>Outside the code</h3>
-        <ul>
-          {content.beyond.map(item => (
-            <li key={item.id}>
-              {item.title} — {item.subtitle}.{' '}
-              {item.stats.map(stat => `${stat.value} ${stat.label}`).join(', ')}.
-            </li>
-          ))}
-        </ul>
-
-        <h3>Toolkit</h3>
-        <ul>
-          {content.toolkit.map(group => (
-            <li key={group.id}>
-              {group.name}: {group.items.join(', ')}
-            </li>
-          ))}
-        </ul>
-
         <h3>The sky</h3>
         <p>
           {sky.live
             ? `${sky.count} visitor ${sky.count === 1 ? 'star hangs' : 'stars hang'} over the city.`
-            : 'The constellation uplink is offline — the ambient sky still shines.'}
-          {sky.ownStar ? ' Your star is up there — it can be dragged across the 3D sky.' : ''}
-        </p>
-        <button type="button" onClick={onPlaceStar}>
-          {sky.ownStar ? 'edit your star in the constellation' : 'place your star in the constellation'}
-        </button>
-        <p>
-          <a href={`mailto:${content.profile.email}`}>email</a>{' '}
-          <a href={content.profile.github} target="_blank" rel="noopener noreferrer">github</a>{' '}
-          <a href={content.profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin</a>
+            : 'The live uplink is unavailable; the local sky remains interactive.'}
+          {sky.ownStar ? ' Your star can be dragged or repositioned in the Grid sky.' : ''}
         </p>
       </div>
+
+      {station === 1 && (
+        <JourneyPanel
+          selection={selection}
+          onSelectRole={onSelectRole}
+          onClearFocus={onClearFocus}
+        />
+      )}
+      {station === 2 && (
+        <ProjectPanel
+          selection={selection}
+          onSelectProject={onSelectProject}
+          onClearFocus={onClearFocus}
+        />
+      )}
+      {station === 5 && (
+        <SkyPanel
+          sky={sky}
+          onPlaceStar={onPlaceStar}
+          onCancelStarPlacement={onCancelStarPlacement}
+          onSetStarColor={onSetStarColor}
+          onSaveStarMessage={onSaveStarMessage}
+          onOpenConstellation={onOpenConstellation}
+        />
+      )}
 
       {showHint && (
         <p className="grid-hud__hint" aria-hidden="true">

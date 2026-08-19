@@ -44,3 +44,32 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
   // below-the-fold feature chunks must remain gated behind user intent.
   expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation/.test(url))).toBe(false)
 })
+
+test('Grid exposes integrated records and constellation placement controls', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.includes('mobile'), 'The Grid targets the desktop fidelity tier.')
+  test.slow()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/?grid=1')
+
+  const grid = page.getByRole('dialog', { name: 'The Grid — interactive 3D portfolio' })
+  await expect(grid).toHaveAttribute('data-grid-phase', 'active', { timeout: 20_000 })
+
+  await page.getByRole('button', { name: '01 JOURNEY' }).click()
+  await expect(grid).toHaveAttribute('data-grid-station', '1')
+  await expect(page.getByRole('region', { name: 'Blue Shield of California' })).toBeVisible()
+
+  await page.getByRole('button', { name: '02 PROJECTS' }).click()
+  await expect(grid).toHaveAttribute('data-grid-station', '2')
+  await expect(page.getByRole('region', { name: 'Agoriai' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'open case study ↗' })).toHaveAttribute(
+    'href',
+    '/projects/agoriai/',
+  )
+
+  await page.getByRole('button', { name: '05 SKY' }).click()
+  await expect(grid).toHaveAttribute('data-grid-station', '5')
+  const skyPanel = page.locator('.grid-hud__panel--sky')
+  await skyPanel.getByRole('button', { name: /choose sky position|reposition in sky/ }).click()
+  await expect(grid).toHaveAttribute('data-grid-sky-placing', 'true')
+  await expect(skyPanel.getByRole('button', { name: 'cancel placement' })).toBeVisible()
+})

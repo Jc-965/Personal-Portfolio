@@ -30,23 +30,6 @@ import {
  * live IN the world — the DOM keeps only a screen-reader document.
  */
 
-/** Break a sentence into sign-sized lines. */
-function wrapText(text: string, maxChars: number): string[] {
-  const words = text.split(' ')
-  const lines: string[] = []
-  let line = ''
-  for (const word of words) {
-    if (line && line.length + word.length + 1 > maxChars) {
-      lines.push(line)
-      line = word
-    } else {
-      line = line ? `${line} ${word}` : word
-    }
-  }
-  if (line) lines.push(line)
-  return lines
-}
-
 function NeonBox({
   position,
   size,
@@ -737,7 +720,7 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
             key={exp.id}
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation()
-              onSelectRole(selected ? null : i)
+              onSelectRole(i)
             }}
             onPointerOver={showTooltip}
             onPointerMove={showTooltip}
@@ -807,8 +790,9 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
                 active={selected}
               />
             )}
-            {/* The selected stop unfolds its full record as a street-side
-                hologram, angled at the focus camera. */}
+            {/* The selected stop exposes a compact physical readout; the
+                synchronized HUD carries the long-form record at readable
+                resolution. */}
             {selected && (
               <Sign
                 spec={{
@@ -816,14 +800,10 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
                   width: 760,
                   background: 'rgba(3, 9, 16, 0.78)',
                   lines: [
-                    { text: exp.role.toUpperCase(), size: 42 },
-                    { text: `${exp.period} · ${exp.location} · ${exp.status}`, size: 27, color: '#9fb6c9' },
-                    ...wrapText(exp.summary, 42).map(line => ({
-                      text: line,
-                      size: 26,
-                      color: '#cfe3f0',
-                    })),
-                    { text: exp.stack.join(' · '), size: 24, color: exp.accent },
+                    { text: `ACTIVE RECORD // ${String(i + 1).padStart(2, '0')}`, size: 33 },
+                    { text: `${exp.location} · ${exp.status}`, size: 28, color: '#cfe3f0' },
+                    { text: exp.stack.slice(0, 5).join(' · '), size: 24, color: exp.accent },
+                    { text: 'DETAILS LINKED TO HUD', size: 23, color: '#8fa7ba' },
                   ],
                 }}
                 position={[3.2, 6.5, z + 4.2]}
@@ -918,14 +898,13 @@ function ProjectMarquees({ interaction }: { interaction: GridInteraction }) {
                 onClick={e => {
                   e.stopPropagation()
                   onSelectProject(i)
-                  window.open(`/projects/${project.id}/`, '_blank', 'noopener')
                 }}
                 onPointerOver={e => {
                   e.stopPropagation()
                   onTooltip?.({
                     x: e.nativeEvent.clientX,
                     y: e.nativeEvent.clientY,
-                    text: `${project.name} — open case study ↗`,
+                    text: `${project.name} — inspect project`,
                     color: project.accent,
                   })
                 }}
@@ -934,7 +913,7 @@ function ProjectMarquees({ interaction }: { interaction: GridInteraction }) {
                   onTooltip?.({
                     x: e.nativeEvent.clientX,
                     y: e.nativeEvent.clientY,
-                    text: `${project.name} — open case study ↗`,
+                    text: `${project.name} — inspect project`,
                     color: project.accent,
                   })
                 }}
@@ -1137,7 +1116,7 @@ function SkyDeck({ interaction }: { interaction: GridInteraction }) {
       <NeonBox position={[d.x, d.y / 2, d.z]} size={[1.1, d.y, 1.1]} accent="#7efcff" edgeOpacity={0.35} />
       <NeonBox position={[d.x, d.y, d.z]} size={[d.size, 0.5, d.size]} accent="#7efcff" />
       <TickerSign
-        text="··· NOW ARRIVING // 05 SKY — THE CONSTELLATION ··· LOOK UP · HOVER A STAR · DRAG YOURS ··· THE GRID // JESSE CHEN "
+        text="··· NOW ARRIVING // 05 SKY — THE CONSTELLATION ··· PLACE IN THIS SKY · HOVER A STAR · DRAG YOURS ··· THE GRID // JESSE CHEN "
         position={[d.x, d.y - 0.65, d.z + d.size / 2 + 0.05]}
         width={d.size}
         height={0.7}
@@ -1166,7 +1145,7 @@ function SkyDeck({ interaction }: { interaction: GridInteraction }) {
           onTooltip?.({
             x: e.nativeEvent.clientX,
             y: e.nativeEvent.clientY,
-            text: 'leave the Grid and sign the constellation',
+            text: 'choose a point and place your star in this sky',
             color: '#7efcff',
           })
         }}
