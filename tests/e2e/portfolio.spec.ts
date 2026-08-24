@@ -56,7 +56,15 @@ test('Grid exposes integrated records and constellation placement controls', asy
 
   await page.getByRole('button', { name: '01 JOURNEY' }).click()
   await expect(grid).toHaveAttribute('data-grid-station', '1')
-  await expect(page.getByRole('region', { name: 'Blue Shield of California' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Career timeline' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Blue Shield of California' })).toBeVisible()
+  await page.getByRole('button', { name: /02\s+ScottyLabs/ }).click()
+  await expect(page.getByRole('heading', { name: 'ScottyLabs AI · CMUGPT' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'fly to stop' })).toBeVisible()
+  await page.getByRole('button', { name: 'fly to stop' }).click()
+  await expect(page.getByRole('button', { name: 'release camera' })).toBeVisible()
+  await page.getByRole('button', { name: /stop 3/i }).click()
+  await expect(page.getByRole('button', { name: 'release camera' })).toBeVisible()
 
   await page.getByRole('button', { name: '02 PROJECTS' }).click()
   await expect(grid).toHaveAttribute('data-grid-station', '2')

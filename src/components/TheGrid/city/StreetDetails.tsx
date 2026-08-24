@@ -409,14 +409,241 @@ function RisingSteam() {
   )
 }
 
+
+function StreetLamps() {
+  const poleRef = useRef<THREE.InstancedMesh>(null)
+  const headRef = useRef<THREE.InstancedMesh>(null)
+  const glowRef = useRef<THREE.InstancedMesh>(null)
+  const lamps = useMemo(() => {
+    const result: Array<{ x: number; z: number }> = []
+    for (let z = STREET.zStart - 6; z > STREET.zEnd + 8; z -= 22) {
+      result.push({ x: -STREET.sidewalkOuter + 0.55, z })
+      result.push({ x: STREET.sidewalkOuter - 0.55, z: z - 11 })
+    }
+    return result
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!poleRef.current || !headRef.current || !glowRef.current) return
+    const matrix = new THREE.Matrix4()
+    lamps.forEach((lamp, index) => {
+      matrix.makeTranslation(lamp.x, 4.2, lamp.z)
+      poleRef.current?.setMatrixAt(index, matrix)
+      matrix.makeTranslation(lamp.x + Math.sign(lamp.x) * -0.45, 8.35, lamp.z)
+      headRef.current?.setMatrixAt(index, matrix)
+      matrix.makeTranslation(lamp.x + Math.sign(lamp.x) * -0.45, 8.05, lamp.z)
+      glowRef.current?.setMatrixAt(index, matrix)
+    })
+    poleRef.current.instanceMatrix.needsUpdate = true
+    headRef.current.instanceMatrix.needsUpdate = true
+    glowRef.current.instanceMatrix.needsUpdate = true
+  }, [lamps])
+
+  return (
+    <group>
+      <instancedMesh ref={poleRef} args={[undefined, undefined, lamps.length]} castShadow>
+        <cylinderGeometry args={[0.08, 0.12, 8.4, 6]} />
+        <meshStandardMaterial color="#1a2229" metalness={0.72} roughness={0.38} />
+      </instancedMesh>
+      <instancedMesh ref={headRef} args={[undefined, undefined, lamps.length]}>
+        <boxGeometry args={[0.85, 0.18, 0.42]} />
+        <meshStandardMaterial color="#2a343c" metalness={0.55} roughness={0.42} />
+      </instancedMesh>
+      <instancedMesh ref={glowRef} args={[undefined, undefined, lamps.length]}>
+        <boxGeometry args={[0.62, 0.08, 0.28]} />
+        <meshStandardMaterial
+          color="#ffd7a1"
+          emissive="#ffb45c"
+          emissiveIntensity={2.4}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </group>
+  )
+}
+
+function SidewalkFurniture() {
+  const binRef = useRef<THREE.InstancedMesh>(null)
+  const planterRef = useRef<THREE.InstancedMesh>(null)
+  const hydrantRef = useRef<THREE.InstancedMesh>(null)
+  const props = useMemo(() => {
+    const rng = mulberry32(0x51de)
+    const bins: Array<[number, number]> = []
+    const planters: Array<[number, number]> = []
+    const hydrants: Array<[number, number]> = []
+    for (let z = STREET.zStart - 10; z > STREET.zEnd + 12; z -= 19) {
+      bins.push([-STREET.sidewalkOuter + 1.1, z + rng() * 3])
+      bins.push([STREET.sidewalkOuter - 1.1, z - 8 + rng() * 2])
+      planters.push([-STREET.halfWidth - 1.3, z - 4])
+      planters.push([STREET.halfWidth + 1.3, z - 12])
+      if (rng() > 0.35) hydrants.push([-(STREET.halfWidth + 0.55), z - 2.5])
+      if (rng() > 0.45) hydrants.push([STREET.halfWidth + 0.55, z - 15])
+    }
+    return { bins, planters, hydrants }
+  }, [])
+
+  useLayoutEffect(() => {
+    const matrix = new THREE.Matrix4()
+    props.bins.forEach(([x, z], index) => {
+      matrix.makeTranslation(x, 0.55, z)
+      binRef.current?.setMatrixAt(index, matrix)
+    })
+    props.planters.forEach(([x, z], index) => {
+      matrix.makeTranslation(x, 0.32, z)
+      planterRef.current?.setMatrixAt(index, matrix)
+    })
+    props.hydrants.forEach(([x, z], index) => {
+      matrix.makeTranslation(x, 0.48, z)
+      hydrantRef.current?.setMatrixAt(index, matrix)
+    })
+    if (binRef.current) binRef.current.instanceMatrix.needsUpdate = true
+    if (planterRef.current) planterRef.current.instanceMatrix.needsUpdate = true
+    if (hydrantRef.current) hydrantRef.current.instanceMatrix.needsUpdate = true
+  }, [props])
+
+  return (
+    <group>
+      <instancedMesh ref={binRef} args={[undefined, undefined, props.bins.length]} castShadow>
+        <cylinderGeometry args={[0.28, 0.32, 1.05, 8]} />
+        <meshStandardMaterial color="#1c242b" metalness={0.55} roughness={0.48} />
+      </instancedMesh>
+      <instancedMesh ref={planterRef} args={[undefined, undefined, props.planters.length]} castShadow>
+        <boxGeometry args={[0.9, 0.55, 0.9]} />
+        <meshStandardMaterial color="#3a454d" roughness={0.82} metalness={0.08} />
+      </instancedMesh>
+      <instancedMesh ref={hydrantRef} args={[undefined, undefined, props.hydrants.length]} castShadow>
+        <cylinderGeometry args={[0.16, 0.2, 0.9, 8]} />
+        <meshStandardMaterial
+          color="#c4453a"
+          emissive="#6a1c16"
+          emissiveIntensity={0.25}
+          metalness={0.35}
+          roughness={0.45}
+        />
+      </instancedMesh>
+    </group>
+  )
+}
+
+function LaneDashes() {
+  const ref = useRef<THREE.InstancedMesh>(null)
+  const dashes = useMemo(() => {
+    const result: number[] = []
+    for (let z = STREET.zStart - 2; z > STREET.zEnd + 2; z -= 3.4) result.push(z)
+    return result
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!ref.current) return
+    const matrix = new THREE.Matrix4()
+    dashes.forEach((z, index) => {
+      matrix.makeTranslation(0, 0.045, z)
+      ref.current?.setMatrixAt(index, matrix)
+    })
+    ref.current.instanceMatrix.needsUpdate = true
+  }, [dashes])
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, dashes.length]}>
+      <boxGeometry args={[0.18, 0.02, 1.5]} />
+      <meshStandardMaterial
+        color="#d8e6f0"
+        emissive="#8eb4cc"
+        emissiveIntensity={0.35}
+        roughness={0.55}
+        metalness={0.05}
+        transparent
+        opacity={0.55}
+        depthWrite={false}
+      />
+    </instancedMesh>
+  )
+}
+
+function NeonShopfronts() {
+  const awningRef = useRef<THREE.InstancedMesh>(null)
+  const glowRef = useRef<THREE.InstancedMesh>(null)
+  const fronts = useMemo(() => {
+    const rng = mulberry32(0x71a2)
+    const result: Array<{ x: number; z: number; color: THREE.Color; width: number }> = []
+    const palette = ['#31dfff', '#ff5d86', '#ffb347', '#7dffb3', '#c58cff']
+    for (let z = STREET.zStart - 14; z > STREET.zEnd + 16; z -= 14) {
+      const color = new THREE.Color(palette[Math.floor(rng() * palette.length)])
+      result.push({
+        x: -STREET.sidewalkOuter + 0.2,
+        z: z + rng() * 2,
+        color,
+        width: 2.4 + rng() * 1.8,
+      })
+      result.push({
+        x: STREET.sidewalkOuter - 0.2,
+        z: z - 7 + rng() * 2,
+        color: new THREE.Color(palette[Math.floor(rng() * palette.length)]),
+        width: 2.2 + rng() * 1.6,
+      })
+    }
+    return result
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!awningRef.current || !glowRef.current) return
+    const matrix = new THREE.Matrix4()
+    const quaternion = new THREE.Quaternion()
+    const position = new THREE.Vector3()
+    const scale = new THREE.Vector3()
+    fronts.forEach((front, index) => {
+      const faceIn = Math.sign(front.x) * -1
+      position.set(front.x + faceIn * 0.55, 3.1, front.z)
+      quaternion.setFromEuler(new THREE.Euler(0, faceIn > 0 ? 0 : Math.PI, 0))
+      scale.set(front.width, 0.16, 0.9)
+      matrix.compose(position, quaternion, scale)
+      awningRef.current?.setMatrixAt(index, matrix)
+      position.set(front.x + faceIn * 0.2, 2.55, front.z)
+      scale.set(front.width * 0.92, 1.4, 0.08)
+      matrix.compose(position, quaternion, scale)
+      glowRef.current?.setMatrixAt(index, matrix)
+      glowRef.current?.setColorAt(index, front.color)
+    })
+    awningRef.current.instanceMatrix.needsUpdate = true
+    glowRef.current.instanceMatrix.needsUpdate = true
+    if (glowRef.current.instanceColor) glowRef.current.instanceColor.needsUpdate = true
+  }, [fronts])
+
+  return (
+    <group>
+      <instancedMesh ref={awningRef} args={[undefined, undefined, fronts.length]} castShadow>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#1a2229" metalness={0.45} roughness={0.55} />
+      </instancedMesh>
+      <instancedMesh ref={glowRef} args={[undefined, undefined, fronts.length]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial
+          color="#7adfff"
+          emissive="#4ec8ff"
+          emissiveIntensity={1.6}
+          toneMapped={false}
+          transparent
+          opacity={0.55}
+          depthWrite={false}
+          vertexColors
+        />
+      </instancedMesh>
+    </group>
+  )
+}
+
 export default function StreetDetails() {
   return (
     <group>
       <RoadAndSidewalks />
+      <LaneDashes />
       <RoadStuds />
       <DrainGrates />
       <ManholesAndPuddles />
       <CrosswalksAndBollards />
+      <StreetLamps />
+      <SidewalkFurniture />
+      <NeonShopfronts />
       <UtilityWires />
       <RisingSteam />
     </group>

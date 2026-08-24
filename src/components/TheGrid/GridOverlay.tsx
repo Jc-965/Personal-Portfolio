@@ -212,8 +212,20 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     [],
   )
   const onSelectRole = useCallback(
-    (index: number | null) =>
-      setSelection(current => ({ ...current, role: index, focus: index === null ? null : 'role' })),
+    (index: number | null, options?: { inspect?: boolean }) => {
+      setSelection(current => {
+        if (index === null) {
+          return {
+            ...current,
+            role: null,
+            focus: current.focus === 'role' ? null : current.focus,
+          }
+        }
+        const inspect = options?.inspect ?? true
+        const focus = inspect || current.focus === 'role' ? 'role' as const : null
+        return { ...current, role: index, focus }
+      })
+    },
     [],
   )
   const onClearFocus = useCallback(
@@ -253,7 +265,13 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
           setSelection(current => {
             const from = current.role ?? (dir > 0 ? -1 : 0)
             const role = ((from + dir) % count + count) % count
-            return { ...current, role, focus: 'role' }
+            // Keep camera lock only while already inspecting a stop; otherwise
+            // arrow keys browse the timeline without yanking the rail camera.
+            return {
+              ...current,
+              role,
+              focus: current.focus === 'role' ? 'role' : null,
+            }
           })
         } else if (at === 2) {
           e.preventDefault()

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { content, gantryZ, GANTRY, marqueeCenter, PROJECT_SITES } from '../gridConfig'
+import { content, gantryZ, marqueeCenter, PROJECT_SITES } from '../gridConfig'
 import type { GridSelection } from './interaction'
 
 /**
@@ -33,11 +33,10 @@ const rolePoses: FocusPose[] = content.experiences.map((_, i) => {
   const z = gantryZ(i)
   return {
     station: 1,
-    // Climb to sign height a car-length up-street of the gantry (short of
-    // the previous bridge's deck); the aim is biased east so the record
-    // hologram beside the road shares the frame.
-    position: new THREE.Vector3(-3.2, 6.2, z + 10.5),
-    lookAt: new THREE.Vector3(2.4, GANTRY.deckY + 1.2, z + 1.5),
+    // Frame the holographic dossier as the hero — gantry overhead and
+    // platform kiosk still read in the periphery.
+    position: new THREE.Vector3(-2.4, 5.8, z + 11.2),
+    lookAt: new THREE.Vector3(3.6, 5.2, z + 4.4),
   }
 })
 

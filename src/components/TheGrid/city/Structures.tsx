@@ -443,6 +443,42 @@ function HoloRing({
   )
 }
 
+/** Vertical scan sweep across a holographic dossier plane. */
+function HoloScan({
+  width,
+  height,
+  accent,
+}: {
+  width: number
+  height: number
+  accent: string
+}) {
+  const ref = useRef<THREE.Mesh>(null)
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        transparent: true,
+        opacity: 0.35,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    [accent],
+  )
+  useEffect(() => () => material.dispose(), [material])
+  useFrame(state => {
+    if (!ref.current) return
+    const t = (Math.sin(state.clock.elapsedTime * 1.4) + 1) * 0.5
+    ref.current.position.y = (t - 0.5) * (height - 0.2)
+    material.opacity = 0.18 + t * 0.28
+  })
+  return (
+    <mesh ref={ref} material={material} position={[0, 0, 0.02]} renderOrder={6}>
+      <planeGeometry args={[width * 0.92, 0.08]} />
+    </mesh>
+  )
+}
+
 /** Scrolling news-ticker strip — canvas texture on repeat, offset by time. */
 function TickerSign({
   text,
@@ -682,9 +718,32 @@ function CatenaryCable() {
   return <primitive object={line} />
 }
 
+function wrapSignCopy(text: string, maxChars: number, maxLines = 5): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word
+    if (next.length > maxChars && current) {
+      lines.push(current)
+      current = word
+      if (lines.length >= maxLines) break
+    } else {
+      current = next
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current)
+  const joined = lines.join(' ')
+  if (words.join(' ').length > joined.length && lines.length) {
+    const last = lines[lines.length - 1]
+    lines[lines.length - 1] = `${last.replace(/\s+\S*$/, '')}…`
+  }
+  return lines
+}
+
 /** Role gantries: one overhead sign bridge per experience — the visitor
- * rides down the middle of their own career timeline, every company
- * readable head-on as its bridge approaches. */
+ * rides down the middle of their own career timeline. Selecting a stop
+ * unfolds a holographic dossier beside the road (not a bottom HUD slab). */
 function RoleGantries({ interaction }: { interaction: GridInteraction }) {
   const stops = content.experiences
   const { onTooltip, onSelectRole, selection } = interaction
@@ -694,7 +753,6 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
 
   return (
     <group>
-      {/* Monorail beam on the centerline, high above the traffic. */}
       <NeonBox
         position={[0, GANTRY.railY, beamZ]}
         size={[0.9, 0.5, beamLength]}
@@ -705,6 +763,9 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
       {stops.map((exp, i) => {
         const z = gantryZ(i)
         const selected = selection.role === i
+        const focused = selected && selection.focus === 'role'
+        const lit = selected || hoveredStop === i
+        const summaryLines = wrapSignCopy(exp.summary, 42, focused ? 5 : 3)
         const showTooltip = (e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
           setHoveredStop(i)
@@ -729,7 +790,6 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
               onTooltip?.(null)
             }}
           >
-            {/* Pylons on both sidewalks carrying the sign bridge. */}
             {[-1, 1].map(side => (
               <NeonBox
                 key={side}
@@ -745,73 +805,161 @@ function RoleGantries({ interaction }: { interaction: GridInteraction }) {
               accent={exp.accent}
               edgeOpacity={0.5}
             />
-            {/* Underdeck light bar — the warm splash on the road below. */}
             <mesh position={[0, GANTRY.deckY - 0.03, z + 1.0]}>
               <boxGeometry args={[GANTRY.pylonX * 2 - 1.5, 0.09, 0.32]} />
               <meshBasicMaterial color={exp.accent} />
             </mesh>
-            {/* The station sign: company · role · period, facing up-street. */}
             <Sign
               spec={{
                 accent: exp.accent,
-                width: 880,
-                background: 'rgba(3, 8, 15, 0.55)',
+                width: 900,
+                background: lit ? 'rgba(3, 10, 18, 0.72)' : 'rgba(3, 8, 15, 0.55)',
                 lines: [
-                  { text: exp.company.toUpperCase(), size: 72 },
-                  { text: exp.role, size: 38, color: '#cfe3f0' },
-                  { text: exp.period, size: 28, color: '#8fa7ba' },
+                  { text: `STOP ${String(i + 1).padStart(2, '0')}`, size: 26, color: exp.accent },
+                  { text: exp.company.toUpperCase(), size: 68 },
+                  { text: exp.role, size: 34, color: '#cfe3f0' },
+                  { text: exp.period, size: 26, color: '#8fa7ba' },
                 ],
               }}
-              position={[0, GANTRY.deckY + 2.5, z + 1.28]}
-              height={3.1}
+              position={[0, GANTRY.deckY + 2.55, z + 1.28]}
+              height={3.35}
             />
-            {/* Strut up to the monorail. */}
             <NeonBox
               position={[0, GANTRY.deckY + 0.6 + (GANTRY.railY - GANTRY.deckY - 0.85) / 2, z]}
               size={[0.3, GANTRY.railY - GANTRY.deckY - 0.85, 0.3]}
               accent={exp.accent}
               edgeOpacity={0.3}
             />
-            {/* Sidewalk kiosk at the stop — street furniture with a pulse. */}
             <NeonBox
-              position={[10.9, 1.3, z + 2.4]}
-              size={[1.6, 2.6, 1.4]}
+              position={[10.9, 1.35, z + 2.4]}
+              size={[1.7, 2.7, 1.5]}
               accent={exp.accent}
               lit
               windowDensity={1}
               seed={7 + i}
             />
+            <Sign
+              spec={{
+                accent: exp.accent,
+                width: 420,
+                background: 'rgba(2, 8, 14, 0.82)',
+                lines: [
+                  { text: exp.track.toUpperCase(), size: 22, color: exp.accent },
+                  { text: exp.status.toUpperCase(), size: 28 },
+                  { text: exp.location, size: 20, color: '#9db3c2' },
+                ],
+              }}
+              position={[10.9, 2.55, z + 3.22]}
+              rotationY={-0.18}
+              height={1.35}
+            />
+            <FloorSign
+              spec={{
+                accent: exp.accent,
+                width: 520,
+                lines: [{ text: String(i + 1).padStart(2, '0'), size: 96 }],
+              }}
+              position={[0, 0.05, z + 4.8]}
+              height={1.6}
+              opacity={selected ? 0.92 : 0.45}
+            />
             <Beacon position={[0, GANTRY.deckY + 0.85, z]} accent={exp.accent} size={0.3} />
-            {(selected || hoveredStop === i) && (
+            {lit && (
               <HoloRing
                 position={[0, GANTRY.deckY + 0.9, z]}
                 accent={exp.accent}
-                radius={3}
-                active={selected}
+                radius={focused ? 3.6 : 3}
+                active={focused}
               />
             )}
-            {/* The selected stop exposes a compact physical readout; the
-                synchronized HUD carries the long-form record at readable
-                resolution. */}
             {selected && (
-              <Sign
-                spec={{
-                  accent: exp.accent,
-                  width: 760,
-                  background: 'rgba(3, 9, 16, 0.78)',
-                  lines: [
-                    { text: `ACTIVE RECORD // ${String(i + 1).padStart(2, '0')}`, size: 33 },
-                    { text: `${exp.location} · ${exp.status}`, size: 28, color: '#cfe3f0' },
-                    { text: exp.stack.slice(0, 5).join(' · '), size: 24, color: exp.accent },
-                    { text: 'DETAILS LINKED TO HUD', size: 23, color: '#8fa7ba' },
-                  ],
-                }}
-                position={[3.2, 6.5, z + 4.2]}
-                rotationY={-0.42}
-                height={3.1}
-              />
+              <group position={[4.4, 5.4, z + 5.1]} rotation={[0, -0.55, 0]}>
+                <mesh position={[0, 0, -0.06]}>
+                  <planeGeometry args={[focused ? 7.4 : 6.2, focused ? 5.1 : 3.8]} />
+                  <meshBasicMaterial
+                    color="#031018"
+                    transparent
+                    opacity={0.72}
+                    depthWrite={false}
+                  />
+                </mesh>
+                <mesh position={[0, 0, -0.04]}>
+                  <planeGeometry args={[focused ? 7.55 : 6.35, focused ? 5.25 : 3.95]} />
+                  <meshBasicMaterial
+                    color={exp.accent}
+                    transparent
+                    opacity={0.18}
+                    depthWrite={false}
+                  />
+                </mesh>
+                <Sign
+                  spec={{
+                    accent: exp.accent,
+                    width: 920,
+                    background: 'rgba(3, 10, 18, 0.88)',
+                    lines: [
+                      { text: `ACTIVE RECORD // ${String(i + 1).padStart(2, '0')}`, size: 28 },
+                      { text: exp.company.toUpperCase(), size: 46 },
+                      { text: exp.role, size: 28, color: '#cfe3f0' },
+                      { text: `${exp.location} · ${exp.status}`, size: 22, color: '#8fa7ba' },
+                      ...summaryLines.map(line => ({ text: line, size: 22, color: '#b7c9d4' })),
+                      { text: exp.stack.slice(0, 6).join(' · '), size: 20, color: exp.accent },
+                      {
+                        text: focused ? 'SCROLL OR ← → TO CHANGE STOP' : 'CLICK AGAIN / FLY TO LOCK',
+                        size: 18,
+                        color: '#7f96a6',
+                      },
+                    ],
+                  }}
+                  position={[0, 0, 0]}
+                  height={focused ? 4.8 : 3.55}
+                />
+                <HoloScan
+                  width={focused ? 7.2 : 6}
+                  height={focused ? 4.6 : 3.4}
+                  accent={exp.accent}
+                />
+                {focused &&
+                  exp.stack.slice(0, 5).map((tech, techIndex) => (
+                  <group
+                    key={tech}
+                    position={[
+                      -2.4 + techIndex * 1.35,
+                      -2.55,
+                      0.12,
+                    ]}
+                  >
+                    <mesh>
+                      <planeGeometry args={[1.2, 0.34]} />
+                      <meshBasicMaterial
+                        color="#041018"
+                        transparent
+                        opacity={0.82}
+                        depthWrite={false}
+                      />
+                    </mesh>
+                    <Sign
+                      spec={{
+                        accent: exp.accent,
+                        width: 280,
+                        background: 'rgba(4, 14, 22, 0.9)',
+                        lines: [{ text: tech.toUpperCase(), size: 28, color: exp.accent }],
+                      }}
+                      position={[0, 0, 0.02]}
+                      height={0.32}
+                    />
+                  </group>
+                ))}
+                <pointLight
+                  position={[0.4, 0.6, 1.8]}
+                  color={exp.accent}
+                  intensity={focused ? 38 : 22}
+                  distance={18}
+                  decay={2}
+                />
+              </group>
             )}
-            <GlowPad position={[0, 0, z]} accent={exp.accent} radius={6} />
+            <GlowPad position={[0, 0, z]} accent={exp.accent} radius={focused ? 7.2 : 6} />
           </group>
         )
       })}

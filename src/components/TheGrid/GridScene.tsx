@@ -21,7 +21,7 @@ export interface GridSceneProps {
   dragActiveRef?: MutableRefObject<boolean>
   selection: GridSelection
   onSelectProject: (index: number) => void
-  onSelectRole: (index: number | null) => void
+  onSelectRole: (index: number | null, options?: { inspect?: boolean }) => void
   /** Clicking empty street releases a fly-to focus back to the rail view. */
   onClearFocus?: () => void
   /** In-world sky-deck CTA: begin placing a star directly in the 3D sky. */

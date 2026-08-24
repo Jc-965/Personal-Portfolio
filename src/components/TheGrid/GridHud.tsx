@@ -10,7 +10,7 @@ export interface GridHudProps {
   showHint: boolean
   selection: GridSelection
   onSelectProject: (index: number) => void
-  onSelectRole: (index: number | null) => void
+  onSelectRole: (index: number | null, options?: { inspect?: boolean }) => void
   onClearFocus: () => void
   onNavigate: (index: number) => void
   onExit: () => void
@@ -24,7 +24,7 @@ export interface GridHudProps {
 interface SelectionPanelProps {
   selection: GridSelection
   onSelectProject: (index: number) => void
-  onSelectRole: (index: number | null) => void
+  onSelectRole: (index: number | null, options?: { inspect?: boolean }) => void
   onClearFocus: () => void
 }
 
@@ -35,63 +35,123 @@ function JourneyPanel({
 }: Pick<SelectionPanelProps, 'selection' | 'onSelectRole' | 'onClearFocus'>) {
   const roleIndex = selection.role ?? 0
   const role = content.experiences[roleIndex]
-  const move = (direction: number) => {
-    const next = (roleIndex + direction + content.experiences.length) % content.experiences.length
-    onSelectRole(next)
+  const inspecting = selection.focus === 'role'
+  const total = content.experiences.length
+  const move = (direction: number, inspect = inspecting) => {
+    const next = (roleIndex + direction + total) % total
+    onSelectRole(next, { inspect })
   }
+  const periodLead = role.period.split(/[·•|]/)[0]?.trim() ?? role.period
 
   return (
-    <section
-      className="grid-hud__panel grid-hud__panel--journey"
-      style={{ '--grid-panel-accent': role.accent } as CSSProperties}
-      aria-labelledby="grid-journey-title"
-    >
-      <div className="grid-hud__panel-scan" aria-hidden="true" />
-      <header className="grid-hud__panel-header">
-        <div>
-          <p className="grid-hud__panel-kicker">career archive / {role.track}</p>
-          <h2 id="grid-journey-title">{role.company}</h2>
-          <p className="grid-hud__panel-subtitle">{role.role}</p>
+    <div className="grid-hud__journey" style={{ '--grid-panel-accent': role.accent } as CSSProperties}>
+      <nav className="grid-hud__timeline" aria-label="Career timeline">
+        <p className="grid-hud__timeline-kicker">01 · journey rail</p>
+        <ol className="grid-hud__timeline-list">
+          {content.experiences.map((experience, index) => (
+            <li key={experience.id}>
+              <button
+                type="button"
+                className={[
+                  'grid-hud__timeline-node',
+                  index === roleIndex ? 'is-active' : '',
+                  selection.focus === 'role' && index === roleIndex ? 'is-focused' : '',
+                ].filter(Boolean).join(' ')}
+                style={{ '--record-accent': experience.accent } as CSSProperties}
+                aria-pressed={index === roleIndex}
+                aria-current={index === roleIndex ? 'true' : undefined}
+                onClick={() => onSelectRole(index, { inspect: false })}
+              >
+                <span className="grid-hud__timeline-index">{String(index + 1).padStart(2, '0')}</span>
+                <span className="grid-hud__timeline-body">
+                  <strong>{experience.company}</strong>
+                  <small>{experience.role}</small>
+                </span>
+                <span className="grid-hud__timeline-dot" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ol>
+        <p className="grid-hud__timeline-hint" aria-hidden="true">
+          select a stop · lock to fly in
+        </p>
+      </nav>
+
+      <section
+        className={`grid-hud__dossier ${inspecting ? 'is-inspecting' : ''}`}
+        aria-labelledby="grid-journey-title"
+      >
+        <div className="grid-hud__dossier-frame" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
         </div>
-        <span className={`grid-hud__status ${role.status === 'Active' ? 'is-live' : ''}`}>
-          {role.status}
-        </span>
-      </header>
+        <div className="grid-hud__panel-scan" aria-hidden="true" />
+        <div className="grid-hud__dossier-beam" aria-hidden="true" />
+        <header className="grid-hud__dossier-header">
+          <div>
+            <p className="grid-hud__panel-kicker">
+              {role.track} · stop {String(roleIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+            </p>
+            <p className="grid-hud__dossier-period">{periodLead}</p>
+            <h2 id="grid-journey-title">{role.company}</h2>
+            <p className="grid-hud__panel-subtitle">{role.role}</p>
+          </div>
+          <div className="grid-hud__dossier-badges">
+            <span className={`grid-hud__status ${role.status === 'Active' ? 'is-live' : ''}`}>
+              {role.status}
+            </span>
+            <span className={`grid-hud__lock ${inspecting ? 'is-on' : ''}`}>
+              {inspecting ? 'camera locked' : 'rail free'}
+            </span>
+          </div>
+        </header>
 
-      <div className="grid-hud__meta">
-        <span>{role.period}</span>
-        <span>{role.location}</span>
-        <span>{String(roleIndex + 1).padStart(2, '0')} / {String(content.experiences.length).padStart(2, '0')}</span>
-      </div>
-      <p className="grid-hud__summary">{role.summary}</p>
-      <ul className="grid-hud__chips" aria-label="Role technologies">
-        {role.stack.map(item => <li key={item}>{item}</li>)}
-      </ul>
+        <div className="grid-hud__meta">
+          <span>{role.period}</span>
+          <span>{role.location}</span>
+        </div>
+        <p className="grid-hud__summary">{role.summary}</p>
+        <ul className="grid-hud__chips" aria-label="Role technologies">
+          {role.stack.map(item => <li key={item}>{item}</li>)}
+        </ul>
 
-      <div className="grid-hud__record-strip" role="list" aria-label="Career roles">
+        <footer className="grid-hud__panel-actions">
+          <button type="button" onClick={() => move(-1)} aria-label="Previous role">←</button>
+          {inspecting ? (
+            <button type="button" onClick={onClearFocus}>release camera</button>
+          ) : (
+            <button type="button" onClick={() => onSelectRole(roleIndex, { inspect: true })}>
+              fly to stop
+            </button>
+          )}
+          <button type="button" onClick={() => move(1)} aria-label="Next role">→</button>
+        </footer>
+      </section>
+
+      <div className="grid-hud__orbit" role="group" aria-label="Journey stops">
         {content.experiences.map((experience, index) => (
           <button
             key={experience.id}
             type="button"
-            className={index === roleIndex ? 'is-active' : ''}
+            className={[
+              'grid-hud__orbit-node',
+              index === roleIndex ? 'is-active' : '',
+              selection.focus === 'role' && index === roleIndex ? 'is-focused' : '',
+            ].filter(Boolean).join(' ')}
             style={{ '--record-accent': experience.accent } as CSSProperties}
+            aria-label={`${experience.company}, stop ${index + 1}`}
             aria-pressed={index === roleIndex}
-            onClick={() => onSelectRole(index)}
+            onClick={() => onSelectRole(index, { inspect: true })}
+            title={experience.company}
           >
             <span>{String(index + 1).padStart(2, '0')}</span>
-            {experience.company}
+            <small>{experience.company.split(/[\s·]/)[0]}</small>
           </button>
         ))}
       </div>
-
-      <footer className="grid-hud__panel-actions">
-        <button type="button" onClick={() => move(-1)} aria-label="Previous role">← previous</button>
-        {selection.focus === 'role' && (
-          <button type="button" onClick={onClearFocus}>release camera</button>
-        )}
-        <button type="button" onClick={() => move(1)} aria-label="Next role">next →</button>
-      </footer>
-    </section>
+    </div>
   )
 }
 

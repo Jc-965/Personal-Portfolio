@@ -90,6 +90,20 @@ export default function GridBoot({
     return () => window.cancelAnimationFrame(frame)
   }, [ready, progress, reducedMotion, onDone])
 
+  // Background / software WebGL tabs can starve rAF near 99%. Once assets
+  // are ready, force the handoff so the city is never trapped behind boot.
+  useEffect(() => {
+    if (!ready || doneRef.current) return undefined
+    const delay = reducedMotion ? 450 : 2600
+    const id = window.setTimeout(() => {
+      if (doneRef.current) return
+      doneRef.current = true
+      setPercent(100)
+      onDone()
+    }, delay)
+    return () => window.clearTimeout(id)
+  }, [ready, reducedMotion, onDone])
+
   return (
     <div className="loading-screen grid-boot" role="status" aria-label="Loading the Grid">
       <div className="loading-screen__grid" />

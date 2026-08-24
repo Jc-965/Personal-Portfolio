@@ -51,7 +51,10 @@ export interface GridInteraction {
   onTooltip?: (tooltip: SkyTooltip | null) => void
   selection: GridSelection
   onSelectProject: (index: number) => void
-  onSelectRole: (index: number | null) => void
+  /** Select a journey role. Pass `{ inspect: false }` to update the dossier
+   * without locking the camera; in-world clicks and inspect actions default
+   * to flying the camera onto the stop. */
+  onSelectRole: (index: number | null, options?: { inspect?: boolean }) => void
   /** Begin an in-world star placement/reposition gesture. */
   onPlaceStar?: () => void
 }
