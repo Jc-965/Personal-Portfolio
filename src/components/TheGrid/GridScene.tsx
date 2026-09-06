@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import CityWorld from './city/CityWorld'
@@ -8,6 +8,8 @@ import { focusPose } from './city/focus'
 import { stationT, BG_COLOR } from './gridConfig'
 import type { GridQuality } from './gridPerformance'
 import type { GridSelection, GridSkyController, SkyState, SkyTooltip } from './city/interaction'
+
+const GridEffects = lazy(() => import('./GridEffects'))
 
 export interface GridSceneProps {
   /** Target rail progress 0..1, written by the overlay's virtual scroll. */
@@ -71,10 +73,12 @@ function CameraRig({
   useEffect(() => {
     if (import.meta.env.DEV) {
       const w = window as typeof window & {
+        __gridRenderer?: THREE.WebGLRenderer
         __gridCamera?: unknown
         __gridScene?: unknown
         __gridRail?: string[]
       }
+      w.__gridRenderer = gl
       w.__gridCamera = camera
       w.__gridScene = scene
       // Guard the whole class of "camera flies through a building" bugs.
@@ -82,7 +86,7 @@ function CameraRig({
       w.__gridRail = problems
       if (problems.length > 0) console.warn('[grid] rail collisions:\n' + problems.join('\n'))
     }
-  }, [camera, scene])
+  }, [camera, scene, gl])
 
   useEffect(() => {
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -196,6 +200,7 @@ export default function GridScene({
   return (
     <Canvas
       dpr={[1, quality.maxDpr]}
+      shadows={quality.shadows ?? quality.tier !== 'low'}
       gl={{
         antialias: quality.antialias,
         powerPreference: 'high-performance',
@@ -217,8 +222,11 @@ export default function GridScene({
         if (event.type === 'click') onClearFocus?.()
       }}
     >
-      <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} selection={selection} />
-      <CityWorld quality={quality} interaction={interaction} />
+      <Suspense fallback={null}>
+        <CameraRig progressRef={progressRef} reducedMotion={reducedMotion} selection={selection} />
+        <CityWorld quality={quality} interaction={interaction} />
+      </Suspense>
+      {quality.postEnabled && <Suspense fallback={null}><GridEffects enabled msaa={quality.msaa} /></Suspense>}
     </Canvas>
   )
 }

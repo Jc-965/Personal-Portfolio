@@ -92,7 +92,7 @@ function NeonBox({
 
   return (
     <group position={position}>
-      <mesh geometry={geometry} material={bodyMaterial} />
+      <mesh geometry={geometry} material={bodyMaterial} castShadow receiveShadow />
       <lineSegments geometry={edges} material={lineMaterial} />
     </group>
   )

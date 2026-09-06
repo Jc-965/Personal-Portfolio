@@ -70,7 +70,7 @@ export function makePanelMaterial(
     roughness: 0.3,
     // White emissive: the baked map carries each window's color temperature.
     emissive: new THREE.Color('#ffffff'),
-    emissiveIntensity: 1.1,
+    emissiveIntensity: 3.2,
     emissiveMap,
     envMapIntensity: 1.6,
   })

@@ -54,7 +54,7 @@ const starVertexShader = /* glsl */ `
     vColor = aColor;
     vSeed = aSeed;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * (uScale / -mv.z);
+    gl_PointSize = mv.z < -0.1 ? clamp(aSize * (uScale / max(-mv.z, 0.1)), 1.0, 64.0) : 0.0;
     gl_Position = projectionMatrix * mv;
   }
 `

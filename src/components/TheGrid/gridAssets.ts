@@ -1,5 +1,13 @@
+export const GRID_SURFACE_URLS = [
+  '/grid/materials/asphalt/normal.webp',
+  '/grid/materials/asphalt/roughness.webp',
+  '/grid/materials/concrete/normal.webp',
+  '/grid/materials/concrete/roughness.webp',
+] as const
+
 export const GRID_ASSET_URLS = [
   '/grid/environment/modern_buildings_night_1k.hdr',
+  ...GRID_SURFACE_URLS,
 ] as const
 
 export const GRID_ENVIRONMENT_URL = GRID_ASSET_URLS[0]

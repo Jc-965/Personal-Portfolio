@@ -6,6 +6,7 @@ import {
 } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { useSurfaceTextures } from './surfaceTextures'
 import { STREET } from '../gridConfig'
 import { mulberry32 } from './rand'
 
@@ -13,6 +14,11 @@ const STREET_LENGTH = STREET.zStart - STREET.zEnd
 const STREET_CENTER_Z = (STREET.zStart + STREET.zEnd) / 2
 
 function RoadAndSidewalks() {
+  const [normalMap, roughnessMap, concreteNormal, concreteRoughness] = useSurfaceTextures()
+  normalMap.repeat.set(6, 80)
+  roughnessMap.repeat.set(6, 80)
+  concreteNormal.repeat.set(2, 80)
+  concreteRoughness.repeat.set(2, 80)
   const sidewalkWidth = STREET.sidewalkOuter - STREET.halfWidth
   const sidewalkX = STREET.halfWidth + sidewalkWidth / 2
 
@@ -28,7 +34,10 @@ function RoadAndSidewalks() {
         <meshStandardMaterial
           roughness={0.47}
           metalness={0.02}
-          color="#89939c"
+          color="#303941"
+          normalMap={normalMap}
+          roughnessMap={roughnessMap}
+          normalScale={new THREE.Vector2(0.3, 0.3)}
           envMapIntensity={1.1}
           transparent
           opacity={0.34}
@@ -47,7 +56,9 @@ function RoadAndSidewalks() {
             <meshStandardMaterial
               roughness={0.73}
               metalness={0.02}
-              color="#75808a"
+              color="#444c54"
+              normalMap={concreteNormal}
+              roughnessMap={concreteRoughness}
               envMapIntensity={0.75}
             />
           </mesh>

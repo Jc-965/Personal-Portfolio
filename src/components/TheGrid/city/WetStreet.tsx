@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
+import { useSurfaceTextures } from './surfaceTextures'
 import { SCENE_BG } from './sceneColor'
 
 /**
@@ -20,6 +21,11 @@ const wetStreetShader = {
     tDiffuse: { value: null as unknown },
     textureMatrix: { value: null as unknown },
     uTime: { value: 0 },
+    uNormal: { value: null },
+    uRoughness: { value: null },
+    uConcreteNormal: { value: null },
+    uConcreteRoughness: { value: null },
+    uTexel: { value: 1 / 512 },
     uBg: { value: SCENE_BG },
   },
   vertexShader: /* glsl */ `
@@ -38,6 +44,11 @@ const wetStreetShader = {
   `,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
+    uniform sampler2D uNormal;
+    uniform sampler2D uRoughness;
+    uniform sampler2D uConcreteNormal;
+    uniform sampler2D uConcreteRoughness;
+    uniform float uTexel;
     uniform float uTime;
     uniform vec3 uBg;
     varying vec4 vUvRefl;
@@ -78,10 +89,6 @@ const wetStreetShader = {
         vnoise(vWorld.xz * 0.6 - uTime * 0.1) - 0.5
       ) * 0.12;
 
-      vec4 uvRefl = vUvRefl;
-      uvRefl.xy += distort * 0.35 * uvRefl.w;
-      vec3 reflection = texture2DProj(tDiffuse, uvRefl).rgb;
-
       float ax = abs(vWorld.x);
 
       // Puddle mask: pooled water reflects hard, damp asphalt only glows.
@@ -95,6 +102,23 @@ const wetStreetShader = {
       // Sidewalks drain — mostly damp concrete, faint sheen only.
       float walk = step(9.7, ax) * (1.0 - step(12.35, ax));
       wet *= 1.0 - walk * 0.62;
+
+      vec2 surfaceUv = vWorld.xz * 0.25;
+      vec3 detail = mix(texture2D(uNormal, surfaceUv).xyz,
+        texture2D(uConcreteNormal, surfaceUv).xyz, walk) * 2.0 - 1.0;
+      float roughness = mix(texture2D(uRoughness, surfaceUv).g,
+        texture2D(uConcreteRoughness, surfaceUv).g, walk);
+      roughness *= mix(0.85, 0.16, puddle);
+      vec2 uv = vUvRefl.xy / max(vUvRefl.w, 0.0001);
+      uv += distort * 0.002 + detail.xy * 0.001;
+      float radius = uTexel * mix(0.35, 7.0, roughness) * mix(0.18, 1.0, upDot);
+      vec3 reflection = texture2D(tDiffuse, uv).rgb * 0.25;
+      reflection += texture2D(tDiffuse, uv + vec2(radius, 0.0)).rgb * 0.125;
+      reflection += texture2D(tDiffuse, uv - vec2(radius, 0.0)).rgb * 0.125;
+      reflection += texture2D(tDiffuse, uv + vec2(0.0, radius)).rgb * 0.125;
+      reflection += texture2D(tDiffuse, uv - vec2(0.0, radius)).rgb * 0.125;
+      reflection += texture2D(tDiffuse, uv + vec2(radius * 0.7)).rgb * 0.125;
+      reflection += texture2D(tDiffuse, uv - vec2(radius * 0.7)).rgb * 0.125;
 
       vec3 asphalt = vec3(0.02, 0.03, 0.05) * (0.75 + 0.5 * vnoise(vWorld.xz * 1.7));
       vec3 pave = vec3(0.05, 0.055, 0.062) * (0.8 + 0.4 * vnoise(vWorld.xz * 2.3));
@@ -123,6 +147,7 @@ const wetStreetShader = {
 }
 
 export default function WetStreet({ textureSize }: { textureSize: number }) {
+  const textures = useSurfaceTextures()
   const reflector = useMemo(() => {
     const geometry = new THREE.PlaneGeometry(700, 700)
     const mirror = new Reflector(geometry, {
@@ -130,11 +155,18 @@ export default function WetStreet({ textureSize }: { textureSize: number }) {
       textureWidth: textureSize,
       textureHeight: textureSize,
       shader: wetStreetShader,
+      multisample: 0,
     })
+    // Reflector defaults to half-float even when the composer uses bytes.
+    // Override before its first allocation to avoid the failing Metal path.
+    mirror.getRenderTarget().texture.type = THREE.UnsignedByteType
+    const uniforms = (mirror.material as THREE.ShaderMaterial).uniforms
+    ;[uniforms.uNormal.value, uniforms.uRoughness.value, uniforms.uConcreteNormal.value, uniforms.uConcreteRoughness.value] = textures
+    uniforms.uTexel.value = 1 / textureSize
     mirror.rotation.x = -Math.PI / 2
     mirror.position.set(0, 0.02, -90)
     return mirror
-  }, [textureSize])
+  }, [textureSize, textures])
 
   useEffect(() => () => {
     reflector.geometry.dispose()
@@ -146,5 +178,11 @@ export default function WetStreet({ textureSize }: { textureSize: number }) {
     material.uniforms.uTime.value = state.clock.elapsedTime
   })
 
-  return <primitive object={reflector} />
+  return <>
+    <primitive object={reflector} />
+    <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, -90]} receiveShadow>
+      <planeGeometry args={[700, 700]} />
+      <shadowMaterial transparent opacity={0.48} depthWrite={false} />
+    </mesh>
+  </>
 }

@@ -28,7 +28,7 @@ const moteVertexShader = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     vDist = -mv.z;
     // Hard cap so near motes never balloon into lens dirt.
-    gl_PointSize = min((0.8 + fract(aSeed) * 1.4) * (uScale / -mv.z), 20.0);
+    gl_PointSize = mv.z < -0.1 ? clamp((0.8 + fract(aSeed) * 1.4) * (uScale / max(-mv.z, 0.1)), 1.0, 20.0) : 0.0;
     gl_Position = projectionMatrix * mv;
   }
 `

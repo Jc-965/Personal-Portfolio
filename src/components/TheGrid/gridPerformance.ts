@@ -11,6 +11,7 @@ export interface GridQuality {
   maxDpr: number
   towerDensity: number
   postEnabled: boolean
+  shadows?: boolean
   antialias: boolean
   /** MSAA samples for the post-processing composer target (0 = off). The
    * whole city is thin emissive lines — without this the composer pass
@@ -33,10 +34,10 @@ export function getGridQuality(): GridQuality {
     // High-resolution color maps, HDR lighting, planar reflection, and a
     // shadow atlas already occupy substantial GPU memory. Capping DPR avoids
     // context loss while native antialiasing keeps signage crisp.
-    return { tier: 'high', maxDpr: 1.35, towerDensity: 0.62, postEnabled: false, antialias: true, msaa: 0, reflections: true, reflectionSize: 512, rainCount: 900 }
+    return { tier: 'high', shadows: true, maxDpr: 1.35, towerDensity: 0.62, postEnabled: true, antialias: false, msaa: 4, reflections: true, reflectionSize: 512, rainCount: 900 }
   }
   if (cores <= 4 || memory <= 4) {
-    return { tier: 'low', maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, msaa: 0, reflections: false, reflectionSize: 0, rainCount: 260 }
+    return { tier: 'low', shadows: false, maxDpr: 1, towerDensity: 0.38, postEnabled: false, antialias: false, msaa: 0, reflections: false, reflectionSize: 0, rainCount: 260 }
   }
-  return { tier: 'mid', maxDpr: 1.3, towerDensity: 0.52, postEnabled: false, antialias: true, msaa: 0, reflections: true, reflectionSize: 512, rainCount: 650 }
+  return { tier: 'mid', shadows: true, maxDpr: 1.2, towerDensity: 0.52, postEnabled: true, antialias: false, msaa: 2, reflections: true, reflectionSize: 512, rainCount: 650 }
 }

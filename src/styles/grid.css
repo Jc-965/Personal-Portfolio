@@ -1112,3 +1112,8 @@
     animation: none;
   }
 }
+
+/* The city uses film grain, without the main portfolio CRT layer. */
+html.grid-mode .vintage-overlay {
+  display: none;
+}

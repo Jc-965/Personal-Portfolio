@@ -467,7 +467,7 @@ export default function Towers({ density }: { density: number }) {
         void main() {
           vBlink = 0.15 + 0.85 * smoothstep(0.45, 0.55, fract(uTime * 0.4 + aSeed));
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = 3.2 * (420.0 / -mv.z);
+          gl_PointSize = mv.z < -0.1 ? clamp(3.2 * (420.0 / max(-mv.z, 0.1)), 1.0, 32.0) : 0.0;
           gl_Position = projectionMatrix * mv;
         }
       `,
