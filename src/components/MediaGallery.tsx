@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { m } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WindowFrame from './WindowFrame'
 import PhoneFrame from './PhoneFrame'
@@ -40,6 +40,7 @@ export default function MediaGallery({
   priority = false,
 }: MediaGalleryProps) {
   const [active, setActive] = useState(0)
+  const reduce = useReducedMotion()
   const [nearViewport, setNearViewport] = useState(
     () => priority || typeof IntersectionObserver === 'undefined',
   )
@@ -108,7 +109,7 @@ export default function MediaGallery({
                 scale: front ? 1 : 1 - pos * (phoneDeck ? 0.045 : 0.06),
                 opacity: front ? 1 : backOpacity,
               }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: reduce ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
               style={{ zIndex: n - pos }}
             >
               {frame === 'phone' ? (

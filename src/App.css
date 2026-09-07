@@ -8,3 +8,7 @@
 @import './styles/constellation-loading.css';
 @import './styles/footer-popups.css';
 @import './styles/responsive-utilities.css';
+@import './styles/navigation.css';
+@import './styles/hero.css';
+@import './styles/terminal-type.css';
+@import './styles/scroll-rail.css';

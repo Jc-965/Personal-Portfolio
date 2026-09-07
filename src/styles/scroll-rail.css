@@ -1,0 +1,77 @@
+/* The scrollbar as an instrument in the world's glyphs, on every device. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+@media (min-width: 0) {
+  .scroll-rail {
+    position: fixed;
+    top: 112px;
+    right: 8px;
+    bottom: 28px;
+    z-index: 90;
+    display: block;
+    width: 22px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .45s ease;
+  }
+  .scroll-rail.is-shown { opacity: 1; pointer-events: auto; }
+  .scroll-rail.is-dragging { cursor: grabbing; }
+  /* The track: one hairline, so the rail reads as a ruler and not as another pillar of dots. */
+  .scroll-rail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: rgba(234, 183, 106, .16);
+    transition: background .3s ease;
+  }
+  .scroll-rail:hover::before, .scroll-rail.is-dragging::before { background: rgba(234, 183, 106, .32); }
+
+  .scroll-rail__cells {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    font: 500 9px/11px var(--font-mono);
+    text-align: center;
+  }
+  .scroll-rail__cells span {
+    display: block;
+    height: 11px;
+    background: #090705;
+    transition: color .35s ease, text-shadow .35s ease;
+  }
+  .scroll-rail__cells span[data-s="track"] { background: transparent; }
+  .scroll-rail__cells span[data-s="cool"] { color: #9b7649; }
+  .scroll-rail__cells span[data-s="warm"] { color: #eab76a; }
+  .scroll-rail__cells span[data-s="hot"] {
+    color: #f6dcb0;
+    text-shadow: 0 0 9px rgba(234, 183, 106, .8);
+    animation: rail-ripple 2.6s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -.22s);
+  }
+
+  /* A slow phosphor ripple travelling down the lit segment. */
+  @keyframes rail-ripple {
+    0%, 100% { color: #eab76a; text-shadow: 0 0 6px rgba(234, 183, 106, .5); }
+    50% { color: #fff1d6; text-shadow: 0 0 14px rgba(234, 183, 106, 1); }
+  }
+}
+
+@media (max-width: 767px) {
+  .scroll-rail { top: 88px; right: 3px; bottom: 18px; width: 18px; }
+  .scroll-rail__cells { font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-rail::before, .scroll-rail__cells span { transition: none; }
+  .scroll-rail__cells span[data-s="hot"] { animation: none; }
+}

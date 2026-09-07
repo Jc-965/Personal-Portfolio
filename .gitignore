@@ -67,3 +67,7 @@ output/
 profile.json
 progress.md
 /public/Jesse_Chen_Resume.pdf
+
+# Scrollcraft workspace (briefs, HTML builds, screenshot labs) and MCP browser logs
+scrollcraft/
+.playwright-mcp/

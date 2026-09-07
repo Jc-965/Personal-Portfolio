@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Lenis from 'lenis'
 import { refreshScrollBounds, updateScrollSignal } from './scrollSignal'
+import { lenisRef } from './lenisRef'
 
 /**
  * Owns the site-wide scroll engine. Mounted once (after the loading screen).
@@ -48,6 +49,7 @@ export default function ScrollProvider() {
         wheelMultiplier: 1,
       })
       document.documentElement.classList.add('lenis-active')
+      lenisRef.current = lenis
     }
 
     let rafId = 0
@@ -64,6 +66,7 @@ export default function ScrollProvider() {
         if (boundsFrame) cancelAnimationFrame(boundsFrame)
         boundsObserver?.disconnect()
         window.removeEventListener('resize', refreshBounds)
+        lenisRef.current = null
         lenis?.destroy()
         document.documentElement.classList.remove('lenis-active')
       }

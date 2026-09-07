@@ -4,6 +4,7 @@ import Cursor from './components/Cursor'
 import Background from './components/Background'
 import ErrorBoundary from './components/ErrorBoundary'
 import Navbar from './components/Navbar'
+import ScrollRail from './components/ScrollRail'
 import Hero from './components/Hero'
 import LazySection from './components/LazySection'
 import Footer from './components/Footer'
@@ -198,9 +199,10 @@ function App() {
             </Suspense>
             <a href="#main-content" className="skip-link">Skip to content</a>
             <Navbar />
+            <ScrollRail />
             <main id="main-content">
               <Hero />
-              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} /></ErrorBoundary>
+              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} margin="1600px 0px" /></ErrorBoundary>
               <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="80px 0px" /></ErrorBoundary>
               <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" component={BeyondBuild} /></ErrorBoundary>
               <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" component={Toolkit} /></ErrorBoundary>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="An interactive narrative web experience with 24 branching story paths, replayable state-driven progression, parallax, and synchronized audio." />
+  <meta name="description" content="An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio." />
   <meta name="theme-color" content="#03070d" />
   <title>Tarocchi case study | Jesse Chen</title>
   <link rel="canonical" href="https://www.jc-965.com/projects/tarocchi/" />
@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="../project-page.css" />
   <meta property="og:type" content="article" />
   <meta property="og:title" content="Tarocchi case study | Jesse Chen" />
-  <meta property="og:description" content="An interactive narrative web experience with 24 branching story paths, replayable state-driven progression, parallax, and synchronized audio." />
+  <meta property="og:description" content="An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio." />
   <meta property="og:url" content="https://www.jc-965.com/projects/tarocchi/" />
 </head>
 <body style="--accent: #9c7fae">
@@ -25,10 +25,10 @@
     <header class="project-hero">
       <p class="eyebrow">Interactive web · Creative systems</p>
       <h1>Tarocchi</h1>
-      <p class="lede">An interactive narrative web experience with 24 branching story paths, replayable state-driven progression, parallax, and synchronized audio.</p>
+      <p class="lede">An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio.</p>
     </header>
     <figure class="project-image"><img src="/Tarocchi/tarocchi-1.webp" alt="Tarocchi project interface" width="1600" height="904" /><figcaption>Tarocchi in production</figcaption></figure>
-    <section class="meta" aria-label="Project results"><div><span>PATHS</span><strong>24</strong></div>
+    <section class="meta" aria-label="Project results"><div><span>SCENES</span><strong>5 BRANCHES</strong></div>
 <div><span>EFFECTS</span><strong>PARALLAX</strong></div>
 <div><span>AUDIO</span><strong>SYNCHRONIZED</strong></div></section>
     <section class="panel">
@@ -38,20 +38,20 @@
     <section class="panel">
       <p class="eyebrow">Challenge</p>
       <h2>What had to be solved</h2>
-      <p>Twenty-four story branches had to feel cinematic without allowing animation, audio, and route state to drift apart.</p>
+      <p>Branching story scenes had to feel cinematic without allowing animation, audio, and route state to drift apart, and card readings needed to respond to the player&#039;s actual choices.</p>
     </section>
     <section class="panel">
       <p class="eyebrow">Approach</p>
       <h2>How I built it</h2>
       <ol><li>Represented narrative progress as explicit state instead of coupling it to visual components.</li>
 <li>Synchronized scene transitions and audio cues from the same route events.</li>
-<li>Used reusable parallax and motion primitives to keep visual behavior consistent.</li></ol>
+<li>Fed the chosen spread, cards, and scene into a Claude-backed generator for personalized readings.</li></ol>
     </section>
     <section class="panel">
       <p class="eyebrow">Outcomes</p>
       <h2>What changed</h2>
-      <ul class="outcomes"><li>24 replayable paths</li>
-<li>Reusable scene pipeline</li>
+      <ul class="outcomes"><li>5 replayable scene branches</li>
+<li>AI-personalized card readings</li>
 <li>Synchronized motion and audio</li></ul>
       <div class="tags" aria-label="Technology used"><span>React &amp; Vite</span>
 <span>TypeScript</span>

@@ -1,0 +1,30 @@
+/* A sharper terminal voice within the original neon portfolio layouts. */
+.section__header h2,
+.chapter__company,
+.proj__title,
+.life-card__title,
+.skill-card__title,
+.hero__role,
+.hero__claim {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.section__header h2 { line-height: 1.25; }
+.hero__role, .hero__claim { font-weight: 400; letter-spacing: -0.02em; }
+.proj__copy { font-family: var(--font-mono); }
+.proj__title { font-size: clamp(1.85rem, 3.15vw, 2.7rem); line-height: 1.15; }
+.proj__lead { font-size: 0.96rem; line-height: 1.85; }
+.proj__bullets li { font-size: 0.83rem; line-height: 1.8; }
+.proj__eyebrow { font-size: 0.66rem; letter-spacing: 0.06em; }
+.proj__bigname { font-family: var(--font-mono); font-weight: 600; font-size: clamp(4.5rem, 13vw, 11rem); }
+
+/* Keep the original CRT texture light enough for interface screenshots. */
+:root { --crt-scanline: 0.1; }
+
+@media (max-width: 640px) {
+  .section__header h2 { font-size: clamp(1.55rem, 6.8vw, 2rem); }
+  .proj__lead { font-size: 0.86rem; }
+  .proj__bullets li { font-size: 0.77rem; }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useReducedMotion } from 'framer-motion'
 import { useGyroscope } from '../context/GyroscopeContext'
 import useIsPhone from './useIsPhone'
 
@@ -32,29 +33,37 @@ export default function useCardTilt({
   const rectRef = useRef<DOMRect | null>(null)
   const gyro = useGyroscope()
   const isPhone = useIsPhone()
+  const reducedMotion = useReducedMotion()
   const persp = perspective ? `perspective(${perspective}px) ` : ''
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   useEffect(() => {
     const el = ref.current
-    if (!el || !isPhone || !gyroEnabled || !gyro.permitted) return
+    if (!el || reducedMotion || !isPhone || !gyroEnabled || !gyro.permitted) return
 
     return gyro.subscribe((gx, gy) => {
       el.style.transform =
         `perspective(${perspective ?? 800}px) rotateX(${gy * -max}deg) rotateY(${gx * max}deg) ` +
         `translate(${gx * gyroTranslate}px, ${gy * gyroTranslate * 0.7}px)`
     })
-  }, [gyro, isPhone, gyroEnabled, max, gyroTranslate, perspective])
+  }, [gyro, isPhone, gyroEnabled, max, gyroTranslate, perspective, reducedMotion])
+
+  useEffect(() => {
+    if (reducedMotion) {
+      cancelAnimationFrame(rafRef.current)
+      if (ref.current) ref.current.style.transform = ''
+    }
+  }, [reducedMotion])
 
   const updateRect = () => {
-    if (!isPhone && ref.current) {
+    if (!reducedMotion && !isPhone && ref.current) {
       rectRef.current = ref.current.getBoundingClientRect()
     }
   }
 
   const onMouseMove = (e: React.MouseEvent) => {
-    if (isPhone || !ref.current) return
+    if (reducedMotion || isPhone || !ref.current) return
     cancelAnimationFrame(rafRef.current)
     const el = ref.current
     const rect = rectRef.current ?? el.getBoundingClientRect()
@@ -69,7 +78,7 @@ export default function useCardTilt({
   const onMouseLeave = () => {
     cancelAnimationFrame(rafRef.current)
     rectRef.current = null
-    if (ref.current) ref.current.style.transform = `${persp}rotateX(0deg) rotateY(0deg)`
+    if (ref.current) ref.current.style.transform = reducedMotion ? '' : `${persp}rotateX(0deg) rotateY(0deg)`
   }
 
   return { ref, tiltProps: { onMouseEnter: updateRect, onMouseMove, onMouseLeave } }

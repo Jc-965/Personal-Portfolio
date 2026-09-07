@@ -6,6 +6,7 @@ const links = [
   { href: '#projects', label: 'Projects' },
   { href: '#life', label: 'Beyond' },
   { href: '#skills', label: 'Skills' },
+  { href: '#contact', label: 'Contact' },
 ]
 
 export default function Navbar() {
@@ -17,9 +18,12 @@ export default function Navbar() {
   const activeRef = useRef('#top')
   const hiddenRef = useRef(false)
   const scrolledRef = useRef(false)
+  const headerRef = useRef<HTMLElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const scrollTimers = useRef<number[]>([])
 
   useEffect(() => {
-    const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'))
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id], footer[id]'))
     const desktopNav = window.matchMedia('(min-width: 769px)')
     let sectionMetrics: Array<{ id: string; top: number; height: number }> = []
     let timeout = 0
@@ -108,27 +112,34 @@ export default function Navbar() {
   }, [menuOpen])
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
+    scrollTimers.current.forEach(window.clearTimeout)
+    scrollTimers.current = []
     setMenuOpen(false)
     activeRef.current = href
     setActive(href)
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
     if (href === '#top') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior })
       window.history.replaceState(null, '', window.location.pathname)
       return
     }
 
-    const scrollToTarget = (behavior: ScrollBehavior = 'smooth') => {
+    const scrollToTarget = (scrollBehavior: ScrollBehavior = behavior) => {
       const target = document.querySelector(href)
       if (!target) return
 
-      const top = target.getBoundingClientRect().top + window.scrollY - 62
-      window.scrollTo({ top, behavior })
+      const offset = window.innerWidth <= 768 ? 80 : 96
+      const top = target.getBoundingClientRect().top + window.scrollY - offset
+      window.scrollTo({ top, behavior: scrollBehavior })
     }
 
     scrollToTarget()
-    window.setTimeout(() => scrollToTarget(), 550)
-    window.setTimeout(() => scrollToTarget('auto'), 1250)
+    scrollTimers.current = [
+      window.setTimeout(() => scrollToTarget(), 550),
+      window.setTimeout(() => scrollToTarget('auto'), 1250),
+    ]
     window.history.replaceState(null, '', href)
   }
 
@@ -143,34 +154,63 @@ export default function Navbar() {
       if (window.innerWidth > 768) setMenuOpen(false)
     }
     window.addEventListener('resize', closeOnResize, { passive: true })
-    return () => window.removeEventListener('resize', closeOnResize)
+    return () => {
+      window.removeEventListener('resize', closeOnResize)
+      scrollTimers.current.forEach(window.clearTimeout)
+    }
   }, [])
 
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      toggleRef.current?.focus()
+    }
+    const closeOutside = (event: PointerEvent | FocusEvent) => {
+      if (event.target instanceof Node && !headerRef.current?.contains(event.target)) setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('focusin', closeOutside)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('focusin', closeOutside)
+    }
+  }, [menuOpen])
+
   return (
-    <header className={`nav ${hidden ? 'nav--hidden' : ''} ${scrolled ? 'nav--scrolled' : ''}`}>
-      <nav id="nav-menu" className={`nav__menu ${menuOpen ? 'is-open' : ''}`}>
+    <header ref={headerRef} className={`nav ${hidden ? 'nav--hidden' : ''} ${scrolled ? 'nav--scrolled' : ''} ${menuOpen ? 'nav--open' : ''}`}>
+      <button
+        ref={toggleRef}
+        type="button"
+        className={`nav__toggle ${menuOpen ? 'is-active' : ''}`}
+        onClick={toggleMenu}
+        aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
+        aria-expanded={menuOpen}
+        aria-controls="nav-menu"
+      >
+        <span aria-hidden="true">[</span>
+        <span className="nav__toggle-word">{menuOpen ? 'close' : 'menu'}</span>
+        <span aria-hidden="true">]</span>
+      </button>
+      <nav id="nav-menu" aria-label="Main navigation" className={`nav__menu ${menuOpen ? 'is-open' : ''}`}>
+        <span className="nav__caption" aria-hidden="true">// index</span>
         {links.map(l => (
           <a
             key={l.href}
             href={l.href}
             data-target-cursor="off"
-            className={active === l.href ? 'is-active' : ''}
+            className={`${active === l.href ? 'is-active' : ''} ${l.href === '#contact' ? 'nav__contact' : ''}`}
+            aria-current={active === l.href ? 'location' : undefined}
             onClick={(event) => handleClick(event, l.href)}
           >
             {l.label}
+            {l.href === '#contact' && <span aria-hidden="true">↗</span>}
           </a>
         ))}
       </nav>
-      <button
-        type="button"
-        className={`nav__toggle ${menuOpen ? 'is-active' : ''}`}
-        onClick={toggleMenu}
-        aria-label="Toggle navigation"
-        aria-expanded={menuOpen}
-        aria-controls="nav-menu"
-      >
-        <span /><span /><span />
-      </button>
     </header>
   )
 }

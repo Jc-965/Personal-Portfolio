@@ -1,0 +1,131 @@
+/* The updated navigation retains its own amber terminal palette. */
+.nav { --accent: #eab76a; --text-primary: #f2e5cf; --text-secondary: #bdae94; --border-subtle: #eab76a22; --border-card: #eab76a44; --bg-primary: #090705; --hero-inset: clamp(20px, 4.5vw, 64px); }
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  min-height: 96px;
+  padding: 18px var(--hero-inset);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s;
+}
+/* No strip behind the links: once scrolled, only a soft top shade keeps them readable over imagery. */
+.nav--scrolled { background: linear-gradient(rgba(9, 7, 5, 0.72), rgba(9, 7, 5, 0.3) 62%, transparent); }
+.nav--open { background: rgba(9, 7, 5, 0.94); }
+.nav--hidden { transform: translateY(-100%); }
+.nav:focus-within { transform: none; }
+.nav__menu { display: flex; align-items: center; gap: clamp(4px, 0.7vw, 14px); }
+.nav__menu a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 9px;
+  position: relative;
+  color: var(--text-secondary);
+  font: 0.7rem var(--font-mono);
+  white-space: nowrap;
+}
+.nav__menu a:hover, .nav__menu a.is-active { color: var(--accent); }
+/* The current section's bar is a plain box, drawn in one frame, never animated. */
+.nav__menu a.is-active::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: 7px;
+  height: 1px;
+  background: var(--accent);
+}
+.nav__menu a.nav__contact { margin-left: 16px; gap: 12px; color: var(--text-primary); border-bottom: 1px solid rgba(234, 183, 106, 0.45); }
+.nav__contact span { color: var(--accent); }
+.nav__toggle { display: none; }
+.nav__caption { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nav--hidden { transform: none; }
+}
+@media (max-width: 900px) {
+  .nav { gap: 14px; }
+  .nav__menu { gap: 2px; }
+  .nav__menu a { padding-inline: 7px; }
+  .nav__menu a.nav__contact { margin-left: 8px; }
+}
+@media (max-width: 768px) {
+  .nav { min-height: 76px; padding: 14px 22px; transform: none; }
+  .nav__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .55em;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 2px;
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: 500 0.8rem var(--font-mono);
+    letter-spacing: -0.01em;
+    cursor: pointer;
+  }
+  .nav__toggle span[aria-hidden] { color: var(--accent); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .nav__toggle.is-active span[aria-hidden]:first-child { transform: translateX(-3px); }
+  .nav__toggle.is-active span[aria-hidden]:last-child { transform: translateX(3px); }
+  .nav__toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  /* A narrow terminal panel under the toggle, no wider than its longest entry. */
+  .nav__menu {
+    position: absolute;
+    top: calc(100% - 6px);
+    right: 22px;
+    left: auto;
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0;
+    min-width: 176px;
+    padding: 10px 18px 12px;
+    max-height: calc(100dvh - 100px);
+    overflow-y: auto;
+    border: 1px solid var(--border-card);
+    /* The same dotted field the world is made of, as the panel's surface. */
+    background: radial-gradient(rgba(234, 183, 106, 0.16) 0.6px, transparent 0.9px) 0 0 / 7px 9px, #120e0a;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.2s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.2s;
+  }
+  .nav__menu::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: 14px;
+    width: 26px;
+    height: 1px;
+    background: var(--accent);
+  }
+  .nav__menu.is-open { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
+  .nav__caption {
+    display: block;
+    margin: 4px 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    font: 500 0.62rem/1 var(--font-mono);
+    letter-spacing: 0.06em;
+    color: var(--accent);
+  }
+  .nav__menu a { min-height: 42px; padding: 10px 0 10px 1.6em; font-size: 0.8rem; position: relative; }
+  /* The rail's own marker: the current section carries a slash pair. */
+  .nav__menu a::before { content: '//'; position: absolute; left: 0; color: var(--accent); opacity: 0; }
+  .nav__menu a.is-active::after { display: none; }
+  .nav__menu a.is-active::before { opacity: 1; }
+  .nav__menu a.nav__contact { margin: 6px 0 0; padding-top: 14px; border-top: 1px solid var(--border-subtle); border-bottom: 0; justify-content: space-between; }
+}
+@media (max-width: 480px) {
+  .nav { padding-inline: 20px; }
+  .nav__menu { right: 20px; }
+}

@@ -555,40 +555,6 @@
    HERO - CENTERED VARIANT
    ============================================================================ */
 
-.hero__content--centered {
-  max-width: 900px;
-  margin: 0 auto;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.hero__title--centered {
-  text-align: center;
-  perspective: 1000px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.hero__title--centered .hero__title-line {
-  transform-style: preserve-3d;
-}
-
-.hero__description--centered {
-  text-align: center;
-  max-width: 650px;
-}
-
-.hero__cta--centered {
-  justify-content: center;
-}
-
-.hero__status--centered {
-  justify-content: center;
-}
-
 /* ============================================================================
    3D CARD EFFECTS - Perspective containers & tilt hover
    ============================================================================ */

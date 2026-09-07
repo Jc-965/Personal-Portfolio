@@ -29,7 +29,7 @@ export default function Footer() {
   const closeEmail = useCallback(() => setShowEmail(false), [])
 
   return (
-    <footer className="footer">
+    <footer className="footer" id="contact">
       <p>&copy; {new Date().getFullYear()} {portfolio.profile.name}</p>
       <div className="footer__socials" aria-label="Social links">
         <a

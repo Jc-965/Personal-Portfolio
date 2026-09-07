@@ -1,179 +1,24 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { m } from 'framer-motion'
-import DecryptedText from './DecryptedText'
-import Magnet from './Magnet'
-import useIsPhone from '../hooks/useIsPhone'
-import { useGyroscope } from '../context/GyroscopeContext'
+import AsciiWorld from './hero/AsciiWorld'
+import Printed from './hero/Printed'
 import portfolio from '../content/portfolio.json'
 
-// Lazy so the Three.js bundle isn't pulled into the eager hero chunk. The
-// parent .hero__title-line--ascii reserves a fixed height, so the null
-// fallback causes no layout shift, and vendor-3d is typically already cached
-// from the loading screen by the time the hero mounts.
-const ASCIIText = lazy(() => import('./ASCIIText'))
-
 export default function Hero() {
-  const [showContent, setShowContent] = useState(false)
-  const isPhone = useIsPhone()
-  const gyro = useGyroscope()
-  const eyebrowRef = useRef<HTMLParagraphElement>(null)
-  const titleRef = useRef<HTMLDivElement>(null)
-  const descRef = useRef<HTMLParagraphElement>(null)
-  const ctaRef = useRef<HTMLDivElement>(null)
-  const asciiFontSize = isPhone ? 4 : 5
-  const asciiTextFontSize = isPhone ? 220 : 260
-  const asciiPlaneHeight = isPhone ? 16 : 13.5
-  const asciiInitial = isPhone
-    ? { opacity: 0, y: 24 }
-    : { opacity: 0, y: 40, rotateX: -30 }
-  const asciiAnimate = showContent
-    ? isPhone
-      ? { opacity: 1, y: 0 }
-      : { opacity: 1, y: 0, rotateX: 0 }
-    : {}
-  const asciiTitleLines = isPhone
-    ? [
-        { text: 'Building technology', color: '#f8fbff', accent: false, delay: 0.2 },
-        { text: 'that solves real', color: '#7efcff', accent: true, delay: 0.32 },
-        { text: 'problems', color: '#7efcff', accent: true, delay: 0.44 },
-        { text: 'for real people', color: '#f8fbff', accent: false, delay: 0.56 }
-      ]
-    : [
-        { text: 'Building technology', color: '#f8fbff', accent: false, delay: 0.2 },
-        { text: 'that solves real problems', color: '#7efcff', accent: true, delay: 0.35 },
-        { text: 'for real people', color: '#f8fbff', accent: false, delay: 0.5 }
-      ]
-
-  // Gyroscope parallax: each layer moves at a different depth
-  useEffect(() => {
-    if (!isPhone || !gyro.permitted) return
-
-    return gyro.subscribe((gx, gy) => {
-      // Layers at different depths: eyebrow barely moves, CTA moves most
-      if (eyebrowRef.current) {
-        eyebrowRef.current.style.transform = `translate(${gx * 5}px, ${gy * 3}px)`
-      }
-      if (titleRef.current) {
-        titleRef.current.style.transform = `translate(${gx * 14}px, ${gy * 8}px)`
-      }
-      if (descRef.current) {
-        descRef.current.style.transform = `translate(${gx * 8}px, ${gy * 5}px)`
-      }
-      if (ctaRef.current) {
-        ctaRef.current.style.transform = `translate(${gx * 18}px, ${gy * 10}px)`
-      }
-    })
-  }, [isPhone, gyro])
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowContent(true), 300)
-    return () => clearTimeout(timer)
-  }, [])
+  const { profile } = portfolio
+  const [first, ...rest] = profile.name.split(' ')
+  const lines = [first, rest.join(' ')].filter(Boolean)
 
   return (
-    <section className="hero" id="top">
-      <div className="hero__scanlines" aria-hidden="true" />
-
-      <m.div
-        className="hero__content hero__content--centered"
-        initial={{ opacity: 0 }}
-        animate={showContent ? { opacity: 1 } : {}}
-        transition={{ duration: 0.6 }}
-      >
-        <m.p
-          ref={eyebrowRef}
-          className="hero__eyebrow"
-          initial={{ opacity: 0, y: 20 }}
-          animate={showContent ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <span className="hero__prompt">&gt; </span>
-          <DecryptedText
-            text={portfolio.profile.eyebrow}
-            speed={18}
-            sequential
-            revealDirection="start"
-            animateOn="view"
-            characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-"
-            parentClassName="hero__eyebrow-text"
-            className="hero__eyebrow-char"
-            encryptedClassName="hero__eyebrow-char hero__eyebrow-char--encrypted"
-          />
-        </m.p>
-
-        <h1 className="hero__title-sr">
-          {portfolio.profile.headline}
-        </h1>
-
-        <div ref={titleRef} className="hero__title hero__title--centered" aria-hidden="true">
-          <Suspense fallback={null}>
-            {asciiTitleLines.map(line => (
-              <m.div
-                key={line.text}
-                className={`hero__title-line hero__title-line--ascii ${
-                  line.accent ? 'hero__title-line--ascii-accent' : 'hero__title-line--ascii-bright'
-                }`}
-                initial={asciiInitial}
-                animate={asciiAnimate}
-                transition={{ duration: isPhone ? 0.45 : 0.6, delay: line.delay, ease: [0.2, 0.8, 0.2, 1] }}
-              >
-                <ASCIIText
-                  text={line.text}
-                  enableWaves={false}
-                  asciiFontSize={asciiFontSize}
-                  textFontSize={asciiTextFontSize}
-                  textColor={line.color}
-                  planeBaseHeight={asciiPlaneHeight}
-                  interactionMode="viewport"
-                />
-              </m.div>
-            ))}
-          </Suspense>
+    <section className="hero" id="top" aria-labelledby="hero-name">
+      <AsciiWorld title={lines.join('\n').toUpperCase()} />
+      <div className="hero__stage">
+        <div className="hero__copy">
+          <h1 id="hero-name" className="hero__name">
+            <span>{first}</span> <span>{rest.join(' ')}</span>
+          </h1>
+          <p className="hero__role"><Printed text={profile.role} delay={900} /></p>
+          <p className="hero__claim"><Printed text={profile.claim} delay={1450} /></p>
         </div>
-
-        <m.p
-          ref={descRef}
-          className="hero__description hero__description--centered"
-          initial={{ opacity: 0, y: 20 }}
-          animate={showContent ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.65 }}
-        >
-          {portfolio.profile.description}
-        </m.p>
-
-        <m.div
-          ref={ctaRef}
-          className="hero__cta hero__cta--centered"
-          initial={{ opacity: 0, y: 20 }}
-          animate={showContent ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.8 }}
-        >
-          <Magnet
-            padding={72}
-            disabled={isPhone}
-            magnetStrength={12}
-            activeTransition="transform 0.14s cubic-bezier(0.16, 1, 0.3, 1)"
-            inactiveTransition="transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)"
-          >
-            <a className="btn btn--primary btn--glow" href="#projects">
-              <span className="btn__icon">&#9654;</span>
-              Browse projects
-            </a>
-          </Magnet>
-          <Magnet
-            padding={72}
-            disabled={isPhone}
-            magnetStrength={12}
-            activeTransition="transform 0.14s cubic-bezier(0.16, 1, 0.3, 1)"
-            inactiveTransition="transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)"
-          >
-            <a className="btn btn--ghost" href="#journey">
-              <span className="btn__icon">$</span>
-              See the journey
-            </a>
-          </Magnet>
-        </m.div>
-      </m.div>
+      </div>
     </section>
   )
 }
