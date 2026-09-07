@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import { createPortal } from 'react-dom'
 import GridBoot from './GridBoot'
@@ -21,8 +22,7 @@ import {
   stationT,
   STATION_ENTER,
   STATION_EXIT,
-  PROJECT_SITES,
-  content as gridContent,
+  LANDMARKS,
 } from './gridConfig'
 import type {
   GridSelection,
@@ -31,6 +31,7 @@ import type {
   SkyTooltip,
 } from './city/interaction'
 import '../../styles/grid.css'
+import { GridSession } from './navigation/session'
 
 // Shared promise: the boot bar tracks the same import React.lazy resolves,
 // so "grid online" and the chunk actually being ready can never disagree.
@@ -74,6 +75,14 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
   )
+  const session = useMemo(() => new GridSession(reducedMotion), [reducedMotion])
+  const navigationSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot)
+  useEffect(() => {
+    const landmark = LANDMARKS.find(item => item.id === navigationSnapshot.selected)
+    if (landmark?.kind === 'platform' && landmark.index !== undefined) { const index = landmark.index; setSelection(current => ({ ...current, role: index, focus: null })) }
+    if (landmark?.kind === 'interior' && landmark.index !== undefined) { const index = landmark.index; setSelection(current => ({ ...current, project: index, focus: null })) }
+    if ((navigationSnapshot.dialog || navigationSnapshot.mode === 'photo') && document.pointerLockElement) document.exitPointerLock()
+  }, [navigationSnapshot.dialog, navigationSnapshot.mode, navigationSnapshot.selected])
 
   useEffect(() => {
     let cancelled = false
@@ -163,9 +172,25 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined
     const w = window as typeof window & { __grid?: unknown }
-    w.__grid = { navigate, setProgress, progressRef }
+    w.__grid = { navigate: session.navigate, travel: session.travel, setProgress, progressRef, session }
     return () => { delete w.__grid }
-  }, [navigate, setProgress, progressRef])
+  }, [session, setProgress, progressRef])
+
+  useEffect(() => {
+    if (phase !== 'active') return undefined
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null
+      if (target?.closest('input,textarea,select,[contenteditable="true"]')) return
+      const key = event.key.toLowerCase()
+      if (key === 'p') session.togglePhoto()
+      if (key === 't') session.toggleTour()
+      if (key === 'm') session.update({ dialog: 'map' })
+      if (event.key === 'Enter' && session.getSnapshot().mode === 'photo') session.captureRequested = true
+      if (['p', 't', 'm'].includes(key) && document.pointerLockElement) document.exitPointerLock()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase, session])
 
   const requestClose = useCallback(() => {
     setPhase(current => (current === 'exiting' ? current : 'exiting'))
@@ -233,61 +258,6 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
     [],
   )
 
-  // Keyboard travel. PgUp/PgDn/Home/End and the digit row jump the rail;
-  // at Journey and Projects, ←/→ cycle roles/towers (with fly-to focus) so
-  // every record is reachable without a pointer.
-  useEffect(() => {
-    if (phase !== 'active') return undefined
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      const clamp = (i: number) => Math.min(STATION_COUNT - 1, Math.max(0, i))
-      const near = Math.round(progressRef.current * (STATION_COUNT - 1))
-      if (e.key === 'PageDown') {
-        e.preventDefault()
-        navigate(clamp(near + 1))
-      } else if (e.key === 'PageUp') {
-        e.preventDefault()
-        navigate(clamp(near - 1))
-      } else if (e.key === 'Home') {
-        e.preventDefault()
-        navigate(0)
-      } else if (e.key === 'End') {
-        e.preventDefault()
-        navigate(STATION_COUNT - 1)
-      } else if (e.key >= '1' && e.key <= String(Math.min(9, STATION_COUNT))) {
-        navigate(Number(e.key) - 1)
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        const dir = e.key === 'ArrowRight' ? 1 : -1
-        const at = stationRef.current
-        if (at === 1) {
-          e.preventDefault()
-          const count = gridContent.experiences.length
-          setSelection(current => {
-            const from = current.role ?? (dir > 0 ? -1 : 0)
-            const role = ((from + dir) % count + count) % count
-            // Keep camera lock only while already inspecting a stop; otherwise
-            // arrow keys browse the timeline without yanking the rail camera.
-            return {
-              ...current,
-              role,
-              focus: current.focus === 'role' ? 'role' : null,
-            }
-          })
-        } else if (at === 2) {
-          e.preventDefault()
-          const count = PROJECT_SITES.length
-          setSelection(current => ({
-            ...current,
-            project: ((current.project + dir) % count + count) % count,
-            focus: 'project',
-          }))
-        }
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [phase, navigate, progressRef])
-
   const onRootAnimationEnd = useCallback(
     (event: React.AnimationEvent<HTMLDivElement>) => {
       if (event.animationName === 'grid-power-off') finishExit()
@@ -314,6 +284,7 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
           <div className="grid-overlay__scene" aria-hidden="true">
             <Suspense fallback={null}>
               <GridSceneLazy
+                session={session}
                 progressRef={progressRef}
                 reducedMotion={reducedMotion}
                 quality={quality}
@@ -331,6 +302,9 @@ export default function GridOverlay({ onClose }: { onClose: () => void }) {
           </div>
           {phase !== 'boot' && (
             <GridHud
+              session={session}
+              navigation={navigationSnapshot}
+              reducedMotion={reducedMotion}
               station={station}
               sky={sky}
               showHint={showHint && !reducedMotion}

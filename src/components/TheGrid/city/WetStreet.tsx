@@ -112,10 +112,16 @@ const wetStreetShader = {
       wet *= 1.0 - walk * 0.62;
 
       vec2 surfaceUv = vWorld.xz * 0.25;
-      vec3 detail = mix(texture2D(uNormal, surfaceUv).xyz,
-        texture2D(uConcreteNormal, surfaceUv).xyz, walk) * 2.0 - 1.0;
-      float roughness = mix(texture2D(uRoughness, surfaceUv).g,
-        texture2D(uConcreteRoughness, surfaceUv).g, walk);
+      vec3 detail = vec3(0.0, 0.0, 1.0);
+      float roughness = 0.78;
+      vec3 scan = vec3(0.2);
+      if (uHasMaps > 0.5) {
+        detail = mix(texture2D(uNormal, surfaceUv).xyz,
+          texture2D(uConcreteNormal, surfaceUv).xyz, walk) * 2.0 - 1.0;
+        roughness = mix(texture2D(uRoughness, surfaceUv).g,
+          texture2D(uConcreteRoughness, surfaceUv).g, walk);
+        scan = mix(texture2D(uAlbedo, surfaceUv).rgb, texture2D(uConcreteAlbedo, surfaceUv).rgb, walk);
+      }
       roughness *= mix(0.85, 0.16, puddle);
       vec2 uv = vUvRefl.xy / max(vUvRefl.w, 0.0001);
       uv += distort * 0.002 + detail.xy * 0.001;
@@ -132,7 +138,6 @@ const wetStreetShader = {
       vec3 pave = vec3(0.05, 0.055, 0.062) * (0.8 + 0.4 * vnoise(vWorld.xz * 2.3));
       float joint = 1.0 - smoothstep(0.02, 0.09, abs(fract(vWorld.z / 2.4) - 0.5) * 2.4);
       pave *= 1.0 - 0.35 * joint;
-      vec3 scan = mix(texture2D(uAlbedo, surfaceUv).rgb, texture2D(uConcreteAlbedo, surfaceUv).rgb, walk);
       vec3 dryColor = mix(asphalt, pave, walk) * mix(vec3(1.), vec3(0.6) + scan * 2.4, uHasMaps);
       vec3 color = dryColor * (1.0 - puddle * 0.38) + reflection * wet;
 

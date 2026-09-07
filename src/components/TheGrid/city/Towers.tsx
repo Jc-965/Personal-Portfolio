@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
 import { isInCorridor } from './rail'
-import { CITY_BOUNDS, STATIONS, STREET, WALL_EXCLUSIONS } from '../gridConfig'
+import { CITY_BOUNDS, STATIONS, STREET, WALL_EXCLUSIONS, clearsWalkRoutes } from '../gridConfig'
 import { SCENE_BG } from './sceneColor'
 import { useSurfaceMaps } from './surfaceTextures'
 import { wetLayerGLSL } from './wetLayer'
@@ -434,6 +434,13 @@ export default function Towers({ density }: { density: number }) {
       { x: 30, z: -96, w: 14, d: 1.5, h: 1.4, y0: 22 },
     ]
     for (const b of bridges) placements.push(b)
+
+    // Every procedural row uses full-footprint route clearance. Elevated
+    // details remain because they do not obstruct a person at street level.
+    for (let i = placements.length - 1; i >= 0; i--) {
+      const p = placements[i]
+      if ((p.y0 ?? 0) < 4 && !clearsWalkRoutes(p.x, p.z, p.w, p.d)) placements.splice(i, 1)
+    }
 
     const geometry = new THREE.BoxGeometry(1, 1, 1)
     const count = placements.length

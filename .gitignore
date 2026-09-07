@@ -67,3 +67,9 @@ output/
 profile.json
 progress.md
 /public/Jesse_Chen_Resume.pdf
+
+# Grid dev scratch: phase briefs and reports, capture output, and MCP browser logs
+.playwright-mcp/
+screenshots/grid/
+tests/grid/*.md
+src/components/TheGrid/PLAN.md

@@ -1,9 +1,9 @@
-import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette, ToneMapping } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, ChromaticAberration, DepthOfField, Noise, Vignette, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { UnsignedByteType } from 'three'
 
 /** Composer disables renderer tone mapping. Apply ACES once after byte-range bloom. */
-export default function GridEffects({ enabled, msaa = 0 }: { enabled: boolean; msaa?: number }) {
+export default function GridEffects({ enabled, msaa = 0, photo = false }: { enabled: boolean; msaa?: number; photo?: boolean }) {
   if (!enabled) return null
   return (
     // Half-float composer targets render as a partial black frame on some
@@ -16,7 +16,9 @@ export default function GridEffects({ enabled, msaa = 0 }: { enabled: boolean; m
       <ChromaticAberration offset={[0.00045, 0.0003]} />
       <Noise premultiply opacity={0.05} />
       <Vignette eskil={false} offset={0.18} darkness={0.72} />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      {/* The composer only accepts elements as children, so an empty fragment stands in when photo mode is off. */}
+      {photo ? <DepthOfField focusDistance={0.018} focalLength={0.028} bokehScale={1.35} /> : <></>}
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} exposure={photo ? 1.12 : 1} />
     </EffectComposer>
   )
 }

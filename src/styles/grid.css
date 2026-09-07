@@ -18,6 +18,29 @@
   outline: none;
 }
 
+/* Phase 3 navigation chrome */
+.grid-hud__compass { display:flex; gap:clamp(.35rem,1.5vw,1.4rem); padding:.42rem .8rem; border:1px solid rgba(126,252,255,.18); background:rgba(2,8,14,.58); backdrop-filter:blur(12px); transition:opacity .4s ease; animation:grid-compass-idle .4s 3s forwards; }
+.grid-hud__compass:hover,.grid-hud__compass:focus-within { opacity:1; animation:none; }
+@keyframes grid-compass-idle { to { opacity:.18; } }
+.grid-hud__compass button,.grid-hud__map-key,.grid-hud__controls button,.grid-hud__proximity,.grid-hud__destinations button { border:0; color:#d9faff; background:transparent; font:500 .64rem/1.2 var(--font-mono,monospace); letter-spacing:.08em; text-transform:uppercase; }
+.grid-hud__compass button { display:grid; gap:.12rem; text-align:left; }
+.grid-hud__compass small,.grid-hud__destinations small { color:#73929d; font-size:.52rem; }
+.grid-hud__map-key { padding:.65rem; border:1px solid rgba(126,252,255,.18); background:rgba(2,8,14,.58); }
+.grid-hud__controls { position:fixed; right:1rem; bottom:1rem; display:flex; gap:.45rem; z-index:8; }
+.grid-hud__controls button { padding:.65rem .75rem; border:1px solid rgba(126,252,255,.22); background:rgba(2,8,14,.72); }
+.grid-hud__proximity { position:fixed; left:50%; bottom:13%; translate:-50% 0; padding:.7rem 1rem; border:1px solid color-mix(in srgb,var(--grid-panel-accent) 60%,transparent); background:rgba(2,8,14,.78); box-shadow:0 0 24px color-mix(in srgb,var(--grid-panel-accent) 18%,transparent); z-index:9; }
+.grid-hud__destinations { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.45rem; margin-top:1rem; }
+.grid-hud__destinations button { display:grid; gap:.25rem; padding:.65rem; text-align:left; border:1px solid rgba(126,252,255,.15); background:rgba(126,252,255,.04); }
+.grid-hud__panel--map { left:50%; right:auto; width:min(760px,calc(100vw - 2rem)); translate:-50% 0; }
+.grid-hud__panel--context { width:min(430px,calc(100vw - 2rem)); }
+.grid-hud.is-transitioning::after { content:""; position:fixed; inset:0; background:#010409; pointer-events:none; z-index:30; animation:grid-travel-fade .52s ease both; }
+@keyframes grid-travel-fade { 0%,100%{opacity:0} 48%,52%{opacity:1} }
+.grid-hud.is-photo > * { display:none!important; }
+.grid-hud.is-photo .grid-hud__controls { display:flex!important; }
+.grid-touch { display:none; }
+@media (hover:none),(pointer:coarse) { .grid-touch { display:block; position:fixed; inset:0; pointer-events:none; z-index:7; } .grid-touch__joystick,.grid-touch__look { position:absolute; bottom:5rem; width:38vw; height:34vh; pointer-events:auto; touch-action:none; } .grid-touch__joystick { left:0; border-radius:50%; background:radial-gradient(circle,rgba(126,252,255,.12),transparent 62%); } .grid-touch__look { right:0; } }
+@media (prefers-reduced-motion:reduce) { .grid-hud.is-transitioning::after { animation:none; opacity:.88; } }
+
 .grid-overlay.is-exiting {
   animation: grid-power-off 0.5s cubic-bezier(0.7, 0, 0.9, 0.4) forwards;
   pointer-events: none;

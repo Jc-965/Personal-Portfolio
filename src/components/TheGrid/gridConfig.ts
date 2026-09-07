@@ -329,3 +329,75 @@ addAabb('relay', RELAY_TOWER.x, RELAY_TOWER.z, RELAY_TOWER.width, RELAY_TOWER.he
 addAabb('sky-mast', SKY_DECK.x, SKY_DECK.z, 1.1, SKY_DECK.y - 1, 1.1)
 // The deck slab column: the rail may only cross its footprint from above.
 addAabb('sky-deck-slab', SKY_DECK.x, SKY_DECK.z, SKY_DECK.size, SKY_DECK.y + 0.25, SKY_DECK.size)
+
+// Walkable district registry. Operational labels describe places; portfolio copy
+// remains in the content records above. All dimensions are in metres.
+export const WALK_BOUNDS = { minX: -150, maxX: 150, minZ: -255, maxZ: 45 }
+export const CROSS_STREETS = [-76, -188]
+export const ALLEY_X = [-42, 48]
+export const WALK_PLAZAS = [
+  { minX: -35, maxX: 35, minZ: 8, maxZ: 45 },
+  { minX: -12, maxX: 43, minZ: -246, maxZ: -207 },
+]
+export const PLATFORMS = content.experiences.map((experience, index) => ({
+  experience, index, x: 5.8, z: 4 - index * 30, y: 7,
+  stair: { minX: 9.2, maxX: 11.6, minZ: 8 - index * 30, maxZ: 22 - index * 30, y: 7, rise: -7, axis: 'z' as const },
+}))
+export type VenueArchetype = 'network' | 'clinic' | 'theater' | 'transit'
+export function projectArchetype(project: GridProject): VenueArchetype {
+  const description = `${project.tag} ${project.lead}`.toLowerCase()
+  if (/health|care|patient|medical/.test(description)) return 'clinic'
+  if (/narrative|creative|story|interactive web/.test(description)) return 'theater'
+  if (/map|community|location|transit|android/.test(description) || project.kind === 'code') return 'transit'
+  return 'network'
+}
+export const VENUES = PROJECT_SITES.map((site, index) => ({
+  ...site, index, archetype: projectArchetype(site.project),
+  center: [site.side * 22, 0, site.z - 5] as Vec3Tuple,
+  door: [site.side * 12.6, 0, site.z - 5] as Vec3Tuple,
+  interior: [site.side * 19, 0, site.z - 5] as Vec3Tuple,
+  width: 18, depth: 13, height: 12,
+}))
+export const MARKET = content.beyond.map((item, index) => ({
+  item, index, x: -51, z: -125 - index * 15,
+  kind: (/clarinet|music/i.test(item.title) ? 'jazz' : /scout/i.test(item.title) ? 'outfitter' : 'arcade') as 'jazz' | 'outfitter' | 'arcade',
+}))
+export const SKILL_BANDS = content.toolkit.map((group, index) => ({
+  group, index, x: -2 + (index % 3) * 13, z: -216 - Math.floor(index / 3) * 15,
+}))
+export interface GridLandmark {
+  id: string; label: string; district: number; accent: string
+  position: Vec3Tuple; look: Vec3Tuple
+  kind: 'district' | 'platform' | 'venue' | 'interior' | 'market' | 'skill' | 'contact' | 'elevator' | 'map'
+  index?: number; href?: string
+}
+export const LANDMARKS: GridLandmark[] = [
+  { id: 'home', label: 'Arrival plaza', district: 0, accent: STATIONS[0].accent, position: [0, 0, 34], look: [-17, 27, -32], kind: 'district' },
+  { id: 'journey', label: 'Journey platforms', district: 1, accent: STATIONS[1].accent, position: [8, 0, 20], look: [4, 7, 4], kind: 'district' },
+  { id: 'projects', label: 'Project block', district: 2, accent: STATIONS[2].accent, position: [0, 0, -89], look: [13, 5, -104], kind: 'district' },
+  { id: 'beyond', label: 'Night market', district: 3, accent: STATIONS[3].accent, position: [-42, 0, -115], look: [-50, 3, -130], kind: 'district' },
+  { id: 'skills', label: 'Relay plaza', district: 4, accent: STATIONS[4].accent, position: [0, 0, -207], look: [15, 11, -226], kind: 'district' },
+  { id: 'sky', label: 'Sky deck', district: 5, accent: STATIONS[5].accent, position: [0, 35.5, -250], look: [0, 110, -340], kind: 'district' },
+  { id: 'metro', label: 'Metro map', district: 0, accent: '#7efcff', position: [-5, 0, 32], look: [-6, 2, 29], kind: 'map' },
+  { id: 'contact', label: 'Lift payphone handset', district: 0, accent: '#ffd59a', position: [9, 0, 31], look: [10.5, 1.8, 29], kind: 'contact' },
+  { id: 'elevator', label: 'Rooftop elevator', district: 4, accent: '#7efcff', position: [10, 0, -230], look: [12, 2, -232], kind: 'elevator' },
+  ...PLATFORMS.map(({ experience, index, x, z, y }) => ({ id: `platform:${experience.id}`, label: experience.company, district: 1, accent: experience.accent, position: [x, y, z + 2] as Vec3Tuple, look: [x, y + 2, z - 3] as Vec3Tuple, kind: 'platform' as const, index })),
+  ...VENUES.flatMap(venue => [
+    { id: `venue:${venue.project.id}`, label: `${venue.project.name} entrance`, district: 2, accent: venue.project.accent, position: [venue.side * 10, 0, venue.z - 5] as Vec3Tuple, look: [venue.side * 22, 2, venue.z - 5] as Vec3Tuple, kind: 'venue' as const, index: venue.index },
+    { id: `interior:${venue.project.id}`, label: `${venue.project.name} lobby`, district: 2, accent: venue.project.accent, position: venue.interior, look: [venue.side * 25, 2.5, venue.z - 5] as Vec3Tuple, kind: 'interior' as const, index: venue.index, href: `/projects/${venue.project.id}/` },
+  ]),
+  ...MARKET.map(shop => ({ id: `market:${shop.item.id}`, label: shop.item.title, district: 3, accent: shop.item.accent, position: [-47, 0, shop.z] as Vec3Tuple, look: [-54, 2, shop.z] as Vec3Tuple, kind: 'market' as const, index: shop.index })),
+  ...SKILL_BANDS.map(band => ({ id: `skill:${band.group.id}`, label: band.group.name, district: 4, accent: band.group.accent, position: [band.x, 0, band.z + 3] as Vec3Tuple, look: [band.x, 2, band.z] as Vec3Tuple, kind: 'skill' as const, index: band.index })),
+]
+
+/** Whole-footprint clearance for streets, plaza approaches and enterable venues. */
+export function clearsWalkRoutes(x: number, z: number, w: number, d: number): boolean {
+  const overlaps = (minX: number, maxX: number, minZ: number, maxZ: number) =>
+    x + w / 2 > minX && x - w / 2 < maxX && z + d / 2 > minZ && z - d / 2 < maxZ
+  if (CROSS_STREETS.some(roadZ => overlaps(-150, 150, roadZ - 7, roadZ + 7))) return false
+  if (ALLEY_X.some(alleyX => overlaps(alleyX - 4, alleyX + 4, -200, 15))) return false
+  if (WALK_PLAZAS.some(p => overlaps(p.minX, p.maxX, p.minZ, p.maxZ))) return false
+  if (VENUES.some(v => overlaps(v.center[0] - 10, v.center[0] + 10, v.center[2] - 7, v.center[2] + 7))) return false
+  if (MARKET.some(s => overlaps(s.x - 8, s.x + 7, s.z - 7, s.z + 7))) return false
+  return true
+}
