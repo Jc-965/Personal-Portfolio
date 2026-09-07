@@ -71,3 +71,8 @@ progress.md
 # Scrollcraft workspace (briefs, HTML builds, screenshot labs) and MCP browser logs
 scrollcraft/
 .playwright-mcp/
+
+# Design briefs and planning notes kept for local reference only
+/PRODUCT.md
+/DESIGN.md
+/docs/superpowers/

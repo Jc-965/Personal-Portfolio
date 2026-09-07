@@ -12,7 +12,7 @@ import { GLYPH_RAMP, gridFor, project, sceneProgress, arrivalProgress, type Grid
  */
 const CELL = { wide: { fontPx: 8, height: 10 }, narrow: { fontPx: 5.5, height: 6.5 } }
 /** Clearance between the lettering and the introduction, in CSS pixels. */
-const NAME_GAP = 75
+const NAME_GAP = 55
 const FONT_FAMILY = '"JetBrains Mono", "IBM Plex Mono", monospace'
 /** The name carves in from the left after the world has faded up. */
 const REVEAL_DELAY = 0.35
