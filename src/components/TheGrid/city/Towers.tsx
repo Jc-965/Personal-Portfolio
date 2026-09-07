@@ -5,6 +5,8 @@ import { mulberry32 } from './rand'
 import { isInCorridor } from './rail'
 import { CITY_BOUNDS, STATIONS, STREET, WALL_EXCLUSIONS } from '../gridConfig'
 import { SCENE_BG } from './sceneColor'
+import { useSurfaceMaps } from './surfaceTextures'
+import { wetLayerGLSL } from './wetLayer'
 
 /**
  * The procedural city: one InstancedMesh of unit boxes, windows and glow
@@ -46,7 +48,12 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   uniform float uTime;
+  uniform sampler2D uAlbedo;
+  uniform sampler2D uDetailNormal;
+  uniform sampler2D uRoughness;
+  uniform float uHasMaps;
   uniform vec3 uBg;
+  ${wetLayerGLSL}
   varying vec3 vLocal;
   varying vec3 vNormal;
   varying vec3 vAccent;
@@ -118,6 +125,23 @@ const fragmentShader = /* glsl */ `
       vec3 wall = base * faceLight * (0.72 + 0.55 * v);
       wall *= 0.76 + 0.34 * vnoise(vec2(u * faceW, v * faceH) * 0.85 + vSeed);
       wall *= 0.82 + 0.18 * vnoise(vec2(u * faceW * 2.3 + vSeed, v * faceH * 0.13));
+      // Metre-scaled scans, decorrelated per building and macro-modulated.
+      vec2 detailUv = vec2(u * faceW, v * faceH) * 0.38
+        + vec2(fract(vSeed * 0.73), fract(vSeed * 0.39)) * 13.0;
+      float macro = wetNoise(vWorld.xz * 0.11 + vSeed);
+      vec3 scan = texture2D(uAlbedo, detailUv).rgb;
+      vec3 tangentNormal = texture2D(uDetailNormal, detailUv).xyz * 2.0 - 1.0;
+      vec3 detailN = normalize(n + (xFace ? vec3(0., tangentNormal.y, tangentNormal.x)
+        : vec3(tangentNormal.x, tangentNormal.y, 0.)) * 0.48 * uHasMaps);
+      float water = surfaceWetness(vWorld);
+      detailN = normalize(detailN + vec3(wetRipple(vWorld.xz * 0.9, uTime), 0.) * water * 0.06);
+      float materialRoughness = mix(0.86, texture2D(uRoughness, detailUv).g, uHasMaps);
+      materialRoughness = mix(materialRoughness, 0.12, water);
+      wall *= mix(vec3(1.), vec3(0.55) + scan * 1.8, uHasMaps) * (0.82 + 0.3 * macro);
+      wall *= (0.75 + 0.35 * max(0., dot(detailN, normalize(vec3(-0.4,0.8,0.25))))) * (1.0-water*0.38);
+      vec3 halfDirection = normalize(normalize(cameraPosition-vWorld) + normalize(vec3(-0.4,0.8,0.25)));
+      float sheen = pow(max(0.,dot(detailN,halfDirection)),mix(7.,80.,1.-materialRoughness));
+      wall += (vec3(0.045,0.065,0.1) + vAccent*0.08) * sheen * (1.-materialRoughness);
       float metres = v * faceH;
       wall *= 0.7 + 0.3 * smoothstep(0.0, 2.6, metres);
       wall += vec3(0.05, 0.03, 0.011) * (1.0 - smoothstep(0.0, 7.0, metres)) * 0.55;
@@ -268,6 +292,7 @@ function districtAccent(z: number, rng: () => number): THREE.Color {
 }
 
 export default function Towers({ density }: { density: number }) {
+  const surface = useSurfaceMaps('facade')
   const { mesh, material, beacons, beaconMaterial } = useMemo(() => {
     const rng = mulberry32(96543)
     // `y0` lifts a box off the ground (roof plant, skybridges); `dark` mutes
@@ -422,6 +447,10 @@ export default function Towers({ density }: { density: number }) {
       uniforms: {
         uTime: { value: 0 },
         uBg: { value: SCENE_BG },
+        uAlbedo: { value: null },
+        uDetailNormal: { value: null },
+        uRoughness: { value: null },
+        uHasMaps: { value: 0 },
       },
     })
 
@@ -493,6 +522,13 @@ export default function Towers({ density }: { density: number }) {
     beacons.geometry.dispose()
     beaconMaterial.dispose()
   }, [mesh, material, beacons, beaconMaterial])
+
+  useEffect(() => {
+    material.uniforms.uAlbedo.value = surface?.albedo ?? null
+    material.uniforms.uDetailNormal.value = surface?.normal ?? null
+    material.uniforms.uRoughness.value = surface?.roughness ?? null
+    material.uniforms.uHasMaps.value = surface ? 1 : 0
+  }, [material, surface])
 
   useFrame(state => {
     material.uniforms.uTime.value = state.clock.elapsedTime

@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { mulberry32 } from './rand'
+import { acquireSurface } from './surfaceTextures'
+import { applyWetLayer } from './wetLayer'
 
 /**
  * PBR facades for signature structures: MeshStandardMaterial with a
@@ -75,12 +77,13 @@ export function makePanelMaterial(
     envMapIntensity: 1.6,
   })
   material.userData.ownedTextures = [emissiveMap]
+  attachMetalMaps(material)
   return material
 }
 
 /** Dark PBR body for unlit structural pieces — reflective wet metal. */
 export function makeDarkPbrMaterial(accent: string) {
-  return new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: '#1f2937',
     metalness: 0.58,
     roughness: 0.4,
@@ -88,4 +91,27 @@ export function makeDarkPbrMaterial(accent: string) {
     emissiveIntensity: 0.04,
     envMapIntensity: 1.45,
   })
+  attachMetalMaps(material)
+  return material
+}
+
+/** Start GPU loading when a structural material is first rendered. */
+function attachMetalMaps(material: THREE.MeshStandardMaterial) {
+  applyWetLayer(material)
+  let lease: ReturnType<typeof acquireSurface> | undefined
+  let generation = 0
+  material.onBeforeRender = renderer => {
+    if (material.userData.surfaceTime) material.userData.surfaceTime.value = performance.now() / 1000
+    if (lease) return
+    const requestedGeneration = generation
+    lease = acquireSurface(renderer, 'paintedMetal')
+    void lease.promise.then(maps => {
+      if (generation !== requestedGeneration) return
+      material.map = maps.albedo
+      material.normalMap = maps.normal
+      material.roughnessMap = maps.roughness
+      material.needsUpdate = true
+    }, error => console.warn('Grid structural metal unavailable', error))
+  }
+  material.addEventListener('dispose', () => { generation++; lease?.release(); lease = undefined })
 }

@@ -6,7 +6,7 @@ import {
 } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useSurfaceTextures } from './surfaceTextures'
+import SurfaceMaterial from './SurfaceMaterial'
 import { STREET } from '../gridConfig'
 import { mulberry32 } from './rand'
 
@@ -14,11 +14,6 @@ const STREET_LENGTH = STREET.zStart - STREET.zEnd
 const STREET_CENTER_Z = (STREET.zStart + STREET.zEnd) / 2
 
 function RoadAndSidewalks() {
-  const [normalMap, roughnessMap, concreteNormal, concreteRoughness] = useSurfaceTextures()
-  normalMap.repeat.set(6, 80)
-  roughnessMap.repeat.set(6, 80)
-  concreteNormal.repeat.set(2, 80)
-  concreteRoughness.repeat.set(2, 80)
   const sidewalkWidth = STREET.sidewalkOuter - STREET.halfWidth
   const sidewalkX = STREET.halfWidth + sidewalkWidth / 2
 
@@ -31,18 +26,7 @@ function RoadAndSidewalks() {
         renderOrder={2}
       >
         <planeGeometry args={[STREET.halfWidth * 2, STREET_LENGTH]} />
-        <meshStandardMaterial
-          roughness={0.47}
-          metalness={0.02}
-          color="#303941"
-          normalMap={normalMap}
-          roughnessMap={roughnessMap}
-          normalScale={new THREE.Vector2(0.3, 0.3)}
-          envMapIntensity={1.1}
-          transparent
-          opacity={0.34}
-          depthWrite={false}
-        />
+        <SurfaceMaterial surface="asphalt" color="#586775" repeat={[6, 80]} opacity={0.34} />
       </mesh>
 
       {[-1, 1].map(side => (
@@ -53,14 +37,7 @@ function RoadAndSidewalks() {
             castShadow
           >
             <boxGeometry args={[sidewalkWidth, 0.22, STREET_LENGTH]} />
-            <meshStandardMaterial
-              roughness={0.73}
-              metalness={0.02}
-              color="#444c54"
-              normalMap={concreteNormal}
-              roughnessMap={concreteRoughness}
-              envMapIntensity={0.75}
-            />
+            <SurfaceMaterial surface="concrete" color="#697480" repeat={[2, 80]} />
           </mesh>
           <mesh
             position={[side * (STREET.halfWidth + 0.1), 0.19, STREET_CENTER_Z]}

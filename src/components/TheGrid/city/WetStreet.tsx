@@ -2,7 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
-import { useSurfaceTextures } from './surfaceTextures'
+import { useSurfaceMaps } from './surfaceTextures'
+import { wetLayerGLSL } from './wetLayer'
 import { SCENE_BG } from './sceneColor'
 
 /**
@@ -21,6 +22,9 @@ const wetStreetShader = {
     tDiffuse: { value: null as unknown },
     textureMatrix: { value: null as unknown },
     uTime: { value: 0 },
+    uAlbedo: { value: null },
+    uConcreteAlbedo: { value: null },
+    uHasMaps: { value: 0 },
     uNormal: { value: null },
     uRoughness: { value: null },
     uConcreteNormal: { value: null },
@@ -44,6 +48,10 @@ const wetStreetShader = {
   `,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
+    uniform sampler2D uAlbedo;
+    uniform sampler2D uConcreteAlbedo;
+    uniform float uHasMaps;
+    ${wetLayerGLSL}
     uniform sampler2D uNormal;
     uniform sampler2D uRoughness;
     uniform sampler2D uConcreteNormal;
@@ -92,7 +100,7 @@ const wetStreetShader = {
       float ax = abs(vWorld.x);
 
       // Puddle mask: pooled water reflects hard, damp asphalt only glows.
-      float puddle = smoothstep(0.42, 0.62, vnoise(vWorld.xz * 0.07));
+      float puddle = surfaceWetness(vWorld);
       float wet = mix(0.2, 0.9, puddle);
       // Water Fresnel: reflections strengthen toward grazing angles, so the
       // distant road turns to mirror while the asphalt underfoot stays
@@ -124,7 +132,9 @@ const wetStreetShader = {
       vec3 pave = vec3(0.05, 0.055, 0.062) * (0.8 + 0.4 * vnoise(vWorld.xz * 2.3));
       float joint = 1.0 - smoothstep(0.02, 0.09, abs(fract(vWorld.z / 2.4) - 0.5) * 2.4);
       pave *= 1.0 - 0.35 * joint;
-      vec3 color = mix(asphalt, pave, walk) + reflection * wet;
+      vec3 scan = mix(texture2D(uAlbedo, surfaceUv).rgb, texture2D(uConcreteAlbedo, surfaceUv).rgb, walk);
+      vec3 dryColor = mix(asphalt, pave, walk) * mix(vec3(1.), vec3(0.6) + scan * 2.4, uHasMaps);
+      vec3 color = dryColor * (1.0 - puddle * 0.38) + reflection * wet;
 
       // Painted road markings, worn and doubled by the water film.
       float marks = 0.0;
@@ -147,7 +157,8 @@ const wetStreetShader = {
 }
 
 export default function WetStreet({ textureSize }: { textureSize: number }) {
-  const textures = useSurfaceTextures()
+  const asphalt = useSurfaceMaps('asphalt')
+  const concrete = useSurfaceMaps('concrete')
   const reflector = useMemo(() => {
     const geometry = new THREE.PlaneGeometry(700, 700)
     const mirror = new Reflector(geometry, {
@@ -161,12 +172,22 @@ export default function WetStreet({ textureSize }: { textureSize: number }) {
     // Override before its first allocation to avoid the failing Metal path.
     mirror.getRenderTarget().texture.type = THREE.UnsignedByteType
     const uniforms = (mirror.material as THREE.ShaderMaterial).uniforms
-    ;[uniforms.uNormal.value, uniforms.uRoughness.value, uniforms.uConcreteNormal.value, uniforms.uConcreteRoughness.value] = textures
     uniforms.uTexel.value = 1 / textureSize
     mirror.rotation.x = -Math.PI / 2
     mirror.position.set(0, 0.02, -90)
     return mirror
-  }, [textureSize, textures])
+  }, [textureSize])
+
+  useEffect(() => {
+    const uniforms = (reflector.material as THREE.ShaderMaterial).uniforms
+    uniforms.uAlbedo.value = asphalt?.albedo ?? null
+    uniforms.uNormal.value = asphalt?.normal ?? null
+    uniforms.uRoughness.value = asphalt?.roughness ?? null
+    uniforms.uConcreteAlbedo.value = concrete?.albedo ?? null
+    uniforms.uConcreteNormal.value = concrete?.normal ?? null
+    uniforms.uConcreteRoughness.value = concrete?.roughness ?? null
+    uniforms.uHasMaps.value = asphalt && concrete ? 1 : 0
+  }, [reflector, asphalt, concrete])
 
   useEffect(() => () => {
     reflector.geometry.dispose()
