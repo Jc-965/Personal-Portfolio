@@ -129,3 +129,6 @@
   .nav { padding-inline: 20px; }
   .nav__menu { right: 20px; }
 }
+
+/* Contact is an action, not a section: it never carries the current-section bar. */
+.nav__menu a.nav__contact.is-active::after { display: none; }
