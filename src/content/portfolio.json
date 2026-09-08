@@ -226,20 +226,6 @@
           "value": "<25 MS"
         }
       ],
-      "caseStudy": {
-        "role": "Founder and sole engineer",
-        "challenge": "Care tracking cannot become unavailable when connectivity drops, and reconnecting must never duplicate or erase health records. Exercise guidance also has to react in real time, on-device, without sending video anywhere.",
-        "approach": [
-          "Recorded offline mutations in an encrypted write journal replayed exactly once via idempotent PostgreSQL RPC.",
-          "Tracked 3D pose with MediaPipe to count, score, and speak cues for every rep of guided exercises.",
-          "Protected every hosted table with row-level security and shipped signed builds through CI/CD."
-        ],
-        "outcomes": [
-          "1M fault-injected writes survived",
-          "Zero data loss across 100 process kills",
-          "Under 25 ms camera-to-feedback"
-        ]
-      },
       "frame": "phone",
       "images": [
         {
@@ -272,7 +258,42 @@
           "alt": "ParkiWell peer community feed",
           "aspect": "680 / 1477"
         }
-      ]
+      ],
+      "blurb": "An offline-first Flutter care platform for Parkinson's patients, with a real-time computer-vision exercise coach and crash-proof encrypted sync.",
+      "story": {
+        "role": "Founder and sole engineer",
+        "problem": {
+          "was": [
+            "Care tracking that went dark the moment connectivity dropped.",
+            "Reconnects that could duplicate or erase health records.",
+            "Exercise guidance that lagged, or shipped video off the device."
+          ],
+          "needed": [
+            "Every entry saved offline and replayed exactly once.",
+            "Zero loss across crashes, kills, and retries.",
+            "Rep-by-rep coaching on the phone, under 25 ms."
+          ]
+        },
+        "build": [
+          {
+            "step": "Offline writes go into an encrypted journal and replay through idempotent PostgreSQL RPC, so a reconnect can never double-apply or drop a record.",
+            "image": 1
+          },
+          {
+            "step": "A MediaPipe 3D pose tracker counts, scores, and speaks cues for every rep, on-device, with camera-to-feedback under 25 ms.",
+            "image": 3
+          },
+          {
+            "step": "Row-level security on every hosted table, signed builds through CI/CD, and a peer community feed that rides the same sync path.",
+            "image": 4
+          }
+        ],
+        "proof": [
+          "1M fault-injected writes survived",
+          "Zero data loss across 100 process kills",
+          "Under 25 ms camera-to-feedback"
+        ]
+      }
     },
     {
       "id": "agoriai",
@@ -335,20 +356,39 @@
           "aspect": "1600 / 904"
         }
       ],
-      "caseStudy": {
+      "blurb": "An anonymous student career network built in 36 hours at TartanHacks 2026, with privacy enforced at the server boundary.",
+      "story": {
         "role": "Full-stack engineer and product designer",
-        "challenge": "Career networks are useful only when students can discover relevant peers without exposing private identity or academic context. The system needed to preserve anonymity while still supporting search, discussion, and relationship exploration.",
-        "approach": [
-          "Enforced four identity-visibility tiers on the server rather than trusting the client.",
-          "Modeled student-company relationships as weighted edges and rendered them through a D3 force-directed graph.",
-          "Normalized leetspeak and applied fuzzy matching before moderation decisions."
+        "problem": {
+          "was": [
+            "Career networks that expose identity and academic context to be useful.",
+            "Anonymity that breaks the moment you search, post, or connect."
+          ],
+          "needed": [
+            "Four identity tiers enforced on the server, on every response.",
+            "Search, discussion, and a relationship graph that still work anonymously.",
+            "Moderation that catches evasion, not just exact matches."
+          ]
+        },
+        "build": [
+          {
+            "step": "A 36-endpoint Bun/Elysia REST API over a 13-table PostgreSQL schema, with the four-tier identity privacy system applied to every serialized response.",
+            "image": 1
+          },
+          {
+            "step": "Student-company relationships modeled as weighted edges and rendered as a D3 force-directed graph.",
+            "image": 0
+          },
+          {
+            "step": "An evasion-resistant moderation engine that normalizes leetspeak and fuzzy-matches before it decides.",
+            "image": 2
+          }
         ],
-        "outcomes": [
+        "proof": [
           "~10K relationship signals",
           "~2K weighted edges",
           "Evasion-resistant moderation"
-        ],
-        "image": "/Agoriai/nexus.webp"
+        ]
       }
     },
     {
@@ -410,20 +450,39 @@
           "aspect": "1600 / 1039"
         }
       ],
-      "caseStudy": {
+      "blurb": "An interactive tarot narrative with five illustrated branches, Claude-interpreted readings, and motion and audio that never drift apart.",
+      "story": {
         "role": "Front-end engineer and interaction designer",
-        "challenge": "Branching story scenes had to feel cinematic without allowing animation, audio, and route state to drift apart, and card readings needed to respond to the player's actual choices.",
-        "approach": [
-          "Represented narrative progress as explicit state instead of coupling it to visual components.",
-          "Synchronized scene transitions and audio cues from the same route events.",
-          "Fed the chosen spread, cards, and scene into a Claude-backed generator for personalized readings."
+        "problem": {
+          "was": [
+            "Scene animation, audio, and route state drifting apart as branches multiplied.",
+            "Card readings that ignored what the player actually chose."
+          ],
+          "needed": [
+            "Narrative progress as explicit state, not something coupled to components.",
+            "Transitions and sound cued from the same events.",
+            "Readings generated from the real spread, cards, and scene."
+          ]
+        },
+        "build": [
+          {
+            "step": "Route and scene state modeled explicitly, so five replayable branches stay coherent as the story grows.",
+            "image": 1
+          },
+          {
+            "step": "One presentation pipeline for animated transitions, layered parallax, and synchronized sound, all driven by the same route events.",
+            "image": 3
+          },
+          {
+            "step": "The chosen spread, cards, and scene feed a Claude-backed generator that writes a personal reading.",
+            "image": 2
+          }
         ],
-        "outcomes": [
+        "proof": [
           "5 replayable scene branches",
           "AI-personalized card readings",
           "Synchronized motion and audio"
-        ],
-        "image": "/Tarocchi/tarocchi-1.webp"
+        ]
       }
     },
     {
@@ -466,15 +525,32 @@
         "nyt api ▸ feed cached via glide",
         "mycommunity ▸ discover nearby"
       ],
-      "caseStudy": {
+      "blurb": "A native Java Android app for Boy Scouts troop discovery, with live Firebase data on a Google Map and permissions handled as real states.",
+      "story": {
         "role": "Android engineer",
-        "challenge": "Troop discovery data had to stay current on a location-aware map while respecting Android’s authentication and runtime permission model.",
-        "approach": [
-          "Bound Firebase listeners to map marker lifecycle and profile state.",
-          "Handled location permission and Google Sign-In as explicit application states.",
-          "Fetched community news asynchronously and cached images for responsive browsing."
+        "problem": {
+          "was": [
+            "Troop data going stale on the map.",
+            "Authentication and location permissions treated as afterthoughts."
+          ],
+          "needed": [
+            "Markers that update the moment Firebase does.",
+            "Sign-in and permissions as explicit application states.",
+            "News and images that load fast and cache."
+          ]
+        },
+        "build": [
+          {
+            "step": "Firebase realtime listeners bound to map marker lifecycle, with auto-zoom bounds and a runtime location permission flow."
+          },
+          {
+            "step": "Google Sign-In and profile CRUD as explicit states, so the app never guesses who is logged in or what it may access."
+          },
+          {
+            "step": "NYT Top Stories fetched asynchronously through OkHttp and Gson, images cached with Glide."
+          }
         ],
-        "outcomes": [
+        "proof": [
           "Realtime map updates",
           "Authenticated profile CRUD",
           "Cached asynchronous news feed"
