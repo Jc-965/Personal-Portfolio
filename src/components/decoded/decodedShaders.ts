@@ -49,6 +49,7 @@ void main() {
   float index = floor(pow(luma, .85) * (uGlyphs - 1.0) + .5);
   vec2 local = fract(frag / uCell);
   float alpha = index < .5 ? 0.0 : texture(uAtlas, vec2((index + local.x) / uGlyphs, 1.0 - local.y)).a;
-  vec3 glyph = uTint * (.55 + .45 * luma) * alpha;
+  // Barely resolved surfaces stay dim, so a screenshot materialises instead of arriving as bright noise.
+  vec3 glyph = uTint * (.55 + .45 * luma) * alpha * (.35 + .65 * p);
   fragColor = vec4(mix(glyph, image, resolved), 1.0);
 }`

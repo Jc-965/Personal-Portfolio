@@ -26,11 +26,11 @@ test('keyboard navigation and the main page pass serious accessibility checks', 
   await expectNoSeriousAxeViolations(page)
 })
 
-test('case-study pages render canonical project content and pass accessibility checks', async ({ page }) => {
+test('project pages render in the app at their own URL and pass accessibility checks', async ({ page }) => {
   await page.goto('/projects/agoriai/')
   await expect(page.getByRole('heading', { level: 1, name: 'Agoriai' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'What had to be solved' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', 'mailto:jcchen54@gmail.com')
+  await expect(page.getByRole('link', { name: /index/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What had to change' })).toBeAttached()
   await expectNoSeriousAxeViolations(page)
 })
 
@@ -42,20 +42,20 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
 
   // The hero's tree-shaken renderer is expected; the full Three.js engine and
   // below-the-fold feature chunks must remain gated behind user intent.
-  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation/.test(url))).toBe(false)
+  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|ProjectPage/.test(url))).toBe(false)
 })
 
-test('projects retain their gallery presentation without case-study links', async ({ page }) => {
+test('project rows open the in-app page and back returns to the index', async ({ page }) => {
   await page.goto('/')
   await page.locator('#projects').scrollIntoViewIfNeeded()
-  const projects = page.locator('#projects')
-  await expect(projects.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
-  await expect(projects.locator('a[href^="/projects/"]')).toHaveCount(0)
-  const gallery = projects.locator('.gallery').first()
-  await gallery.getByRole('button', { name: 'Next screenshot' }).click()
-  await expect(gallery.locator('.gallery__count')).toContainText('02 /')
-  await gallery.getByRole('button', { name: 'Previous screenshot' }).click()
-  await expect(gallery.locator('.gallery__count')).toContainText('01 /')
+  const rows = page.locator('#projects a[href^="/projects/"]')
+  await expect(rows).toHaveCount(4)
+  await rows.filter({ hasText: 'ParkiWell' }).click()
+  await expect(page).toHaveURL(/\/projects\/parkiwell\/$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'ParkiWell' })).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator('#projects')).toBeInViewport()
 })
 
 test('short landscape keeps the hero introduction in the viewport', async ({ page }) => {

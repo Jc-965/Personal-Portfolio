@@ -67,7 +67,7 @@
 .build__screen::before, .build__screen::after { content: '+'; position: absolute; font-family: var(--font-mono); color: var(--accent-cyan); background: var(--bg-primary); padding: 0 2px; line-height: 1; }
 .build__screen::before { top: -0.55em; left: -0.35em; }
 .build__screen::after { bottom: -0.55em; right: -0.35em; }
-.build__screen--phone { width: min(38vh, 300px); margin: 0 auto; }
+.build__screen--phone { width: min(28vh, 250px); margin: 0 auto; }
 .build__label { position: absolute; left: 12px; bottom: 10px; margin: 0; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); background: rgba(0, 0, 0, 0.6); padding: 2px 6px; }
 
 .act--proof { min-height: 100svh; }
