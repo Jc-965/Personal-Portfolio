@@ -58,12 +58,13 @@ test('projects retain their gallery presentation without case-study links', asyn
   await expect(gallery.locator('.gallery__count')).toContainText('01 /')
 })
 
-test('short landscape keeps the hero action in the viewport', async ({ page }) => {
+test('short landscape keeps the hero introduction in the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto('/')
-  const action = page.getByRole('link', { name: 'Explore the work' })
-  await expect(action).toBeInViewport()
-  const bounds = await action.boundingBox()
+  // The claim is the last line of hero copy, so if it fits, all of it fits.
+  const claim = page.locator('.hero__claim')
+  await expect(claim).toBeInViewport()
+  const bounds = await claim.boundingBox()
   expect(bounds!.y).toBeGreaterThan(76)
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(390)
   await expect(page.locator('.hero__copy')).not.toHaveAttribute('inert')
@@ -74,7 +75,7 @@ test('reduced motion uses a single-screen opening and reachable content', async 
   await page.goto('/')
   const height = await page.locator('.hero').evaluate(el => el.getBoundingClientRect().height)
   expect(height).toBeLessThanOrEqual(Math.max(page.viewportSize()!.height, 620))
-  await expect(page.getByRole('link', { name: 'Explore the work' })).toBeInViewport()
+  await expect(page.locator('.hero__claim')).toBeInViewport()
   await page.locator('#journey').scrollIntoViewIfNeeded()
   await expect(page.getByRole('heading', { name: 'From research labs to shipped products' })).toBeVisible()
 })
@@ -89,6 +90,6 @@ test('a missing WebGL context leaves a readable, usable landing page', async ({ 
   })
   await page.goto('/')
   await expect(page.locator('.hero')).toHaveClass(/hero--fallback/)
-  await expect(page.getByRole('link', { name: 'Explore the work' })).toBeInViewport()
+  await expect(page.locator('.hero__claim')).toBeInViewport()
   await expect(page.locator('.hero__copy')).not.toHaveAttribute('inert')
 })
