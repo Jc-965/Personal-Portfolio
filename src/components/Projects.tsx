@@ -46,7 +46,7 @@ function LedgerRow({ project }: { project: Project }) {
             progress={hover && !reduce ? 0.25 : 1}
             accent={project.accent}
             interactive={false}
-            cell={6}
+            cell={8}
           />
         </div>
         <div className="ledger__copy">

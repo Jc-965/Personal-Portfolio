@@ -3,13 +3,10 @@ import { LazyMotion, domAnimation, m } from 'framer-motion'
 import Cursor from './components/Cursor'
 import Background from './components/Background'
 import ErrorBoundary from './components/ErrorBoundary'
-import Navbar from './components/Navbar'
 import ScrollRail from './components/ScrollRail'
-import Hero from './components/Hero'
-import LazySection from './components/LazySection'
-import Footer from './components/Footer'
+import HomePage from './pages/HomePage'
 import { GyroscopeProvider } from './context/GyroscopeContext'
-import GyroPrompt from './components/GyroPrompt'
+import { useRoute } from './hooks/useRoute'
 import { shouldUseCustomCursor } from './utils/nativeCursor'
 import { storageGet, storageSet } from './utils/safeStorage'
 
@@ -27,11 +24,8 @@ const Analytics = lazy(() =>
   })),
 )
 
-const Journey = lazy(() => import('./components/Journey'))
-const Projects = lazy(() => import('./components/Projects'))
-const BeyondBuild = lazy(() => import('./components/BeyondBuild'))
-const Toolkit = lazy(() => import('./components/Toolkit'))
-const Constellation = lazy(() => import('./components/Constellation'))
+// A project's own page. Lazy: the index never pays for it until a row is opened.
+const ProjectPage = lazy(() => import('./pages/ProjectPage'))
 
 const shouldForceSketchbookTutorial = () => {
   if (typeof window === 'undefined') return false
@@ -39,15 +33,8 @@ const shouldForceSketchbookTutorial = () => {
   return tutorialParam === '1' || tutorialParam === 'true'
 }
 
-// Rendered when a content section crashes: keeps the section (and its anchor
-// id, so navbar links still land somewhere) instead of silently vanishing.
-const SectionFallback = ({ id, className }: { id: string; className: string }) => (
-  <section id={id} className={className}>
-    <p className="section-fallback">This section failed to load — refresh to try again.</p>
-  </section>
-)
-
 function App() {
+  const route = useRoute()
   const analyticsEnabled = !['localhost', '127.0.0.1'].includes(window.location.hostname)
   const [useCustomCursor, setUseCustomCursor] = useState(() => shouldUseCustomCursor())
   const [sketchbookOpen, setSketchbookOpen] = useState(false)
@@ -198,18 +185,19 @@ function App() {
               <ScrollProvider />
             </Suspense>
             <a href="#main-content" className="skip-link">Skip to content</a>
-            <Navbar />
             <ScrollRail />
-            <main id="main-content">
-              <Hero />
-              <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} margin="1600px 0px" /></ErrorBoundary>
-              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="80px 0px" /></ErrorBoundary>
-              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" component={BeyondBuild} /></ErrorBoundary>
-              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" component={Toolkit} /></ErrorBoundary>
-              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" /></ErrorBoundary>
-            </main>
-            <Footer />
-            <GyroPrompt />
+            {route.page === 'project' ? (
+              <ErrorBoundary
+                label="ProjectPage"
+                fallback={<main id="main-content" className="ppage ppage--missing"><p className="section-fallback">This page failed to load. Refresh to try again.</p></main>}
+              >
+                <Suspense fallback={<div className="ppage ppage--loading" aria-hidden="true" />}>
+                  <ProjectPage id={route.id} />
+                </Suspense>
+              </ErrorBoundary>
+            ) : (
+              <HomePage scrollToProjects={route.page === 'projects'} />
+            )}
       </m.div>
 
       {(sketchbookOpen || sketchbookExiting) && (
