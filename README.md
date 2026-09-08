@@ -26,11 +26,11 @@ Software Engineer · Computer Science @ Carnegie Mellon University (SCS) · Mach
 
 <table width="100%">
   <tr>
-    <td width="50%" valign="top"><img src="screenshots/journey.png" alt="Journey timeline"/><br/><div align="center"><strong>The journey</strong><br/><sub>animated experience timeline</sub></div></td>
-    <td width="50%" valign="top"><img src="screenshots/projects.png" alt="Selected work"/><br/><div align="center"><strong>Selected work</strong><br/><sub>interactive case-study cards</sub></div></td>
+    <td width="50%" valign="top"><img src="screenshots/journey.png" alt="Journey timeline"/><br/><div align="center"><strong>The journey</strong><br/><sub>a scroll-driven timeline of roles</sub></div></td>
+    <td width="50%" valign="top"><img src="screenshots/projects.png" alt="Selected work"/><br/><div align="center"><strong>Selected work</strong><br/><sub>case studies with screenshot galleries</sub></div></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><img src="screenshots/toolkit.png" alt="Toolkit"/><br/><div align="center"><strong>The toolkit</strong><br/><sub>a GSAP card stack of tools</sub></div></td>
+    <td width="50%" valign="top"><img src="screenshots/toolkit.png" alt="Toolkit"/><br/><div align="center"><strong>The toolkit</strong><br/><sub>a working terminal: tree, ls, grep, tab completion</sub></div></td>
     <td width="50%" valign="top"><img src="screenshots/constellation.png" alt="Constellation"/><br/><div align="center"><strong>The constellation</strong><br/><sub>a shared, live star field</sub></div></td>
   </tr>
 </table>
@@ -58,39 +58,39 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <th align="left" width="52%">What I Did</th>
   </tr>
   <tr>
-    <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Mobile SWE Intern · 2026 to Present</sub></td>
+    <td valign="middle"><strong>ScottyLabs AI Team</strong><br/><sub>AI Platform Engineer · Apr 2026 to Present</sub></td>
+    <td align="center" valign="middle"><img title="Python · FastAPI · React · TypeScript · PostgreSQL" alt="Python, FastAPI, React, TypeScript, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=py,fastapi,react,ts,postgresql" />&nbsp;<img title="LangGraph" alt="LangGraph" height="28" width="28" src="https://cdn.simpleicons.org/langchain/00A67E" /></td>
+    <td valign="middle">Launched a campus AI platform that grounds every answer in live university data and streams first tokens at 1.5s p95, with injection-hardened cross-chat memory and MCP tool binding that cut prompt tokens 62%.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Software Engineer Intern, Android · Summer 2026</sub></td>
     <td align="center" valign="middle"><img title="Android · Kotlin · Security" alt="Android, Kotlin, Security" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin" /></td>
     <td valign="middle">Built a differential security audit for 220+ endpoints and shipped navigation and billing redesigns for a 500K+ user Android app.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>ScottyLabs AI · CMUGPT</strong><br/><sub>AI Platform Engineer · 2026 to Present</sub></td>
-    <td align="center" valign="middle"><img title="Python · FastAPI · React · TypeScript" alt="Python, FastAPI, React, TypeScript" height="28" src="https://skillicons.dev/icons?i=py,fastapi,react,ts" />&nbsp;<img title="LangGraph" alt="LangGraph" height="28" width="28" src="https://cdn.simpleicons.org/langchain/00A67E" />&nbsp;<img title="TanStack" alt="TanStack" height="28" width="28" src="https://cdn.simpleicons.org/reactquery/FF4154" /></td>
-    <td valign="middle">Built agent orchestration, authenticated streaming, CMU Maps route embeds, and prompt-injection protections for a campus AI platform.</td>
-  </tr>
-  <tr>
-    <td valign="middle"><strong>Sorcea Labs</strong><br/><sub>Mobile SWE Intern · Spring 2026</sub></td>
+    <td valign="middle"><strong>Sorcea Labs</strong><br/><sub>Software Engineer Intern · Jan 2026 to May 2026</sub></td>
     <td align="center" valign="middle"><img title="Flutter · Dart" alt="Flutter, Dart" height="28" src="https://skillicons.dev/icons?i=flutter,dart" /></td>
-    <td valign="middle">Shipped production app flows for 10k+ users and improved home-load latency by batching network calls.</td>
+    <td valign="middle">Overhauled the core flows of a 10K+ user Flutter app, built a perceptual color engine for skin-tone shade matching, and cut homepage load time about 75%.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>CMUMaps · ScottyLabs</strong><br/><sub>Data &amp; Software Engineer · 2025 to 2026</sub></td>
+    <td valign="middle"><strong>CMUMaps</strong><br/><sub>Data &amp; Software Engineer · Sep 2025 to Apr 2026</sub></td>
     <td align="center" valign="middle"><img title="Python · AWS" alt="Python, AWS" height="28" src="https://skillicons.dev/icons?i=py,aws" />&nbsp;<img title="OpenStreetMap" alt="OpenStreetMap" height="28" width="28" src="https://cdn.simpleicons.org/openstreetmap/7EBC6F" />&nbsp;<img title="ArcGIS" alt="ArcGIS" height="28" width="28" src="https://cdn.simpleicons.org/arcgis/2C7AC3" /></td>
-    <td valign="middle">Built geospatial ETL for all 74 CMU buildings, including OSM parsing, fuzzy matching, and interior map labels.</td>
+    <td valign="middle">Built the geospatial ETL pipeline behind CMU's campus navigation site, parsing 15K+ OpenStreetMap nodes and ArcGIS records into footprints, floors, and entrances for 74 buildings.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>Coding Minds Academy</strong><br/><sub>Programming Instructor · 2025 to 2026</sub></td>
+    <td valign="middle"><strong>Game Creation Society</strong><br/><sub>Core Developer · Fall 2025</sub></td>
+    <td align="center" valign="middle"><img title="Unreal Engine 5" alt="Unreal Engine 5" height="28" src="https://skillicons.dev/icons?i=unreal" /></td>
+    <td valign="middle">Built Unreal Engine 5 Blueprint systems for grappling, tethering, and local multiplayer combat, synchronizing physics, collision feedback, and elimination state in real time.</td>
+  </tr>
+  <tr>
+    <td valign="middle"><strong>Coding Minds Academy</strong><br/><sub>Instructor · Jun 2025 to Feb 2026</sub></td>
     <td align="center" valign="middle"><img title="Python · C++ · JavaScript" alt="Python, C++, JavaScript" height="28" src="https://skillicons.dev/icons?i=py,cpp,js" /></td>
-    <td valign="middle">Taught project-based CS, algorithms, debugging, and competitive programming through structured labs.</td>
+    <td valign="middle">Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>Levio</strong><br/><sub>Creator &amp; Developer · 2023 to 2024</sub></td>
-    <td align="center" valign="middle"><img title="Flutter · Dart · Supabase · PostgreSQL · GitHub Actions" alt="Flutter, Dart, Supabase, PostgreSQL, GitHub Actions" height="28" src="https://skillicons.dev/icons?i=flutter,dart,supabase,postgresql,githubactions" /></td>
-    <td valign="middle">Built an offline-first Parkinson's care platform with symptom logs, medication schedules, guided therapy, and snapshot sync.</td>
-  </tr>
-  <tr>
-    <td valign="middle"><strong>SoftCom Lab · Cal Poly Pomona</strong><br/><sub>Research Intern · 2023 to 2024</sub></td>
+    <td valign="middle"><strong>SoftCom Lab</strong><br/><sub>Machine Learning Research Intern · Jun 2023 to Aug 2024</sub></td>
     <td align="center" valign="middle"><img title="Python · OpenCV · NumPy" alt="Python, OpenCV, NumPy" height="28" src="https://skillicons.dev/icons?i=py,opencv,numpy" /></td>
-    <td valign="middle">Evaluated Parkinson's motor-symptom video analysis models and contributed to a peer-reviewed CCSIT publication.</td>
+    <td valign="middle">Developed a computer-vision model for Parkinson's exercise-form assessment (95.4% mean accuracy in video trials) and first-authored the peer-reviewed paper at CS &amp; IT-CSCP 2024.</td>
   </tr>
 </table>
 
@@ -105,24 +105,24 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <th align="left" width="56%">What It Does</th>
   </tr>
   <tr>
-    <td valign="middle"><strong>Agoriai</strong></td>
-    <td align="center" valign="middle"><img title="React · TypeScript · D3 · PostgreSQL" alt="React, TypeScript, D3, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=react,ts,d3,postgresql" /></td>
-    <td valign="middle">Anonymous student career network with school-email auth, private identity tiers, threaded discussions, voting, and a student-company graph.</td>
+    <td valign="middle"><strong>ParkiWell</strong></td>
+    <td align="center" valign="middle"><img title="Flutter · Dart · Python · Supabase · PostgreSQL" alt="Flutter, Dart, Python, Supabase, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=flutter,dart,py,supabase,postgresql" /></td>
+    <td valign="middle">Offline-first Parkinson's care platform with a real-time computer-vision exercise coach (under 25 ms on-device) and crash-proof encrypted sync that survived 1M fault-injected writes with zero loss.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>Levio</strong></td>
-    <td align="center" valign="middle"><img title="Flutter · Dart · Supabase · PostgreSQL · GitHub Actions" alt="Flutter, Dart, Supabase, PostgreSQL, GitHub Actions" height="28" src="https://skillicons.dev/icons?i=flutter,dart,supabase,postgresql,githubactions" /></td>
-    <td valign="middle">Offline-first Parkinson's care app for symptom tracking, medication schedules, guided therapy, crisis screening, and signed mobile releases.</td>
+    <td valign="middle"><strong>Agoriai</strong></td>
+    <td align="center" valign="middle"><img title="React · TypeScript · D3 · PostgreSQL" alt="React, TypeScript, D3, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=react,ts,d3,postgresql" /></td>
+    <td valign="middle">Anonymous student career network built in 36 hours at TartanHacks 2026: a 36-endpoint Bun/Elysia API, four identity tiers enforced on the server, and a D3 relationship graph.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>Tarocchi</strong></td>
     <td align="center" valign="middle"><img title="React · Vite · TypeScript · Tailwind CSS · Framer Motion" alt="React, Vite, TypeScript, Tailwind CSS, Framer Motion" height="28" src="https://skillicons.dev/icons?i=react,vite,ts,tailwind,framer" /></td>
-    <td valign="middle">Interactive narrative web app with 24 branching paths, animated scene transitions, parallax, and synchronized audio.</td>
+    <td valign="middle">Interactive tarot narrative with five illustrated branches, Claude-interpreted card readings, and scene transitions, parallax, and audio driven by one route state.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>MyCommunity</strong></td>
     <td align="center" valign="middle"><img title="Java · Android · Firebase" alt="Java, Android, Firebase" height="28" src="https://skillicons.dev/icons?i=java,androidstudio,firebase" /></td>
-    <td valign="middle">Native Android app for Boy Scouts troop discovery, real-time map markers, Google Sign-In, and a community news feed.</td>
+    <td valign="middle">Native Android app for Boy Scouts troop discovery, with live Firebase markers on a Google Map, Google Sign-In, and a cached community news feed.</td>
   </tr>
 </table>
 
@@ -152,7 +152,9 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
   <img src="https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=26&duration=1&pause=100000&color=E6EDF3&vCenter=true&repeat=false&width=320&height=44&lines=Under+the+Hood" alt="Under the Hood" />
 </h2>
 
-- **Interactive canvas background:** procedurally generated node network with pointer tracking and gyroscope tilt response
+- **Ray-marched ASCII hero:** a WebGL2 world of hills, a torus, and stars, evaluated at character resolution and drawn from a glyph atlas. The name is carved in as a signed-distance plate, the pointer tugs the glyph field, and a click bumps it the way the background grid answers a click.
+- **Background off the main thread:** the node network and grid render in a worker through OffscreenCanvas, with pointer tracking and gyroscope tilt response.
+- **Toolkit terminal:** a small pure shell (help, tree, ls, grep, whoami) with history and tab completion, drawn in the same amber form language.
 - **3D sketchbook world:** a Three.js / React Three Fiber procedural terrain scene with sculpting tools and a hand-drawn post-processing pass
 - **Visitor constellation:** a shared star field with read-only Firebase clients and rate-limited, ownership-checked server writes
 - **Performance-adaptive:** detects device capabilities and adjusts DPR, frame rate, and rendering complexity
