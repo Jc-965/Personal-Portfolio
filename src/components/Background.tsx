@@ -1,184 +1,95 @@
 import { useEffect, useRef } from 'react'
 import { useGyroscope } from '../context/GyroscopeContext'
-import { getScrollProgress } from '../scroll/scrollSignal'
+import { getScrollProgress, onScroll } from '../scroll/scrollSignal'
+import { isHeroCovering, onHeroCover } from './hero/heroCover'
+import { acquireLink, releaseLink } from './background/link'
+import { getPerformanceProfile } from './background/profile'
+import { rasterizeNoiseTile } from './background/noiseTile'
+import type { BackgroundMessage } from './background/protocol'
 
-const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
-const rand = (min: number, max: number) => Math.random() * (max - min) + min
-const MOBILE_BREAKPOINT = 768
-const LOW_POWER_THREADS = 4
+/**
+ * The page background canvas. This component owns everything that needs the
+ * DOM (sizing, input, visibility, what covers the canvas) and streams it as
+ * messages to the renderer, which draws in a worker on an OffscreenCanvas
+ * when the browser supports one and on the main thread otherwise.
+ */
 
-const getPerformanceProfile = () => {
-  const width = window.innerWidth
-  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-  const isMobileUa = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
-  const isCompact = width < MOBILE_BREAKPOINT
-  const isActualMobile = isCompact && (isTouch || isMobileUa)
-  const isLowPower = (navigator.hardwareConcurrency || 8) <= LOW_POWER_THREADS || (deviceMemory !== undefined && deviceMemory <= 4)
-  const useSimpleGrid = isLowPower || isActualMobile
+const spawnWorker = () =>
+  typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap === 'function'
+    ? new Worker(new URL('./background/background.worker.ts', import.meta.url), { type: 'module' })
+    : null
 
-  return {
-    isTouch,
-    isMobile: isTouch || isMobileUa,
-    isCompact,
-    isActualMobile,
-    isLowPower,
-    useSimpleGrid,
-    dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isActualMobile ? 1.28 : 2),
-    targetFps: isLowPower ? (isCompact ? 42 : 36) : isActualMobile ? 56 : 60,
-  }
-}
+// The renderer is its own chunk so first paint does not wait on it; the
+// canvas sits under the hero's opaque terminal until well after it lands.
+const loadRenderer = () => import('./background/renderer')
 
-interface Node {
-  id: number
-  x: number
-  y: number
-  baseX: number
-  baseY: number
-  anchorX: number
-  anchorY: number
-  vx: number
-  vy: number
-  radius: number
-  halo: number
-  phase: number
-  depth: number
-  driftRadius: number
-  driftSpeed: number
-  swirlSpeed: number
-  jitter: number
+const coveredBySketchbook = () => {
+  // The Sketchbook overlay is an opaque sheet from its first frame, and the
+  // page marks the start of its exit before that sheet begins to lift.
+  const classes = document.documentElement.classList
+  return classes.contains('sketchbook-mode') && !classes.contains('sketchbook-returning')
 }
 
 export default function Background() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pointer = useRef({ x: 0, y: 0, inViewport: false, velocity: 0, boostUntil: 0 })
-  const lastPointer = useRef({ x: 0, y: 0 })
+  const postRef = useRef<((message: BackgroundMessage) => void) | null>(null)
   const gyro = useGyroscope()
-  const gyroRef = useRef({ x: 0, y: 0 })
 
   // Subscribe to gyroscope updates
   useEffect(() => {
     if (!gyro.permitted) return
     return gyro.subscribe((x, y) => {
-      gyroRef.current.x = x
-      gyroRef.current.y = y
+      postRef.current?.({ type: 'gyro', x, y })
     })
   }, [gyro, gyro.permitted])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // Every frame paints the full viewport with an opaque gradient, so an
-    // alpha channel only adds compositing work without affecting the result.
-    const ctx = canvas.getContext('2d', { alpha: false })
-    if (!ctx) return
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) return
+    const link = acquireLink(canvas, { reducedMotion: prefersReduced, spawnWorker, loadRenderer })
+    const post = (message: BackgroundMessage, transfer?: Transferable[]) => link.post(message, transfer)
+    postRef.current = post
+    let disposed = false
 
     let w = window.innerWidth
     let h = window.innerHeight
     let stableCompactHeight = h
     let profile = getPerformanceProfile()
-    let dpr = profile.dpr
+    let tileScale = 0
+    let tileRequest = 0
 
-    const nodes: Node[] = []
-    const edges: [number, number][] = []
-    let frameId: number
-    let bgGradient: CanvasGradient
-
-    const clickDistortion = { x: 0, y: 0, strength: 0 }
-    const lastInteraction = { x: 0, y: 0, time: 0 }
-    let interactionBurstEnd = 0
-
-    const spawnClickEffect = (cx: number, cy: number) => {
-      clickDistortion.x = cx
-      clickDistortion.y = cy
-      clickDistortion.strength = profile.isCompact ? 1.04 : 0.8
-      const clickRadius = profile.isCompact ? 176 : 200
-      const clickForce = profile.isCompact ? 5.8 : 3
-      const touchedNodeIds = new Set<number>()
-
-      const applyImpulseToNode = (node: Node, strength: number, ddx: number, ddy: number, dist: number) => {
-        let unitX = ddx / dist
-        let unitY = ddy / dist
-
-        if (Math.abs(ddx) + Math.abs(ddy) < 0.5) {
-          const angle = Math.random() * Math.PI * 2
-          unitX = Math.cos(angle)
-          unitY = Math.sin(angle)
+    // The film grain is rasterised at the canvas's own pixel density so it
+    // lands on the same pixel grid it used to as a CSS layer.
+    const sendNoise = () => {
+      const scale = profile.dpr
+      if (scale === tileScale) return
+      tileScale = scale
+      const request = ++tileRequest
+      rasterizeNoiseTile(scale).then(async (tile) => {
+        if (!tile || request !== tileRequest || disposed) return
+        if (!link.worker) {
+          post({ type: 'noise', tile, scale })
+          return
         }
-
-        node.vx += unitX * strength * (profile.isCompact ? 1.7 : 1)
-        node.vy += unitY * strength * (profile.isCompact ? 1.7 : 1)
-        if (profile.isCompact) {
-          node.x = clamp(node.x + unitX * strength * 2.15, 24, w - 24)
-          node.y = clamp(node.y + unitY * strength * 2.15, 24, h - 24)
+        const bitmap = await createImageBitmap(tile)
+        if (request !== tileRequest || disposed) {
+          bitmap.close()
+          return
         }
-        node.halo = Math.min(1, node.halo + strength * (profile.isCompact ? 0.44 : 0.2))
-        touchedNodeIds.add(node.id)
-      }
-
-      nodes.forEach(node => {
-        const ddx = node.x - cx
-        const ddy = node.y - cy
-        const dist = Math.hypot(ddx, ddy) || 1
-        if (dist < clickRadius) {
-          const force = (1 - dist / clickRadius) * clickForce
-          applyImpulseToNode(node, force, ddx, ddy, dist)
-        }
+        post({ type: 'noise', tile: bitmap, scale }, [bitmap])
       })
-
-      if (profile.isActualMobile && touchedNodeIds.size < 7) {
-        const fallbackRadius = clickRadius * 1.9
-        const nearestNodes = nodes
-          .map(node => {
-            const ddx = node.x - cx
-            const ddy = node.y - cy
-            return { node, ddx, ddy, dist: Math.hypot(ddx, ddy) || 1 }
-          })
-          .sort((a, b) => a.dist - b.dist)
-          .slice(0, 8)
-
-        nearestNodes.forEach(({ node, ddx, ddy, dist }) => {
-          if (touchedNodeIds.has(node.id) || dist > fallbackRadius) return
-          const force = Math.max(0.55, (1 - dist / fallbackRadius) * clickForce * 0.88)
-          applyImpulseToNode(node, force, ddx, ddy, dist)
-        })
-      }
-    }
-
-    const buildBgGradient = () => {
-      const grad = ctx.createLinearGradient(0, 0, w, h)
-      grad.addColorStop(0, '#000000')
-      grad.addColorStop(0.4, '#000508')
-      grad.addColorStop(0.75, '#000204')
-      grad.addColorStop(1, '#000000')
-      bgGradient = grad
-    }
-
-    let initialized = false
-
-    const resizeCanvas = () => {
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-      canvas.style.width = `${w}px`
-      canvas.style.height = `${h}px`
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.scale(dpr, dpr)
-      buildBgGradient()
     }
 
     const resize = () => {
-      const oldW = w
-      const oldH = h
       const nextW = window.innerWidth
       const nextH = window.innerHeight
       const nextProfile = getPerformanceProfile()
       const compactChromeShift =
         nextProfile.isCompact &&
         profile.isCompact &&
-        Math.abs(nextW - oldW) < 12 &&
+        Math.abs(nextW - w) < 12 &&
         Math.abs(nextH - stableCompactHeight) < 160
 
       w = nextW
@@ -189,743 +100,11 @@ export default function Background() {
         h = nextH
         stableCompactHeight = nextH
       }
-      const profileChanged =
-        nextProfile.isTouch !== profile.isTouch ||
-        nextProfile.isCompact !== profile.isCompact ||
-        nextProfile.isActualMobile !== profile.isActualMobile ||
-        nextProfile.isLowPower !== profile.isLowPower ||
-        nextProfile.useSimpleGrid !== profile.useSimpleGrid ||
-        nextProfile.dpr !== profile.dpr
-        || nextProfile.targetFps !== profile.targetFps
-
       profile = nextProfile
-      dpr = profile.dpr
-      frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
-      lastFrameTime = 0
-      resizeCanvas()
-
-      const areaRatio = oldW > 0 && oldH > 0 ? (w * h) / (oldW * oldH) : 1
-      const significantResize =
-        Math.abs(w - oldW) > 160 ||
-        Math.abs(h - oldH) > 120 ||
-        areaRatio < 0.72 ||
-        areaRatio > 1.38
-
-      if (!initialized || nodes.length === 0 || profileChanged || significantResize) {
-        initNodes()
-        initialized = true
-        return
-      }
-
-      // Proportionally reposition existing nodes instead of rebuilding
-      const sx = w / oldW
-      const sy = h / oldH
-      nodes.forEach(node => {
-        node.anchorX = clamp(node.anchorX * sx, 32, w - 32)
-        node.anchorY = clamp(node.anchorY * sy, 32, h - 32)
-        node.baseX = clamp(node.baseX * sx, 36, w - 36)
-        node.baseY = clamp(node.baseY * sy, 36, h - 36)
-        node.x = clamp(node.x * sx, 24, w - 24)
-        node.y = clamp(node.y * sy, 24, h - 24)
-      })
-    }
-
-    const initNodes = () => {
-      nodes.length = 0
-      edges.length = 0
-      const branchSet = new Set<string>()
-
-      const connect = (a: number, b: number) => {
-        if (a === undefined || b === undefined) return
-        const key = a < b ? `${a}-${b}` : `${b}-${a}`
-        if (!branchSet.has(key)) {
-          branchSet.add(key)
-          edges.push([a, b])
-        }
-      }
-
-      const addNode = (x: number, y: number, depth: number) => {
-        const id = nodes.length
-        nodes.push({
-          id,
-          x,
-          y,
-          baseX: x,
-          baseY: y,
-          anchorX: x,
-          anchorY: y,
-          vx: 0,
-          vy: 0,
-          radius: rand(profile.isCompact ? 1.04 : 0.8, profile.isCompact ? 1.62 : 1.6),
-          halo: 0,
-          phase: Math.random() * Math.PI * 2,
-          depth: depth + Math.random() * 0.05,
-          driftRadius: rand(profile.isActualMobile ? 28 : profile.isCompact ? 1.6 : 14, profile.isActualMobile ? 64 : profile.isCompact ? 4.8 : 40) * (0.24 + depth * (profile.isCompact ? 0.42 : 0.55)),
-          driftSpeed: rand(profile.isActualMobile ? 0.28 : profile.isCompact ? 0.08 : 0.1, profile.isActualMobile ? 0.54 : profile.isCompact ? 0.18 : 0.28),
-          swirlSpeed: rand(profile.isActualMobile ? 0.22 : profile.isCompact ? 0.05 : 0.06, profile.isActualMobile ? 0.46 : profile.isCompact ? 0.14 : 0.2),
-          jitter: rand(profile.isActualMobile ? 3.5 : profile.isCompact ? 0.08 : 4, profile.isActualMobile ? 9 : profile.isCompact ? 0.32 : 12),
-        })
-
-        return id
-      }
-
-      if (profile.isCompact) {
-        const clusterCount = profile.isActualMobile ? 4 : Math.max(4, Math.min(5, Math.round(w / 150)))
-        const trunkSegments = profile.isActualMobile
-          ? Math.round(clamp(h / 124, 9, 11))
-          : Math.round(clamp(h / 116, 8, 10))
-        const clusters: number[][] = []
-
-        for (let c = 0; c < clusterCount; c++) {
-          const cluster: number[] = []
-          const lane = clusterCount === 1 ? 0.5 : c / (clusterCount - 1)
-          const edgeBias = lane < 0.34 ? -1 : lane > 0.66 ? 1 : 0
-          const baseX = clamp(
-            w * (0.08 + lane * 0.84) + rand(-w * 0.035, w * 0.035),
-            30,
-            w - 30
-          )
-          const rootY = h * rand(0.03, profile.isActualMobile ? 0.07 : 0.09)
-          const lateralBias = edgeBias === 0
-            ? rand(-0.18, 0.18)
-            : rand(0.08, 0.24) * edgeBias
-          let x = clamp(baseX, 34, w - 34)
-          let y = rootY
-          let previousId: number | undefined
-          let branchBudget = Math.round(rand(1, profile.isActualMobile ? 1.8 : 2.3))
-
-          for (let i = 0; i < trunkSegments; i++) {
-            const progress = i / Math.max(trunkSegments - 1, 1)
-            if (i > 0) {
-              x = clamp(
-                x + rand(profile.isActualMobile ? -34 : -22, profile.isActualMobile ? 34 : 22) + lateralBias * (18 + progress * 26) + Math.sin(progress * Math.PI * 2 + c) * (profile.isActualMobile ? 14 : 8),
-                30,
-                w - 30
-              )
-              y = clamp(
-                y + rand(
-                  h * (profile.isActualMobile ? 0.082 : 0.075),
-                  h * (profile.isActualMobile ? 0.12 : 0.115)
-                ) + rand(profile.isActualMobile ? -8 : 0, profile.isActualMobile ? 8 : 0),
-                36,
-                h - 40
-              )
-            }
-
-            const trunkId = addNode(x, y, 0.12 + progress * 0.82)
-            cluster.push(trunkId)
-            if (previousId !== undefined) connect(previousId, trunkId)
-            if (previousId !== undefined && i > 1 && Math.random() > 0.58) {
-              connect(cluster[Math.max(0, cluster.length - 2 - Math.floor(Math.random() * 2))], trunkId)
-            }
-            previousId = trunkId
-
-            const canBranch = i > 1 && i < trunkSegments - 1 && branchBudget > 0
-            if (!canBranch || Math.random() > (profile.isActualMobile ? 0.58 : 0.46)) continue
-
-            branchBudget -= 1
-            const branchDirection = edgeBias === 0
-              ? (Math.random() > 0.5 ? 1 : -1)
-              : (Math.random() > 0.2 ? edgeBias : -edgeBias)
-            const branchSegments = Math.round(rand(2, profile.isActualMobile ? 2.8 : 3.2))
-            let branchParent = trunkId
-            let bx = x
-            let by = y
-
-            for (let j = 0; j < branchSegments; j++) {
-              bx = clamp(
-                bx + branchDirection * rand(14, 24) + lateralBias * 8 + rand(-10, 10),
-                28,
-                w - 28
-              )
-              by = clamp(
-                by + rand(
-                  h * (profile.isActualMobile ? 0.045 : 0.04),
-                  h * (profile.isActualMobile ? 0.082 : 0.075)
-                ),
-                36,
-                h - 36
-              )
-              const branchDepth = clamp(0.16 + (i + j + 1) / (trunkSegments + branchSegments), 0, 1)
-              const branchId = addNode(bx, by, branchDepth)
-              cluster.push(branchId)
-              connect(branchParent, branchId)
-              if (j > 0 && Math.random() > 0.62) connect(trunkId, branchId)
-              branchParent = branchId
-            }
-          }
-
-          if (profile.isActualMobile && previousId !== undefined && y < h * 0.86) {
-            let tailParent = previousId
-            let tailX = x
-            let tailY = y
-
-            while (tailY < h * 0.9) {
-              tailX = clamp(tailX + rand(-16, 16) + lateralBias * 14, 30, w - 30)
-              tailY = clamp(tailY + rand(h * 0.08, h * 0.115), 36, h - 34)
-              const tailDepth = clamp(0.72 + (tailY / h) * 0.3, 0, 1)
-              const tailId = addNode(tailX, tailY, tailDepth)
-              cluster.push(tailId)
-              connect(tailParent, tailId)
-              if (Math.random() > 0.58) {
-                connect(cluster[Math.max(0, cluster.length - 3)], tailId)
-              }
-              tailParent = tailId
-            }
-          }
-
-          clusters.push(cluster)
-        }
-
-        for (let i = 0; i < clusters.length - 1; i++) {
-          const current = clusters[i]
-          const next = clusters[i + 1]
-          if (!current || !next) continue
-
-          const bridges = Math.round(rand(1, profile.isActualMobile ? 1.6 : 2.4))
-          for (let b = 0; b < bridges; b++) {
-            const from = current[Math.floor(rand(1, Math.max(2, current.length - 2)))]
-            if (from === undefined) continue
-
-            let bestTo: number | undefined
-            let bestScore = Number.POSITIVE_INFINITY
-            for (const candidate of next) {
-              const score = Math.abs(nodes[from].y - nodes[candidate].y) + Math.abs(nodes[from].x - nodes[candidate].x) * 0.35
-              if (score < bestScore) {
-                bestScore = score
-                bestTo = candidate
-              }
-            }
-
-            if (bestTo !== undefined) connect(from, bestTo)
-          }
-        }
-
-        return
-      }
-
-      const treeCount = Math.max(6, Math.round(w / 220))
-      const perTree = Math.round(clamp(h / 90, 14, 30))
-      const cols: number[][] = []
-
-      for (let t = 0; t < treeCount; t++) {
-        const col: number[] = []
-        const baseX = ((t + 0.5) / treeCount) * w + rand(profile.isCompact ? -14 : -48, profile.isCompact ? 14 : 48)
-        const swing = rand(profile.isCompact ? 8 : 18, profile.isCompact ? 15 : 32)
-        const wobble = rand(profile.isCompact ? 0.75 : 0.8, profile.isCompact ? 1.2 : 1.8)
-
-        for (let i = 0; i < perTree; i++) {
-          const depth = i / Math.max(perTree - 1, 1)
-          const sway = Math.sin(depth * Math.PI * wobble) * swing
-          const x = clamp(baseX + sway + rand(profile.isCompact ? -8 : -12, profile.isCompact ? 8 : 12), 32, w - 32)
-          const yStart = profile.isCompact ? 0.06 : 0.04
-          const yRange = profile.isCompact ? 0.84 : 0.88
-          const y = h * (yStart + depth * yRange) + rand(profile.isCompact ? -12 : -18, profile.isCompact ? 12 : 18)
-          const id = addNode(x, y, depth)
-
-          col.push(id)
-          if (col.length > 1) connect(col[col.length - 2], id)
-          if (col.length > 4 && Math.random() > (profile.isCompact ? 0.82 : 0.62)) {
-            const span = Math.min(profile.isCompact ? 3 : 4, col.length - 2)
-            connect(col[Math.max(0, col.length - 2 - Math.floor(Math.random() * span))], id)
-          }
-        }
-
-        cols.push(col)
-      }
-
-      for (let t = 0; t < cols.length - 1; t++) {
-        const cur = cols[t]
-        const nxt = cols[t + 1]
-        const pairs = Math.min(cur.length, nxt.length)
-        const stride = profile.isCompact ? Math.max(3, Math.floor(pairs / 4)) : Math.max(2, Math.floor(pairs / 5))
-        for (let i = stride; i < pairs; i += stride) {
-          if (profile.isCompact && Math.random() > 0.45) continue
-          connect(
-            cur[i - Math.floor(Math.random() * Math.min(2, i))],
-            nxt[Math.min(nxt.length - 1, i + Math.floor(Math.random() * 3) - 1)]
-          )
-        }
-      }
-
-      for (let t = 0; t < cols.length - 2; t++) {
-        const cur = cols[t]
-        const far = cols[t + 2]
-        if (!cur || !far) continue
-        const pairs = Math.min(cur.length, far.length)
-        for (let i = 0; i < Math.max(1, Math.floor(pairs / (profile.isCompact ? 12 : 6))); i++) {
-          if (Math.random() > (profile.isCompact ? 0.18 : 0.45)) continue
-          connect(cur[Math.floor(Math.random() * pairs)], far[Math.floor(Math.random() * pairs)])
-        }
-      }
-    }
-
-    let lastFrameTime = 0
-    let lastDecayTime = 0
-    let frameInterval = profile.targetFps >= 60 ? 0 : 1000 / profile.targetFps
-
-    const drawFrame = (now: number) => {
-      ctx.fillStyle = bgGradient
-      ctx.fillRect(0, 0, w, h)
-
-
-      const time = now * 0.0012
-      // Scroll-linked hue drift: the whole field shifts cyan → magenta as you
-      // travel down the page, tying the sections together. Read imperatively
-      // (no React) from the scroll signal that ScrollProvider pumps.
-      const hueShift = getScrollProgress() * 150
-      const p = pointer.current
-      const boostRemaining = Math.max(0, p.boostUntil - now)
-      const boostProgress = boostRemaining > 0 ? clamp(boostRemaining / 220, 0, 1) : 0
-      const pointerEngaged = p.inViewport || boostRemaining > 0
-      const dx = p.x - lastPointer.current.x
-      const dy = p.y - lastPointer.current.y
-      p.velocity = 0.18 * Math.hypot(dx, dy) + 0.82 * p.velocity
-      lastPointer.current.x = p.x
-      lastPointer.current.y = p.y
-
-      // Decay factors are tuned for 60fps frames; on throttled profiles (low
-      // power / low-perf devices) frames are skipped, so normalize by elapsed
-      // time or click ripples and halos linger far longer than intended.
-      const decayDt = lastDecayTime === 0 ? 1 : clamp((now - lastDecayTime) / 16.67, 0.25, 4)
-      lastDecayTime = now
-
-      clickDistortion.strength *= Math.pow(profile.isCompact ? 0.87 : 0.95, decayDt)
-
-      const pointerFactor = pointerEngaged
-        ? clamp(
-            p.velocity / (profile.isCompact ? 260 : 180) + boostProgress * (profile.isActualMobile ? 0.38 : 0),
-            profile.isCompact ? 0.03 : 0.08,
-            profile.isCompact ? 0.44 : 0.92
-          )
-        : profile.isCompact ? 0.03 : 0.06
-      const influenceR = pointerEngaged
-        ? (profile.isCompact ? 180 : 280) + p.velocity * (profile.isCompact ? 0.22 : 0.8) + boostProgress * (profile.isActualMobile ? 28 : 0)
-        : profile.isCompact ? 118 : 170
-
-      const spacing = profile.isCompact
-        ? clamp(w / 22, 18, 22)
-        : profile.useSimpleGrid
-          ? clamp(w / 34, 22, 30)
-          : clamp(w / 44, 26, 34)
-      const gridDriftX = (time * (profile.isCompact ? 0.72 : 1.5)) % spacing
-      const gridDriftY = (time * (profile.isCompact ? 0.62 : 1.3)) % spacing
-      const gx = gyroRef.current.x
-      const gy = gyroRef.current.y
-      const hasGyro = Math.abs(gx) > 0.001 || Math.abs(gy) > 0.001
-      const parallaxX = hasGyro ? gx * w * (profile.isCompact ? 0.04 : 0.08) : (pointerEngaged && !profile.isLowPower ? (p.x - w / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
-      const parallaxY = hasGyro ? gy * h * (profile.isCompact ? 0.03 : 0.06) : (pointerEngaged && !profile.isLowPower ? (p.y - h / 2) * (profile.isCompact ? 0.05 : 0.1) : 0)
-      const offX = (gridDriftX + parallaxX) % spacing
-      const offY = (gridDriftY + parallaxY) % spacing
-      const gravR = pointerEngaged && !profile.isLowPower ? (profile.isCompact ? 150 : 320) + p.velocity * (profile.isCompact ? 0.1 : 0.6) : 0
-      const gravRSq = gravR * gravR || 1
-      const clickStrengthBase = profile.isCompact ? 0.98 : 0.8
-      const clickR = clickDistortion.strength > 0.01 ? (profile.isCompact ? 210 : 300) * clickDistortion.strength : 0
-      const clickGridForce = profile.isCompact ? 34 : 30
-      const clickAlphaBoost = profile.isCompact ? 0.43 : 0.3
-      const detailStep = profile.isActualMobile ? spacing * 0.82 : spacing / 2
-
-      ctx.save()
-      ctx.globalAlpha = profile.useSimpleGrid ? (profile.isCompact ? 0.74 : 0.72) : 0.9
-
-      if (profile.useSimpleGrid) {
-        const simpleStep = spacing
-        const drawSimpleGridLine = (isVertical: boolean, base: number) => {
-          const steps = Math.ceil(((isVertical ? h : w) + spacing * 2) / simpleStep)
-          for (let s = 0; s <= steps; s++) {
-            let drawX = isVertical ? base : -spacing + s * simpleStep + offX
-            let drawY = isVertical ? -spacing + s * simpleStep + offY : base
-
-            if (clickR > 0) {
-              const cdx = drawX - clickDistortion.x
-              const cdy = drawY - clickDistortion.y
-              const cdist = Math.hypot(cdx, cdy) || 1
-              if (cdist < clickR) {
-                const pushForce = (1 - cdist / clickR) * clickDistortion.strength * clickGridForce
-                drawX += (cdx / cdist) * pushForce
-                drawY += (cdy / cdist) * pushForce
-              }
-            }
-
-            if (s === 0) ctx.moveTo(drawX, drawY)
-            else ctx.lineTo(drawX, drawY)
-          }
-        }
-
-        const hasClick = clickR > 0 && profile.isCompact
-
-        if (hasClick) {
-          for (let x = -spacing; x < w + spacing; x += spacing) {
-            const bx = x + offX
-            let alpha = 0.12
-            let hue = 186 + hueShift
-            let lw = 0.82
-            const distToClick = Math.abs(clickDistortion.x - bx)
-            if (distToClick < clickR) {
-              const proximity = 1 - distToClick / clickR
-              alpha += proximity * clickDistortion.strength * 0.5
-              hue = 186 + proximity * clickDistortion.strength * 50
-              lw += proximity * clickDistortion.strength * 0.4
-            }
-            ctx.beginPath()
-            drawSimpleGridLine(true, bx)
-            ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
-            ctx.lineWidth = lw
-            ctx.stroke()
-          }
-          for (let y = -spacing; y < h + spacing; y += spacing) {
-            const by = y + offY
-            let alpha = 0.12
-            let hue = 186 + hueShift
-            let lw = 0.82
-            const distToClick = Math.abs(clickDistortion.y - by)
-            if (distToClick < clickR) {
-              const proximity = 1 - distToClick / clickR
-              alpha += proximity * clickDistortion.strength * 0.5
-              hue = 186 + proximity * clickDistortion.strength * 50
-              lw += proximity * clickDistortion.strength * 0.4
-            }
-            ctx.beginPath()
-            drawSimpleGridLine(false, by)
-            ctx.strokeStyle = `hsla(${hue}, 100%, 56%, ${alpha})`
-            ctx.lineWidth = lw
-            ctx.stroke()
-          }
-        } else {
-          ctx.beginPath()
-          for (let x = -spacing; x < w + spacing; x += spacing) {
-            drawSimpleGridLine(true, x + offX)
-          }
-          for (let y = -spacing; y < h + spacing; y += spacing) {
-            drawSimpleGridLine(false, y + offY)
-          }
-          ctx.strokeStyle = `hsla(${186 + hueShift}, 100%, 56%, ${profile.isCompact ? 0.12 : 0.09})`
-          ctx.lineWidth = 0.82
-          ctx.stroke()
-        }
-
-        if (!profile.isCompact) {
-          const majorSpacing = spacing * 5
-          ctx.beginPath()
-          for (let x = -majorSpacing; x < w + majorSpacing; x += majorSpacing) {
-            const bx = x + offX
-            ctx.moveTo(bx, -majorSpacing + offY)
-            ctx.lineTo(bx, h + majorSpacing + offY)
-          }
-          for (let y = -majorSpacing; y < h + majorSpacing; y += majorSpacing) {
-            const by = y + offY
-            ctx.moveTo(-majorSpacing + offX, by)
-            ctx.lineTo(w + majorSpacing + offX, by)
-          }
-
-          ctx.strokeStyle = 'hsla(191, 100%, 72%, 0.12)'
-          ctx.lineWidth = 1
-          ctx.stroke()
-        }
-
-        if (clickR > 0 && !profile.isCompact) {
-          const pulseProgress = 1 - clamp(clickDistortion.strength / clickStrengthBase, 0, 1)
-          const pulseRadius = 44 + pulseProgress * 188
-          const pulse = ctx.createRadialGradient(
-            clickDistortion.x,
-            clickDistortion.y,
-            0,
-            clickDistortion.x,
-            clickDistortion.y,
-            pulseRadius
-          )
-          pulse.addColorStop(0, `hsla(184, 100%, 68%, ${clickDistortion.strength * 0.24})`)
-          pulse.addColorStop(0.58, `hsla(212, 100%, 62%, ${clickDistortion.strength * 0.12})`)
-          pulse.addColorStop(1, 'rgba(0, 0, 0, 0)')
-          ctx.fillStyle = pulse
-          ctx.beginPath()
-          ctx.arc(clickDistortion.x, clickDistortion.y, pulseRadius, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.strokeStyle = `hsla(188, 100%, 74%, ${clickDistortion.strength * 0.42})`
-          ctx.lineWidth = 1.2
-          ctx.beginPath()
-          ctx.arc(clickDistortion.x, clickDistortion.y, pulseRadius * 0.82, 0, Math.PI * 2)
-          ctx.stroke()
-        }
-      } else {
-        for (let x = -spacing; x < w + spacing; x += spacing) {
-          const bx = x + offX
-          const hue = 180 + hueShift + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 420, 0, 1) * 30 : 0)
-          let alpha = 0.1 + pointerFactor * 0.2 + (p.inViewport ? clamp(1 - Math.abs(p.x - bx) / 360, 0, 1) * 0.2 : 0)
-
-          if (clickR > 0) {
-            const distToClick = Math.abs(clickDistortion.x - bx)
-            if (distToClick < clickR) {
-              alpha += (1 - distToClick / clickR) * clickDistortion.strength * clickAlphaBoost
-            }
-          }
-
-          ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
-          ctx.lineWidth = 0.8
-          ctx.beginPath()
-          const step = detailStep
-          const steps = Math.ceil((h + spacing * 2) / step)
-          for (let s = 0; s <= steps; s++) {
-            let drawX = bx
-            let drawY = -spacing + s * step + offY
-
-            if (pointerEngaged) {
-              const ddx = p.x - bx
-              const ddy = p.y - drawY
-              const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
-              drawX += ddx * inf * 0.22
-              drawY += ddy * inf * 0.04
-            }
-
-            if (clickR > 0) {
-              const cdx = drawX - clickDistortion.x
-              const cdy = drawY - clickDistortion.y
-              const cdist = Math.hypot(cdx, cdy) || 1
-              if (cdist < clickR) {
-                const pushForce = (1 - cdist / clickR) * clickDistortion.strength * clickGridForce
-                drawX += (cdx / cdist) * pushForce
-                drawY += (cdy / cdist) * pushForce
-              }
-            }
-
-            if (s === 0) ctx.moveTo(drawX, drawY)
-            else ctx.lineTo(drawX, drawY)
-          }
-          ctx.stroke()
-        }
-
-        for (let y = -spacing; y < h + spacing; y += spacing) {
-          const by = y + offY
-          const hue = 180 + hueShift + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 360, 0, 1) * 30 : 0)
-          let alpha = 0.08 + pointerFactor * 0.18 + (p.inViewport ? clamp(1 - Math.abs(p.y - by) / 320, 0, 1) * 0.18 : 0)
-
-          if (clickR > 0) {
-            const distToClick = Math.abs(clickDistortion.y - by)
-            if (distToClick < clickR) {
-              alpha += (1 - distToClick / clickR) * clickDistortion.strength * clickAlphaBoost
-            }
-          }
-
-          ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`
-          ctx.lineWidth = 0.78
-          ctx.beginPath()
-          const step = detailStep
-          const steps = Math.ceil((w + spacing * 2) / step)
-          for (let s = 0; s <= steps; s++) {
-            let drawX = -spacing + s * step + offX
-            let drawY = by
-
-            if (pointerEngaged) {
-              const ddx = p.x - drawX
-              const ddy = p.y - by
-              const inf = Math.exp(-(ddx * ddx + ddy * ddy) / gravRSq)
-              drawY += ddy * inf * 0.22
-              drawX += ddx * inf * 0.04
-            }
-
-            if (clickR > 0) {
-              const cdx = drawX - clickDistortion.x
-              const cdy = drawY - clickDistortion.y
-              const cdist = Math.hypot(cdx, cdy) || 1
-              if (cdist < clickR) {
-                const pushForce = (1 - cdist / clickR) * clickDistortion.strength * clickGridForce
-                drawX += (cdx / cdist) * pushForce
-                drawY += (cdy / cdist) * pushForce
-              }
-            }
-
-            if (s === 0) ctx.moveTo(drawX, drawY)
-            else ctx.lineTo(drawX, drawY)
-          }
-          ctx.stroke()
-        }
-      }
-      ctx.restore()
-
-      ctx.lineCap = 'round'
-
-      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
-        const node = nodes[nodeIndex]
-        node.halo *= Math.pow(0.92, decayDt)
-        const driftX = Math.sin(time * node.driftSpeed + node.phase) * node.driftRadius
-        const driftY = Math.cos(time * node.swirlSpeed + node.phase * 1.2) * node.driftRadius * 0.6
-        const jX = Math.sin(time * 0.6 + node.phase * 1.7) * node.jitter
-        const jY = Math.cos(time * 0.5 + node.phase * 1.3) * node.jitter
-        node.baseX = clamp(node.anchorX + driftX + jX, 36, w - 36)
-        node.baseY = clamp(node.anchorY + driftY + jY, 36, h - 36)
-
-        node.vx += (node.baseX - node.x) * (profile.isCompact ? 0.019 : 0.016) + Math.sin(time * 1.2 + node.phase) * (profile.isActualMobile ? 0.22 : profile.isCompact ? 0.018 : 0.45)
-        node.vy += (node.baseY - node.y) * (profile.isCompact ? 0.016 : 0.014) + Math.cos(time * 1 + node.phase) * (profile.isActualMobile ? 0.22 : profile.isCompact ? 0.018 : 0.45)
-
-        if (pointerEngaged && !profile.isLowPower) {
-          const ddx = p.x - node.x
-          const ddy = p.y - node.y
-          const dist = Math.hypot(ddx, ddy) || 0.001
-          if (dist < influenceR) {
-            const force = (1 - dist / influenceR) * (profile.isCompact ? 0.19 + pointerFactor * 0.34 : 0.7 + pointerFactor * 1.2)
-            node.vx -= (ddx / dist) * force
-            node.vy -= (ddy / dist) * force
-            node.halo = Math.min(1, node.halo + force * (profile.isCompact ? 0.22 : 0.45) + pointerFactor * (profile.isCompact ? 0.1 : 0.32))
-          }
-        }
-
-        // Gyroscope-driven drift: tilt phone to gently nudge nodes
-        if (hasGyro) {
-          node.vx += gx * (profile.isCompact ? 0.09 : 0.25)
-          node.vy += gy * (profile.isCompact ? 0.07 : 0.18)
-        }
-
-        node.vx *= profile.isCompact ? 0.89 : 0.9
-        node.vy *= profile.isCompact ? 0.89 : 0.9
-        node.x += node.vx
-        node.y += node.vy
-        node.x = clamp(node.x, 24, w - 24)
-        node.y = clamp(node.y, 24, h - 24)
-      }
-
-      for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex += 1) {
-        const [a, b] = edges[edgeIndex]
-        const from = nodes[a]
-        const to = nodes[b]
-        if (!from || !to) continue
-        const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.56 : 0.82)
-        const hue = 180 + hueShift + highlight * 60
-        const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 + highlight * 0.22 : 0.14 + highlight * 0.35
-        ctx.strokeStyle = `hsla(${hue}, 100%, ${profile.isCompact ? 62 + highlight * 8 : 50 + highlight * 15}%, ${alpha})`
-        ctx.lineWidth = profile.isLowPower ? 0.7 : profile.isCompact ? 0.46 + highlight * 0.58 : 0.5 + highlight * 1.2
-        ctx.beginPath()
-        ctx.moveTo(from.x, from.y)
-        ctx.lineTo(to.x, to.y)
-        ctx.stroke()
-      }
-
-      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
-        const node = nodes[nodeIndex]
-        const r = node.radius * (0.78 + node.depth * 0.26)
-        const nodeHue = 180 + hueShift + node.halo * 60
-
-        if (profile.isLowPower) {
-          const glowRadius = r * 2.1
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, 58%, ${0.16 + node.halo * 0.14})`
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, 64%, ${0.72 + node.halo * 0.14})`
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r * 1.35, 0, Math.PI * 2)
-          ctx.fill()
-        } else if (profile.isActualMobile) {
-          const glowRadius = r * (2 + node.halo * 1.2)
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, 58%, ${0.18 + node.halo * 0.12})`
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, 68%, ${0.68 + node.halo * 0.12})`
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r * 1.05, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.strokeStyle = `hsla(${nodeHue}, 100%, 78%, ${0.09 + node.halo * 0.08})`
-          ctx.lineWidth = 0.34
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r + 1 + node.halo * 1.5, 0, Math.PI * 2)
-          ctx.stroke()
-        } else {
-          const gR = r * (profile.isCompact ? 1.7 + node.halo * 1.8 : 1.9 + node.halo * 2.6)
-          const g = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, gR)
-          g.addColorStop(0, `hsla(${nodeHue}, 100%, 62%, ${profile.isCompact ? 0.24 + node.halo * 0.12 : 0.3 + node.halo * 0.2})`)
-          g.addColorStop(0.65, `hsla(${nodeHue}, 100%, 52%, ${profile.isCompact ? 0.16 + node.halo * 0.1 : 0.2 + node.halo * 0.18})`)
-          g.addColorStop(1, 'rgba(0,10,20,0)')
-          ctx.fillStyle = g
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, gR, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.fillStyle = `hsla(${nodeHue}, 100%, ${profile.isCompact ? 70 : 60}%, ${profile.isCompact ? 0.62 + node.halo * 0.14 : 0.6 + node.halo * 0.2})`
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.strokeStyle = `hsla(${nodeHue}, 100%, 76%, ${profile.isCompact ? 0.12 + node.halo * 0.1 : 0.18 + node.halo * 0.25})`
-          ctx.lineWidth = profile.isCompact ? 0.38 : 0.45
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r + (profile.isCompact ? 1.2 : 1.6) + node.halo * (profile.isCompact ? 1.9 : 3.4), 0, Math.PI * 2)
-          ctx.stroke()
-        }
-      }
-
-    }
-
-    const animate = (now: number) => {
-      frameId = requestAnimationFrame(animate)
-
-      if (frameInterval > 0 && now > interactionBurstEnd && now - lastFrameTime < frameInterval) return
-      lastFrameTime = now
-      drawFrame(now)
-    }
-
-    const onMove = (e: PointerEvent) => {
-      pointer.current.x = e.clientX
-      pointer.current.y = e.clientY
-      pointer.current.inViewport = true
-    }
-
-    const onLeave = () => {
-      pointer.current.inViewport = false
-    }
-
-    const endInteraction = () => {
-      if (!profile.isActualMobile) return
-      pointer.current.inViewport = false
-    }
-
-    const triggerInteraction = (x: number, y: number) => {
-      const now = performance.now()
-      const repeatWindow = profile.isActualMobile ? 90 : 150
-      if (now - lastInteraction.time < repeatWindow && Math.hypot(x - lastInteraction.x, y - lastInteraction.y) < 18) return
-
-      lastInteraction.x = x
-      lastInteraction.y = y
-      lastInteraction.time = now
-      pointer.current.x = x
-      pointer.current.y = y
-      pointer.current.inViewport = !profile.isActualMobile
-      pointer.current.boostUntil = profile.isActualMobile ? now + 220 : 0
-      pointer.current.velocity = Math.max(pointer.current.velocity, profile.isActualMobile ? 320 : profile.isCompact ? 260 : 120)
-      spawnClickEffect(x, y)
-      interactionBurstEnd = now + 400
-      lastFrameTime = 0
-      drawFrame(now)
-    }
-
-    const onTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0]
-      if (t) triggerInteraction(t.clientX, t.clientY)
-    }
-
-    const onPointerDown = (e: PointerEvent) => {
-      triggerInteraction(e.clientX, e.clientY)
-    }
-
-    const onPointerUp = () => {
-      endInteraction()
-    }
-
-    const onTouchEnd = () => {
-      endInteraction()
-    }
-
-    const handleVisibility = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(frameId)
-        frameId = 0
-      } else {
-        lastFrameTime = 0
-        if (!frameId) frameId = requestAnimationFrame(animate)
-      }
+      canvas.style.width = `${w}px`
+      canvas.style.height = `${h}px`
+      post({ type: 'resize', width: w, height: h, profile })
+      sendNoise()
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
@@ -935,8 +114,59 @@ export default function Background() {
     }
 
     resize()
-    frameId = requestAnimationFrame(animate)
     window.addEventListener('resize', debouncedResize)
+
+    if (prefersReduced) {
+      return () => {
+        if (resizeTimer) clearTimeout(resizeTimer)
+        window.removeEventListener('resize', debouncedResize)
+        postRef.current = null
+        disposed = true
+        releaseLink(canvas)
+      }
+    }
+
+    // While something opaque spans the viewport the canvas cannot be seen, so
+    // the renderer keeps simulating but stops painting.
+    let heroCovering = isHeroCovering()
+    let sketchbookCovering = coveredBySketchbook()
+    let covered = false
+    const syncCovered = () => {
+      const next = heroCovering || sketchbookCovering
+      if (next === covered) return
+      covered = next
+      post({ type: 'covered', covered })
+    }
+    const stopHeroCover = onHeroCover((covering) => {
+      heroCovering = covering
+      syncCovered()
+    })
+    const classObserver = new MutationObserver(() => {
+      sketchbookCovering = coveredBySketchbook()
+      syncCovered()
+    })
+    classObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    syncCovered()
+
+    let progress = getScrollProgress()
+    if (progress !== 0) post({ type: 'scroll', progress })
+    const stopScroll = onScroll((next) => {
+      if (next === progress) return
+      progress = next
+      post({ type: 'scroll', progress })
+    })
+
+    const onMove = (e: PointerEvent) => post({ type: 'pointer', x: e.clientX, y: e.clientY })
+    const onLeave = () => post({ type: 'leave' })
+    const onPointerDown = (e: PointerEvent) => post({ type: 'interact', x: e.clientX, y: e.clientY })
+    const onPointerUp = () => post({ type: 'end' })
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (t) post({ type: 'interact', x: t.clientX, y: t.clientY })
+    }
+    const onTouchEnd = () => post({ type: 'end' })
+    const handleVisibility = () => post({ type: 'hidden', hidden: document.hidden })
+
     document.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerleave', onLeave, { passive: true })
     document.addEventListener('pointerdown', onPointerDown, { passive: true })
@@ -947,7 +177,6 @@ export default function Background() {
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      cancelAnimationFrame(frameId)
       if (resizeTimer) clearTimeout(resizeTimer)
       window.removeEventListener('resize', debouncedResize)
       document.removeEventListener('pointermove', onMove)
@@ -958,13 +187,18 @@ export default function Background() {
       document.removeEventListener('touchend', onTouchEnd)
       document.removeEventListener('touchcancel', onTouchEnd)
       document.removeEventListener('visibilitychange', handleVisibility)
+      stopHeroCover()
+      stopScroll()
+      classObserver.disconnect()
+      postRef.current = null
+      disposed = true
+      releaseLink(canvas)
     }
   }, [])
 
   return (
     <div className="background" aria-hidden="true">
       <canvas ref={canvasRef} className="background__canvas" />
-      <div className="background__noise" />
     </div>
   )
 }

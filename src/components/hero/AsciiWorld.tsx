@@ -6,6 +6,7 @@ import { buildNameField } from './nameTexture'
 import { PRESS_PUSH, PULL_DEPTH, PULL_RADIUS, createPointerFx, easePull, pressAt } from './pointerFx'
 import { GLYPHS, SCENE, VERTEX } from './shaders'
 import { GLYPH_RAMP, gridFor, sceneProgress, arrivalProgress, type Grid } from './world'
+import { setHeroCovering } from './heroCover'
 
 /**
  * Glyph size and row height of the character grid. Phones get a finer grid:
@@ -102,6 +103,10 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     let nameInk: { left: number; bottom: number } | null = null
     let anchorWorld: [number, number, number] | null = null
     let travel = 0
+    // Whether the terminal sheet is position: fixed (CSS pins it to the section
+    // on short or reduced-motion layouts) and whether it currently hides the page.
+    let fixedTerminal = false
+    let covering = false
     const look = { x: 0, y: 0, targetX: 0, targetY: 0 }
     const placed = { x: 0, y: 0 }
     const fx = createPointerFx()
@@ -136,6 +141,18 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       track.style.setProperty('--hero-scene-opacity', String(1 - arrival * arrival * (3 - 2 * arrival)))
       placeCopy()
       visible = y < trackHeight && scrollY + viewportHeight > trackTop
+      // Until the next scene arrives the terminal is an opaque sheet over the
+      // whole viewport, so the page background beneath it can stop painting.
+      // Only claim that when it truly spans the screen: short or reduced-motion
+      // layouts pin the sheet to the section instead, and a collapsed phone
+      // toolbar leaves a strip of page showing below it. The visual viewport
+      // keeps fractional heights under browser zoom, where innerHeight rounds.
+      const visibleHeight = window.visualViewport?.height ?? window.innerHeight
+      const covers = fixedTerminal && !lost && !reduced && arrival === 0 && viewportHeight + 0.01 >= visibleHeight
+      if (covers !== covering) {
+        covering = covers
+        setHeroCovering(covering)
+      }
     }
 
     const draw = (now: number) => {
@@ -223,6 +240,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       const { width, height } = wrap.getBoundingClientRect()
       if (!width || !height) return
       viewportHeight = height
+      fixedTerminal = getComputedStyle(wrap).position === 'fixed'
       narrow = width < 768
       const cell = narrow ? CELL.narrow : CELL.wide
       trackHeight = track.offsetHeight
@@ -302,6 +320,9 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       Promise.all([fonts.load('500 12px "JetBrains Mono"'), fonts.load('700 12px "JetBrains Mono"')]).then(measure, () => undefined)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+    // A phone toolbar collapsing changes the viewport without resizing the
+    // sheet, so re-evaluate whether it still spans the screen.
+    window.addEventListener('resize', onScroll, { passive: true })
     window.addEventListener('pointermove', onPointer, { passive: true })
     window.addEventListener('pointerdown', onPress, { passive: true })
     document.addEventListener('pointerleave', onPointerLeave)
@@ -316,6 +337,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       stop()
       resizeObserver.disconnect()
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
       window.removeEventListener('pointermove', onPointer)
       window.removeEventListener('pointerdown', onPress)
       document.removeEventListener('pointerleave', onPointerLeave)
@@ -324,6 +346,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       motionQuery.removeEventListener('change', onMotion)
       canvas.removeEventListener('webglcontextlost', onLost)
       track.classList.remove('hero--ready', 'hero--fallback', 'hero--world')
+      setHeroCovering(false)
       if (copy) copy.inert = false
       disposeGL()
     }
