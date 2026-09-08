@@ -1,5 +1,46 @@
 import { CAMERA, RIG } from './world'
 
+/** Uniforms the glyph pass takes for the pointer pull and the press. */
+export const POINTER_UNIFORMS = `
+uniform vec2 uPointer;
+uniform float uPull;
+uniform float uPullRadius;
+uniform float uPullDepth;
+uniform vec4 uPress;
+uniform float uPressPush;`
+
+/**
+ * The pointer draws the glyph field toward itself: nothing moves right under
+ * it, the pull peaks a little way out and fades past the reach. Uniform
+ * regions look the same, so what shows is the edges of the text leaning in.
+ * The glyphs under it also step up the ramp a little. A press bumps the cells
+ * around a click outward and lets them settle, the same move the page's
+ * background grid makes.
+ */
+export const POINTER_BOOST = `
+// Strength of the pull at a point, 0 to 1, peaking at about .58 of the reach.
+float pullAt(vec2 at) {
+  float d = distance(at, uPointer) / max(uPullRadius, 1.0);
+  return d * exp(-d * d * 1.5) * 2.86 * uPull;
+}
+vec2 pullShiftPx(vec2 at) {
+  vec2 to = uPointer - at;
+  float d = length(to);
+  if (d < 1.0) return vec2(0.0);
+  return (to / d) * pullAt(at) * uPullDepth;
+}
+// uPress is (x, y, reach, strength). The push is strongest at the click and
+// fades to nothing at the edge of its reach, like the grid's click.
+vec2 pressShiftPx(vec2 at) {
+  vec2 away = at - uPress.xy;
+  float d = length(away);
+  float reach = uPress.z;
+  if (reach < 1.0 || d < 1.0 || d >= reach) return vec2(0.0);
+  float push = (1.0 - d / reach) * uPress.w * uPressPush;
+  // The innermost cells stretch outward instead of sampling across the centre.
+  return (away / d) * min(push, d * .8);
+}`
+
 /** GLSL float literal, so integers never land in a mix() as ints. */
 const f = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
@@ -165,18 +206,24 @@ uniform vec2 uGrid;
 uniform vec2 uCell;
 uniform vec2 uOffset;
 uniform float uGlyphs;
+${POINTER_UNIFORMS}
+${POINTER_BOOST}
 void main() {
-  vec2 p = (gl_FragCoord.xy - uOffset) / uCell;
+  // The pointer draws the field toward itself and a press pushes it away.
+  vec2 shift = (pullShiftPx(gl_FragCoord.xy) + pressShiftPx(gl_FragCoord.xy)) / uCell;
+  vec2 p = (gl_FragCoord.xy - uOffset) / uCell - shift;
   vec2 cell = floor(p);
   if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= uGrid.x || cell.y >= uGrid.y) { fragColor = vec4(0); return; }
   vec4 scene = texelFetch(uScene, ivec2(cell), 0);
-  float index = floor(scene.r * (uGlyphs - 1.0) + .5);
+  // Under the pull, glyphs step up the ramp a little. Empty cells stay empty.
+  float level = scene.r > .001 ? min(1.0, scene.r + pullAt(gl_FragCoord.xy) * .1) : 0.0;
+  float index = floor(level * (uGlyphs - 1.0) + .5);
   if (index < .5) { fragColor = vec4(0); return; }
+  float material = scene.b * 8.0;
   vec2 local = fract(p);
   float alpha = texture(uAtlas, vec2((index + local.x) / uGlyphs, 1.0 - local.y)).a;
   vec3 farTint = vec3(.35, .24, .12);
   vec3 nearTint = vec3(.98, .69, .32);
-  float material = scene.b * 8.0;
   vec3 tint = mix(farTint, nearTint, scene.g);
   float lift = .7 + .3 * scene.r;
   if (material > 1.5 && material < 3.5) tint = mix(tint, vec3(1.0, .87, .62), scene.r * .52);

@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   // Not source we author/lint: build output, deps, vendored upstream, tooling dumps.
-  { ignores: ['dist', 'node_modules', 'react-bits-upstream', 'output', 'scripts', '*.config.*', '.remember', '.claude/worktrees/**'] },
+  { ignores: ['dist', 'node_modules', 'react-bits-upstream', 'output', 'scripts', '*.config.*', '.remember', '.claude/worktrees/**', 'scrollcraft'] },
   js.configs.recommended,
   {
     files: ['api/**/*.js'],

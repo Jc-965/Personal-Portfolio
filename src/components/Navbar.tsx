@@ -21,6 +21,8 @@ export default function Navbar() {
   const headerRef = useRef<HTMLElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const scrollTimers = useRef<number[]>([])
+  // After a click the spy stays on that link until the scroll lands, so the underline cannot flicker.
+  const spyLock = useRef<{ href: string; landedAt: number | null } | null>(null)
 
   useEffect(() => {
     const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id], footer[id]'))
@@ -41,6 +43,20 @@ export default function Navbar() {
     const update = () => {
       const scrollY = window.scrollY
       const windowH = window.innerHeight
+      const lock = spyLock.current
+      if (lock) {
+        // Hold the clicked link while the page travels, and keep holding it after
+        // landing until the reader scrolls at least 40px away on their own.
+        if (lock.landedAt === null) {
+          const target = lock.href === '#top' ? 0 : (sectionMetrics.find(s => `#${s.id}` === lock.href)?.top ?? -1) - (window.innerWidth <= 768 ? 80 : 96)
+          if (target >= 0 && Math.abs(scrollY - Math.max(0, target)) < 8) lock.landedAt = scrollY
+        }
+        if (lock.landedAt === null || Math.abs(scrollY - lock.landedAt) < 40) {
+          if (activeRef.current !== lock.href) { activeRef.current = lock.href; setActive(lock.href) }
+          return
+        }
+        spyLock.current = null
+      }
       let best: string | null = null
       let maxVis = 0
 
@@ -119,10 +135,12 @@ export default function Navbar() {
     setMenuOpen(false)
     activeRef.current = href
     setActive(href)
+    spyLock.current = { href, landedAt: null }
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
     if (href === '#top') {
       window.scrollTo({ top: 0, behavior })
       window.history.replaceState(null, '', window.location.pathname)
+      scrollTimers.current = [window.setTimeout(() => { if (spyLock.current && spyLock.current.landedAt === null) spyLock.current.landedAt = window.scrollY }, 1700)]
       return
     }
 
@@ -139,6 +157,7 @@ export default function Navbar() {
     scrollTimers.current = [
       window.setTimeout(() => scrollToTarget(), 550),
       window.setTimeout(() => scrollToTarget('auto'), 1250),
+      window.setTimeout(() => { if (spyLock.current && spyLock.current.landedAt === null) spyLock.current.landedAt = window.scrollY }, 1700),
     ]
     window.history.replaceState(null, '', href)
   }

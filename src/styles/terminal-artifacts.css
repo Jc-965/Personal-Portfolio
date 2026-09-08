@@ -1,0 +1,263 @@
+/* Terminal artifacts: one form language below the hero.
+   Boxes are drawn the way a terminal draws them (square, 1px, corner glyphs
+   set into the line), chips become [tags], controls become [ actions ],
+   and chrome becomes text. Colors stay as they are. */
+
+:root {
+  --radius-lg: 0;
+  --radius-sm: 0;
+  --tx-corner: var(--accent-cyan);
+}
+
+/* ---------- Corner glyphs on framed things (diagonal pair, set into the border) ---------- */
+.map-frame,
+.email-popup__card,
+.skill-card__terminal-bar,
+.constellation__editor {
+  position: relative;
+}
+.map-frame::before, .map-frame::after,
+.email-popup__card::before, .email-popup__card::after,
+.constellation__editor::before, .constellation__editor::after {
+  content: '+';
+  position: absolute;
+  z-index: 3;
+  font: 700 0.85rem/1 var(--font-mono);
+  color: var(--tx-corner);
+  background: var(--bg-primary);
+  padding: 0 2px;
+  pointer-events: none;
+}
+.map-frame::before, .email-popup__card::before, .constellation__editor::before { top: -0.55em; left: -0.35em; }
+.map-frame::after, .email-popup__card::after, .constellation__editor::after { bottom: -0.55em; right: -0.35em; }
+
+/* Existing bracket corners become plus glyphs. */
+.life-card__corner,
+.window-frame__corner {
+  width: auto;
+  height: auto;
+  border: 0;
+  opacity: 0.85;
+}
+.life-card__corner::before,
+.window-frame__corner::before {
+  content: '+';
+  display: block;
+  font: 700 0.8rem/1 var(--font-mono);
+  color: var(--tx-corner);
+}
+.window-frame__corner--tl, .window-frame__corner--tr, .window-frame__corner--bl, .window-frame__corner--br { border: 0; }
+
+/* ---------- Section headers: a prompt, not a diamond ---------- */
+.section__eyebrow-icon { font-size: 0; opacity: 1; }
+.section__eyebrow-icon::before { content: '//'; font-size: 0.8rem; opacity: 0.85; }
+
+/* ---------- Journey ---------- */
+.timeline__track { width: 1px; }
+.chapter__node {
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  box-shadow: none;
+}
+.chapter__node svg { display: none; }
+.chapter__node::before { content: '+'; font: 700 0.85rem/1 var(--font-mono); color: var(--chapter-accent, var(--accent-cyan)); }
+.chapter__chip {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+}
+.chapter__chip::before { content: '['; opacity: 0.6; }
+.chapter__chip::after { content: ']'; opacity: 0.6; }
+.chapter__stack span,
+.chapter__stack li {
+  border: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.chapter__stack span::before, .chapter__stack li::before { content: '['; opacity: 0.55; }
+.chapter__stack span::after, .chapter__stack li::after { content: ']'; opacity: 0.55; }
+.chapter__views-label::before { content: '$ '; opacity: 0.7; }
+.chapter__view {
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.chapter__view.is-active {
+  background: none;
+  box-shadow: none;
+  transform: none;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1px;
+}
+.chapter__view-caret { display: none; }
+.chapter__view::before { content: '['; opacity: 0.55; }
+.chapter__view::after { content: ']'; opacity: 0.55; }
+
+/* ---------- Projects ---------- */
+.proj__eyebrow::before { content: '// '; opacity: 0.7; }
+.proj__tech-tag {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+}
+.proj__tech-tag::before { content: '['; opacity: 0.55; }
+.proj__tech-tag::after { content: ']'; opacity: 0.55; }
+.proj__case-study {
+  border: 0;
+  background: none;
+  padding: 8px 0;
+  border-radius: 0;
+}
+.proj__case-study::before { content: '[ '; opacity: 0.7; }
+.proj__case-study::after { content: ' ]'; opacity: 0.7; }
+.proj__case-study:hover, .proj__case-study:focus-visible { background: none; transform: none; text-decoration: underline; text-underline-offset: 6px; }
+.proj__deck-dot, .gallery__dot { border-radius: 0; width: 7px; height: 7px; }
+
+/* ---------- Toolkit ---------- */
+.skill-card { border-radius: 0; box-shadow: none; }
+.skill-card__terminal-bar { background: none; border-bottom: 1px solid var(--border-card); }
+.skill-card__dot { display: none; }
+.skill-card__terminal-title { margin-left: 0; }
+.skill-card__terminal-title::before { content: '$ '; color: var(--accent-cyan); }
+.skill-card__tag {
+  padding: 0;
+  border: 0 !important;
+  background: none !important;
+  border-radius: 0;
+}
+.skill-card__tag::before { content: '['; opacity: 0.55; }
+.skill-card__tag::after { content: ']'; opacity: 0.55; }
+.skill-card__status-dot { border-radius: 0; box-shadow: none; width: 7px; height: 7px; }
+.skill-card__count { border-radius: 0; }
+
+/* ---------- Beyond ---------- */
+.life-scatter__glow { display: none; }
+.life-card { border-radius: 0; box-shadow: none; }
+.life-card__badge { border-radius: 0; }
+
+/* ---------- Frames ---------- */
+.window-frame__chrome { background: var(--bg-primary); border-bottom: 1px solid var(--border-card); }
+.window-frame__dots { display: none; }
+.window-frame__url::before { content: '~/'; opacity: 0.6; }
+.window-frame__live { border-radius: 0; background: none; border: 1px solid currentColor; padding: 1px 6px; }
+.window-frame__scan { display: none; }
+.window-frame__screen, .window-frame__tilt, .window-frame { border-radius: 0; }
+.gallery__nav { border-radius: 0; box-shadow: none; }
+.gallery__count::before { content: '['; opacity: 0.6; }
+.gallery__count::after { content: ']'; opacity: 0.6; }
+
+/* ---------- Constellation ---------- */
+.constellation__msg-btn,
+.constellation__place-btn,
+.constellation__input-wrap,
+.constellation__color-picker,
+.constellation__tooltip,
+.constellation__editor,
+.constellation__stats {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.constellation__msg-btn, .constellation__place-btn { flex-wrap: nowrap; white-space: nowrap; }
+.constellation__msg-btn::before, .constellation__place-btn::before { content: '['; opacity: 0.7; margin-right: 0.5em; }
+.constellation__msg-btn::after, .constellation__place-btn::after { content: ']'; opacity: 0.7; margin-left: 0.5em; }
+
+/* ---------- Footer and email ---------- */
+.footer__social-link { border: 0; background: none; min-width: 0; padding: 6px 0; flex-direction: row; white-space: nowrap; border-radius: 0; box-shadow: none; }
+.footer__social-link svg { display: none; }
+.footer__social-link::before { content: '['; opacity: 0.6; margin-right: 0.45em; }
+.footer__social-link::after { content: ']'; opacity: 0.6; margin-left: 0.45em; }
+.footer__social-link:hover { transform: none; }
+.back-to-top { border: 0; padding: 6px 0; }
+.back-to-top::before { content: '[ '; opacity: 0.7; }
+.back-to-top::after { content: ' ]'; opacity: 0.7; }
+.email-popup__card { border-radius: 0; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); }
+.email-popup__scanlines { display: none; }
+.email-popup__input, .email-popup__textarea { border-radius: 0; box-shadow: none; }
+.email-popup__submit { border-radius: 0; box-shadow: none; }
+.email-popup__submit::before { content: '[ '; opacity: 0.7; }
+.email-popup__submit::after { content: ' ]'; opacity: 0.7; }
+.email-popup__close { border-radius: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter__view, .proj__case-study, .footer__social-link { transition: none; }
+}
+
+/* ---------- Review fixes (2026-09-07 evening) ---------- */
+/* Phone: the chapter glow spans overflowed the layout viewport and pushed the nav toggle off screen. */
+.chapter__media-glow { display: none; }
+
+/* Constellation: the button is a grid, so the brackets live inside the label span instead. */
+.constellation__msg-btn::before, .constellation__msg-btn::after { content: none; }
+.constellation__msg-btn { min-width: 0; padding: 8px 12px; }
+.constellation__msg-btn-label::before { content: '[ '; opacity: 0.7; }
+.constellation__msg-btn-label::after { content: ' ]'; opacity: 0.7; }
+
+/* Journey: the category label was still a pill. */
+.chapter__track { padding: 0; border: 0; background: none; border-radius: 0; letter-spacing: 0.08em; }
+.chapter__track::before { content: '[ '; opacity: 0.6; }
+.chapter__track::after { content: ' ]'; opacity: 0.6; }
+/* The views label already says "// screens"; no second prompt. The active view is the accent, not an underline. */
+.chapter__views-label::before { content: none; }
+.chapter__view.is-active { text-decoration: none; color: var(--chapter-accent, var(--accent-cyan)); }
+.chapter__view.is-active::before, .chapter__view.is-active::after { opacity: 1; color: var(--chapter-accent, var(--accent-cyan)); }
+
+/* Window frames: one diagonal pair of corners on the border, none on the cards stacked behind, no halo. */
+.window-frame__tilt { overflow: visible; box-shadow: none; }
+.window-frame:hover .window-frame__tilt { box-shadow: none; }
+.window-frame__corner::before { background: var(--bg-primary); padding: 0 2px; }
+.window-frame__corner--tl { top: -0.5em; left: -0.35em; }
+.window-frame__corner--br { top: auto; left: auto; bottom: -0.5em; right: -0.35em; }
+.window-frame__corner--tr, .window-frame__corner--bl { display: none; }
+.gallery__card:not(.is-active) .window-frame__corner { display: none; }
+.window-frame__url { border-radius: 0; background: none; border: 0; padding: 4px 0; }
+.window-frame__live { text-shadow: none; }
+
+/* Map frame: a square box whose corners are the "+" pair, with the map itself still clipped. */
+.map-frame { border-radius: 0; overflow: visible; box-shadow: none; }
+.map-frame__viewport { overflow: hidden; }
+.map-frame__tick { display: none; }
+
+/* Beyond: level listings with "// 01" beside the corner, no highlight sheen. */
+.life-card::before { display: none; }
+.life-card__index { display: none; }
+
+/* Projects: the eyebrow already carries "//", so the glowing dot goes. */
+.proj__dot { display: none; }
+
+/* Constellation: square stats and swatches, the star box drawn like every other box. */
+.constellation { position: relative; border-radius: 0; }
+.constellation::before, .constellation::after {
+  content: '+';
+  position: absolute;
+  z-index: 3;
+  font: 700 0.85rem/1 var(--font-mono);
+  color: var(--tx-corner);
+  background: var(--bg-primary);
+  padding: 0 2px;
+  pointer-events: none;
+}
+.constellation::before { top: -0.55em; left: -0.35em; }
+.constellation::after { bottom: -0.55em; right: -0.35em; }
+.constellation__stat { border-radius: 0; border: 0; padding: 0; }
+.constellation__stat-value { text-shadow: none; }
+.constellation__color-picker button { border-radius: 0; }
+.constellation__color-picker button.active { box-shadow: none; transform: none; outline: 1px solid #fff; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .constellation__message-row { flex-wrap: wrap; }
+  .constellation__msg-btn { flex: 1 1 100%; }
+  .scroll-rail { right: 0; width: 14px; }
+}
+
+/* Footer: one row, one voice, brackets hugging the words on every device. */
+.footer__socials { display: flex; justify-content: center; gap: 20px; width: auto; }
+.footer .footer__social-link { width: auto; min-height: 0; padding: 6px 0; line-height: 1; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); gap: 0; }
+.footer__social-text { width: auto; }
+.footer__social-link::before { content: '[ '; margin: 0; }
+.footer__social-link::after { content: ' ]'; margin: 0; }

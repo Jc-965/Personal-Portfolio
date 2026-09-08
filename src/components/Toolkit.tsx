@@ -1,73 +1,135 @@
-import { useRef, useEffect } from 'react'
-import { m, useInView } from 'framer-motion'
-import { Code, Layers, BarChart3, TerminalSquare, Network } from 'lucide-react'
-import CardSwap, { Card } from './CardSwap'
-import useIsPhone from '../hooks/useIsPhone'
-import { useGyroscope } from '../context/GyroscopeContext'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { m, useInView, useReducedMotion } from 'framer-motion'
+import portfolio from '../content/portfolio.json'
+import { runCommand, type Line, type SkillGroup } from './toolkitShell'
 
-interface SkillGroup {
-  id: string
-  name: string
-  icon: React.ReactNode
-  accent: string
-  items: string[]
-}
-
+/** The three groups from the resume, in its order. */
 const groups: SkillGroup[] = [
-  {
-    id: 'languages',
-    name: 'Languages',
-    icon: <Code size={16} />,
-    accent: '#00ffff',
-    items: ['Python', 'TypeScript', 'JavaScript', 'C++', 'Dart', 'Java', 'C', 'SQL', 'Assembly'],
-  },
-  {
-    id: 'frameworks',
-    name: 'Frameworks',
-    icon: <Layers size={16} />,
-    accent: '#00ff41',
-    items: ['React', 'Flutter', 'Firebase', 'Framer Motion', 'Tailwind CSS', 'Unreal Engine 5', 'Android SDK'],
-  },
-  {
-    id: 'data',
-    name: 'Data & ML',
-    icon: <BarChart3 size={16} />,
-    accent: '#ff00ff',
-    items: ['NumPy', 'Pandas', 'scikit-learn', 'Data Pipelines', 'Signal Processing', 'GeoJSON', 'ArcGIS', 'OpenStreetMap'],
-  },
-  {
-    id: 'systems',
-    name: 'Systems & Tools',
-    icon: <TerminalSquare size={16} />,
-    accent: '#ffcc00',
-    items: ['Git', 'Unix Shell', 'SSH', 'VS Code', 'GitHub Actions', 'CI/CD', 'Docker', 'Figma'],
-  },
-  {
-    id: 'concepts',
-    name: 'Concepts',
-    icon: <Network size={16} />,
-    accent: '#ff3366',
-    items: ['Full-stack Dev', 'System Design', 'Agile Development', 'Technical Writing'],
-  },
+  { id: 'languages', items: ['Python', 'TypeScript', 'Kotlin', 'Java', 'C', 'SQL', 'Dart', 'JavaScript', 'HTML/CSS'] },
+  { id: 'technologies', items: ['React', 'FastAPI', 'LangGraph', 'Android SDK', 'Flutter', 'Node.js', 'MCP', 'Supabase'] },
+  { id: 'platforms', items: ['PostgreSQL', 'pgvector', 'Docker', 'AWS', 'Firebase', 'Git', 'GitHub Actions (CI/CD)'] },
 ]
 
+const INTRO = 'tree ~/skills'
+const fileCount = groups.reduce((sum, group) => sum + group.items.length, 0)
+
+interface Entry {
+  id: number
+  command: string
+  output: Line[]
+}
+
+let nextId = 0
+
+/**
+ * Toolkit as a working terminal. The first command types itself and prints
+ * the skills tree, then the prompt is yours: ls, grep, whoami, help.
+ * Clicking a directory in the tree lists it. Every tool is on screen from
+ * the start, so the shell is a bonus, never the only way in.
+ */
 export default function Toolkit() {
-  const headerRef = useRef(null)
-  const swapRef = useRef<HTMLDivElement>(null)
-  const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
-  const swapInView = useInView(swapRef, { margin: '-80px 0px' })
-  const isPhone = useIsPhone()
-  const gyro = useGyroscope()
+  const headerRef = useRef<HTMLElement>(null)
+  const terminalRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const headerInView = useInView(headerRef, { once: true, margin: '-60px' })
+  const terminalInView = useInView(terminalRef, { once: true, margin: '-80px' })
+  const reduce = useReducedMotion()
+  const [typed, setTyped] = useState('')
+  const [entries, setEntries] = useState<Entry[]>([])
+  const [ready, setReady] = useState(false)
+  const [input, setInput] = useState('')
+  const [history, setHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
 
-  // Gyroscope tilt on the entire card stack on mobile
+  // The opening command types itself, then its output arrives.
   useEffect(() => {
-    const el = swapRef.current
-    if (!el || !isPhone || !gyro.permitted) return
+    if (!terminalInView || ready) return
+    let i = 0
+    const timers: number[] = []
+    if (reduce) {
+      // Reduced motion skips the typing but still prints on the next tick, so the effect stays a subscription.
+      timers.push(window.setTimeout(() => {
+        setTyped(INTRO)
+        setEntries([{ id: nextId++, command: INTRO, output: runCommand(INTRO, groups, portfolio.profile) as Line[] }])
+        setReady(true)
+      }, 0))
+      return () => timers.forEach(window.clearTimeout)
+    }
+    const type = () => {
+      i += 1
+      setTyped(INTRO.slice(0, i))
+      if (i < INTRO.length) timers.push(window.setTimeout(type, 42 + Math.random() * 40))
+      else timers.push(window.setTimeout(() => {
+        setEntries([{ id: nextId++, command: INTRO, output: runCommand(INTRO, groups, portfolio.profile) as Line[] }])
+        timers.push(window.setTimeout(() => setReady(true), 900))
+      }, 260))
+    }
+    timers.push(window.setTimeout(type, 400))
+    return () => timers.forEach(window.clearTimeout)
+  }, [terminalInView, ready, reduce])
 
-    return gyro.subscribe((gx, gy) => {
-      el.style.transform = `perspective(800px) rotateX(${gy * -8}deg) rotateY(${gx * 8}deg) translate(${gx * 6}px, ${gy * 4}px)`
-    })
-  }, [isPhone, gyro])
+  const run = useCallback((raw: string) => {
+    const command = raw.trim()
+    if (!command) return
+    const output = runCommand(command, groups, portfolio.profile)
+    if (output === 'clear') setEntries([])
+    // The window grows with its output but never scrolls, so only the last few entries stay.
+    else setEntries(prev => [...prev.slice(-4), { id: nextId++, command, output }])
+    setHistory(prev => [command, ...prev.slice(0, 40)])
+    setHistoryIndex(-1)
+    setInput('')
+  }, [])
+
+  const onSubmit = (event: FormEvent) => { event.preventDefault(); run(input) }
+  const onKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      const next = Math.min(history.length - 1, historyIndex + 1)
+      setHistoryIndex(next)
+      setInput(history[next] ?? '')
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      const next = Math.max(-1, historyIndex - 1)
+      setHistoryIndex(next)
+      setInput(next < 0 ? '' : history[next])
+    } else if (event.key === 'Tab') {
+      // Complete a directory name.
+      const match = groups.find(g => g.id.startsWith(input.split(' ').pop() ?? ''))
+      if (match && input.includes(' ')) { event.preventDefault(); setInput(`${input.split(' ')[0]} ${match.id}`) }
+    }
+  }
+  const focusInput = () => { if (window.getSelection()?.toString()) return; inputRef.current?.focus({ preventScroll: true }) }
+
+  const renderLine = (line: Line, key: number) => {
+    if (line.kind === 'text') return <p key={key} className={`toolkit__line ${line.tone ? `toolkit__line--${line.tone}` : ''}`}>{line.text}</p>
+    if (line.kind === 'items') return (
+      <p key={key} className="toolkit__line">
+        <span className="toolkit__dir">{line.dir}/</span>{'  '}
+        {line.items.map(item => <span key={item} className="toolkit__item">{item}</span>)}
+      </p>
+    )
+    return (
+      <div key={key} className="toolkit__tree">
+        {line.groups.map((group, i) => (
+          <m.div
+            key={group.id}
+            className="toolkit__row"
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: reduce ? 0 : 0.12 + i * 0.14 }}
+          >
+            <span className="toolkit__branch" aria-hidden="true">{i === line.groups.length - 1 ? '└──' : '├──'}</span>
+            <button type="button" className="toolkit__dir toolkit__dir--button" onClick={() => run(`ls ${group.id}`)} title={`ls ${group.id}`}>{group.id}/</button>
+            <ul className="toolkit__items" aria-label={group.id}>
+              {group.items.map(item => <li key={item} className="toolkit__item">{item}</li>)}
+            </ul>
+          </m.div>
+        ))}
+        <p className="toolkit__line toolkit__line--muted">{line.groups.length} directories, {fileCount} files</p>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -85,60 +147,45 @@ export default function Toolkit() {
         <h2>Technologies and tools I work with</h2>
       </m.header>
 
-      <m.div
-        ref={swapRef}
-        className="toolkit__swap-shell"
-        initial={{ opacity: 0, y: 24 }}
-        animate={headerInView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.45, delay: 0.08 }}
-      >
-        {swapInView ? (
-          <CardSwap
-            width={isPhone ? 290 : '100%'}
-            height={isPhone ? 240 : 300}
-            cardDistance={isPhone ? 22 : 50}
-            verticalDistance={isPhone ? 14 : 32}
-            delay={3000}
-            pauseOnHover={!isPhone}
-            skewAmount={isPhone ? 2 : 3}
-          >
-            {groups.map(group => (
-              <Card
-                key={group.id}
-                className="skill-card skill-card--swap"
-                data-cursor
-                style={{ '--skill-accent': group.accent } as React.CSSProperties}
-              >
-                <div className="skill-card__terminal-bar">
-                  <span className="skill-card__dot" />
-                  <span className="skill-card__dot" />
-                  <span className="skill-card__dot" />
-                  <span className="skill-card__terminal-title">{group.id}.config</span>
-                </div>
-
-                <div className="skill-card__header">
-                  <div className="skill-card__icon">{group.icon}</div>
-                  <h3 className="skill-card__title">{group.name}</h3>
-                  <span className="skill-card__count">{group.items.length}</span>
-                </div>
-
-                <div className="skill-card__tags">
-                  {group.items.map(item => (
-                    <span key={item} className="skill-card__tag">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="skill-card__status">
-                  <span className="skill-card__status-dot" />
-                  <span>Active</span>
-                </div>
-              </Card>
-            ))}
-          </CardSwap>
-        ) : null}
-      </m.div>
+      {/* A press anywhere on the glass puts the caret in the prompt, like a real terminal window. */}
+      <div ref={terminalRef} className="toolkit__terminal" data-cursor onPointerDown={focusInput}>
+        <div className="toolkit__bar">
+          <span className="toolkit__bar-title">~/skills</span>
+          <span className="toolkit__bar-hint">{ready ? 'type help' : 'zsh'}</span>
+        </div>
+        <div ref={bodyRef} className="toolkit__body">
+          {entries.length === 0 && (
+            <p className="toolkit__line toolkit__line--cmd">
+              <span className="toolkit__prompt">$</span> {typed}
+              {!ready && <span className="toolkit__cursor" aria-hidden="true" />}
+            </p>
+          )}
+          {entries.map(entry => (
+            <div key={entry.id} className="toolkit__entry">
+              <p className="toolkit__line toolkit__line--cmd"><span className="toolkit__prompt">$</span> {entry.command}</p>
+              {entry.output.map((line, i) => renderLine(line, i))}
+            </div>
+          ))}
+          {ready && (
+            <form className="toolkit__line toolkit__line--cmd toolkit__form" onSubmit={onSubmit}>
+              <label htmlFor="toolkit-input" className="toolkit__prompt">$</label>
+              <input
+                id="toolkit-input"
+                ref={inputRef}
+                className="toolkit__input"
+                value={input}
+                onChange={event => setInput(event.target.value)}
+                onKeyDown={onKey}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-label="Type a command, for example help"
+                placeholder="help"
+              />
+            </form>
+          )}
+        </div>
+      </div>
     </>
   )
 }

@@ -13,6 +13,26 @@
   },
   "experiences": [
     {
+      "id": "scottylabs-ai",
+      "icon": "brain",
+      "company": "ScottyLabs AI Team",
+      "role": "AI Platform Engineer",
+      "track": "AI Platform",
+      "period": "Apr 2026 – Present",
+      "location": "Pittsburgh, PA",
+      "status": "Active",
+      "summary": "Launched an AI platform that grounds every answer in live university data, blocks hallucinated claims, and streams first tokens at 1.5s p95 across a LangGraph/FastAPI agent and React client. Built injection-hardened cross-chat memory with LLM fact extraction, pgvector dedup, and per-user isolation, and cut prompt tokens 62% and helper-model latency 10x with query-matched MCP tool binding and context compression.",
+      "stack": [
+        "FastAPI",
+        "LangGraph",
+        "MCP",
+        "React 19",
+        "pgvector",
+        "SSE"
+      ],
+      "accent": "#a06bff"
+    },
+    {
       "id": "blue-shield",
       "icon": "shield",
       "company": "Blue Shield of California",
@@ -31,35 +51,15 @@
       "accent": "#2d7ff9"
     },
     {
-      "id": "scottylabs-ai",
-      "icon": "brain",
-      "company": "ScottyLabs AI · CMUGPT",
-      "role": "AI Platform Engineer",
-      "track": "AI Platform",
-      "period": "Apr 2026 – Present",
-      "location": "Pittsburgh, PA",
-      "status": "Active",
-      "summary": "Launched a campus AI platform that grounds every answer in live university data via MCP tools, deterministically blocks hallucinated claims, and streams first tokens at 1.5s p95, spanning a LangGraph/FastAPI agent and React client. Built injection-hardened cross-chat memory with LLM fact extraction, pgvector dedup, and per-user isolation.",
-      "stack": [
-        "FastAPI",
-        "LangGraph",
-        "MCP",
-        "React 19",
-        "pgvector",
-        "SSE"
-      ],
-      "accent": "#a06bff"
-    },
-    {
       "id": "sorcea",
       "icon": "terminal",
       "company": "Sorcea Labs",
       "role": "Software Engineer Intern",
       "track": "Industry",
-      "period": "Dec 2025 – May 2026",
+      "period": "Jan 2026 – May 2026",
       "location": "Remote",
       "status": "Shipped",
-      "summary": "Overhauled a 10K+ user Flutter app's main flows from founder spec to release. Shipped skin-tone shade matching, engineering a perceptual color engine (sRGB to CIELAB, Delta-E) and the live gauge it powers, pinpointing the user's tone and confidence band on a shade spectrum. Cut homepage load time ~75% via API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
+      "summary": "Overhauled a 10K+ user Flutter app's home, product, search, and onboarding flows from founder spec to release. Shipped skin-tone shade matching, building a from-scratch perceptual color engine (sRGB to CIELAB, Delta-E) and the live gauge it powers, pinpointing the user's tone and confidence band on a shade spectrum. Cut homepage load time ~75% via API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
       "stack": [
         "Flutter",
         "Dart",
@@ -101,7 +101,7 @@
     {
       "id": "cmumaps",
       "icon": "map",
-      "company": "CMUMaps · ScottyLabs",
+      "company": "CMUMaps",
       "role": "Data & Software Engineer",
       "track": "Geospatial",
       "period": "Sep 2025 – Apr 2026",
@@ -174,13 +174,13 @@
     {
       "id": "softcom",
       "icon": "flask",
-      "company": "SoftCom Lab · Cal Poly Pomona",
-      "role": "Research Intern",
+      "company": "SoftCom Lab",
+      "role": "Machine Learning Research Intern",
       "track": "Research",
       "period": "Jun 2023 – Aug 2024",
       "location": "Pomona, CA",
       "status": "Published",
-      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, achieving 95.4% mean accuracy in controlled video trials, and co-authored a peer-reviewed paper presented at CS & IT-CSCP 2024.",
+      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, reaching 95.4% mean accuracy in controlled video trials, and first-authored the resulting peer-reviewed paper at CS & IT-CSCP 2024.",
       "stack": [
         "Python",
         "ML/CV",
@@ -198,10 +198,11 @@
       "accent": "#6aa5af",
       "accentRgb": "106, 165, 175",
       "kind": "media",
-      "lead": "An offline-first Flutter care platform for Parkinson’s patients, pairing a real-time computer-vision exercise coach with crash-proof, encrypted health-data sync.",
+      "lead": "An offline-first Flutter care platform for Parkinson’s patients: a real-time computer-vision exercise coach plus crash-proof, encrypted health-data sync.",
       "bullets": [
-        "Engineered a MediaPipe 3D-pose coach that counts, scores, and speaks cues for every rep, running on-device from camera frame to feedback in under 10 ms.",
-        "Built an encrypted write journal replayed exactly once via idempotent PostgreSQL RPC, surviving 1M fault-injected writes and 100 process kills with zero loss."
+        "Founded and solo-built the platform end to end: symptom tracking, peer support, and guided exercises.",
+        "Built a live computer-vision coach that tracks 3D pose with MediaPipe to count, score, and speak cues for every rep, on-device in under 25 ms.",
+        "Built crash-proof offline sync: an encrypted write journal replayed exactly once via idempotent PostgreSQL RPC, surviving 1M fault-injected writes with zero loss."
       ],
       "tech": [
         "Flutter",
@@ -222,7 +223,7 @@
         },
         {
           "label": "CV FEEDBACK",
-          "value": "<10 MS"
+          "value": "<25 MS"
         }
       ],
       "caseStudy": {
@@ -236,40 +237,40 @@
         "outcomes": [
           "1M fault-injected writes survived",
           "Zero data loss across 100 process kills",
-          "Under 10 ms camera-to-feedback"
+          "Under 25 ms camera-to-feedback"
         ]
       },
       "frame": "phone",
       "images": [
         {
-          "src": "/ParkiWell/onboarding.webp",
-          "label": "parkiwell · onboarding",
-          "alt": "ParkiWell onboarding welcome screen",
-          "aspect": "660 / 1434"
+          "src": "/ParkiWell/welcome.webp",
+          "label": "parkiwell · welcome",
+          "alt": "ParkiWell welcome screen",
+          "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/home.webp",
           "label": "parkiwell · home",
           "alt": "ParkiWell home dashboard with symptom and medication summaries",
-          "aspect": "660 / 1434"
+          "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/manage.webp",
           "label": "parkiwell · manage",
           "alt": "ParkiWell medication and therapy management screen",
-          "aspect": "660 / 1434"
+          "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/recovery.webp",
           "label": "parkiwell · recovery",
           "alt": "ParkiWell recovery plan with weekly goal tracking",
-          "aspect": "660 / 1434"
+          "aspect": "680 / 1477"
         },
         {
-          "src": "/ParkiWell/recovery-dark.webp",
-          "label": "parkiwell · recovery dark",
-          "alt": "ParkiWell recovery plan in dark mode",
-          "aspect": "660 / 1434"
+          "src": "/ParkiWell/community.webp",
+          "label": "parkiwell · community",
+          "alt": "ParkiWell peer community feed",
+          "aspect": "680 / 1477"
         }
       ]
     },

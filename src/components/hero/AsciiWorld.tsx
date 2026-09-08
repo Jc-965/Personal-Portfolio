@@ -3,8 +3,9 @@ import { createProgram, createTexture, uniformsOf } from './gl'
 import { buildGlyphAtlas } from './glyphAtlas'
 import { NAME_SPREAD, NAME_TEXTURE, inkAnchor, nameSlab } from './nameField'
 import { buildNameField } from './nameTexture'
+import { PRESS_PUSH, PULL_DEPTH, PULL_RADIUS, createPointerFx, easePull, pressAt } from './pointerFx'
 import { GLYPHS, SCENE, VERTEX } from './shaders'
-import { GLYPH_RAMP, gridFor, project, sceneProgress, arrivalProgress, type Grid } from './world'
+import { GLYPH_RAMP, gridFor, sceneProgress, arrivalProgress, type Grid } from './world'
 
 /**
  * Glyph size and row height of the character grid. Phones get a finer grid:
@@ -71,7 +72,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       return
     }
     const sceneU = uniformsOf(gl, scene, ['uGrid', 'uTime', 'uProgress', 'uLook', 'uAspect', 'uNarrow', 'uName', 'uNamePos', 'uNameSize', 'uNameSpread', 'uNameReveal'] as const)
-    const glyphU = uniformsOf(gl, glyphs, ['uScene', 'uAtlas', 'uGrid', 'uCell', 'uOffset', 'uGlyphs'] as const)
+    const glyphU = uniformsOf(gl, glyphs, ['uScene', 'uAtlas', 'uGrid', 'uCell', 'uOffset', 'uGlyphs', 'uPointer', 'uPull', 'uPullRadius', 'uPullDepth', 'uPress', 'uPressPush'] as const)
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTexture, 0)
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -89,7 +90,6 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     let lastPaint = 0
     let sceneTime = 0
     let trackHeight = 1
-    let viewportWidth = 1
     let viewportHeight = 1
     let trackTop = 0
     let scrollY = window.scrollY
@@ -104,36 +104,24 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     let travel = 0
     const look = { x: 0, y: 0, targetX: 0, targetY: 0 }
     const placed = { x: 0, y: 0 }
+    const fx = createPointerFx()
+    // Dev-only: lets screenshot tooling confirm the pointer effects are alive.
+    if (import.meta.env.DEV) (window as Window & { __heroFx?: unknown }).__heroFx = fx
     const copy = track.querySelector<HTMLElement>('.hero__copy')
     const titleLines = title.split('\n').filter(Boolean)
 
     const stop = () => { cancelAnimationFrame(raf); raf = 0 }
-    // The introduction hangs from the name's bottom-left corner. While the
-    // camera flies, it is re-projected through the same camera so name and
-    // copy move as one title card until the copy has faded.
+    // The introduction never moves. It starts fading with the first scrolled
+    // pixel and is gone well before the pinned stage lets go.
     const placeCopy = () => {
-      let opacity = Math.max(0, 1 - travel / .4)
-      let x = 0
-      let y = -travel * 70
-      let scale = 1 + travel * .09
-      if (anchorWorld) {
-        const aspect = viewportWidth / viewportHeight
-        const rest = project(anchorWorld, 0, aspect, narrow)
-        const now = project(anchorWorld, progress, aspect, narrow)
-        if (rest && now) {
-          x = (now.x - rest.x) * viewportWidth - (look.x / aspect) * viewportWidth / 2
-          y = (now.y - rest.y) * viewportHeight + look.y * viewportHeight / 2
-          scale = rest.depth / now.depth
-        } else {
-          opacity = 0
-        }
-      }
+      const fade = Math.min(1, Math.max(0, travel / .3))
+      const opacity = 1 - fade * fade * (3 - 2 * fade)
       placed.x = look.x
       placed.y = look.y
       track.style.setProperty('--hero-copy-opacity', String(opacity))
-      track.style.setProperty('--hero-copy-x', `${x}px`)
-      track.style.setProperty('--hero-copy-y', `${y}px`)
-      track.style.setProperty('--hero-copy-scale', String(scale))
+      track.style.setProperty('--hero-copy-x', '0px')
+      track.style.setProperty('--hero-copy-y', '0px')
+      track.style.setProperty('--hero-copy-scale', '1')
       // Hidden scene links must not steal focus while reading later sections.
       if (copy) copy.inert = opacity < .05
     }
@@ -200,6 +188,16 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       gl.uniform2f(glyphU.uCell, grid.cellW * dpr, grid.cellH * dpr)
       gl.uniform2f(glyphU.uOffset, grid.offsetX * dpr, grid.offsetY * dpr)
       gl.uniform1f(glyphU.uGlyphs, GLYPH_RAMP.length)
+      // The pointer draws the field toward itself; a press bumps the glyphs
+      // around a click outward.
+      easePull(fx, dt)
+      const press = reduced ? { x: 0, y: 0, radius: 0, strength: 0 } : pressAt(fx, now / 1000)
+      gl.uniform2f(glyphU.uPointer, fx.px * dpr, fx.py * dpr)
+      gl.uniform1f(glyphU.uPull, fx.pull)
+      gl.uniform1f(glyphU.uPullRadius, PULL_RADIUS * dpr)
+      gl.uniform1f(glyphU.uPullDepth, PULL_DEPTH * dpr)
+      gl.uniform4f(glyphU.uPress, press.x * dpr, press.y * dpr, press.radius * dpr, press.strength)
+      gl.uniform1f(glyphU.uPressPush, PRESS_PUSH * dpr)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       track.classList.add('hero--ready')
     }
@@ -224,7 +222,6 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       if (disposed || lost) return
       const { width, height } = wrap.getBoundingClientRect()
       if (!width || !height) return
-      viewportWidth = width
       viewportHeight = height
       narrow = width < 768
       const cell = narrow ? CELL.narrow : CELL.wide
@@ -275,9 +272,18 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       else stop()
     }
     const onPointer = (event: PointerEvent) => {
+      fx.x = event.clientX
+      fx.y = viewportHeight - event.clientY
+      fx.targetPull = finePointer.matches && visible ? 1 : 0
       if (reduced || !finePointer.matches || !visible) return
       look.targetX = (event.clientX / window.innerWidth - .5) * .065
       look.targetY = -(event.clientY / window.innerHeight - .5) * .045
+    }
+    const onPointerLeave = () => { fx.targetPull = 0 }
+    const onPress = (event: PointerEvent) => {
+      if (!visible) return
+      fx.press = { x: event.clientX, y: viewportHeight - event.clientY, startedAt: performance.now() / 1000 }
+      start()
     }
     const onLost = (event: Event) => {
       event.preventDefault()
@@ -297,6 +303,8 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('pointermove', onPointer, { passive: true })
+    window.addEventListener('pointerdown', onPress, { passive: true })
+    document.addEventListener('pointerleave', onPointerLeave)
     window.addEventListener('pageshow', onScroll)
     document.addEventListener('visibilitychange', onVisibility)
     motionQuery.addEventListener('change', onMotion)
@@ -309,6 +317,8 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       resizeObserver.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('pointermove', onPointer)
+      window.removeEventListener('pointerdown', onPress)
+      document.removeEventListener('pointerleave', onPointerLeave)
       window.removeEventListener('pageshow', onScroll)
       document.removeEventListener('visibilitychange', onVisibility)
       motionQuery.removeEventListener('change', onMotion)

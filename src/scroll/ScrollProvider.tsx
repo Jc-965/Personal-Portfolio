@@ -50,6 +50,8 @@ export default function ScrollProvider() {
       })
       document.documentElement.classList.add('lenis-active')
       lenisRef.current = lenis
+      // Dev-only hook so screenshot tooling can move the page through Lenis.
+      if (import.meta.env.DEV) (window as Window & { __lenis?: unknown }).__lenis = lenis
     }
 
     let rafId = 0
