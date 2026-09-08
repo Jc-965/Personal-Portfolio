@@ -1,0 +1,6 @@
+/* The Decoded surface: an image that resolves from glyphs. The image stays in the tree for assistive tech. */
+.decoded { position: relative; overflow: hidden; background: #000; width: 100%; }
+.decoded__img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.decoded__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; }
+.decoded.is-live .decoded__img { opacity: 0; }
+.decoded.is-live .decoded__canvas { cursor: crosshair; }
