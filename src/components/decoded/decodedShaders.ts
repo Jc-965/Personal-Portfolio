@@ -1,4 +1,4 @@
-import { MAX_WOUNDS } from './decoded'
+import { MAX_WOUNDS } from './decodeMath'
 
 /**
  * Draws an image as a glyph field that resolves into the real picture cell by

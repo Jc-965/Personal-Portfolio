@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   DITHER_BAND, MAX_WOUNDS, WOUND_LIFE, WOUND_RADIUS,
   addWound, cellResolve, coverTransform, packWounds, readoutAt, woundStrength,
-} from '../../src/components/decoded/decoded.ts'
+} from '../../src/components/decoded/decodeMath.ts'
 
 test('a cell resolves once progress passes its roll, softly across the band', () => {
   assert.equal(cellResolve(0.5, 0.5 + DITHER_BAND), 1)

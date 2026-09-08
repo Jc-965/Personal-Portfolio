@@ -5,7 +5,7 @@ import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { VERTEX } from '../hero/shaders'
 import { GLYPH_RAMP } from '../hero/world'
 import { DECODE_FRAG } from './decodedShaders'
-import { DITHER_BAND, MAX_WOUNDS, addWound, cellsFor, coverTransform, packWounds, type Wound } from './decoded'
+import { DITHER_BAND, MAX_WOUNDS, addWound, cellsFor, coverTransform, packWounds, type Wound } from './decodeMath'
 
 interface DecodedProps {
   src: string
@@ -52,7 +52,8 @@ export default function Decoded({ src, alt, aspect, progress, accent, interactiv
     let program: WebGLProgram
     try {
       program = createProgram(gl, VERTEX, DECODE_FRAG)
-    } catch {
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Decoded: falling back to the plain image.', error)
       return
     }
     const u = uniformsOf(gl, program, ['uImage', 'uAtlas', 'uSize', 'uCell', 'uScale', 'uOffset', 'uGlyphs', 'uProgress', 'uBand', 'uTint', 'uWounds'] as const)
@@ -188,7 +189,8 @@ export default function Decoded({ src, alt, aspect, progress, accent, interactiv
       gl.deleteTexture(imageTex)
       gl.deleteTexture(atlasTex)
       gl.deleteProgram(program)
-      gl.getExtension('WEBGL_lose_context')?.loseContext()
+      // No loseContext here: a canvas hands back the same context on remount,
+      // and StrictMode remounts, so a lost context would never come back.
       root.classList.remove('is-live')
     }
   }, [src, accent, interactive, cell])

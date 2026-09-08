@@ -99,26 +99,8 @@
 .chapter__view::before { content: '['; opacity: 0.55; }
 .chapter__view::after { content: ']'; opacity: 0.55; }
 
-/* ---------- Projects ---------- */
-.proj__eyebrow::before { content: '// '; opacity: 0.7; }
-.proj__tech-tag {
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 0;
-}
-.proj__tech-tag::before { content: '['; opacity: 0.55; }
-.proj__tech-tag::after { content: ']'; opacity: 0.55; }
-.proj__case-study {
-  border: 0;
-  background: none;
-  padding: 8px 0;
-  border-radius: 0;
-}
-.proj__case-study::before { content: '[ '; opacity: 0.7; }
-.proj__case-study::after { content: ' ]'; opacity: 0.7; }
-.proj__case-study:hover, .proj__case-study:focus-visible { background: none; transform: none; text-decoration: underline; text-underline-offset: 6px; }
-.proj__deck-dot, .gallery__dot { border-radius: 0; width: 7px; height: 7px; }
+/* ---------- Gallery (Journey) ---------- */
+.gallery__dot { border-radius: 0; width: 7px; height: 7px; }
 
 /* ---------- Toolkit ---------- */
 .skill-card { border-radius: 0; box-shadow: none; }
@@ -186,7 +168,7 @@
 .email-popup__close { border-radius: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .chapter__view, .proj__case-study, .footer__social-link { transition: none; }
+  .chapter__view, .footer__social-link { transition: none; }
 }
 
 /* ---------- Review fixes (2026-09-07 evening) ---------- */
@@ -229,7 +211,6 @@
 .life-card__index { display: none; }
 
 /* Projects: the eyebrow already carries "//", so the glowing dot goes. */
-.proj__dot { display: none; }
 
 /* Constellation: square stats and swatches, the star box drawn like every other box. */
 .constellation { position: relative; border-radius: 0; }

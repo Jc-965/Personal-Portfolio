@@ -1,199 +1,74 @@
-import { useRef, memo } from 'react'
-import {
-  m,
-  useInView,
-  useScroll,
-  useTransform,
-  useReducedMotion,
-  type Variants,
-} from 'framer-motion'
-import MediaGallery from './MediaGallery'
-import useCardTilt from '../hooks/useCardTilt'
-import portfolio from '../content/portfolio.json'
+import { useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { m, useInView, useReducedMotion } from 'framer-motion'
+import Decoded from './decoded/Decoded'
+import { terminalCover } from './terminalCover'
+import { coverOf, projects, type Project } from '../content/story'
+import { projectPath } from '../router'
+import { isPlainLeftClick, openProject } from '../hooks/useRoute'
 
-interface ProjectImage {
-  src: string
-  label: string
-  alt: string
-  aspect: string
-}
-
-interface ProjectStat {
-  label: string
-  value: string
-}
-
-interface Project {
-  id: string
-  name: string
-  tag: string
-  accent: string
-  accentRgb: string
-  lead: string
-  bullets: string[]
-  tech: string[]
-  stats: ProjectStat[]
-  kind: 'media' | 'code'
-  images?: ProjectImage[]
-  imageVariant?: 'browser' | 'terminal'
-  frame?: 'window' | 'phone'
-  terminal?: string[]
-}
-
-// Interleaved media / code so the rhythm alternates as you scroll. The same
-// source also generates the static case-study pages and sitemap.
-const projects = portfolio.projects as unknown as Project[]
-
-const copyContainer: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.08 } },
-}
-const copyItem: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-}
-
-/* Floating terminal visual for projects without screenshots. */
-function CodeStage({ project }: { project: Project }) {
-  const { ref, tiltProps } = useCardTilt({ max: 7, perspective: 1300 })
-
-  return (
-    <div className="proj__codestage" ref={ref} {...tiltProps}>
-      <div
-        className="window-frame window-frame--terminal code-frame"
-        style={{ '--wf-accent': project.accent } as React.CSSProperties}
-      >
-        <div className="window-frame__tilt">
-          <div className="window-frame__chrome">
-            <div className="window-frame__dots" aria-hidden="true">
-              <span className="window-frame__dot window-frame__dot--r" />
-              <span className="window-frame__dot window-frame__dot--y" />
-              <span className="window-frame__dot window-frame__dot--g" />
-            </div>
-            <div className="window-frame__path">~/{project.id} · zsh</div>
-          </div>
-          <div className="code-frame__body">
-            {(project.terminal ?? []).map((line, i) => (
-              <div key={i} className="code-frame__line">
-                <span className="code-frame__prompt">$</span>
-                <span>{line}</span>
-              </div>
-            ))}
-            <div className="code-frame__line">
-              <span className="code-frame__prompt">$</span>
-              <span className="code-frame__cursor" aria-hidden="true" />
-            </div>
-          </div>
-          <span className="window-frame__corner window-frame__corner--tl" aria-hidden="true" />
-          <span className="window-frame__corner window-frame__corner--tr" aria-hidden="true" />
-          <span className="window-frame__corner window-frame__corner--bl" aria-hidden="true" />
-          <span className="window-frame__corner window-frame__corner--br" aria-hidden="true" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const ProjectScene = memo(function ProjectScene({
-  project,
-  index,
-}: {
-  project: Project
-  index: number
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-15% 0px -15% 0px' })
+/** One row of the ledger: cover, blurb, tags, one stat. The whole row opens the project. */
+function LedgerRow({ project }: { project: Project }) {
+  const [hover, setHover] = useState(false)
   const reduce = useReducedMotion()
-  const interactive = !reduce
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  })
-  const nameY = useTransform(scrollYProgress, [0, 1], ['16%', '-16%'])
-  const visualY = useTransform(scrollYProgress, [0, 1], ['9%', '-9%'])
-  const side = index % 2 === 0 ? 'left' : 'right'
-
-  return (
-    <section
-      ref={ref}
-      className={`proj proj--${side} proj--${project.kind}`}
-      style={{
-        '--project-accent': project.accent,
-        '--project-accent-rgb': project.accentRgb,
-      } as React.CSSProperties}
-    >
-      <div className="proj__bigname-wrap" aria-hidden="true">
-        <m.span className="proj__bigname" style={interactive ? { y: nameY } : undefined}>
-          {project.name}
-        </m.span>
-      </div>
-
-      <m.div className="proj__visual" style={interactive ? { y: visualY } : undefined}>
-        <m.div
-          className="proj__visual-inner"
-          initial={{ opacity: 0, y: 34, scale: 0.97 }}
-          animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {project.kind === 'media' ? (
-            <MediaGallery
-              images={project.images ?? []}
-              accent={project.accent}
-              defaultVariant={project.imageVariant}
-              frame={project.frame}
-              side={side}
-              priority={index === 0}
-            />
-          ) : (
-            <CodeStage project={project} />
-          )}
-        </m.div>
-      </m.div>
-
-      <m.div
-        className="proj__copy"
-        variants={copyContainer}
-        initial="hidden"
-        animate={inView ? 'show' : 'hidden'}
-      >
-        <m.p className="proj__eyebrow" variants={copyItem}>
-          <span className="proj__dot" />
-          {project.tag}
-        </m.p>
-        <m.h3 className="proj__title" variants={copyItem}>{project.name}</m.h3>
-        <m.p className="proj__lead" variants={copyItem}>{project.lead}</m.p>
-        <m.ul className="proj__bullets" variants={copyItem}>
-          {project.bullets.map((b, i) => (
-            <li key={i}>
-              <span className="proj__bullet-icon">›</span>
-              <span>{b}</span>
-            </li>
-          ))}
-        </m.ul>
-        <m.div className="proj__meta" variants={copyItem}>
-          <div className="proj__stats">
-            {project.stats.map((s) => (
-              <div key={s.label} className="proj__stat">
-                <span className="proj__stat-label">{s.label}</span>
-                <span className="proj__stat-value">{s.value}</span>
-              </div>
-            ))}
-          </div>
-          <div className="proj__tech">
-            {project.tech.map((t) => (
-              <span key={t} className="proj__tech-tag">{t}</span>
-            ))}
-          </div>
-        </m.div>
-      </m.div>
-    </section>
+  const cover = coverOf(project)
+  const src = useMemo(
+    () => cover.src ?? terminalCover(cover.terminal ?? [], project.accent),
+    [cover.src, cover.terminal, project.accent],
   )
-})
+  const stat = project.stats[0]
+  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!isPlainLeftClick(event)) return
+    event.preventDefault()
+    openProject(project.id)
+  }
+  return (
+    <li className="ledger__row" style={{ '--project-accent': project.accent, '--project-accent-rgb': project.accentRgb } as CSSProperties}>
+      <a
+        className="ledger__link"
+        href={projectPath(project.id)}
+        data-row={project.id}
+        onClick={onClick}
+        onPointerEnter={() => setHover(true)}
+        onPointerLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+      >
+        <div className={`ledger__frame${cover.portrait ? ' ledger__frame--phone' : ''}`}>
+          <div className="ledger__chrome" aria-hidden="true">
+            <span>~/projects/{project.id}</span>
+            <span>[]</span>
+          </div>
+          <Decoded
+            className="ledger__cover"
+            src={src}
+            alt={cover.alt}
+            aspect={cover.aspect}
+            progress={hover && !reduce ? 0.25 : 1}
+            accent={project.accent}
+            interactive={false}
+            cell={6}
+          />
+        </div>
+        <div className="ledger__copy">
+          <h3 className="ledger__name">{project.name}</h3>
+          <p className="ledger__blurb">{project.blurb}</p>
+          <ul className="ledger__tags" aria-label="Built with">
+            {project.tech.map(t => <li key={t}>{t}</li>)}
+          </ul>
+          <p className="ledger__readout">
+            <span className="ledger__stat">{stat.value}</span>
+            <span className="ledger__stat-label">{stat.label}</span>
+            <span className="ledger__open" aria-hidden="true">[ open ]</span>
+          </p>
+        </div>
+      </a>
+    </li>
+  )
+}
 
 export default function Projects() {
   const headerRef = useRef(null)
   const headerInView = useInView(headerRef, { once: true, margin: '-50px' })
-
   return (
     <>
       <m.header
@@ -209,12 +84,9 @@ export default function Projects() {
         </p>
         <h2>Building software that solves meaningful problems</h2>
       </m.header>
-
-      <div className="projects__scenes">
-        {projects.map((p, i) => (
-          <ProjectScene key={p.id} project={p} index={i} />
-        ))}
-      </div>
+      <ol className="ledger">
+        {projects.map(p => <LedgerRow key={p.id} project={p} />)}
+      </ol>
     </>
   )
 }
