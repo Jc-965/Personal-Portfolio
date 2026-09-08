@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run env:validate && npm run content:generate && tsc -b && vite build && npm run bundle:check",
+    "build": "npm run env:validate && tsc -b && vite build && npm run content:generate && npm run bundle:check",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings=0",
