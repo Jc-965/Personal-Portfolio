@@ -215,9 +215,8 @@ void main() {
   vec2 cell = floor(p);
   if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= uGrid.x || cell.y >= uGrid.y) { fragColor = vec4(0); return; }
   vec4 scene = texelFetch(uScene, ivec2(cell), 0);
-  // Under the pull, glyphs step up the ramp a little. Empty cells stay empty.
-  float level = scene.r > .001 ? min(1.0, scene.r + pullAt(gl_FragCoord.xy) * .1) : 0.0;
-  float index = floor(level * (uGlyphs - 1.0) + .5);
+  // The pull only moves glyphs; it never changes which glyph a cell shows.
+  float index = floor(scene.r * (uGlyphs - 1.0) + .5);
   if (index < .5) { fragColor = vec4(0); return; }
   float material = scene.b * 8.0;
   vec2 local = fract(p);
