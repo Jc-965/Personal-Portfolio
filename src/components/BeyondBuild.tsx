@@ -32,7 +32,6 @@ const items: LifeItem[] = [
       { label: 'EVENTS', value: '50+' },
     ],
     bullets: [
-      'Helped build a digital student-ID system that streamlined check-ins for thousands of students.',
       'Designed features alongside administrators around real student and faculty needs.',
       "Managed finances and outreach, expanding the club's reach and project capacity.",
     ],

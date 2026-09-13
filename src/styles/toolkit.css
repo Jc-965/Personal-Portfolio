@@ -132,6 +132,7 @@
 }
 
 /* ---------- The shell ---------- */
+.toolkit__reserve { visibility: hidden; }
 .toolkit__terminal { cursor: text; }
 .toolkit__body { overflow: visible; }
 .toolkit__entry + .toolkit__entry { margin-top: 6px; }

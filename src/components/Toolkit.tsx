@@ -12,6 +12,7 @@ const groups: SkillGroup[] = [
 
 const INTRO = 'tree ~/skills'
 const fileCount = groups.reduce((sum, group) => sum + group.items.length, 0)
+const INTRO_OUTPUT = runCommand(INTRO, groups, portfolio.profile) as Line[]
 
 interface Entry {
   id: number
@@ -51,7 +52,7 @@ export default function Toolkit() {
       // Reduced motion skips the typing but still prints on the next tick, so the effect stays a subscription.
       timers.push(window.setTimeout(() => {
         setTyped(INTRO)
-        setEntries([{ id: nextId++, command: INTRO, output: runCommand(INTRO, groups, portfolio.profile) as Line[] }])
+        setEntries([{ id: nextId++, command: INTRO, output: INTRO_OUTPUT }])
         setReady(true)
       }, 0))
       return () => timers.forEach(window.clearTimeout)
@@ -61,7 +62,7 @@ export default function Toolkit() {
       setTyped(INTRO.slice(0, i))
       if (i < INTRO.length) timers.push(window.setTimeout(type, 42 + Math.random() * 40))
       else timers.push(window.setTimeout(() => {
-        setEntries([{ id: nextId++, command: INTRO, output: runCommand(INTRO, groups, portfolio.profile) as Line[] }])
+        setEntries([{ id: nextId++, command: INTRO, output: INTRO_OUTPUT }])
         timers.push(window.setTimeout(() => setReady(true), 900))
       }, 260))
     }
@@ -183,6 +184,16 @@ export default function Toolkit() {
                 placeholder="help"
               />
             </form>
+          )}
+          {/* The intro output and the prompt occupy their final height from the
+              first paint, so the window never grows while the opening command
+              types. Growth here lands above the viewport for anyone scrolling
+              past, and the page below jumps by the same amount. */}
+          {!ready && (
+            <div className="toolkit__reserve" aria-hidden="true">
+              {entries.length === 0 && INTRO_OUTPUT.map((line, i) => renderLine(line, i))}
+              <p className="toolkit__line">&nbsp;</p>
+            </div>
           )}
         </div>
       </div>

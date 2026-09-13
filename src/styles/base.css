@@ -344,6 +344,33 @@ img {
   }
 }
 
+/* Constellation mounts lazily. Its placeholder matches the mounted section's
+   content height (section height minus --section-pad on both sides) so the
+   document does not grow, and the scrollbar does not jump, when the chunk
+   arrives. Measured 2026-09-13 at 1440, 1024, 768, 640, 480, and 390 wide. */
+#constellation > .section__placeholder {
+  min-height: 830px;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  #constellation > .section__placeholder {
+    min-height: 700px;
+  }
+}
+
+@media (max-width: 640px) {
+  #constellation > .section__placeholder {
+    min-height: 775px;
+  }
+}
+
+@media (max-width: 480px) {
+  #constellation > .section__placeholder {
+    min-height: 800px;
+  }
+}
+
 /* ============================================================================
    HERO SECTION
    ============================================================================ */

@@ -14,6 +14,8 @@ test('portfolio renders immediately with recruiter contact paths', async ({ page
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', /github\.com/)
   await expect(page.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', /linkedin\.com/)
   await expect(page.getByRole('button', { name: 'Send an email' })).toBeVisible()
+  // The footer is the one always-rendered link into the static case studies.
+  await expect(page.getByRole('link', { name: 'Case studies' })).toHaveAttribute('href', '/projects/')
 
   await page.locator('#projects').scrollIntoViewIfNeeded()
   await expect(page.getByRole('heading', { name: 'Agoriai' })).toBeVisible()
@@ -56,6 +58,18 @@ test('projects retain their gallery presentation without case-study links', asyn
   await expect(gallery.locator('.gallery__count')).toContainText('02 /')
   await gallery.getByRole('button', { name: 'Previous screenshot' }).click()
   await expect(gallery.locator('.gallery__count')).toContainText('01 /')
+})
+
+test('the toolkit terminal keeps its height while the opening command types', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('#skills').scrollIntoViewIfNeeded()
+  const terminal = page.locator('.toolkit__terminal')
+  await expect(terminal).toBeVisible()
+  const before = (await terminal.boundingBox())!.height
+  // The prompt appears once the intro has typed and printed the skills tree.
+  await expect(page.locator('.toolkit__form')).toBeVisible({ timeout: 10_000 })
+  const after = (await terminal.boundingBox())!.height
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(1)
 })
 
 test('short landscape keeps the hero introduction in the viewport', async ({ page }) => {

@@ -8,6 +8,11 @@ import ScrollRail from './components/ScrollRail'
 import Hero from './components/Hero'
 import LazySection from './components/LazySection'
 import Footer from './components/Footer'
+// BeyondBuild and Toolkit stay in the main bundle (about 5 KiB gzipped
+// together). A lazy mount that lands after the viewport has passed the section
+// grows the page above the viewport and shifts everything in view.
+import BeyondBuild from './components/BeyondBuild'
+import Toolkit from './components/Toolkit'
 import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 import { shouldUseCustomCursor } from './utils/nativeCursor'
@@ -29,8 +34,6 @@ const Analytics = lazy(() =>
 
 const Journey = lazy(() => import('./components/Journey'))
 const Projects = lazy(() => import('./components/Projects'))
-const BeyondBuild = lazy(() => import('./components/BeyondBuild'))
-const Toolkit = lazy(() => import('./components/Toolkit'))
 const Constellation = lazy(() => import('./components/Constellation'))
 
 const shouldForceSketchbookTutorial = () => {
@@ -204,9 +207,9 @@ function App() {
               <Hero />
               <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} margin="1600px 0px" /></ErrorBoundary>
               <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="80px 0px" /></ErrorBoundary>
-              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><LazySection id="life" className="section beyond" component={BeyondBuild} /></ErrorBoundary>
-              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><LazySection id="skills" className="section toolkit" component={Toolkit} /></ErrorBoundary>
-              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" /></ErrorBoundary>
+              <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><section id="life" className="section beyond"><BeyondBuild /></section></ErrorBoundary>
+              <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><section id="skills" className="section toolkit"><Toolkit /></section></ErrorBoundary>
+              <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" crawlerEager={false} /></ErrorBoundary>
             </main>
             <Footer />
             <GyroPrompt />

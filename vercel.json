@@ -9,9 +9,25 @@
       ],
       "destination": "https://www.jc-965.com/:path*",
       "permanent": true
+    },
+    {
+      "source": "/projects",
+      "destination": "/projects/",
+      "permanent": true
+    },
+    {
+      "source": "/projects/:id([a-z0-9-]+)",
+      "destination": "/projects/:id/",
+      "permanent": true
     }
   ],
   "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
