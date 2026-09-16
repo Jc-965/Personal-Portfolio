@@ -34,14 +34,6 @@ export default function Footer() {
       <div className="footer__socials" aria-label="Social links">
         <a
           className="footer__social-link"
-          href="/projects/"
-          aria-label="Case studies"
-          title="Case studies"
-        >
-          <span className="footer__social-text">Case studies</span>
-        </a>
-        <a
-          className="footer__social-link"
           href={portfolio.profile.github}
           target="_blank"
           rel="noreferrer"

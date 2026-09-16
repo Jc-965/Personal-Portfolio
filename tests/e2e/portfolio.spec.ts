@@ -14,8 +14,6 @@ test('portfolio renders immediately with recruiter contact paths', async ({ page
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', /github\.com/)
   await expect(page.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', /linkedin\.com/)
   await expect(page.getByRole('button', { name: 'Send an email' })).toBeVisible()
-  // The footer is the one always-rendered link into the static case studies.
-  await expect(page.getByRole('link', { name: 'Case studies' })).toHaveAttribute('href', '/projects/')
 
   await page.locator('#projects').scrollIntoViewIfNeeded()
   await expect(page.getByRole('heading', { name: 'Agoriai' })).toBeVisible()
