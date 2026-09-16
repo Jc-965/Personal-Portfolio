@@ -18,7 +18,10 @@ const allJsSizes = await Promise.all(allJs.map(async (name) => ({ name, bytes: a
 const largestChunk = allJsSizes.sort((a, b) => b.bytes - a.bytes)[0]
 
 const budgets = {
-  initialJs: 120 * 1024,
+  // 124 KiB since 2026-09-13: BeyondBuild and Toolkit ship in the initial
+  // bundle (about 5 KiB gzipped) so their sections never mount late and shift
+  // the page. Anything else that grows this number needs its own reason.
+  initialJs: 124 * 1024,
   initialCss: 18 * 1024,
   lazyChunk: 220 * 1024,
 }

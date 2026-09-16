@@ -190,7 +190,7 @@ export default function Toolkit() {
               types. Growth here lands above the viewport for anyone scrolling
               past, and the page below jumps by the same amount. */}
           {!ready && (
-            <div className="toolkit__reserve" aria-hidden="true">
+            <div className="toolkit__reserve" aria-hidden="true" inert>
               {entries.length === 0 && INTRO_OUTPUT.map((line, i) => renderLine(line, i))}
               <p className="toolkit__line">&nbsp;</p>
             </div>
