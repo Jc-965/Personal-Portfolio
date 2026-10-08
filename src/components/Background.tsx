@@ -127,7 +127,9 @@ export default function Background() {
     }
 
     // While something opaque spans the viewport the canvas cannot be seen, so
-    // the renderer keeps simulating but stops painting.
+    // the renderer keeps simulating but stops painting. heroCovering is true
+    // while the hero or the teardown stage covers, and sketchbookCovering
+    // while the Sketchbook overlay does.
     let heroCovering = isHeroCovering()
     let sketchbookCovering = coveredBySketchbook()
     let covered = false

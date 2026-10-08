@@ -1,0 +1,299 @@
+/* Teardown chapter. A pinned stage sits over a track whose height is the stage
+   plus the pinned travel. Overflow on any ancestor of .teardown__stage turns
+   that ancestor into the scroll container and stops the stage pinning, so
+   clipping happens inside the stage only. */
+
+.teardown {
+  --teardown-travel: 8.4;
+  --td-amber: #eab76a;
+  --td-gutter: max(24px, 6vw);
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  height: calc(100svh * (1 + var(--teardown-travel)));
+}
+
+.teardown__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: clip;
+  background: #090705;
+  touch-action: pan-y;
+  isolation: isolate;
+}
+
+.teardown__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity .6s ease;
+}
+
+.teardown.is-gl .teardown__canvas { opacity: 1; }
+
+.teardown__dom-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 32px;
+  padding: 8svh calc(var(--td-gutter) + 4vw) 8svh 40vw;
+  transition: opacity .4s ease;
+}
+
+/* A PhoneFrame is about 2.1 times as tall as it is wide, so 40svh keeps the
+   phone inside the stage's 84svh content box on short screens. */
+.teardown__dom-stage .phone-frame { width: min(300px, 26vw, 40svh); }
+.teardown.is-gl .teardown__dom-stage { opacity: 0; visibility: hidden; }
+
+.teardown__dom-phones { display: grid; }
+
+.teardown__dom-phones > .phone-frame {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .4s ease, visibility 0s linear .4s;
+}
+
+.teardown__dom-phones > .phone-frame.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .4s ease, visibility 0s;
+}
+
+.teardown__code {
+  max-width: 420px;
+  max-height: 70svh;
+  overflow: hidden;
+  margin: 0;
+  font: 500 11px/1.55 var(--font-mono);
+  color: var(--td-amber);
+  white-space: pre;
+}
+
+.teardown__leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.teardown__leaders line {
+  stroke: var(--td-amber);
+  stroke-width: 1;
+  opacity: .7;
+}
+
+.teardown__rail {
+  position: absolute;
+  left: var(--td-gutter);
+  top: 50%;
+  width: min(34vw, 420px);
+  transform: translateY(-50%);
+  z-index: 3;
+}
+
+.teardown__act {
+  position: absolute;
+  inset: auto 0 auto 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  transition: opacity .45s ease, visibility 0s linear .45s;
+}
+
+.teardown__act.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity .45s ease, visibility 0s;
+}
+
+/* Local scrim behind each act's copy, never a full-frame overlay. The acts are
+   absolutely positioned and the rail has no height, so the scrim must sit on
+   the act to cover the copy. */
+.teardown__act::before {
+  content: '';
+  position: absolute;
+  inset: -48px -64px -48px calc(-1 * var(--td-gutter));
+  background: radial-gradient(closest-side, rgba(9, 7, 5, .82), rgba(9, 7, 5, 0));
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* The arrival heading's text before its print starts. It stays invisible and
+   holds the heading's box, so the print does not shift the layout. */
+.teardown__unprinted { visibility: hidden; }
+
+.teardown__title {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+.teardown__line {
+  margin: 0 0 10px;
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.teardown__eyebrow {
+  margin: 0 0 14px;
+  font: 600 .74rem/1.4 var(--font-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--td-amber);
+}
+
+/* minmax(0, 1fr) gives the callouts' max-width: 100% a definite track to
+   resolve against. An auto track grows to the widest max-content label and
+   pushes it past the rail and the viewport. */
+.teardown__callouts,
+.teardown__readout {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.teardown__callout {
+  position: relative;
+  width: max-content;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(234, 183, 106, .35);
+  font: 500 .82rem/1.4 var(--font-mono);
+  color: var(--text-primary);
+}
+
+.teardown__callout::before,
+.teardown__callout::after {
+  position: absolute;
+  font: 500 10px/1 var(--font-mono);
+  color: var(--td-amber);
+}
+
+.teardown__callout::before { content: '+'; top: -6px; left: -4px; }
+.teardown__callout::after { content: '+'; bottom: -6px; right: -4px; }
+
+.teardown__slashes,
+.teardown__prompt { color: var(--td-amber); }
+
+.teardown__readout li {
+  --typed: 0;
+  font: 500 clamp(.95rem, 1.4vw, 1.2rem)/1.4 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  clip-path: inset(0 calc((1 - var(--typed)) * 100%) 0 0);
+}
+
+.teardown__tags { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 18px 0 0; font: 500 .78rem/1.4 var(--font-mono); color: var(--text-muted); }
+/* The links stay visible to focus and assistive technology while the close act
+   is hidden (transparent through the act's opacity), and Teardown scrolls to
+   the act when a link takes focus. The hidden act's pointer-events: none keeps
+   the transparent links from catching clicks meant for other acts. */
+.teardown__links { display: flex; gap: 18px; margin: 18px 0 0; visibility: visible; }
+
+.teardown__link {
+  font: 600 .86rem/1.4 var(--font-mono);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.teardown__link:hover,
+.teardown__link:focus-visible { color: var(--td-amber); }
+
+.teardown__cards {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .4s ease;
+  z-index: 3;
+}
+
+.teardown__cards.is-active { opacity: 1; }
+
+.teardown__card-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  font: 500 .8rem/1.4 var(--font-mono);
+  color: var(--text-secondary);
+  will-change: transform;
+}
+
+.teardown__card-label::before { content: '// '; color: var(--td-amber); }
+.teardown.is-dom .teardown__cards { display: none; }
+
+@media (max-width: 767px) {
+  .teardown { --td-gutter: 20px; }
+  .teardown__rail {
+    top: auto;
+    bottom: max(20px, 4svh);
+    right: var(--td-gutter);
+    width: auto;
+    transform: none;
+  }
+  .teardown__act { top: auto; bottom: 0; transform: none; }
+  .teardown__leaders { display: none; }
+  .teardown__callout { padding: 0; border: 0; font-size: .78rem; }
+  .teardown__callout::before,
+  .teardown__callout::after { content: none; }
+  .teardown__title { font-size: clamp(2rem, 9vw, 2.6rem); }
+  .teardown__dom-stage { justify-content: center; align-items: flex-start; padding: 7svh 20px 42svh; }
+  /* 24svh keeps the phone inside the 51svh between the stage's top and bottom padding. */
+  .teardown__dom-stage .phone-frame { width: min(230px, 56vw, 24svh); }
+  .teardown__code { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teardown--static { height: auto; }
+  .teardown--static .teardown__stage { position: relative; height: auto; overflow: visible; background: none; }
+  .teardown--static .teardown__rail { position: relative; inset: auto; width: auto; transform: none; padding: 0 var(--td-gutter); }
+  .teardown--static .teardown__act::before { content: none; }
+  .teardown--static .teardown__act {
+    position: relative;
+    top: auto;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 48px 0;
+  }
+  .teardown--static .teardown__static-phone { width: min(260px, 60vw); }
+  /* The act tracking writes --typed inline, which beats any rule here, so the static layout clears clip-path. */
+  .teardown--static .teardown__readout li { clip-path: none; }
+  /* Overrides the phone rule that hides the excerpt. The block must not scroll, since axe then requires it to take focus. */
+  .teardown--static .teardown__code {
+    display: block;
+    max-width: 100%;
+    max-height: none;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .teardown--static .teardown__cards,
+  .teardown--static .teardown__leaders { display: none; }
+}

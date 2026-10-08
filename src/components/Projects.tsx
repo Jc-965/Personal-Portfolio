@@ -10,6 +10,8 @@ import {
 import MediaGallery from './MediaGallery'
 import useCardTilt from '../hooks/useCardTilt'
 import portfolio from '../content/portfolio.json'
+import Teardown from './teardown/Teardown'
+import { TEARDOWNS } from '../content/teardown'
 
 interface ProjectImage {
   src: string
@@ -211,9 +213,11 @@ export default function Projects() {
       </m.header>
 
       <div className="projects__scenes">
-        {projects.map((p, i) => (
-          <ProjectScene key={p.id} project={p} index={i} />
-        ))}
+        {projects.map((p, i) => {
+          const story = TEARDOWNS[p.id]
+          // Index stays the project's position so the remaining scenes keep their left and right sides.
+          return story ? <Teardown key={p.id} story={story} /> : <ProjectScene key={p.id} project={p} index={i} />
+        })}
       </div>
     </>
   )

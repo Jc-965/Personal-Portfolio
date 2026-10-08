@@ -239,8 +239,9 @@
     gap: 12px;
   }
 
-  .projects,
-  .projects__scenes,
+  /* Clip each gallery scene, never .projects or .projects__scenes. Both are
+     ancestors of the teardown's sticky stage, and overflow there stops it pinning. */
+  .proj,
   .proj__visual,
   .gallery,
   .gallery__deck {

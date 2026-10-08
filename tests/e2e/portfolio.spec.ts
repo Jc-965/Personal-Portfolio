@@ -7,6 +7,19 @@ const expectNoSeriousAxeViolations = async (page: Page) => {
   expect(blocking, blocking.map(({ id, help }) => `${id}: ${help}`).join('\n')).toEqual([])
 }
 
+/**
+ * Puts the top of the ParkiWell track at the top of the viewport. The chapter
+ * heading is in the arrival act, which is visible only at the start of the
+ * track, and scrollIntoViewIfNeeded centres the tall #projects section deep
+ * inside the track.
+ */
+const showTeardownStart = async (page: Page) => {
+  await page.locator('#projects').scrollIntoViewIfNeeded()
+  const chapter = page.locator('#project-parkiwell')
+  await chapter.evaluate((el) => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'instant' }))
+  return chapter
+}
+
 test('portfolio renders immediately with recruiter contact paths', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('h1.hero__name')).toContainText('Jesse Chen')
@@ -42,16 +55,17 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
 
   // The hero's tree-shaken renderer is expected; the full Three.js engine and
   // below-the-fold feature chunks must remain gated behind user intent.
-  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation/.test(url))).toBe(false)
+  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|\/ParkiWell\/hd\//.test(url))).toBe(false)
 })
 
 test('projects retain their gallery presentation without case-study links', async ({ page }) => {
   await page.goto('/')
-  await page.locator('#projects').scrollIntoViewIfNeeded()
+  const chapter = await showTeardownStart(page)
   const projects = page.locator('#projects')
-  await expect(projects.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
+  await expect(chapter.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
   await expect(projects.locator('a[href^="/projects/"]')).toHaveCount(0)
   const gallery = projects.locator('.gallery').first()
+  await gallery.scrollIntoViewIfNeeded()
   await gallery.getByRole('button', { name: 'Next screenshot' }).click()
   await expect(gallery.locator('.gallery__count')).toContainText('02 /')
   await gallery.getByRole('button', { name: 'Previous screenshot' }).click()
@@ -104,4 +118,67 @@ test('a missing WebGL context leaves a readable, usable landing page', async ({ 
   await expect(page.locator('.hero')).toHaveClass(/hero--fallback/)
   await expect(page.locator('.hero__claim')).toBeInViewport()
   await expect(page.locator('.hero__copy')).not.toHaveAttribute('inert')
+})
+
+test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page }) => {
+  await page.goto('/')
+  const chapter = await showTeardownStart(page)
+  await expect(chapter.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
+  for (const text of [
+    "A calmer way to manage Parkinson's care.",
+    '48 pt tap targets',
+    'Review your symptoms',
+    'Offline sync: an encrypted journal, replayed exactly once',
+    '1,000,000 fault-injected writes',
+    'Motion coach, in development',
+    'Coming to iPhone and Android.',
+  ]) await expect(chapter).toContainText(text)
+  await expect(chapter.getByRole('link', { name: /parkiwell\.com/ })).toHaveAttribute('href', 'https://parkiwell.com')
+})
+
+test('focus on a teardown link scrolls the chapter to its close act', async ({ page }) => {
+  await page.goto('/')
+  const chapter = await showTeardownStart(page)
+  const link = chapter.getByRole('link', { name: /parkiwell\.com/ })
+  await link.focus()
+  await expect(chapter).toHaveAttribute('data-act', 'close')
+  await expect(link).toBeInViewport()
+})
+
+test('without WebGL2 the teardown keeps its pin and shows the DOM stage', async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (type: string, ...args: unknown[]) {
+      if (type === 'webgl2') return null
+      return Reflect.apply(getContext, this, [type, ...args])
+    } as typeof getContext
+  })
+  await page.goto('/')
+  await page.locator('#projects').scrollIntoViewIfNeeded()
+  const chapter = page.locator('#project-parkiwell')
+  await chapter.scrollIntoViewIfNeeded()
+  await expect(chapter).toHaveClass(/is-dom/)
+  await expect(chapter.locator('.teardown__dom-stage .phone-frame.is-active img')).toBeVisible()
+  expect(await chapter.locator('.teardown__stage').evaluate((el) => getComputedStyle(el).position)).toBe('sticky')
+})
+
+test('reduced motion stacks the teardown with every act reachable', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.locator('#projects').scrollIntoViewIfNeeded()
+  const chapter = page.locator('#project-parkiwell')
+  await expect(chapter).toHaveClass(/teardown--static/)
+  expect(await chapter.locator('.teardown__stage').evaluate((el) => getComputedStyle(el).position)).not.toBe('sticky')
+  const close = chapter.getByText('Coming to iPhone and Android.')
+  await close.scrollIntoViewIfNeeded()
+  await expect(close).toBeInViewport()
+})
+
+test('the teardown chapter passes serious accessibility checks', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('#projects').scrollIntoViewIfNeeded()
+  await page.locator('#project-parkiwell').scrollIntoViewIfNeeded()
+  const results = await new AxeBuilder({ page }).include('#project-parkiwell').analyze()
+  const blocking = results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')
+  expect(blocking, blocking.map(({ id, help }) => `${id}: ${help}`).join('\n')).toEqual([])
 })
