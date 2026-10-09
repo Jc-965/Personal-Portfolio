@@ -7,7 +7,7 @@
    stage's edges print on the page while it scrolls in and out. */
 
 .teardown {
-  --teardown-travel: 10.5;
+  --teardown-travel: 13.7;
   --td-amber: #eab76a;
   /* Warm white for copy over the glyph rooms. */
   --td-ink: #f3efe8;
@@ -188,30 +188,38 @@
    holds the heading's box, so the print does not shift the layout. */
 .teardown__unprinted { visibility: hidden; }
 
+/* The chapter's copy is set in the mono face the hero's printed copy and the
+   callouts use. A mono glyph is 0.6em wide, so the sizes here run smaller
+   than a display face would. The title's nine characters must fit the 500px
+   rail at every width, and a line wraps at about 36 characters on a 390px
+   phone. */
 .teardown__title {
   margin: 0 0 20px;
-  font-family: var(--font-display);
-  font-size: clamp(3rem, 6.4vw, 6rem);
+  font-family: var(--font-mono);
+  font-size: clamp(2.6rem, 5.4vw, 5rem);
   font-weight: 600;
-  line-height: .98;
-  letter-spacing: -.02em;
+  line-height: 1;
+  letter-spacing: -.03em;
   color: var(--td-ink);
   text-shadow: var(--td-shadow);
 }
 
 .teardown__line {
-  margin: 0 0 10px;
-  font-size: clamp(1.15rem, 1.6vw, 1.45rem);
-  line-height: 1.5;
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 1.3vw, 1.18rem);
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0;
   color: var(--td-ink);
   text-shadow: var(--td-shadow);
   text-wrap: pretty;
 }
 
 .teardown__lede {
-  margin-bottom: 14px;
-  font-size: clamp(1.3rem, 2vw, 1.8rem);
-  line-height: 1.35;
+  margin-bottom: 16px;
+  font-size: clamp(1.12rem, 1.55vw, 1.38rem);
+  line-height: 1.55;
 }
 
 .teardown__eyebrow {
@@ -377,9 +385,9 @@
 
 /* Short landscape screens: the tallest act must fit the column at rest. */
 @media (min-width: 768px) and (max-height: 560px) {
-  .teardown__title { margin-bottom: 12px; font-size: clamp(2.2rem, 5vw, 3rem); }
-  .teardown__line { margin-bottom: 6px; font-size: 1rem; }
-  .teardown__lede { font-size: 1.15rem; }
+  .teardown__title { margin-bottom: 12px; font-size: clamp(2rem, 4.4vw, 2.75rem); }
+  .teardown__line { margin-bottom: 6px; font-size: .92rem; line-height: 1.55; }
+  .teardown__lede { font-size: 1.05rem; }
   .teardown__callouts,
   .teardown__readout { margin-top: 12px; gap: 8px; }
   .teardown__callout { padding: 6px 10px; font-size: .78rem; }
@@ -417,9 +425,9 @@
   }
   .teardown__act { align-self: end; }
   .teardown__leaders { display: none; }
-  .teardown__title { margin-bottom: 10px; font-size: clamp(2.1rem, 9.5vw, 2.75rem); }
-  .teardown__line { margin-bottom: 6px; font-size: 1rem; line-height: 1.45; }
-  .teardown__lede { margin-bottom: 8px; font-size: 1.12rem; line-height: 1.35; }
+  .teardown__title { margin-bottom: 10px; font-size: clamp(2rem, 8.5vw, 2.5rem); }
+  .teardown__line { margin-bottom: 6px; font-size: .92rem; line-height: 1.5; }
+  .teardown__lede { margin-bottom: 8px; font-size: 1.02rem; line-height: 1.4; }
   .teardown__eyebrow { margin-bottom: 8px; }
   .teardown__callouts,
   .teardown__readout { margin-top: 12px; gap: 6px; }
@@ -438,9 +446,9 @@
 }
 
 @media (max-width: 767px) and (max-height: 700px) {
-  .teardown__title { font-size: 2rem; }
-  .teardown__line { font-size: .94rem; }
-  .teardown__lede { font-size: 1.04rem; }
+  .teardown__title { font-size: 1.9rem; }
+  .teardown__line { font-size: .88rem; }
+  .teardown__lede { font-size: .96rem; }
   .teardown__callout { padding: 5px 9px; font-size: .72rem; }
 }
 

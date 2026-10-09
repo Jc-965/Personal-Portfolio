@@ -20,7 +20,7 @@ test('acts follow the teardown order and the peak has the largest span', () => {
   const glass = PARKIWELL.acts.find((a) => a.key === 'glass').span
   assert.ok(PARKIWELL.acts.every((a) => a.key === 'glass' || a.span < glass))
   // The pinned travel matches the --teardown-travel fallback in teardown.css, and the e2e geometry is sized to it.
-  assert.ok(Math.abs(totalSpan(PARKIWELL.acts) - 10.5) < 1e-9, `pinned travel ${totalSpan(PARKIWELL.acts)}`)
+  assert.ok(Math.abs(totalSpan(PARKIWELL.acts) - 13.7) < 1e-9, `pinned travel ${totalSpan(PARKIWELL.acts)}`)
   // The quiet act must outlast two wheel notches (about 0.67 viewport-heights under Lenis) to read as a pause.
   assert.ok(PARKIWELL.acts.find((a) => a.key === 'quiet').span >= 0.7)
 })
@@ -30,10 +30,27 @@ test('labels have at most eight words', () => {
   for (const card of PARKIWELL.cards) assert.ok(words(card.label) <= 8, card.label)
 })
 
+test('callouts on one surface run top to bottom, so leader lines never cross', () => {
+  for (const act of PARKIWELL.acts) {
+    const byPlane = new Map()
+    for (const c of act.callouts) {
+      const last = byPlane.get(c.anchor.plane)
+      if (last !== undefined) assert.ok(c.anchor.v < last, `${act.key}: ${c.text} is not below the callout above it`)
+      byPlane.set(c.anchor.plane, c.anchor.v)
+    }
+  }
+})
+
 test('copy has no dashes used as punctuation and no unsupported claims', () => {
   for (const text of allCopy()) {
     assert.ok(!/[\u2013\u2014]/.test(text), `dash in: ${text}`)
     assert.ok(!/<\s*25\s*ms|camera-to-feedback|process kills|downloads|users|rating|stars/i.test(text), `unsupported claim in: ${text}`)
+  }
+})
+
+test('copy never restates the welcome screen or mentions the research', () => {
+  for (const text of allCopy()) {
+    assert.ok(!/calmer way|SoftCom|research|paper|accuracy/i.test(text), `restated or research copy: ${text}`)
   }
 })
 
