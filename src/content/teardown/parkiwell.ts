@@ -21,7 +21,9 @@ export const PARKIWELL: TeardownStory = {
       key: 'arrival',
       span: 1.3,
       backdrop: 0,
-      lines: ['ParkiWell', "Built for people living with Parkinson's, and the people who help them.", 'Founder and sole engineer, since 2023.'],
+      // The lede's second clause is the README's own phrase ("designed for real hands and real days"). The app has
+      // no caregiver features, so it must not claim to be built for anyone but the person living with Parkinson's.
+      lines: ['ParkiWell', "Built for people living with Parkinson's, for real hands and real days.", 'Founder and sole engineer, since 2023.'],
       callouts: [],
     },
     {
@@ -87,7 +89,7 @@ export const PARKIWELL: TeardownStory = {
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
-    { key: 'home', src: '/ParkiWell/hd/home.webp', alt: 'ParkiWell Home greeting Winding down, Janet, with symptom and medication counts, a health patterns insight, and a symptoms trend chart', ...SCREEN },
+    { key: 'home', src: '/ParkiWell/hd/home.webp', alt: "ParkiWell Home greeting Hope you're well, Janet, with 39 symptom logs, 3 medications, a health patterns insight, and a symptoms trend chart across the year", ...SCREEN },
     { key: 'manage', src: '/ParkiWell/hd/manage.webp', alt: "ParkiWell Manage with symptom logs and today's medications", ...SCREEN },
     { key: 'recovery', src: '/ParkiWell/hd/recovery.webp', alt: 'ParkiWell Recovery with the weekly practice plan and the next session', ...SCREEN },
     { key: 'community', src: '/ParkiWell/hd/community.webp', alt: 'ParkiWell Community on the Resources tab', ...SCREEN },

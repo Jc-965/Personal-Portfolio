@@ -12,10 +12,13 @@
  * nothing and writes that colour and alpha, which is what a context created
  * with premultipliedAlpha expects, so glyph edges carry no dark fringe. Every
  * layer keeps colour at or below alpha, so no pixel adds light to the page.
- * The room, the shadow pool, and the copy darkening fade out over the top
- * and bottom SEAM of the stage, so the sticky stage's edges never print on
- * the page while it scrolls in or out. The product and the coach do not fade
- * there, since the rig keeps them inside the chapter.
+ * The room prints in cell by cell from the product's place at the chapter's
+ * start and dissolves back into it at the end (`uReveal`), its glyph rim is
+ * dithered into the page, and the room, the shadow pool, and the copy
+ * darkening fade out over the top and bottom SEAM of the stage, so the
+ * sticky stage's edges never print on the page while it scrolls in or out.
+ * The product and the coach do not fade there, since the rig keeps them
+ * inside the chapter.
  *
  * `uProduct` is the product render target: linear, premultiplied by
  * coverage, the same size as the canvas, and mipmapped. Room textures are
@@ -51,12 +54,16 @@ const COPY_DARK = 0.6
 /**
  * Coverage of the softened photograph under the room's glyphs at full room
  * gain. The glyphs sit on top at their own coverage, so the room reads as a
- * picture at a glance and as characters up close. The photographs are dim,
- * and at 0.35 the hands room was a few amber blotches: 0.5 is where the
- * hands and the mug are identifiable at a glance, and above about 0.65 the
- * photograph outweighs the glyphs and the room stops reading as glyph work.
+ * picture at a glance and as characters up close. The photographs are dim
+ * and their subjects sit in shadow (the hands and the mug are linear 0.03 to
+ * 0.1), and a coverage layer over the near-black page multiplies them down,
+ * so the photograph takes a shadow lift of PHOTO_GAMMA before the glyphs'
+ * lift. At 0.35 the hands room was a few amber blotches. At 0.65 the hands
+ * and the mug are identifiable at a glance, and the glyphs still read as
+ * strokes on the picture. Above about 0.8 the room outshines the product.
  */
-const PHOTO_GAIN = 0.5
+const PHOTO_GAIN = 0.65
+const PHOTO_GAMMA = 0.7
 /** Mip levels past the glyph cell at which the photograph is sampled, so it carries the room's shapes and none of its grain. */
 const PHOTO_SOFTEN = 1.5
 
@@ -74,6 +81,8 @@ uniform vec4 uFocus;
 uniform float uBackMix;
 uniform float uBackGain;
 uniform float uGlyphOnly;
+uniform float uReveal;
+uniform vec2 uRevealAt;
 uniform vec2 uDrift;
 uniform float uSurge;
 uniform vec2 uPointer;
@@ -204,17 +213,18 @@ vec3 ink(vec3 tone) {
 }
 
 // How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the copy column's right
-// edge x from the left, the copy block's top y from the top, 1 when narrow, and the strength. The wide ramp ends
-// 180 CSS px past the column, so the room's subject in the gap between the copy and the phone keeps most of its
-// glyphs. The wide floor of .16 holds the evening table's lit band under the close act's chips, which sit at the
-// band's height with no scrim of their own. The narrow floor of .45 keeps the room legible, since teardown.css
-// already draws a bottom gradient under the phone layout's copy.
+// edge x from the left, the copy block's top y from the top, 1 when narrow, and the strength. The wide ramp runs
+// from 100 CSS px inside the column to 100 px past it, so the room's subject in the gap between the copy and the
+// phone (the focus points in the story put it there) keeps its photograph and its glyphs: a ramp that reached
+// 180 px past the column shaded the hands room's mug to 0.6. The wide floor of .16 holds the evening table's lit
+// band under the close act's chips, which sit at the band's height with no scrim of their own. The narrow floor
+// of .45 keeps the room legible, since teardown.css already draws a bottom gradient under the phone layout's copy.
 float copyShade() {
   if (uCopyMask.w <= 0.0) return 1.0;
   float px = uPixelRatio;
   float lit = uCopyMask.z > .5
     ? mix(1.0, .45, smoothstep(uCopyMask.y - 60.0 * px, uCopyMask.y + 24.0 * px, uRes.y - gl_FragCoord.y))
-    : mix(.16, 1.0, smoothstep(uCopyMask.x - 80.0 * px, uCopyMask.x + 180.0 * px, gl_FragCoord.x));
+    : mix(.16, 1.0, smoothstep(uCopyMask.x - 100.0 * px, uCopyMask.x + 100.0 * px, gl_FragCoord.x));
   return mix(1.0, lit, min(uCopyMask.w, 1.0));
 }
 
@@ -235,7 +245,7 @@ void main() {
   float roomCover = 0.0;
   vec3 photo = vec3(0.0);
   float photoCover = 0.0;
-  if (uBackGain > .002) {
+  if (uBackGain > .002 && uReveal > .002) {
     // Cells cross from room A to room B in a diagonal order from the top left, loosened by a sixth of hash, each
     // over 60% of the dissolve. The band is wide so the front is a soft slope across the frame, never a hard wipe,
     // and the small hash share keeps the front from sparkling. The photograph crosses on the same cell order.
@@ -274,16 +284,33 @@ void main() {
     p = mix(p, p * p * (3.0 - 2.0 * p), .15);
     roomInk = p * p;
     roomCover = alpha * body * uBackGain;
-    // The photograph takes the glyphs' lift, so the two share one hue and the strokes read as texture on the
-    // picture, and its own deep shadows stay clear, as the glyphs' do, so the stage shows through both.
+    // The photograph takes the shadow lift and then the glyphs' lift, so the two share one hue and the strokes
+    // read as texture on the picture, and its own deep shadows stay clear, as the glyphs' do, so the stage shows
+    // through both.
     photoCover = ${glslFloat(PHOTO_GAIN)} * smoothstep(.03, .14, lightness(photo)) * uBackGain * (1.0 - uGlyphOnly);
-    photo = ink(photo);
+    photo = ink(pow(photo, vec3(${glslFloat(PHOTO_GAMMA)})));
   }
   float seam = smoothstep(0.0, ${glslFloat(SEAM)}, s.y) * smoothstep(0.0, ${glslFloat(SEAM)}, 1.0 - s.y);
   float shade = copyShade();
-  float vignette = 1.0 - .25 * smoothstep(.3, 1.0, length((s - .5) * 2.0) * .7071);
-  roomCover *= vignette * shade * seam;
-  photoCover *= vignette * shade * seam;
+  float r = length((s - .5) * 2.0) * .7071;
+  // The room's rim. The glyphs thin toward the frame's edges and over the seams, and the photograph thins faster,
+  // to about half at the middle of each side, so the page's grid returns through the room's periphery and the
+  // picture holds around its subject, which the focus point keeps near the middle. The glyph rim is dithered cell
+  // by cell: each cell drops out at its own point along the fall, so the rim is a scatter of characters over the
+  // page, the way the room's own deep shadows already end, and never a soft gradient edge.
+  float fall = (1.0 - .4 * smoothstep(.3, 1.0, r)) * seam;
+  float taper = 1.0 - .55 * smoothstep(.3, 1.0, r);
+  float rim = smoothstep(0.0, .5, fall - hash12(cell + 17.9) * .5);
+  // The room prints in from the product's place at the chapter's start and dissolves back into it at the end,
+  // each cell over half of the reveal in order of its distance from the product, loosened by a fifth of hash,
+  // so the front is a wide soft ring growing out of the page's grid around the forming phone.
+  float printed = uReveal;
+  if (uReveal < 1.0) {
+    float order = clamp(distance(gl_FragCoord.xy, uRevealAt) / (.8 * length(uRes)), 0.0, 1.0) * .8 + hash12(cell * 1.91 + 5.3) * .2;
+    printed = staggered(order, .5, uReveal);
+  }
+  roomCover *= rim * shade * printed;
+  photoCover *= fall * taper * shade * printed;
 
   vec4 product = texelFetch(uProduct, ivec2(gl_FragCoord.xy), 0);
   if (uDecode < 1.0) {
@@ -324,11 +351,12 @@ void main() {
   // Back to front: the shadow pool darkens the page, the room's photograph and then its glyphs sit on it, the
   // copy mask shades them, the glow lights the page around the product, and the product covers all of it. The
   // glow's alpha is its brightest channel, which keeps the pixel a valid premultiplied colour and costs nothing
-  // over the near-black page.
+  // over the near-black page. The copy darkening arrives and leaves with the room, so the pinned stage draws
+  // nothing at all until the room starts to print.
   vec4 color = vec4(0.0, 0.0, 0.0, .6 * shadow * seam);
   color = over(color, vec4(photo * photoCover, photoCover));
   color = over(color, vec4(roomInk * roomCover, roomCover));
-  color = over(color, vec4(0.0, 0.0, 0.0, (1.0 - shade) * ${glslFloat(COPY_DARK)} * seam));
+  color = over(color, vec4(0.0, 0.0, 0.0, (1.0 - shade) * ${glslFloat(COPY_DARK)} * seam * uReveal));
   color = over(color, vec4(glow, max(glow.r, max(glow.g, glow.b))));
   color = over(color, product);
 
@@ -391,10 +419,13 @@ export interface Composite {
  * room A's focus then room B's, x from the left and y from the bottom, 0 to 1.
  * `uBackGain` scales the room's coverage, 1 for fully opaque glyphs.
  * `uGlyphOnly` fades the photograph under the glyphs, 0 for the full room
- * and 1 for a glyph-only field. `uDrift` holds room A's and room B's pan
- * progress, each 0 to 1, from the rig's `roomDrift`. `uSurge` is the
- * scroll's eased speed, -1 to 1, and drags the room ahead of the scroll
- * while the visitor moves.
+ * and 1 for a glyph-only field. `uReveal` is the room's print-in, 0 for no
+ * room and 1 for the whole room, from the rig's `backdrop.reveal`, and
+ * `uRevealAt` is the device pixel the print grows out from and dissolves
+ * back into, the product's projected centre. `uDrift` holds room A's and
+ * room B's pan progress, each 0 to 1, from the rig's `roomDrift`. `uSurge`
+ * is the scroll's eased speed, -1 to 1, and drags the room ahead of the
+ * scroll while the visitor moves.
  * `uCopyMask` is the copy column's right edge x from the left, the copy
  * block's top y from the top, 1 when narrow else 0, and a strength from 0 to
  * 1. At strength 0 the room is untouched. Wide darkens the room left of the
@@ -416,6 +447,8 @@ export function createComposite(): Composite {
       uBackMix: { value: 0 },
       uBackGain: { value: 0 },
       uGlyphOnly: { value: 0 },
+      uReveal: { value: 0 },
+      uRevealAt: { value: new THREE.Vector2() },
       uDrift: { value: new THREE.Vector2() },
       uSurge: { value: 0 },
       uPointer: { value: new THREE.Vector2() },

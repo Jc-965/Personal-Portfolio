@@ -150,14 +150,19 @@ test('backdrop state is continuous across every act boundary', () => {
   }
 })
 
-test('the room fades up from the page over the first 7% of the chapter and back into it over the last 7%', () => {
+test('the room prints in from the page over the first 8.5% of the chapter and dissolves back into it with the close scatter', () => {
   // The stage pins and unpins with no room drawn, so the page background runs through it at both edges.
-  assert.equal(at(0).backdrop.gain, 0)
-  assert.equal(at(1).backdrop.gain, 0)
-  assert.ok(near(at(0.035).backdrop.gain, 0.45, 1e-6), `gain at the opening fade's midpoint: ${at(0.035).backdrop.gain}`)
-  assert.ok(near(at(0.07).backdrop.gain, 0.9, 1e-6), `gain at the end of the opening fade: ${at(0.07).backdrop.gain}`)
-  assert.ok(near(at(0.93).backdrop.gain, 0.9, 1e-6), `gain at the start of the closing fade: ${at(0.93).backdrop.gain}`)
-  assert.ok(near(at(0.965).backdrop.gain, 0.45, 1e-6), `gain at the closing fade's midpoint: ${at(0.965).backdrop.gain}`)
+  assert.equal(at(0).backdrop.reveal, 0)
+  assert.equal(at(1).backdrop.reveal, 0)
+  assert.ok(near(at(0.0425).backdrop.reveal, 0.5, 1e-6), `reveal at the print's midpoint: ${at(0.0425).backdrop.reveal}`)
+  assert.ok(near(at(0.085).backdrop.reveal, 1, 1e-6), `reveal at the end of the print: ${at(0.085).backdrop.reveal}`)
+  assert.ok(near(at(0.93).backdrop.reveal, 1, 1e-6), `reveal at the start of the dissolve: ${at(0.93).backdrop.reveal}`)
+  assert.ok(near(at(0.961).backdrop.reveal, 0.5, 1e-6), `reveal at the dissolve's midpoint: ${at(0.961).backdrop.reveal}`)
+  assert.equal(at(0.992).backdrop.reveal, 0)
+  // The dissolve ends with the phone's scatter, so no room outlives the product, and the room's gain stays the
+  // act's own, so the print and the dissolve are the chapter's only edge fades.
+  assert.equal(at(0.992).gather, 0)
+  assert.ok(near(at(0).backdrop.gain, 0.9, 1e-6), `gain at the pin: ${at(0).backdrop.gain}`)
 })
 
 test('each room pans over its own time on screen, at a bounded rate, and the pose carries both slots', () => {
@@ -261,23 +266,25 @@ test('the coach screen is solid and unghosted before the figure starts to draw',
 })
 
 test('each narrow deck card is whole in frame through the middle of its window and never with two neighbours', () => {
-  // The day camera shows 0.54 world units of half-width at a card's depth at the start of the act and 0.65 by its
-  // middle, so a card of half-width 0.335 is whole in frame while |x| is under 0.2 to 0.31, which the 0.95 reach
-  // holds from about 0.3 to 0.7 of the card's window.
+  // The day camera shows 0.54 to 0.65 world units of half-width at a card's depth, so a card of half-width 0.335
+  // is whole in frame while |x| is under about 0.21, which the 0.85 reach holds from 0.3 to 0.72 of the card's
+  // window. The fades span the same 0.3 at each end, so a card is opaque only while it is whole.
   const aspect = 0.46
   for (let i = 0; i < 4; i++) {
     const s = 0.04 + i * 0.2
-    for (const wnd of [0.35, 0.5, 0.65]) {
+    for (const wnd of [0.3, 0.5, 0.7]) {
       const pose = at(inAct('day', s + wnd * 0.36), true, aspect)
       const card = pose.cards[i]
-      assert.equal(card.opacity, 1, `card ${i} is opaque at ${wnd} of its window`)
+      assert.ok(card.opacity > 0.999, `card ${i} is opaque at ${wnd} of its window: ${card.opacity}`)
       for (const p of corners(pose, aspect, planeRect(card))) {
         assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `card ${i} corner at ${wnd} of its window: ${p.x} ${p.y}`)
       }
     }
     // A card enters and leaves through its fades, so a clipped card is translucent.
-    assert.ok(at(inAct('day', s + 0.05 * 0.36), true, aspect).cards[i].opacity < 0.2, `card ${i} fades in`)
-    assert.ok(at(inAct('day', s + 0.95 * 0.36), true, aspect).cards[i].opacity < 0.2, `card ${i} fades out`)
+    for (const wnd of [0.1, 0.2, 0.8, 0.9]) {
+      const card = at(inAct('day', s + wnd * 0.36), true, aspect).cards[i]
+      assert.ok(card.opacity > 0 && card.opacity < 0.9, `card ${i} is translucent at ${wnd} of its window: ${card.opacity}`)
+    }
   }
   for (let k = 0; k <= 100; k++) {
     const shown = at(inAct('day', k / 100), true, aspect).cards.filter((card) => card.opacity > 0).length

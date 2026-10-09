@@ -134,13 +134,16 @@ const CARD_SLIDE = 0.5
 const BACKDROP_GAIN = 0.9
 const HELD_GAIN = 0.45
 /**
- * Share of chapter progress over which the room's gain rises from 0 at the
- * start and falls back to 0 at the end, so the glyph room emerges from the
- * page background and dissolves into it. The product's decode brackets it:
- * the phone forms from glyphs through the arrival and is scattered by 0.9
- * of the close, and the close act alone spans about 0.086 of progress.
+ * Chapter progress over which the room prints in from the page at the start
+ * and dissolves back into it at the end, so the stage pins and unpins with
+ * nothing drawn but the copy. The composite prints and dissolves the room
+ * cell by cell around the product, so both must bracket the product's own
+ * glyph phases: the phone forms from glyphs over the arrival act (progress
+ * 0 to 0.095) and the room has printed by 0.085, and the dissolve ends at
+ * 0.992 with the phone's scatter, which stops short of the unpin to cover
+ * the glide's lag (END_GLIDE_TIME in TeardownCanvas.tsx).
  */
-const ROOM_EDGE_FADE = 0.07
+const ROOM_REVEAL = { inEnd: 0.085, outStart: 0.93, outEnd: 0.992 } as const
 /**
  * Bounds, in chapter progress, on the span over which a room pans its full
  * distance. A room that is on screen for less than the minimum (about 2.6
@@ -197,9 +200,10 @@ export interface Pose {
   cards: PlanePose[]
   /**
    * `gain` is 1 at full room brightness. `glyphOnly` is 1 where the room is held as a glyph-only field, with the
-   * photograph under the glyphs faded out. `driftA` and `driftB` are each room's own pan progress from `roomDrift`.
+   * photograph under the glyphs faded out. `reveal` is 0 while no room is drawn at the chapter's edges and 1 once
+   * the room has printed in. `driftA` and `driftB` are each room's own pan progress from `roomDrift`.
    */
-  backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; driftA: number; driftB: number }
+  backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; reveal: number; driftA: number; driftB: number }
   coach: { amount: number; frame: number; pos: Vec3; scale: number }
 }
 
@@ -379,16 +383,17 @@ export function poseAt(input: RigInput): Pose {
   const cardKeys: ScreenKey[] = ['home', 'manage', 'recovery', 'community']
   const cards = cardKeys.map((key, i) => {
     if (narrow) {
-      // The deck: each card crosses the frame in front of the receded phone, lingering through the middle. At
-      // the day camera's 0.61 world units of half-width at the card's depth, a card is whole in frame while
-      // |x| < 0.28, which the 0.95 reach holds for about the middle half of its window, and it enters and leaves
-      // through the fades, so a clipped card is always translucent. Windows are 0.36 of the act at a 0.2 step,
-      // so a card is never on screen with more than its one neighbour.
+      // The deck: each card crosses the frame in front of the receded phone, lingering through the middle. The
+      // day camera shows 0.54 to 0.65 world units of half-width at the card's depth (it pushes in over the second
+      // half of the act), so a card of half-width 0.335 is whole in frame while |x| is under about 0.21, which the
+      // 0.85 reach holds from 0.3 to 0.72 of the card's window. The fades span the same 0.3 at each end, so a card
+      // is opaque only while it is whole and translucent wherever the frame clips it. Windows are 0.36 of the act
+      // at a 0.2 step, so a card is never on screen with more than its one neighbour.
       const s = 0.04 + i * 0.2
       const wnd = clamp01((day - s) / 0.36)
-      const x = 0.95 - 1.9 * dwell(wnd)
+      const x = 0.85 - 1.7 * dwell(wnd)
       const develop = ramp(wnd, 0.02, 0.34)
-      const opacity = ramp(wnd, 0, 0.2) * (1 - ramp(wnd, 0.8, 1)) * (1 - rise(quiet, 0.5))
+      const opacity = ramp(wnd, 0, 0.3) * (1 - ramp(wnd, 0.7, 1)) * (1 - rise(quiet, 0.5))
       return plane([x, sinkY + wave(0.7 * (i + 1)), -0.3], [1, 0, 0], [0, 1, 0], PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
     }
     // Each card peels off the front of the screen, matching the phone's turn and size there, and lands in its slot
@@ -470,11 +475,12 @@ export function poseAt(input: RigInput): Pose {
     screen,
     code,
     cards,
-    // The room fades up from the page over the chapter's first ROOM_EDGE_FADE and back into it over the last, so
-    // the stage pins and unpins with nothing drawn but the copy, and the chapter ends on the copy against the page.
+    // The room prints in from the page over ROOM_REVEAL's opening span and dissolves back into it over its closing
+    // span, so the stage pins and unpins with nothing drawn but the copy, and the chapter ends on the copy against
+    // the page.
     backdrop: {
       ...bd,
-      gain: bd.gain * ramp(p, 0, ROOM_EDGE_FADE) * (1 - ramp(p, 1 - ROOM_EDGE_FADE, 1)),
+      reveal: ramp(p, 0, ROOM_REVEAL.inEnd) * (1 - ramp(p, ROOM_REVEAL.outStart, ROOM_REVEAL.outEnd)),
       driftA: roomDrift(windows, input.backdrops, bd.a, p),
       driftB: roomDrift(windows, input.backdrops, bd.b, p),
     },

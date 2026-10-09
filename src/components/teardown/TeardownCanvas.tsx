@@ -352,6 +352,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     cu.uDrift.value.set(roomA >= 0 ? driftA : driftB, roomB >= 0 ? driftB : driftA)
     cu.uSurge.value = interaction.surge ?? 0
     cu.uPointer.value.set(interaction.tiltX / TILT_REACH, -interaction.tiltY / TILT_REACH)
+    // The room prints in from, and dissolves back into, the product's place, in device px from the bottom left.
+    const at = projectPoint(pose, pose.phone.pos, aspect)
+    cu.uReveal.value = pose.backdrop.reveal
+    cu.uRevealAt.value.set(at ? at.x * drawingBuffer.x : drawingBuffer.x / 2, at ? (1 - at.y) * drawingBuffer.y : drawingBuffer.y / 2)
     cu.uDecode.value = pose.decode
     cu.uGather.value = pose.gather
     cu.uCoach.value = pose.coach.amount

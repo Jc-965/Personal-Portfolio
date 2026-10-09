@@ -125,7 +125,7 @@ test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page })
   const chapter = await showTeardownStart(page)
   await expect(chapter.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
   for (const text of [
-    "Built for people living with Parkinson's, and the people who help them.",
+    "Built for people living with Parkinson's, for real hands and real days.",
     '48 pt tap targets',
     'Review your symptoms',
     'Offline sync: an encrypted journal, applied exactly once',
