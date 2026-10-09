@@ -5,9 +5,10 @@ const FONT = '"JetBrains Mono", "IBM Plex Mono", monospace'
 /**
  * Draws the code excerpt for the code layer: amber monospace on near-black, a
  * dim path header, comments dimmer than code. The canvas matches the code
- * layer's aspect so the texture is never stretched.
+ * layer's aspect so the texture is never stretched. At the default 1536 px
+ * width the text stays sharp when the proof act fills the frame with it.
  */
-export function buildCodeTexture(code: string, source: string, width = 1024): HTMLCanvasElement | null {
+export function buildCodeTexture(code: string, source: string, width = 1536): HTMLCanvasElement | null {
   const height = Math.round((width * CODE.hy) / CODE.hx)
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -19,7 +20,7 @@ export function buildCodeTexture(code: string, source: string, width = 1024): HT
   const lines = code.split('\n')
   const pad = Math.round(width * 0.06)
   const longest = Math.max(...lines.map((line) => line.length), 1)
-  const fontPx = Math.min(26, Math.floor((width - pad * 2) / (longest * 0.6)))
+  const fontPx = Math.min(34, Math.floor((width - pad * 2) / (longest * 0.6)))
   const lineH = Math.round(fontPx * 1.55)
   ctx.textBaseline = 'top'
   ctx.font = `500 ${fontPx}px ${FONT}`

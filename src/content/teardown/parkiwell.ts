@@ -17,28 +17,28 @@ export const PARKIWELL: TeardownStory = {
   acts: [
     {
       key: 'arrival',
-      span: 1.0,
+      span: 1.2,
       backdrop: 0,
       lines: ['ParkiWell', "A calmer way to manage Parkinson's care.", 'Founder and sole engineer, since 2023.'],
       callouts: [],
     },
     {
       key: 'hand',
-      span: 0.9,
+      span: 1.0,
       backdrop: 1,
       lines: ['Designed for hands with a tremor.'],
       callouts: [
-        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.62, v: -0.78 } },
-        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.7, v: -0.3 } },
-        { text: 'Sign-in waits three minutes', anchor: { plane: 'screen', u: -0.66, v: 0.18 } },
-        { text: 'Reps counted at up to 8x slower', anchor: { plane: 'screen', u: -0.6, v: 0.64 } },
+        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.6, v: 0.64 } },
+        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.66, v: 0.18 } },
+        { text: 'Sign-in waits three minutes', anchor: { plane: 'screen', u: -0.7, v: -0.3 } },
+        { text: 'Reps counted at up to 8x slower', anchor: { plane: 'screen', u: -0.62, v: -0.78 } },
       ],
     },
-    { key: 'day', span: 1.4, backdrop: 0, lines: [], callouts: [] },
-    { key: 'quiet', span: 0.4, backdrop: null, lines: [], callouts: [] },
+    { key: 'day', span: 1.8, backdrop: 0, lines: [], callouts: [] },
+    { key: 'quiet', span: 0.5, backdrop: null, lines: [], callouts: [] },
     {
       key: 'glass',
-      span: 2.2,
+      span: 3.0,
       backdrop: null,
       lines: [],
       callouts: [
@@ -50,14 +50,14 @@ export const PARKIWELL: TeardownStory = {
     },
     {
       key: 'proof',
-      span: 0.9,
+      span: 1.1,
       backdrop: null,
       lines: ['1,000,000 fault-injected writes', '0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Works offline. Account optional.'],
       callouts: [],
     },
     {
       key: 'coach',
-      span: 0.8,
+      span: 1.0,
       backdrop: 2,
       lines: [
         'Motion coach, in development',
@@ -67,7 +67,7 @@ export const PARKIWELL: TeardownStory = {
       ],
       callouts: [],
     },
-    { key: 'close', span: 0.8, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
+    { key: 'close', span: 0.9, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
@@ -83,10 +83,10 @@ export const PARKIWELL: TeardownStory = {
     { screen: 'community', label: 'Access support resources' },
   ],
   backdrops: [
-    { src: '/ParkiWell/backdrop/morning.webp' },
-    { src: '/ParkiWell/backdrop/hands.webp' },
-    { src: '/ParkiWell/backdrop/chair.webp' },
-    { src: '/ParkiWell/backdrop/evening.webp' },
+    { src: '/ParkiWell/rooms/morning.webp', focus: [0.51, 0.64] },
+    { src: '/ParkiWell/rooms/hands.webp', focus: [0.48, 0.58] },
+    { src: '/ParkiWell/rooms/chair.webp', focus: [0.63, 0.6] },
+    { src: '/ParkiWell/rooms/evening.webp', focus: [0.4, 0.5] },
   ],
   codeSource: 'test/offline_sync_engine_test.dart',
   code: `test(

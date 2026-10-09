@@ -59,7 +59,8 @@ export interface TeardownStory {
   screens: TeardownScreen[]
   /** The 'day' act's cards in order. Each label has at most eight words. */
   cards: { screen: ScreenKey; label: string }[]
-  backdrops: { src: string }[]
+  /** Full-colour room photographs. `focus` is the subject's centre, x from the left and y from the top, 0 to 1. */
+  backdrops: { src: string; focus: [number, number] }[]
   /** Source excerpt drawn on the code layer. */
   code: string
   codeSource: string

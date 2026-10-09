@@ -2,13 +2,15 @@ import { GLYPH_RAMP } from './world'
 
 /**
  * Draws the glyph ramp into one row of cells, white on transparent, at
- * `scale` times the on-screen cell so the GPU can sample it crisply.
+ * `scale` times the on-screen cell so the GPU can sample it crisply. Cells
+ * follow the ramp's code points, so a glyph outside the BMP still takes one cell.
  */
-export function buildGlyphAtlas(cellW: number, cellH: number, fontPx: number, scale = 3): HTMLCanvasElement | null {
+export function buildGlyphAtlas(cellW: number, cellH: number, fontPx: number, scale = 3, ramp: string = GLYPH_RAMP): HTMLCanvasElement | null {
+  const glyphs = Array.from(ramp)
   const canvas = document.createElement('canvas')
   const w = Math.ceil(cellW * scale)
   const h = Math.ceil(cellH * scale)
-  canvas.width = w * GLYPH_RAMP.length
+  canvas.width = w * glyphs.length
   canvas.height = h
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
@@ -17,6 +19,6 @@ export function buildGlyphAtlas(cellW: number, cellH: number, fontPx: number, sc
   ctx.font = `500 ${fontPx * scale}px "JetBrains Mono", "IBM Plex Mono", monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  for (let i = 0; i < GLYPH_RAMP.length; i++) ctx.fillText(GLYPH_RAMP[i], i * w + w / 2, h / 2)
+  glyphs.forEach((glyph, i) => ctx.fillText(glyph, i * w + w / 2, h / 2))
   return canvas
 }

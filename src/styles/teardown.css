@@ -4,9 +4,15 @@
    clipping happens inside the stage only. */
 
 .teardown {
-  --teardown-travel: 8.4;
+  --teardown-travel: 10.5;
   --td-amber: #eab76a;
   --td-gutter: max(24px, 6vw);
+  --td-rail: min(36vw, 480px);
+  /* Long, soft ease-out shared by every copy transition. */
+  --td-ease: cubic-bezier(.2, .7, .2, 1);
+  /* Delay before an incoming act and its items start to rise. COPY_MS in
+     Teardown.tsx includes it, so a change here must change COPY_MS too. */
+  --td-handoff: .2s;
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
@@ -42,7 +48,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 32px;
-  padding: 8svh calc(var(--td-gutter) + 4vw) 8svh 40vw;
+  padding: 8svh calc(var(--td-gutter) + 4vw) 8svh calc(var(--td-gutter) + var(--td-rail) + 32px);
   transition: opacity .4s ease;
 }
 
@@ -85,38 +91,72 @@
   z-index: 2;
 }
 
+/* Teardown toggles is-on per frame. A line fades in after its callout has
+   risen into place (--i is the callout's position in its list) and fades out
+   faster than it arrives. */
 .teardown__leaders line {
   stroke: var(--td-amber);
   stroke-width: 1;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+
+.teardown__leaders line.is-on {
   opacity: .7;
+  transition: opacity .9s var(--td-ease) calc(var(--i, 0) * 90ms + .3s + var(--td-handoff));
 }
 
 .teardown__rail {
   position: absolute;
   left: var(--td-gutter);
   top: 50%;
-  width: min(34vw, 420px);
+  width: var(--td-rail);
   transform: translateY(-50%);
   z-index: 3;
 }
 
+/* Later acts wait 14px below their place and passed acts 14px above it, so
+   the copy rises with the scroll in either direction. Both acts share one
+   rail slot, so the incoming act waits --td-handoff before it rises. By then
+   the outgoing act's .6s fade is at 0.17 opacity, and the two are never both
+   above 0.13 opacity. */
 .teardown__act {
   position: absolute;
   inset: auto 0 auto 0;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + 14px));
   opacity: 0;
   visibility: hidden;
   isolation: isolate;
   pointer-events: none;
-  transition: opacity .45s ease, visibility 0s linear .45s;
+  transition: opacity .6s var(--td-ease), transform .9s var(--td-ease), visibility 0s linear .9s;
 }
 
+.teardown__act.is-past { transform: translateY(calc(-50% - 14px)); }
+
 .teardown__act.is-active {
+  transform: translateY(-50%);
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition: opacity .45s ease, visibility 0s;
+  transition: opacity .9s var(--td-ease) var(--td-handoff), transform .9s var(--td-ease) var(--td-handoff), visibility 0s;
+}
+
+/* Callouts and readout lines rise in one after another behind their act.
+   Teardown sets --i, the item's position in its list. */
+.teardown__callout,
+.teardown__readout li {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .45s ease, transform .9s var(--td-ease);
+}
+
+.teardown__act.is-active .teardown__callout,
+.teardown__act.is-active .teardown__readout li {
+  opacity: 1;
+  transform: none;
+  transition: opacity .9s var(--td-ease), transform .9s var(--td-ease);
+  transition-delay: calc(var(--i, 0) * 90ms + var(--td-handoff));
 }
 
 /* Local scrim behind each act's copy, never a full-frame overlay. The acts are
@@ -138,7 +178,7 @@
 .teardown__title {
   margin: 0 0 18px;
   font-family: var(--font-display);
-  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  font-size: clamp(3rem, 6.4vw, 6rem);
   line-height: 1;
   letter-spacing: 0;
   color: var(--text-primary);
@@ -146,7 +186,7 @@
 
 .teardown__line {
   margin: 0 0 10px;
-  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  font-size: clamp(1.05rem, 1.45vw, 1.3rem);
   line-height: 1.55;
   color: var(--text-secondary);
 }
@@ -227,18 +267,21 @@
   list-style: none;
   pointer-events: none;
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .6s var(--td-ease);
   z-index: 3;
 }
 
-.teardown__cards.is-active { opacity: 1; }
+.teardown__cards.is-active {
+  opacity: 1;
+  transition: opacity .9s var(--td-ease);
+}
 
 .teardown__card-label {
   position: absolute;
   left: 0;
   top: 0;
   white-space: nowrap;
-  font: 500 .8rem/1.4 var(--font-mono);
+  font: 500 .86rem/1.4 var(--font-mono);
   color: var(--text-secondary);
   will-change: transform;
 }
@@ -255,7 +298,9 @@
     width: auto;
     transform: none;
   }
-  .teardown__act { top: auto; bottom: 0; transform: none; }
+  .teardown__act { top: auto; bottom: 0; transform: translateY(14px); }
+  .teardown__act.is-past { transform: translateY(-14px); }
+  .teardown__act.is-active { transform: none; }
   .teardown__leaders { display: none; }
   .teardown__callout { padding: 0; border: 0; font-size: .78rem; }
   .teardown__callout::before,
@@ -272,11 +317,19 @@
   .teardown--static .teardown__stage { position: relative; height: auto; overflow: visible; background: none; }
   .teardown--static .teardown__rail { position: relative; inset: auto; width: auto; transform: none; padding: 0 var(--td-gutter); }
   .teardown--static .teardown__act::before { content: none; }
+  /* Every act is is-active in the static layout. These selectors match the
+     specificity of the active-act stagger rules and win by source order only,
+     so this block must stay after them or the static stack animates. */
+  .teardown--static .teardown__act,
+  .teardown--static .teardown__act .teardown__callout,
+  .teardown--static .teardown__act .teardown__readout li {
+    transform: none;
+    opacity: 1;
+    transition: none;
+  }
   .teardown--static .teardown__act {
     position: relative;
     top: auto;
-    transform: none;
-    opacity: 1;
     visibility: visible;
     display: grid;
     grid-template-columns: minmax(0, 1fr);

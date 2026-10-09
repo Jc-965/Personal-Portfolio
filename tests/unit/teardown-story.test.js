@@ -37,6 +37,13 @@ test('every asset path exists under public/', () => {
   for (const p of paths) assert.ok(fs.existsSync(path.join('public', p)), `missing ${p}`)
 })
 
+test('room focus points sit inside the photo', () => {
+  for (const b of PARKIWELL.backdrops) {
+    assert.equal(b.focus.length, 2)
+    for (const v of b.focus) assert.ok(v >= 0 && v <= 1)
+  }
+})
+
 test('cards and backdrops reference real entries', () => {
   const keys = new Set(PARKIWELL.screens.map((s) => s.key))
   for (const card of PARKIWELL.cards) assert.ok(keys.has(card.screen))

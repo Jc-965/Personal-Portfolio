@@ -1,17 +1,22 @@
 import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
-import { createProgram, createTexture, uniformsOf } from '../hero/gl'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { setCovering } from '../hero/heroCover'
-import { VERTEX } from '../hero/shaders'
-import { GLYPH_RAMP, gridFor, sceneProgress, type Grid } from '../hero/world'
+import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
-import { jointsAt } from './coach'
-import { MAX_DRAG, PHONE, SCATTER_CELLS, anchorWorld, coachWorld, poseAt, projectPoint, type Interaction, type Vec3 } from './rig'
-import { GLYPHS, JOINT_COUNT, SCENE } from './shaders'
+import { COACH_BONES, jointsAt } from './coach'
+import { createComposite } from './composite'
+import { glideStep, type Glide } from './glide'
+import { CHAPTER_RAMP } from './materials'
+import { createProduct, type PlaneMesh } from './product'
+import { FOCAL, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
+import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
 import { actWindows } from './timeline'
 
 export interface TeardownFrame {
+  /** Glided chapter progress, the value every visual and the act state follow. */
   progress: number
   /** Stage-relative CSS px per anchor key, null when behind the camera. Keys: `c:<act>:<callout>`, `k:<card>`. */
   anchors: Map<string, { x: number; y: number } | null>
@@ -28,51 +33,65 @@ export interface TeardownCanvasProps {
   onFallback: () => void
 }
 
-/** Finer than the hero grid, because the object fills less of the frame and needs more cells per feature. */
-const CELL = { wide: { fontPx: 6.5, height: 8 }, narrow: { fontPx: 5, height: 6 } }
+/** Glyph cells, about 3 by 6.5 CSS px on wide screens and 2.7 by 5.5 on phones. The width is the font's advance. */
+const CELL = { wide: { fontPx: 5, height: 6.5 }, narrow: { fontPx: 4.5, height: 5.5 } }
 const FONT_FAMILY = '"JetBrains Mono", "IBM Plex Mono", monospace'
-/** Texture slot order. GLYPHS binds uTex0 to uTex5 in this order. */
-const SLOTS: (ScreenKey | 'code')[] = ['welcome', 'home', 'manage', 'recovery', 'community', 'code']
 /** Pixels of the right edge left to the scroll rail. */
 const RAIL_GUTTER = 32
+/** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
+const FRAME_SLACK = 3
 
-const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
-  const image = new Image()
-  image.decoding = 'async'
-  image.onload = () => resolve(image)
-  image.onerror = () => reject(new Error(`image failed: ${src}`))
-  image.src = src
-})
+type Loaded = { texture: THREE.Texture; ready: boolean; width: number; height: number; aspect: number }
 
-/** Creates every GL object, or throws after deleting whatever it already made. */
-function createResources(gl: WebGL2RenderingContext, backdropCount: number) {
-  const textures: WebGLTexture[] = []
-  const programs: WebGLProgram[] = []
-  let framebuffer: WebGLFramebuffer | null = null
-  const dispose = () => {
-    gl.deleteFramebuffer(framebuffer)
-    textures.forEach((t) => gl.deleteTexture(t))
-    programs.forEach((p) => gl.deleteProgram(p))
-  }
-  // A 1x1 black level keeps unloaded textures complete, so sampling them reads black without driver warnings.
-  const mipmapped = () => {
-    const t = createTexture(gl, gl.LINEAR)
-    textures.push(t)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]))
-    return t
-  }
+/**
+ * The product scene, its render target, and the composite. Throws after
+ * disposing whatever it already made, so the caller only has to fall back.
+ */
+function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow: boolean) {
+  const disposers: (() => void)[] = []
+  const dispose = () => disposers.splice(0).reverse().forEach((d) => d())
   try {
-    const scene = createProgram(gl, VERTEX, SCENE); programs.push(scene)
-    const glyphs = createProgram(gl, VERTEX, GLYPHS); programs.push(glyphs)
-    const sceneTex = createTexture(gl, gl.NEAREST); textures.push(sceneTex)
-    const depthTex = createTexture(gl, gl.NEAREST); textures.push(depthTex)
-    const atlasTex = createTexture(gl, gl.LINEAR); textures.push(atlasTex)
-    const slotTex = SLOTS.map(mipmapped)
-    const backTex = Array.from({ length: backdropCount }, mipmapped)
-    framebuffer = gl.createFramebuffer()
-    if (!framebuffer) throw new Error('framebuffer allocation failed')
-    return { scene, glyphs, sceneTex, depthTex, atlasTex, slotTex, backTex, framebuffer, dispose }
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const room = new RoomEnvironment()
+    const environment = pmrem.fromScene(room, 0.04)
+    room.dispose()
+    pmrem.dispose()
+    disposers.push(() => environment.dispose())
+
+    const scene = new THREE.Scene()
+    scene.environment = environment.texture
+    // three.js world space: the camera sits on +z and looks along -z, so "front" is +z.
+    const key = new THREE.DirectionalLight('#ffe2b8', 2.2)
+    key.position.set(-2.2, 2.6, 3)
+    const rim = new THREE.DirectionalLight('#ffc27a', 1.6)
+    rim.position.set(2.6, 1.2, -3)
+    scene.add(key, rim, new THREE.AmbientLight('#ffffff', 0.08))
+
+    const product = createProduct(story, { narrow, environment: environment.texture })
+    disposers.push(() => product.dispose())
+    scene.add(product.group)
+
+    // Half float keeps lit highlights above 1.0 for the composite's shoulder and glow. Without a renderable
+    // half-float format, 8-bit linear still works, with some banding in dark gradients.
+    const halfFloat = renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')
+    const target = new THREE.WebGLRenderTarget(1, 1, {
+      samples: 4,
+      type: halfFloat ? THREE.HalfFloatType : THREE.UnsignedByteType,
+      colorSpace: THREE.LinearSRGBColorSpace,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: true,
+      stencilBuffer: false,
+    })
+    disposers.push(() => target.dispose())
+
+    const composite = createComposite()
+    disposers.push(() => composite.dispose())
+    composite.material.uniforms.uProduct.value = target.texture
+
+    const camera = new THREE.PerspectiveCamera(verticalFov(FOCAL), 1, 0.05, 40)
+    return { scene, camera, product, target, composite, dispose }
   } catch (error) {
     dispose()
     throw error
@@ -89,198 +108,231 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
     const canvas = canvasRef.current
     const stage = canvas?.parentElement
     if (!canvas || !stage) return
-    const fail = () => callbacks.current.onFallback()
-    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: false, powerPreference: 'high-performance' })
-    if (!gl) { fail(); return }
-    const res = (() => {
-      try { return createResources(gl, story.backdrops.length) } catch (error) { console.warn('[teardown] falling back to the DOM stage', error); return null }
-    })()
-    if (!res) { fail(); return }
-    const { scene, glyphs, sceneTex, depthTex, atlasTex, slotTex, backTex, framebuffer } = res
+    let failed = false
+    let stop = () => {}
+    let covering = false
+    const fail = (reason: unknown) => {
+      if (failed) return
+      failed = true
+      stop()
+      console.warn('[teardown] falling back to the DOM stage', reason)
+      if (covering) { covering = false; setCovering('teardown', false) }
+      callbacks.current.onFallback()
+    }
 
-    const sceneU = uniformsOf(gl, scene, ['uGrid', 'uAspect', 'uCamPos', 'uShift', 'uPhonePos', 'uPhoneRight', 'uPhoneUp', 'uPhoneNormal', 'uPhoneBound', 'uInternals', 'uGlassCenter', 'uGlass', 'uBackA', 'uBackB', 'uBack', 'uBackAspect', 'uBackLod', 'uBackDrift', 'uJoints', 'uCoachBound', 'uCoach'] as const)
-    const glyphU = uniformsOf(gl, glyphs, ['uScene', 'uDepth', 'uAtlas', 'uTex0', 'uTex1', 'uTex2', 'uTex3', 'uTex4', 'uTex5', 'uGrid', 'uCell', 'uOffset', 'uGlyphs', 'uAspect', 'uCanvasH', 'uCamPos', 'uShift', 'uGather', 'uScatter', 'uPC', 'uPR', 'uPU', 'uPS', 'uPState'] as const)
-    const slotUniforms = [glyphU.uTex0, glyphU.uTex1, glyphU.uTex2, glyphU.uTex3, glyphU.uTex4, glyphU.uTex5]
+    let renderer: THREE.WebGLRenderer
+    let gpu: ReturnType<typeof createStage>
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' })
+    } catch (error) {
+      fail(error)
+      return
+    }
+    try {
+      // The composite writes sRGB itself, and every lit material renders into the linear target.
+      renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+      renderer.toneMapping = THREE.NoToneMapping
+      renderer.setClearColor(0x000000, 0)
+      renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
+        fail([gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertex), gl.getShaderInfoLog(fragment)].filter(Boolean).join('\n'))
+      }
+      gpu = createStage(renderer, story, stage.clientWidth < 768)
+    } catch (error) {
+      renderer.dispose()
+      fail(error)
+      return
+    }
+    const { scene, camera, product, target, composite, dispose: disposeStage } = gpu
+    const cu = composite.material.uniforms
+    const planes: PlaneMesh[] = [product.screen, ...product.cards]
 
     const windows = actWindows(story.acts)
     const actBackdrops = story.acts.map((a) => a.backdrop)
-    const slotHeight = SLOTS.map(() => 1)
-    const slotReady = SLOTS.map(() => false)
-    const backReady = story.backdrops.map(() => false)
-    const backAspect = story.backdrops.map(() => 16 / 9)
-    const backRequested = new Set<number>()
-    const jointData = new Float32Array(JOINT_COUNT * 3)
-    const planeData = { c: new Float32Array(18), r: new Float32Array(18), u: new Float32Array(18), s: new Float32Array(18), st: new Float32Array(24) }
+    // Screens and the code layer turn away from the camera in the exploded fan, and 8x keeps their UI text
+    // sharp there. Rooms are sampled only through textureLod, which has no derivatives, so the value does not
+    // apply to them.
+    const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
+    const loader = new THREE.TextureLoader()
+    const owned: THREE.Texture[] = []
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
-    let grid: Grid | null = null
-    let dpr = 1
-    let narrow = false
+    const drawingBuffer = new THREE.Vector2(1, 1)
+    let atlas: THREE.CanvasTexture | null = null
+    let code: THREE.CanvasTexture | null = null
+    let narrow = stage.clientWidth < 768
     let width = 1
     let height = 1
     let trackTop = 0
     let trackHeight = 1
     let progress = 0
+    let glide: Glide = { value: 0, velocity: 0 }
     let visible = false
     let lost = false
     let disposed = false
+    let compiled = false
     let ready = false
     let raf = 0
     let lastPaint = 0
-    let frameInterval = 1000 / 45
-    let covering = false
+    let frameInterval = 1000 / 60
     const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
-    const target: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
+    const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
     let drag: { id: number; x: number; start: number } | null = null
 
-    const stop = () => { cancelAnimationFrame(raf); raf = 0 }
-    const start = () => { if (!raf && visible && !document.hidden && !lost && !disposed) raf = requestAnimationFrame(draw) }
-    const upload = (texture: WebGLTexture, source: TexImageSource) => {
-      gl.activeTexture(gl.TEXTURE0)
-      gl.bindTexture(gl.TEXTURE_2D, texture)
-      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source)
-      gl.generateMipmap(gl.TEXTURE_2D)
-    }
-    const requestBackdrop = (index: number | null) => {
-      if (index === null || index < 0 || index >= story.backdrops.length || backRequested.has(index)) return
-      backRequested.add(index)
-      loadImage(story.backdrops[index].src).then((image) => {
-        if (disposed || lost) return
-        upload(backTex[index], image)
-        backAspect[index] = image.naturalWidth / image.naturalHeight
-        backReady[index] = true
+    stop = () => { cancelAnimationFrame(raf); raf = 0; lastPaint = 0 }
+    const start = () => { if (!raf && visible && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
+
+    /** Loads an sRGB, mipmapped image texture and uploads it as soon as it arrives, so first use never stalls a frame. */
+    const load = (src: string): Loaded => {
+      const texture = loader.load(src, () => {
+        if (disposed || failed) return
+        entry.width = texture.image.naturalWidth
+        entry.height = texture.image.naturalHeight
+        entry.aspect = entry.width / Math.max(1, entry.height)
+        renderer.initTexture(texture)
+        entry.ready = true
         start()
-      }, () => undefined)
+      }, undefined, () => undefined)
+      texture.colorSpace = THREE.SRGBColorSpace
+      texture.anisotropy = anisotropy
+      owned.push(texture)
+      const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
+      return entry
     }
-    story.screens.forEach((screen) => {
-      const i = SLOTS.indexOf(screen.key)
-      loadImage(screen.src).then((image) => {
-        if (disposed || lost) return
-        upload(slotTex[i], image)
-        slotHeight[i] = image.naturalHeight
-        slotReady[i] = true
-        start()
-      }, () => undefined)
-    })
+    const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src)]))
+    const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
+    const requestRoom = (index: number | null) => {
+      if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
+      rooms[index] = load(story.backdrops[index].src)
+    }
     const uploadCode = () => {
-      const code = buildCodeTexture(story.code, story.codeSource)
-      if (!code || disposed || lost) return
-      const i = SLOTS.indexOf('code')
-      upload(slotTex[i], code)
-      slotHeight[i] = code.height
-      slotReady[i] = true
+      if (code || disposed || failed) return
+      const source = buildCodeTexture(story.code, story.codeSource)
+      if (!source) return
+      code = new THREE.CanvasTexture(source)
+      code.colorSpace = THREE.SRGBColorSpace
+      code.anisotropy = anisotropy
+      renderer.initTexture(code)
+      product.code.material.uniforms.uMap.value = code
       start()
     }
-    /** Eases interaction toward its target. Returns true while anything is still moving. */
+
+    /** Eases interaction toward its goal. Returns true while anything is still moving. */
     const settle = (dt: number) => {
       const k = 1 - Math.exp(-dt * 8)
       let moving = false
       for (const key of ['dragYaw', 'tiltX', 'tiltY'] as const) {
-        const delta = target[key] - interaction[key]
-        if (Math.abs(delta) > 1e-4) { interaction[key] += delta * k; moving = true } else interaction[key] = target[key]
+        const delta = goal[key] - interaction[key]
+        if (Math.abs(delta) > 1e-4) { interaction[key] += delta * k; moving = true } else interaction[key] = goal[key]
       }
       return moving
     }
 
+    /** Plane uniforms. A plane whose texture has not arrived stays hidden instead of drawing black. */
+    const applyPlane = (mesh: PlaneMesh, plane: PlanePose | undefined) => {
+      const u = mesh.material.uniforms
+      let opacity = plane?.opacity ?? 0
+      if (plane && plane.texture !== 'code') {
+        const screen = screens.get(plane.texture)
+        if (screen?.ready) {
+          u.uMap.value = screen.texture
+          u.uTexSize.value.set(screen.width, screen.height)
+          u.uDevelop.value = plane.develop
+        } else opacity = 0
+      } else if (!code) opacity = 0
+      u.uOpacity.value = opacity
+      mesh.visible = opacity > 0.001
+    }
+
+    const applyComposite = (pose: Pose, aspect: number) => {
+      const { a, b, mix, gain, glyphOnly, drift } = pose.backdrop
+      const roomA = a >= 0 && rooms[a]?.ready ? a : -1
+      const roomB = b >= 0 && rooms[b]?.ready ? b : -1
+      // Until both rooms of a dissolve have loaded, the one that has stands in for both.
+      const first = rooms[roomA >= 0 ? roomA : roomB] ?? null
+      const second = rooms[roomB] ?? first
+      // Focus points count y from the top of the photo, and texture v counts from the bottom.
+      const focus = (index: number): [number, number] => {
+        const [x, y] = story.backdrops[index]?.focus ?? [0.5, 0.5]
+        return [x, 1 - y]
+      }
+      cu.uBackA.value = first?.texture ?? null
+      cu.uBackB.value = second?.texture ?? null
+      cu.uBackAspect.value.set(first?.aspect ?? 16 / 9, second?.aspect ?? 16 / 9)
+      cu.uFocus.value.set(...focus(roomA >= 0 ? roomA : roomB), ...focus(roomB >= 0 ? roomB : roomA))
+      cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
+      cu.uBackGain.value = first ? gain : 0
+      cu.uGlyphOnly.value = glyphOnly
+      cu.uDrift.value = drift
+      cu.uPointer.value.set(interaction.tiltX, -interaction.tiltY)
+      cu.uDecode.value = pose.decode
+      cu.uGather.value = pose.gather
+      cu.uCoach.value = pose.coach.amount
+      if (pose.coach.amount <= 0.01) return
+      // Skeleton in device px with the origin at the bottom left, as gl_FragCoord counts.
+      const toDevice = (point: Vec3): [number, number] => {
+        const at = projectPoint(pose, point, aspect)
+        return at ? [at.x * drawingBuffer.x, (1 - at.y) * drawingBuffer.y] : [-1e5, -1e5]
+      }
+      const joints = coachWorld(pose, jointsAt(story.pose, pose.coach.frame)).map(toDevice)
+      const bones = cu.uBones.value as Float32Array
+      COACH_BONES.forEach(([i, k], n) => bones.set([...joints[i], ...joints[k]], n * 4))
+      const centre = projectPoint(pose, pose.coach.pos, aspect)
+      const pixelsPerUnit = centre ? (drawingBuffer.y / 2) * FOCAL / centre.depth : 0
+      cu.uLimb.value = 0.024 * pose.coach.scale * pixelsPerUnit
+      cu.uHead.value.set(joints[0][0], joints[0][1], 0.07 * pose.coach.scale * pixelsPerUnit)
+    }
+
     const draw = (now: number) => {
       raf = 0
-      if (disposed || lost || !visible || document.hidden || !grid) return
-      if (lastPaint && now - lastPaint < frameInterval) { raf = requestAnimationFrame(draw); return }
+      if (disposed || failed || lost || !visible || document.hidden || !compiled) return
+      if (lastPaint && now - lastPaint < frameInterval - FRAME_SLACK) { raf = requestAnimationFrame(draw); return }
       const dt = lastPaint ? Math.min(0.1, (now - lastPaint) / 1000) : 0
       lastPaint = now
       const easing = settle(dt)
-      const pose = poseAt({ progress, windows, backdrops: actBackdrops, narrow, aspect: width / height, interaction, poseFrames: story.pose.frames })
-      requestBackdrop(pose.backdrop.a)
-      requestBackdrop(pose.backdrop.b)
-      const nextAct = windows.findIndex((w) => progress < w.start)
-      if (nextAct >= 0) requestBackdrop(actBackdrops[nextAct])
+      glide = glideStep(glide, progress, dt)
+      // The follow decays toward the target without reaching it, so it lands on the target once it is within
+      // 1e-4 progress and moving slower than 1e-3 progress per second.
+      if (Math.abs(glide.value - progress) < 1e-4 && Math.abs(glide.velocity) < 1e-3) glide = { value: progress, velocity: 0 }
+      const aspect = width / height
+      const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames })
+      requestRoom(pose.backdrop.a)
+      requestRoom(pose.backdrop.b)
+      const nextAct = windows.findIndex((w) => glide.value < w.start)
+      if (nextAct >= 0) requestRoom(actBackdrops[nextAct])
 
-      const aspect = (grid.cols * grid.cellW) / (grid.rows * grid.cellH)
-      jointData.fill(0)
-      if (pose.coach.amount > 0.01) coachWorld(pose, jointsAt(story.pose, pose.coach.frame)).forEach((j, i) => jointData.set(j, i * 3))
-      const backA = pose.backdrop.a >= 0 && backReady[pose.backdrop.a] ? pose.backdrop.a : -1
-      const backB = pose.backdrop.b >= 0 && backReady[pose.backdrop.b] ? pose.backdrop.b : backA
+      product.update(pose)
+      applyPlane(product.screen, pose.screen)
+      applyPlane(product.code, pose.code)
+      product.cards.forEach((card, i) => applyPlane(card, pose.cards[i]))
+      camera.aspect = aspect
+      camera.position.fromArray(toThreePosition(pose.camera.pos))
+      camera.updateProjectionMatrix()
+      camera.projectionMatrix.fromArray(applyLensShift(camera.projectionMatrix.toArray(), pose.camera.shift, aspect))
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
+      applyComposite(pose, aspect)
 
-      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1])
-      gl.viewport(0, 0, grid.cols, grid.rows)
-      gl.useProgram(scene)
-      gl.uniform2f(sceneU.uGrid, grid.cols, grid.rows)
-      gl.uniform1f(sceneU.uAspect, aspect)
-      gl.uniform3fv(sceneU.uCamPos, pose.camera.pos)
-      gl.uniform2fv(sceneU.uShift, pose.camera.shift)
-      gl.uniform3fv(sceneU.uPhonePos, pose.phone.pos)
-      gl.uniform3fv(sceneU.uPhoneRight, pose.phone.right)
-      gl.uniform3fv(sceneU.uPhoneUp, pose.phone.up)
-      gl.uniform3fv(sceneU.uPhoneNormal, pose.phone.normal)
-      gl.uniform4f(sceneU.uPhoneBound, pose.phone.pos[0], pose.phone.pos[1], pose.phone.pos[2], Math.hypot(PHONE.hx, PHONE.hy) + 0.08)
-      gl.uniform1f(sceneU.uInternals, pose.internals)
-      gl.uniform3fv(sceneU.uGlassCenter, pose.glass.center)
-      gl.uniform3f(sceneU.uGlass, pose.glass.light, pose.glass.sweep, pose.glass.band)
-      gl.activeTexture(gl.TEXTURE3)
-      gl.bindTexture(gl.TEXTURE_2D, backTex[Math.max(0, backA)])
-      gl.uniform1i(sceneU.uBackA, 3)
-      gl.activeTexture(gl.TEXTURE4)
-      gl.bindTexture(gl.TEXTURE_2D, backTex[Math.max(0, backB)])
-      gl.uniform1i(sceneU.uBackB, 4)
-      gl.uniform4f(sceneU.uBack, backB === backA ? 1 : pose.backdrop.mix, backA >= 0 ? pose.backdrop.gain : 0, 0, 0)
-      gl.uniform2f(sceneU.uBackAspect, backAspect[Math.max(0, backA)], backAspect[Math.max(0, backB)])
-      gl.uniform1f(sceneU.uBackLod, Math.max(0, Math.log2(1600 / grid.cols)))
-      gl.uniform1f(sceneU.uBackDrift, pose.backdrop.drift)
-      gl.uniform3fv(sceneU.uJoints, jointData)
-      // Bound covers the arm-raise extents (x ±0.69, y -0.39 to 0.64 in pose units) at the coach scale.
-      gl.uniform4f(sceneU.uCoachBound, pose.coach.pos[0], pose.coach.pos[1] + 0.12 * pose.coach.scale, pose.coach.pos[2], 0.95 * pose.coach.scale)
-      gl.uniform2f(sceneU.uCoach, pose.coach.amount, pose.coach.scale)
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-      gl.viewport(0, 0, canvas.width, canvas.height)
-      gl.useProgram(glyphs)
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.uniform1i(glyphU.uScene, 0)
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, depthTex); gl.uniform1i(glyphU.uDepth, 1)
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, atlasTex); gl.uniform1i(glyphU.uAtlas, 2)
-      slotTex.forEach((t, i) => { gl.activeTexture(gl.TEXTURE5 + i); gl.bindTexture(gl.TEXTURE_2D, t); gl.uniform1i(slotUniforms[i], 5 + i) })
-      gl.uniform2f(glyphU.uGrid, grid.cols, grid.rows)
-      gl.uniform2f(glyphU.uCell, grid.cellW * dpr, grid.cellH * dpr)
-      gl.uniform2f(glyphU.uOffset, grid.offsetX * dpr, grid.offsetY * dpr)
-      gl.uniform1f(glyphU.uGlyphs, GLYPH_RAMP.length)
-      gl.uniform1f(glyphU.uAspect, aspect)
-      gl.uniform1f(glyphU.uCanvasH, canvas.height)
-      gl.uniform3fv(glyphU.uCamPos, pose.camera.pos)
-      gl.uniform2fv(glyphU.uShift, pose.camera.shift)
-      gl.uniform1f(glyphU.uGather, pose.gather)
-      gl.uniform1f(glyphU.uScatter, SCATTER_CELLS)
-      ;[pose.screen, pose.code, ...pose.cards].forEach((plane, i) => {
-        const s = SLOTS.indexOf(plane.texture)
-        planeData.c.set(plane.center, i * 3)
-        planeData.r.set(plane.right, i * 3)
-        planeData.u.set(plane.up, i * 3)
-        planeData.s.set([plane.halfW, plane.halfH, plane.radius], i * 3)
-        planeData.st.set([plane.develop, slotReady[s] ? plane.opacity : 0, s, slotHeight[s]], i * 4)
-      })
-      gl.uniform3fv(glyphU.uPC, planeData.c)
-      gl.uniform3fv(glyphU.uPR, planeData.r)
-      gl.uniform3fv(glyphU.uPU, planeData.u)
-      gl.uniform3fv(glyphU.uPS, planeData.s)
-      gl.uniform4fv(glyphU.uPState, planeData.st)
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
+      renderer.setRenderTarget(target)
+      renderer.render(scene, camera)
+      renderer.setRenderTarget(null)
+      renderer.render(composite.scene, composite.camera)
+      if (failed) return
 
       const anchors = new Map<string, { x: number; y: number } | null>()
       const toPx = (point: Vec3) => {
-        const at = projectPoint(pose, point, width / height)
+        const at = projectPoint(pose, point, aspect)
         return at ? { x: at.x * width, y: at.y * height } : null
       }
       story.acts.forEach((act, a) => act.callouts.forEach((callout, c) => anchors.set(`c:${a}:${c}`, toPx(anchorWorld(pose, callout.anchor)))))
       pose.cards.forEach((card, k) => anchors.set(`k:${k}`, toPx([card.center[0], card.center[1] - card.halfH * 1.08, card.center[2]])))
-      callbacks.current.onFrame({ progress, anchors })
+      callbacks.current.onFrame({ progress: glide.value, anchors })
 
-      if (!ready && story.screens.every((screen) => slotReady[SLOTS.indexOf(screen.key)])) {
+      if (!ready && [...screens.values()].every((screen) => screen.ready)) {
         ready = true
         updateCovering()
         callbacks.current.onReady()
       }
-      // Scroll and image loads restart the loop, so it runs on only while the drag or tilt is still easing.
-      if (easing) raf = requestAnimationFrame(draw)
+      // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the glide or the interaction is still moving.
+      if (easing || glide.value !== progress) raf = requestAnimationFrame(draw)
+      else lastPaint = 0
     }
 
     // A collapsed phone toolbar makes the visible viewport taller than the 100svh stage. The strip
@@ -288,50 +340,67 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
     const updateCovering = () => {
       const y = window.scrollY
       const visibleHeight = window.visualViewport?.height ?? window.innerHeight
-      const next = ready && !lost && y >= trackTop && y + height <= trackTop + trackHeight + 0.5 && height + 0.01 >= visibleHeight
+      const next = ready && !lost && !failed && y >= trackTop && y + height <= trackTop + trackHeight + 0.5 && height + 0.01 >= visibleHeight
       if (next !== covering) { covering = next; setCovering('teardown', covering) }
     }
     const onScroll = () => {
       const y = window.scrollY
       progress = sceneProgress(y - trackTop, trackHeight, height)
+      const wasVisible = visible
       visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
+      // Arriving from off screen starts at the scroll position instead of gliding through every act in between.
+      if (visible && !wasVisible) glide = { value: progress, velocity: 0 }
       updateCovering()
       if (visible) start()
       else stop()
     }
     const measure = () => {
-      if (disposed || lost) return
+      if (disposed || lost || failed) return
       const rect = stage.getBoundingClientRect()
       if (!rect.width || !rect.height) return
       width = rect.width
       height = rect.height
-      narrow = width < 768
+      const nextNarrow = width < 768
+      if (nextNarrow !== narrow) product.setNarrow(nextNarrow)
+      narrow = nextNarrow
+      frameInterval = 1000 / (narrow ? 45 : 60)
+      const pixelRatio = Math.min(width > 1800 ? 1.75 : 2, window.devicePixelRatio || 1)
+      renderer.setPixelRatio(pixelRatio)
+      renderer.setSize(width, height, false)
+      renderer.getDrawingBufferSize(drawingBuffer)
+      target.setSize(drawingBuffer.x, drawingBuffer.y)
+      // three raises no error for an incomplete target (for example, multisampled RGBA16F unsupported at 4
+      // samples), and drawing into one leaves the phone invisible. setRenderTarget rebuilds the framebuffers
+      // after a resize and binds the multisampled one, so the check sees the attachments the frame draws into.
+      renderer.setRenderTarget(target)
+      const gl = renderer.getContext()
+      const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
+      renderer.setRenderTarget(null)
+      if (!complete) { fail('the product render target is incomplete'); return }
+      cu.uRes.value.copy(drawingBuffer)
+
+      // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp.
       const cell = narrow ? CELL.narrow : CELL.wide
-      frameInterval = 1000 / (narrow ? 30 : 45)
-      dpr = Math.min(2, window.devicePixelRatio || 1)
-      canvas.width = Math.round(width * dpr)
-      canvas.height = Math.round(height * dpr)
       const ctx = document.createElement('canvas').getContext('2d')
       if (ctx) ctx.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
-      const cellW = ctx?.measureText('M').width || cell.fontPx * 0.6
-      grid = gridFor(width, height, cellW, cell.height)
+      const advance = ctx?.measureText('M').width || cell.fontPx * 0.6
+      const cellW = Math.max(2, Math.round(advance * pixelRatio))
+      const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
+      cu.uCell.value.set(cellW, cellH)
+      planes.forEach((plane) => plane.material.uniforms.uCell.value.set(cellW, cellH))
+      const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
+      if (glyphs) {
+        atlas?.dispose()
+        atlas = new THREE.CanvasTexture(glyphs)
+        atlas.flipY = false
+        atlas.generateMipmaps = false
+        atlas.minFilter = THREE.LinearFilter
+        cu.uAtlas.value = atlas
+        planes.forEach((plane) => { plane.material.uniforms.uAtlas.value = atlas })
+      }
+
       trackTop = track.getBoundingClientRect().top + window.scrollY
       trackHeight = track.offsetHeight
-      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-      for (const [texture, attachment] of [[sceneTex, gl.COLOR_ATTACHMENT0], [depthTex, gl.COLOR_ATTACHMENT1]] as const) {
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, grid.cols, grid.rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, texture, 0)
-      }
-      const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-      if (!complete) { lost = true; stop(); fail(); return }
-      const atlas = buildGlyphAtlas(cellW, cell.height, cell.fontPx, Math.ceil(dpr * 2))
-      if (atlas) {
-        gl.bindTexture(gl.TEXTURE_2D, atlasTex)
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas)
-      }
       lastPaint = 0
       onScroll()
     }
@@ -339,35 +408,43 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || event.clientX > window.innerWidth - RAIL_GUTTER) return
       if ((event.target as Element | null)?.closest('a, button')) return
-      drag = { id: event.pointerId, x: event.clientX, start: target.dragYaw }
+      drag = { id: event.pointerId, x: event.clientX, start: goal.dragYaw }
       stage.setPointerCapture?.(event.pointerId)
     }
     const onPointerMove = (event: PointerEvent) => {
       if (drag && event.pointerId === drag.id) {
-        target.dragYaw = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, drag.start + (event.clientX - drag.x) * 0.006))
+        goal.dragYaw = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, drag.start + (event.clientX - drag.x) * 0.006))
         start()
       }
       if (finePointer.matches) {
-        target.tiltX = (event.clientX / window.innerWidth - 0.5) * 2
-        target.tiltY = (event.clientY / window.innerHeight - 0.5) * 2
+        goal.tiltX = (event.clientX / window.innerWidth - 0.5) * 2
+        goal.tiltY = (event.clientY / window.innerHeight - 0.5) * 2
         start()
       }
     }
     const release = (event: PointerEvent) => {
       if (!drag || event.pointerId !== drag.id) return
       drag = null
-      target.dragYaw = 0
+      goal.dragYaw = 0
       start()
     }
-    const onLeave = () => { target.tiltX = 0; target.tiltY = 0; start() }
-    const onLost = (event: Event) => {
-      event.preventDefault()
+    const onLeave = () => { goal.tiltX = 0; goal.tiltY = 0; start() }
+    const onLost = () => {
       lost = true
-      stop()
-      if (covering) { covering = false; setCovering('teardown', false) }
-      fail()
+      fail('the WebGL context was lost')
     }
     const onVisibility = () => { lastPaint = 0; if (document.hidden) stop(); else start() }
+
+    // compile() prepares a program for every mesh in the scene whether or not it is visible, so the internals
+    // and glass programs exist before the glass act first shows them. It only submits the programs, and the
+    // driver builds them in the background where KHR_parallel_shader_compile exists. compileAsync is avoided
+    // because its polling cannot be cancelled and reads deleted programs after an unmount.
+    renderer.compile(scene, camera)
+    renderer.compile(composite.scene, composite.camera)
+    const firstFrame = requestAnimationFrame(() => {
+      compiled = true
+      start()
+    })
 
     const resizeObserver = new ResizeObserver(measure)
     resizeObserver.observe(stage)
@@ -388,6 +465,7 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
     return () => {
       disposed = true
       stop()
+      cancelAnimationFrame(firstFrame)
       resizeObserver.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
@@ -399,7 +477,11 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
       document.removeEventListener('visibilitychange', onVisibility)
       canvas.removeEventListener('webglcontextlost', onLost)
       if (covering) setCovering('teardown', false)
-      res.dispose()
+      owned.forEach((texture) => texture.dispose())
+      atlas?.dispose()
+      code?.dispose()
+      disposeStage()
+      renderer.dispose()
     }
   }, [story, track])
 

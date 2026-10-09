@@ -1,8 +1,8 @@
 /**
  * Pure choreography for the teardown chapter. Maps chapter progress and the
  * visitor's drag and tilt to every transform the renderer and the DOM
- * callouts use. The shaders interpolate these constants into their source, so
- * the GPU scene and the projected callouts always agree.
+ * callouts use. The renderer and the callouts read the same constants and
+ * pose, so the GPU scene and the projected callouts always agree.
  *
  * World units: the phone is 1.51 tall. The camera never rotates: it looks
  * along +z from `camera.pos`, and `camera.shift` moves the principal point so
@@ -28,6 +28,12 @@ export const CODE = { hx: 0.31, hy: 0.68, radius: 0.04 } as const
 export const SCATTER_CELLS = 42
 /** Largest drag yaw, radians (about 40 degrees). */
 export const MAX_DRAG = 0.7
+/**
+ * Weights of the screen normal and the phone's right vector along which the
+ * exploded layers fan out. On wide screens each layer steps sideways by more
+ * than half its projected width, so no layer hides behind the one in front.
+ */
+export const EXPLODE_DIRECTION = { normal: 0.6, right: 0.8 } as const
 
 export interface Interaction {
   /** Radians added to the phone's yaw by a drag. */
@@ -57,20 +63,23 @@ export interface Pose {
   explode: number
   /** 0 scattered glyphs, 1 assembled glyphs. */
   gather: number
+  /** 0 draws the product as glyphs, 1 as the real render. */
+  decode: number
   /** Chassis interior brightness, 0 to 1. */
   internals: number
   glass: { center: Vec3; light: number; sweep: number; band: number }
   screen: PlanePose
   code: PlanePose
   cards: PlanePose[]
-  backdrop: { a: number; b: number; mix: number; gain: number; drift: number }
+  /** `glyphOnly` is 0 for the photo with its glyph layer and 1 for the glyph layer alone. */
+  backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; drift: number }
   coach: { amount: number; frame: number; pos: Vec3; scale: number }
 }
 
 export interface RigInput {
   progress: number
   windows: readonly ActWindow[]
-  /** Backdrop index per act, in act order, null for a dark stage. */
+  /** Backdrop index per act, in act order. Null holds the previous room as a dim glyph-only field. */
   backdrops: readonly (number | null)[]
   narrow: boolean
   /** Canvas width over height. */
@@ -84,7 +93,9 @@ const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [lerp(a[0], b[0], t), lerp(
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 const mul = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s]
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const BACKDROP_GAIN = 0.42
+const BACKDROP_GAIN = 0.62
+/** Gain of the room an act without its own room holds as glyphs. */
+const HELD_GAIN = 0.2
 
 /** Orthonormal basis of a body turned by yaw about world y, then by pitch about its own x. Positive pitch leans the top away. */
 export function basis(yaw: number, pitch: number): { right: Vec3; up: Vec3; normal: Vec3 } {
@@ -97,16 +108,28 @@ function plane(center: Vec3, right: Vec3, up: Vec3, halfW: number, halfH: number
   return { center, right, up, halfW, halfH, radius, develop: clamp01(develop), opacity: clamp01(opacity), texture }
 }
 
-/** Backdrop pair, crossfade, and gain for a progress. Null acts fade the stage to dark. */
-export function backdropAt(windows: readonly ActWindow[], backdrops: readonly (number | null)[], progress: number): { a: number; b: number; mix: number; gain: number } {
+/**
+ * Backdrop pair, dissolve, gain, and glyph-only amount for a progress. An act
+ * without a room holds the nearest earlier room as a dim glyph-only field. Every
+ * change eases over the first 35% of the act that starts it, so each room's
+ * weight, the gain, and the glyph-only amount are continuous across act
+ * boundaries. The indices a and b can swap at a boundary, with mix
+ * compensating, so callers must not interpolate a or b directly. Index -1 means
+ * no room, which happens only before the first act that has one.
+ */
+export function backdropAt(windows: readonly ActWindow[], backdrops: readonly (number | null)[], progress: number): { a: number; b: number; mix: number; gain: number; glyphOnly: number } {
   const { index, local } = actAt(windows, progress)
   const cur = backdrops[index] ?? null
   const prev = index > 0 ? backdrops[index - 1] ?? null : cur
+  let held: number | null = null
+  for (let i = index - 1; i >= 0 && held === null; i--) held = backdrops[i] ?? null
   const s = ramp(local, 0, 0.35)
-  if (cur !== null && prev !== null) return { a: prev, b: cur, mix: prev === cur ? 1 : s, gain: BACKDROP_GAIN }
-  if (cur !== null) return { a: cur, b: cur, mix: 1, gain: BACKDROP_GAIN * s }
-  if (prev !== null) return { a: prev, b: prev, mix: 1, gain: BACKDROP_GAIN * (1 - s) }
-  return { a: -1, b: -1, mix: 1, gain: 0 }
+  if (cur !== null && prev !== null) return { a: prev, b: cur, mix: prev === cur ? 1 : s, gain: BACKDROP_GAIN, glyphOnly: 0 }
+  if (cur !== null && held !== null) return { a: held, b: cur, mix: held === cur ? 1 : s, gain: lerp(HELD_GAIN, BACKDROP_GAIN, s), glyphOnly: 1 - s }
+  if (cur !== null) return { a: cur, b: cur, mix: 1, gain: BACKDROP_GAIN * s, glyphOnly: 0 }
+  if (held === null) return { a: -1, b: -1, mix: 1, gain: 0, glyphOnly: 1 }
+  if (prev !== null) return { a: held, b: held, mix: 1, gain: lerp(BACKDROP_GAIN, HELD_GAIN, s), glyphOnly: s }
+  return { a: held, b: held, mix: 1, gain: HELD_GAIN, glyphOnly: 1 }
 }
 
 export function poseAt(input: RigInput): Pose {
@@ -137,21 +160,32 @@ export function poseAt(input: RigInput): Pose {
 
   const { right, up, normal } = basis(yaw, pitch)
 
+  // The wide day camera keeps at least 2.05 world units of half-width visible at the phone's depth. Above an aspect
+  // of about 1.57 the distance floor shows more, and `reach` scales the day act's x positions to match. The centres
+  // of the phone and the cards then sit at the same fractions of the frame width, within 0.02, from an aspect of
+  // 0.56 to 2.4.
+  const dayDist = narrow ? 2.5 : Math.max(2.15, (2.05 * FOCAL) / aspect)
+  const reach = (dayDist * aspect) / FOCAL / 2.05
+
   let phonePos: Vec3 = [0, 0, 0]
   if (narrow) {
     phonePos = add(phonePos, [0, 0, 1.4 * ramp(day, 0, 0.12) * (1 - ramp(quiet, 0, 0.7))])
     phonePos = add(phonePos, [0, 0, 1.2 * ramp(coach, 0, 0.3) * (1 - ramp(close, 0, 0.6))])
   } else {
-    phonePos = add(phonePos, [-1.9 * dayOut, 0, 0])
+    // The lifted screen is nearer the camera than the chassis, so it projects farther left. At 1.2 its left edge stays
+    // at least 0.04 of the width inside the frame.
+    phonePos = add(phonePos, [-1.2 * reach * dayOut, 0, 0])
     phonePos = add(phonePos, [-0.55 * ramp(coach, 0, 0.3) * (1 - ramp(close, 0, 0.6)), 0, 0])
   }
 
+  // The day act's lift stays on the normal so the screen rises straight off the phone. Only the explode follows the fan.
   const lift = 0.35 * ramp(day, 0, 0.15) * (1 - ramp(quiet, 0, 0.6))
-  const offsets = { glass: 1.05 * explode * spread, screen: 0.7 * explode * spread + lift, code: 0.35 * explode * spread }
-  const onPhone = (z: number): Vec3 => add(phonePos, mul(normal, z))
-  const screenCenter = onPhone(LAYER_Z.screen - offsets.screen)
-  const codeCenter = onPhone(LAYER_Z.code - offsets.code)
-  const glassCenter = onPhone(LAYER_Z.glass - offsets.glass)
+  const toward = add(mul(normal, -EXPLODE_DIRECTION.normal), mul(right, EXPLODE_DIRECTION.right))
+  const fan = mul(toward, 1 / Math.hypot(toward[0], toward[1], toward[2]))
+  const layer = (z: number, lifted: number, apart: number): Vec3 => add(add(phonePos, mul(normal, z - lifted)), mul(fan, apart))
+  const screenCenter = layer(LAYER_Z.screen, lift, 0.62 * explode * spread)
+  const codeCenter = layer(LAYER_Z.code, 0, 0.3 * explode * spread)
+  const glassCenter = layer(LAYER_Z.glass, 0, 0.95 * explode * spread)
 
   // The main screen re-encodes to glyphs while it swaps from welcome to home, and goes dark-glyph for the quiet act.
   const dip = ramp(day, 0, 0.06) * (1 - ramp(day, 0.1, 0.2))
@@ -173,37 +207,43 @@ export function poseAt(input: RigInput): Pose {
     }
     const s = 0.12 + i * 0.17
     const out = ramp(day, s, s + 0.28) * (1 - ramp(quiet, 0, 0.6))
-    const slot: Vec3 = [-0.95 + i * 0.95, 0, 0.12 * Math.abs(i - 1.5)]
+    const slot: Vec3 = [(-0.46 + i * 0.73) * reach, 0, 0.1 * Math.abs(i - 1.5)]
     const b = basis(-0.12 * (i - 1.5), 0)
     const develop = ramp(day, s + 0.18, s + 0.32) * (1 - ramp(quiet, 0, 0.6))
     const opacity = ramp(day, s, s + 0.06) * (1 - ramp(quiet, 0.45, 0.65))
     return plane(lerp3(screenCenter, slot, out), b.right, b.up, PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
   })
 
-  const dayDist = narrow ? 2.4 : Math.max(3.4, (2.6 * FOCAL) / aspect)
-  let dist = narrow ? 2.95 : 2.7
-  dist = lerp(dist, narrow ? 2.6 : 2.35, ramp(arrival, 0, 1))
-  dist = lerp(dist, narrow ? 2.45 : 2.1, ramp(hand, 0, 0.8))
+  let dist = narrow ? 2.6 : 2.05
+  dist = lerp(dist, narrow ? 2.25 : 1.7, ramp(arrival, 0, 1))
+  dist = lerp(dist, narrow ? 2.15 : 1.62, ramp(hand, 0, 0.8))
   dist = lerp(dist, dayDist, ramp(day, 0, 0.15))
-  dist = lerp(dist, narrow ? 2.7 : 2.4, ramp(quiet, 0, 0.8))
-  dist = lerp(dist, narrow ? 3.3 : 2.9, ramp(glass, 0, 0.45))
-  dist = lerp(dist, narrow ? 2.2 : 1.8, ramp(proof, 0, 0.6))
-  dist = lerp(dist, narrow ? 3.0 : 2.8, ramp(coach, 0, 0.4))
-  dist = lerp(dist, narrow ? 2.6 : 2.35, ramp(close, 0, 0.7))
+  dist = lerp(dist, narrow ? 2.3 : 1.75, ramp(quiet, 0, 0.8))
+  // At 2.25 the fanned stack crosses the right edge below an aspect of about 1.33, which includes tablets in portrait.
+  // The wide glass distance grows as 3.1 / aspect below 1.38, which holds the glass's right edge under 0.99 of the width.
+  dist = lerp(dist, narrow ? 2.9 : Math.max(2.25, 3.1 / aspect), ramp(glass, 0, 0.45))
+  dist = lerp(dist, narrow ? 1.9 : 1.45, ramp(proof, 0, 0.6))
+  dist = lerp(dist, narrow ? 2.6 : 2.2, ramp(coach, 0, 0.4))
+  dist = lerp(dist, narrow ? 2.25 : 1.7, ramp(close, 0, 0.7))
 
   const proofFocus = ramp(proof, 0, 0.6) * (1 - ramp(coach, 0, 0.4))
   const target = lerp3([0, 0, 0], codeCenter, proofFocus)
-  const wideShift = 0.3 * aspect * (1 - dayOut)
-  const shift: [number, number] = narrow ? [0, 0.28] : [wideShift, 0]
+  // The exploded stack fans toward the phone's right, so both shifts ease left during the glass act. Wide keeps
+  // the stack near its callouts, and narrow centres the stack so every layer stays in frame.
+  const stackOut = ramp(glass, 0, 0.45) * (1 - ramp(proof, 0, 0.6))
+  const wideShift = (0.27 - 0.07 * stackOut) * aspect * (1 - dayOut)
+  const shift: [number, number] = narrow ? [-0.22 * stackOut, 0.26] : [wideShift, 0]
 
   const bd = backdropAt(windows, input.backdrops, p)
   const coachAmount = ramp(coach, 0, 0.25) * (1 - ramp(close, 0, 0.3))
+  const decode = ramp(arrival, 0.25, 0.8) * (1 - ramp(close, 0.6, 1))
 
   return {
     camera: { pos: [target[0], target[1], target[2] - dist], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, 1], focal: FOCAL, shift },
     phone: { pos: phonePos, right, up, normal },
     explode,
     gather: ramp(arrival, 0, 0.6),
+    decode,
     internals: explode,
     glass: { center: glassCenter, light: (0.35 + 0.65 * explode) * (1 - 0.6 * proofDim) * ramp(arrival, 0.3, 0.6), sweep: lerp(-1.4, 1.4, ramp(glass, 0.1, 0.9)), band: explode },
     screen,

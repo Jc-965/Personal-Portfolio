@@ -18,6 +18,8 @@ const ACT_SCREEN: Partial<Record<string, ScreenKey>> = { arrival: 'welcome', han
 /** Acts that show a phone in the reduced-motion layout. */
 const STATIC_PHONE = new Set(['arrival', 'hand', 'day', 'close'])
 const AMBER = '#eab76a'
+/** Milliseconds the copy keeps moving after an act change: the .2 s --td-handoff and .9 s rise in teardown.css, three 90 ms stagger steps, and margin. */
+const COPY_MS = 1500
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -37,6 +39,7 @@ function Teardown({ story }: { story: TeardownStory }) {
   const [near, setNear] = useState(false)
   const [failed, setFailed] = useState(false)
   const [act, setAct] = useState(0)
+  const actRef = useRef(0)
   const [printed, setPrinted] = useState(false)
   const windows = useMemo(() => actWindows(story.acts), [story])
   const travel = totalSpan(story.acts)
@@ -45,6 +48,7 @@ function Teardown({ story }: { story: TeardownStory }) {
   const screenFor = (actKey: string) => screenOf(ACT_SCREEN[actKey] ?? 'home')
 
   useEffect(() => { modeRef.current = mode }, [mode])
+  useEffect(() => { actRef.current = act }, [act])
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -53,40 +57,59 @@ function Teardown({ story }: { story: TeardownStory }) {
     return () => query.removeEventListener('change', onChange)
   }, [])
 
-  // Act tracking runs without the renderer, so the copy and the DOM stage follow scroll in every mode but static.
+  // Sets the act, the arrival print, and the proof readout from one progress value. The scroll listener
+  // calls it in dom mode and onFrame calls it with the canvas's glided progress in gl mode, so the copy
+  // changes in step with the stage the reader sees.
+  const followProgress = useCallback((progress: number) => {
+    const current = actAt(windows, progress)
+    setAct(current.index)
+    if (progress > 0) setPrinted(true)
+    if (current.index === proofIndex) {
+      stageRef.current?.querySelectorAll<HTMLElement>('.teardown__readout li').forEach((li, i, all) => {
+        li.style.setProperty('--typed', String(Math.min(1, Math.max(0, current.local * all.length * 1.4 - i))))
+      })
+    }
+  }, [windows, proofIndex])
+
+  // Scroll drives the copy only in dom mode, before the renderer is ready and after a fallback.
   useEffect(() => {
-    if (!track || mode === 'static') return
+    if (!track || mode !== 'dom') return
     let raf = 0
-    let active = -1
     const update = () => {
       raf = 0
       const stage = stageRef.current
       const top = track.getBoundingClientRect().top + window.scrollY
-      const progress = sceneProgress(window.scrollY - top, track.offsetHeight, stage?.clientHeight || window.innerHeight)
-      const current = actAt(windows, progress)
-      active = current.index
-      setAct(current.index)
-      if (progress > 0) setPrinted(true)
-      if (current.index === proofIndex) {
-        track.querySelectorAll<HTMLElement>('.teardown__readout li').forEach((li, i, all) => {
-          li.style.setProperty('--typed', String(Math.min(1, Math.max(0, current.local * all.length * 1.4 - i))))
-        })
-      }
+      followProgress(sceneProgress(window.scrollY - top, track.offsetHeight, stage?.clientHeight || window.innerHeight))
       // TeardownCanvas reports cover under its own source once the renderer is ready. Until then, and
       // after a fallback, the opaque DOM stage reports it here. A collapsed phone toolbar leaves a strip
       // below the 100svh stage, so the stage must reach the visual viewport's bottom edge.
-      if (mode === 'dom' && stage) {
+      if (stage) {
         const rect = stage.getBoundingClientRect()
         const visibleHeight = window.visualViewport?.height ?? window.innerHeight
         setCovering('teardown-dom', rect.top <= 0.5 && rect.bottom + 0.5 >= visibleHeight)
       }
     }
-    // Focus inside a hidden act (the close act's links, which stay focusable) scrolls the window to the
-    // middle of that act's window, so the act and the focused link are on screen.
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update) }
+    schedule()
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule, { passive: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      setCovering('teardown-dom', false)
+    }
+  }, [track, mode, followProgress])
+
+  // Focus inside a hidden act (the close act's links, which stay focusable) scrolls the window to the
+  // middle of that act's window, so the act and the focused link are on screen. In gl mode the act then
+  // follows once the glided progress arrives.
+  useEffect(() => {
+    if (!track || mode === 'static') return
     const onFocusIn = (event: FocusEvent) => {
       const key = (event.target as Element | null)?.closest<HTMLElement>('.teardown__act')?.dataset.actKey
       const index = windows.findIndex((w) => w.key === key)
-      if (index < 0 || index === active) return
+      if (index < 0 || index === actRef.current) return
       const top = track.getBoundingClientRect().top + window.scrollY
       const travel = Math.max(1, track.offsetHeight - (stageRef.current?.clientHeight || window.innerHeight))
       const y = top + ((windows[index].start + windows[index].end) / 2) * travel
@@ -94,19 +117,9 @@ function Teardown({ story }: { story: TeardownStory }) {
       if (lenis) lenis.scrollTo(y, { immediate: true })
       else window.scrollTo({ top: y, behavior: 'instant' })
     }
-    const schedule = () => { if (!raf) raf = requestAnimationFrame(update) }
-    schedule()
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule, { passive: true })
     track.addEventListener('focusin', onFocusIn)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-      track.removeEventListener('focusin', onFocusIn)
-      setCovering('teardown-dom', false)
-    }
-  }, [track, windows, mode, proofIndex])
+    return () => track.removeEventListener('focusin', onFocusIn)
+  }, [track, windows, mode])
 
   useEffect(() => {
     if (!track || mode === 'static' || failed) return
@@ -119,9 +132,9 @@ function Teardown({ story }: { story: TeardownStory }) {
     return () => observer.disconnect()
   }, [track, mode, failed])
 
-  // Reads every rect first, then writes, so one frame never forces layout twice.
-  const onFrame = useCallback((frame: TeardownFrame) => {
-    lastFrame.current = frame
+  // Reads every rect first, then writes, so one call never forces layout twice. A leader line is on only
+  // while its callout's act is active, and lines keep tracking their callouts while they fade out.
+  const placeOverlay = useCallback((frame: TeardownFrame) => {
     const stage = stageRef.current
     const svg = linesRef.current
     if (!stage || !svg) return
@@ -136,12 +149,13 @@ function Teardown({ story }: { story: TeardownStory }) {
       const key = label.dataset.anchor ?? ''
       const line = svg.querySelector<SVGLineElement>(`line[data-anchor="${key}"]`)
       if (!line) return
-      const anchor = frame.anchors.get(key)
-      if (!gl || !anchor || !label.classList.contains('is-active')) {
-        writes.push(() => line.setAttribute('visibility', 'hidden'))
+      const anchor = gl ? frame.anchors.get(key) : null
+      if (!anchor) {
+        writes.push(() => line.classList.remove('is-on'))
         return
       }
       const r = label.getBoundingClientRect()
+      const on = label.classList.contains('is-active')
       const x1 = (r.right - stageRect.left + 8).toFixed(1)
       const y1 = (r.top + r.height / 2 - stageRect.top).toFixed(1)
       writes.push(() => {
@@ -149,17 +163,30 @@ function Teardown({ story }: { story: TeardownStory }) {
         line.setAttribute('y1', y1)
         line.setAttribute('x2', anchor.x.toFixed(1))
         line.setAttribute('y2', anchor.y.toFixed(1))
-        line.setAttribute('visibility', 'visible')
+        line.classList.toggle('is-on', on)
       })
     })
     writes.forEach((write) => write())
   }, [])
-  // onFrame reads the committed is-active classes and modeRef, but the canvas draws only on scroll, image
-  // loads, and easing, so its last draw often lands before the act or mode change it caused has committed.
-  // Replaying that frame after the commit keeps each leader line on its own act's callouts.
+  const onFrame = useCallback((frame: TeardownFrame) => {
+    lastFrame.current = frame
+    if (modeRef.current === 'gl') followProgress(frame.progress)
+    placeOverlay(frame)
+  }, [followProgress, placeOverlay])
+  // placeOverlay reads the committed is-active classes and modeRef, but the canvas draws only while
+  // something moves, so its last draw often lands before the act or mode change it caused has committed.
+  // The copy also keeps rising for COPY_MS after the change. Replaying the last frame on every animation
+  // frame for that long keeps each leader line attached to its own callout.
   useEffect(() => {
-    if (lastFrame.current) onFrame(lastFrame.current)
-  }, [act, mode, onFrame])
+    let raf = 0
+    const until = performance.now() + COPY_MS
+    const replay = () => {
+      if (lastFrame.current) placeOverlay(lastFrame.current)
+      raf = modeRef.current === 'gl' && performance.now() < until ? requestAnimationFrame(replay) : 0
+    }
+    replay()
+    return () => cancelAnimationFrame(raf)
+  }, [act, mode, placeOverlay])
   const onReady = useCallback(() => setMode((m) => (m === 'static' ? m : 'gl')), [])
   const onFallback = useCallback(() => {
     setFailed(true)
@@ -168,6 +195,8 @@ function Teardown({ story }: { story: TeardownStory }) {
 
   const isStatic = mode === 'static'
   const isActive = (index: number) => isStatic || index === act
+  // Passed acts wait 14px above their resting place and later acts 14px below it (teardown.css), so the copy moves with the scroll.
+  const actState = (index: number) => (isActive(index) ? ' is-active' : index < act ? ' is-past' : '')
   const actKey = story.acts[act]?.key ?? 'arrival'
   const domScreen = screenFor(actKey)
   // Every screen the DOM stage can show stays mounted, so an act change crossfades instead of cutting.
@@ -200,7 +229,9 @@ function Teardown({ story }: { story: TeardownStory }) {
           </Suspense>
         )}
         <svg ref={linesRef} className="teardown__leaders" aria-hidden="true">
-          {story.acts.flatMap((a, ai) => a.callouts.map((_, ci) => <line key={`c:${ai}:${ci}`} data-anchor={`c:${ai}:${ci}`} visibility="hidden" />))}
+          {story.acts.flatMap((a, ai) => a.callouts.map((_, ci) => (
+            <line key={`c:${ai}:${ci}`} data-anchor={`c:${ai}:${ci}`} style={{ '--i': ci } as React.CSSProperties} />
+          )))}
         </svg>
 
         <div className="teardown__rail">
@@ -210,7 +241,7 @@ function Teardown({ story }: { story: TeardownStory }) {
               // The close act stays out of inert so its links keep their place in the tab order. See onFocusIn.
               <div
                 key={a.key}
-                className={`teardown__act teardown__act--${a.key}${isActive(ai) ? ' is-active' : ''}`}
+                className={`teardown__act teardown__act--${a.key}${actState(ai)}`}
                 data-act-key={a.key}
                 inert={!isActive(ai) && a.key !== 'close'}
               >
@@ -220,7 +251,7 @@ function Teardown({ story }: { story: TeardownStory }) {
                 {a.key === 'arrival' && (
                   <>
                     <h3 id={titleId} className="teardown__title">
-                      {isStatic ? a.lines[0] : printed ? <Printed text={a.lines[0]} delay={0} speed={24} /> : (
+                      {isStatic ? a.lines[0] : printed ? <Printed text={a.lines[0]} delay={0} speed={14} /> : (
                         // Hidden until the print starts, so the print never replaces visible text. The hidden
                         // copy holds the heading's box, and the sr-only copy holds its accessible name.
                         <>
@@ -234,7 +265,9 @@ function Teardown({ story }: { story: TeardownStory }) {
                 )}
                 {a.key === 'proof' && (
                   <ul className="teardown__readout">
-                    {a.lines.map((line) => <li key={line}><span className="teardown__prompt" aria-hidden="true">$</span> {line}</li>)}
+                    {a.lines.map((line, i) => (
+                      <li key={line} style={{ '--i': i } as React.CSSProperties}><span className="teardown__prompt" aria-hidden="true">$</span> {line}</li>
+                    ))}
                   </ul>
                 )}
                 {a.key === 'coach' && (
@@ -246,13 +279,22 @@ function Teardown({ story }: { story: TeardownStory }) {
                 {a.key !== 'arrival' && a.key !== 'proof' && a.key !== 'coach' && a.lines.map((line) => <p key={line} className="teardown__line">{line}</p>)}
                 {mode !== 'gl' && a.key === 'day' && (
                   <ul className="teardown__callouts">
-                    {story.cards.map((card) => <li key={card.screen} className="teardown__callout is-active"><span className="teardown__slashes" aria-hidden="true">//</span> {card.label}</li>)}
+                    {story.cards.map((card, i) => (
+                      <li key={card.screen} className="teardown__callout is-active" style={{ '--i': i } as React.CSSProperties}>
+                        <span className="teardown__slashes" aria-hidden="true">//</span> {card.label}
+                      </li>
+                    ))}
                   </ul>
                 )}
                 {a.callouts.length > 0 && (
                   <ul className="teardown__callouts">
                     {a.callouts.map((c, ci) => (
-                      <li key={c.text} className={`teardown__callout${isActive(ai) ? ' is-active' : ''}`} data-anchor={`c:${ai}:${ci}`}>
+                      <li
+                        key={c.text}
+                        className={`teardown__callout${isActive(ai) ? ' is-active' : ''}`}
+                        data-anchor={`c:${ai}:${ci}`}
+                        style={{ '--i': ci } as React.CSSProperties}
+                      >
                         <span className="teardown__slashes" aria-hidden="true">//</span> {c.text}
                       </li>
                     ))}
