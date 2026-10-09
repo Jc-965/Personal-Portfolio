@@ -37,8 +37,11 @@ export interface Product {
  * panel sits behind the camera, so surfaces that face the camera inside the
  * open tray (the back plate and the internals) reflect it as a flat grey wash
  * unless they reflect much less than the frame, which sees it only at grazing angles.
+ * `steel` feeds only the shield cans and the steel module. Its emissive panels
+ * are 17 to 100, so at 0.7 those metal faces clipped to flat white squares in
+ * the proof close-up, and at 0.2 they read as grey metal.
  */
-const ENV = { frame: 1, interior: 0.3, battery: 0.5, coil: 0.9, steel: 0.7 } as const
+const ENV = { frame: 1, interior: 0.3, battery: 0.5, coil: 0.9, steel: 0.2 } as const
 /** Frame and front lip bevel, world units. */
 const BEVEL = 0.012
 /** Inset of the frame's front and back lip from the outer silhouette. The lip edge sits between the screen and the glass edge. */
@@ -47,7 +50,8 @@ const GLASS_HALF = { x: PHONE.sx + 0.012, y: PHONE.sy + 0.012, radius: PHONE.sRa
 /**
  * Glass tuning. The sheet is a clear physical material drawn with
  * premultiplied alpha, so its reflection scales by `env` times `opacity`,
- * and that product must stay near 0.035 wide and 0.05 narrow. RoomEnvironment's
+ * and that product must stay near 0.035 on every stage. At 0.05 the narrow
+ * sheet laid a white wedge across the Home capture's chart. RoomEnvironment's
  * ceiling panel reflects across the tilted sheet's upper half, and a larger
  * product fills the exploded sheet with a flat grey that reads as frost
  * instead of a sheen. The rim ring and the sweeping band in the shader carry
@@ -55,7 +59,7 @@ const GLASS_HALF = { x: PHONE.sx + 0.012, y: PHONE.sy + 0.012, radius: PHONE.sRa
  * is assembled the sheet runs at `assembled` of its opacity, so the screen
  * beneath keeps its colours.
  */
-const GLASS = { opacity: { wide: 0.1, narrow: 0.14 }, env: 0.35, roughness: 0.02, assembled: 0.4 } as const
+const GLASS = { opacity: { wide: 0.1, narrow: 0.1 }, env: 0.35, roughness: 0.02, assembled: 0.4 } as const
 /** Glass light while assembled, from rig.ts. Below it the glass fades out with the arrival. */
 const ASSEMBLED_LIGHT = 0.35
 /** Lens centres on the camera bump, bump-local. The camera barrels inside the tray sit behind them. */
@@ -127,8 +131,19 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   const elementMat = own(new THREE.MeshPhysicalMaterial({ color: '#0c1a30', roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.02, ...lit(ENV.frame) }))
   const flashMat = own(new THREE.MeshStandardMaterial({ color: '#f1e3c4', emissive: '#6b5230', emissiveIntensity: 0.4, roughness: 0.35, ...lit(ENV.interior) }))
   const darkMat = own(new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.55, ...lit(ENV.interior) }))
-  const boardMat = own(new THREE.MeshStandardMaterial({ color: '#12221c', roughness: 0.6, ...lit(ENV.interior) }))
-  const chipMat = own(new THREE.MeshStandardMaterial({ color: '#16161a', roughness: 0.3, ...lit(ENV.battery) }))
+  const boardMat = own(new THREE.MeshStandardMaterial({ color: '#0d1a15', roughness: 0.6, ...lit(ENV.interior) }))
+  // The internal camera lenses face the camera in the exploded stack, and RoomEnvironment's area lights behind it
+  // are emissive at 17 to 100, so any glossy head-on reflection at ENV.interior with a clearcoat on top clips to
+  // a flat white disc. The lens glass therefore reflects at 0.03 with no clearcoat and a soft 0.25 roughness, which
+  // keeps the brightest panel to a dim sheen on near-black glass. The barrels around the lenses are titanium at a
+  // quarter of the frame's reflection, and the plate under them is matte black.
+  const innerLensMat = own(new THREE.MeshPhysicalMaterial({ color: '#05070a', roughness: 0.25, clearcoat: 0, envMap, envMapIntensity: 0.03 }))
+  const barrelMat = own(new THREE.MeshStandardMaterial({ color: '#2b2d31', metalness: 0.9, roughness: 0.45, envMap, envMapIntensity: 0.25 }))
+  // Bare packages and shield cans in two finishes each, so neighbouring parts catch the light differently and the
+  // board reads as hardware instead of flat grey boxes. The cans' roughness of 0.55 and 0.7 spreads the
+  // environment's panels into a soft sheen, which a head-on can otherwise mirrors as a flat white square.
+  const chipMats = [0.26, 0.4].map((roughness) => own(new THREE.MeshStandardMaterial({ color: '#0c0c0f', roughness, ...lit(ENV.battery) })))
+  const shieldMats = [0.55, 0.7].map((roughness) => own(new THREE.MeshStandardMaterial({ color: '#4e5157', metalness: 0.9, roughness, ...lit(ENV.steel) })))
   const steelMat = own(new THREE.MeshStandardMaterial({ color: '#7d8187', metalness: 0.92, roughness: 0.32, ...lit(ENV.steel) }))
   const flexMat = own(new THREE.MeshStandardMaterial({ color: '#5a3a18', metalness: 0.35, roughness: 0.4, ...lit(ENV.battery) }))
   const batteryMat = own(new THREE.MeshStandardMaterial({ color: '#3a3d42', metalness: 0.75, roughness: 0.42, ...lit(ENV.battery) }))
@@ -185,6 +200,12 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
     mesh(button(half), frameMat, body, x, y, 0)
   }
 
+  // The display-off face: a black panel 0.002 behind the screen plane, inside the frame's bezel. It shows wherever
+  // the screen plane is transparent on an assembled phone (the narrow deck and the arrival's fade-in), so the front
+  // reads as a dark display and never as the empty tray. update() hides it while the internals show, so the
+  // exploded stack is unchanged.
+  const face = mesh(new THREE.ShapeGeometry(roundedRect(new THREE.Shape(), PHONE.sx, PHONE.sy, PHONE.sRadius), 16), darkMat, body, 0, 0, 0.036)
+
   // Dynamic Island: a pill just in front of the screen plane (local z 0.038), with its camera dot, over the
   // captures' empty top strip. Top speaker slot on the front lip above it, between the screen and the glass.
   mesh(slab(0.105, 0.0315, 0.0315, 0.004, 0.0005, 16), darkMat, body, 0, PHONE.sy - 0.0505, 0.0405)
@@ -218,20 +239,25 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   // points are the coil's top and the camera barrels at local z 0.011 and 0.010. The board's top face is at
   // -0.014, the battery's at 0.002, and the back plate's inner face at -0.0355.
   mesh(box(0.58, 0.5, 0.012, 0.004), boardMat, internals, 0, 0.41, -0.02)
-  // Camera barrels in the top left corner, behind the bump.
-  mesh(box(0.2, 0.2, 0.016, 0.006), chipMat, internals, BUMP[0], BUMP[1], -0.006)
+  // Camera barrels in the top left corner, behind the bump: titanium barrels, each capped by a dark glass lens
+  // that leaves a titanium ring around it. The lens tops sit at local z 0.0105, under the code layer's 0.012.
+  mesh(box(0.2, 0.2, 0.016, 0.006), darkMat, internals, BUMP[0], BUMP[1], -0.006)
   const barrelGeometry = keep(cylinderZ(0.036, 0.008, 32))
-  for (const [x, y] of LENSES) mesh(barrelGeometry, steelMat, internals, BUMP[0] + x, BUMP[1] + y, 0.006)
-  // Eight chips on the board: shielded packages in steel, bare packages in black epoxy.
+  const innerLensGeometry = keep(cylinderZ(0.027, 0.001, 32))
+  for (const [x, y] of LENSES) {
+    mesh(barrelGeometry, barrelMat, internals, BUMP[0] + x, BUMP[1] + y, 0.006)
+    mesh(innerLensGeometry, innerLensMat, internals, BUMP[0] + x, BUMP[1] + y, 0.01)
+  }
+  // Eight chips on the board: shielded packages in steel cans, bare packages in black epoxy.
   const chips: [number, number, number, number, number, THREE.Material][] = [
-    [0.15, 0.15, 0.018, 0.08, 0.5, steelMat],
-    [0.09, 0.07, 0.014, 0.22, 0.54, chipMat],
-    [0.09, 0.1, 0.016, 0.22, 0.4, steelMat],
-    [0.07, 0.07, 0.012, 0.07, 0.34, chipMat],
-    [0.12, 0.06, 0.012, -0.15, 0.33, chipMat],
-    [0.05, 0.04, 0.01, -0.04, 0.26, chipMat],
-    [0.06, 0.035, 0.01, 0.15, 0.25, chipMat],
-    [0.045, 0.045, 0.012, 0.25, 0.25, steelMat],
+    [0.15, 0.15, 0.018, 0.08, 0.5, shieldMats[0]],
+    [0.09, 0.07, 0.014, 0.22, 0.54, chipMats[1]],
+    [0.09, 0.1, 0.016, 0.22, 0.4, shieldMats[1]],
+    [0.07, 0.07, 0.012, 0.07, 0.34, chipMats[0]],
+    [0.12, 0.06, 0.012, -0.15, 0.33, chipMats[1]],
+    [0.05, 0.04, 0.01, -0.04, 0.26, chipMats[0]],
+    [0.06, 0.035, 0.01, 0.15, 0.25, chipMats[1]],
+    [0.045, 0.045, 0.012, 0.25, 0.25, shieldMats[0]],
   ]
   for (const [w, h, d, x, y, material] of chips) mesh(box(w, h, d, 0.003), material, internals, x, y, -0.014 + d / 2)
   // Two flex cables lying on the board's face: one down the right edge beside the battery, one bridging the gap
@@ -335,6 +361,7 @@ ${shader.fragmentShader.replace('#include <premultiplied_alpha_fragment>', `#inc
       const { phone } = pose
       setMatrix(body, phone.pos, phone.right, phone.up, phone.normal)
       internals.visible = pose.internals >= 0.01
+      face.visible = !internals.visible
       setMatrix(glass, pose.glass.center, phone.right, phone.up, phone.normal)
       const shown = Math.min(1, pose.glass.light / ASSEMBLED_LIGHT)
       glass.visible = shown > 0.005

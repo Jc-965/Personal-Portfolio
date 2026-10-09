@@ -11,14 +11,20 @@ export interface ActWindow {
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 /**
  * Share of `dwell`'s motion moved from the middle to the ends. Below 1 keeps
- * dwell monotonic. At 0.6 the copy keeps drifting through the middle of its
- * act at 40% of the mean rate, so no act reads as a parked screen.
+ * dwell monotonic. At 0.75 the copy keeps drifting through the middle of its
+ * act at 25% of the mean rate, so an act rests on its copy without reading
+ * as a parked screen.
  */
-const LINGER = 0.6
+const LINGER = 0.75
 /** Vertical travel of the copy block, in stage heights, from local 0 to local 1. */
 const RIDE = 0.9
-/** |y| at which the copy starts to fade, and |y| at which it is gone. */
-const RIDE_FADE: [number, number] = [0.28, 0.45]
+/**
+ * |y| at which the copy starts to fade, and |y| at which it is gone. The
+ * phone layout in Teardown.tsx reads the first value and scales its ride so a
+ * block's top meets the product floor there, so the clip and the fade start
+ * together.
+ */
+export const RIDE_FADE: readonly [number, number] = [0.32, 0.45]
 
 export function totalSpan(acts: readonly { span: number }[]): number {
   return acts.reduce((sum, act) => sum + act.span, 0)
@@ -71,9 +77,34 @@ export function dwell(t: number): number {
  * The copy block's ride across its act. `y` is its vertical offset as a
  * fraction of the stage height: +0.45 at local 0 (below centre), 0 at 0.5,
  * -0.45 at 1, slower through the middle 60% of the act and faster at the ends.
- * `opacity` is 1 while |y| <= 0.28 and 0 once |y| reaches 0.45.
+ * `opacity` is 1 while |y| <= 0.32, which holds from about 0.085 to 0.915 of
+ * the act, and 0 once |y| reaches 0.45.
  */
 export function copyRide(local: number): { y: number; opacity: number } {
   const y = RIDE / 2 - RIDE * dwell(local)
   return { y, opacity: 1 - ramp(Math.abs(y), RIDE_FADE[0], RIDE_FADE[1]) }
+}
+
+/**
+ * Share of the arrival over which its copy holds the centre. The arrival copy is in place when the chapter pins
+ * and rides out over the act's last 60%.
+ */
+const EDGE_HOLD = 0.4
+/**
+ * Share of the close act over which its copy rides in to the centre, where it then holds to the unpin. At 0.4 the
+ * copy has settled before the phone reaches its close pose (0.5) and rests with it and the evening room until
+ * the room starts to dissolve at 0.74 (ROOM_REVEAL in rig.ts).
+ */
+const CLOSE_SETTLE = 0.4
+
+/**
+ * The copy ride of act `index` at chapter `progress`. Teardown.tsx moves the copy with it and the composite's
+ * copy shade follows the same block, so both must read it from here. Two acts' copy is never visible at once,
+ * since each act's copy is transparent at every boundary it shares with another act.
+ */
+export function actCopyRide(windows: readonly ActWindow[], index: number, progress: number): { y: number; opacity: number } {
+  const local = localOf(windows, windows[index].key, progress)
+  if (index === 0) return copyRide(0.5 + 0.5 * clamp01((local - EDGE_HOLD) / (1 - EDGE_HOLD)))
+  if (index === windows.length - 1) return copyRide(0.5 * clamp01(local / CLOSE_SETTLE))
+  return copyRide(local)
 }

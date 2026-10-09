@@ -9,18 +9,21 @@ import { COACH_BONES, jointsAt } from './coach'
 import { createComposite } from './composite'
 import { GLIDE_TIME, glideStep, type Glide } from './glide'
 import { CHAPTER_RAMP } from './materials'
+import { cardShots, type CardShot } from './labels'
 import { createProduct, type PlaneMesh } from './product'
 import { FOCAL, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
 import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
-import { actAt, actWindows } from './timeline'
+import { actAt, actCopyRide, actWindows } from './timeline'
 
 export interface TeardownFrame {
   /** Glided chapter progress, the value every visual and the act state follow. */
   progress: number
-  /** Stage-relative CSS px per anchor key, null when behind the camera. Keys: `c:<act>:<callout>`, `k:<card>`. */
+  /** Stage-relative CSS px per callout anchor, keyed `c:<act>:<callout>`, null when behind the camera. */
   anchors: Map<string, { x: number; y: number } | null>
-  /** Develop value per day-act card, 0 glyphs to 1 sharp, in story order. */
-  cards: number[]
+  /** Each day-act card's label anchor, bounds, depth, develop, and opacity, in story order. */
+  cards: CardShot[]
+  /** The pose's explode, 0 assembled to 1 fully apart. Teardown holds the glass act's leaders until the stack has separated. */
+  explode: number
 }
 
 export interface TeardownCanvasProps {
@@ -243,6 +246,8 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   let frameInterval = 1000 / 60
   let lastAct = -1
   let copyDirty = true
+  let copyRail: { right: number; top: number } | null = null
+  let copyBlocks: HTMLElement[] = []
   const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0, surge: 0 }
   const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
   let drag: { id: number; x: number; start: number } | null = null
@@ -299,18 +304,39 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   }
 
   /**
-   * The copy mask: the rail's right edge and top in device px, the narrow flag, and full strength. The rail's
-   * rect is independent of the active act, since the acts ride inside it on --copy-y. It is measured on resize
-   * and again on the frame after each act change, so a layout change that coincides with an act boundary is
-   * picked up without waiting for a resize.
+   * The rail's right edge and top in stage CSS px, and its act blocks in act order. The rail's rect is
+   * independent of the active act, since the acts ride inside it on --copy-y. It is measured on resize and again
+   * on the frame after each act change, so a layout change that coincides with an act boundary is picked up
+   * without waiting for a resize.
    */
   const measureCopy = () => {
     copyDirty = false
-    const rail = stage.querySelector<HTMLElement>('.teardown__rail')?.getBoundingClientRect()
-    if (!rail || !rail.width || !rail.height) { cu.uCopyMask.value.set(0, 0, 0, 0); return }
+    const railEl = stage.querySelector<HTMLElement>('.teardown__rail')
+    const rail = railEl?.getBoundingClientRect()
+    copyBlocks = railEl ? (Array.from(railEl.children) as HTMLElement[]) : []
+    if (!rail || !rail.width || !rail.height) { copyRail = null; return }
     const rect = stage.getBoundingClientRect()
+    copyRail = { right: rail.right - rect.left, top: rail.top - rect.top }
+  }
+
+  /**
+   * The copy mask for one frame, in device px. Phones shade from the rail's top down. Wide stages shade the
+   * active act's block where Teardown rides it this frame (actCopyRide) and fade the shade with the block's
+   * opacity, so an act with no copy shades nothing. The block's offsetTop and offsetHeight exclude the ride's
+   * transform, and the proof readout grows as it types, so both are read every frame. The draw runs before
+   * Teardown's writes for the frame, so the reads find layout clean.
+   */
+  const applyCopyMask = (progress: number) => {
     const px = renderer.getPixelRatio()
-    cu.uCopyMask.value.set((rail.right - rect.left) * px, (rail.top - rect.top) * px, narrow ? 1 : 0, 1)
+    cu.uCopyNarrow.value = narrow ? 1 : 0
+    if (!copyRail) { cu.uCopyMask.value.set(0, 0, 0, 0); return }
+    if (narrow) { cu.uCopyMask.value.set(copyRail.right * px, copyRail.top * px, 0, 1); return }
+    const act = actAt(windows, progress).index
+    const block = copyBlocks[act]
+    const ride = actCopyRide(windows, act, progress)
+    const blockH = block?.offsetHeight ?? 0
+    const top = copyRail.top + (block?.offsetTop ?? 0) + ride.y * height
+    cu.uCopyMask.value.set(copyRail.right * px, top * px, (top + blockH) * px, blockH > 0 ? ride.opacity : 0)
   }
 
   /** Plane uniforms. A plane whose texture has not arrived stays hidden instead of drawing black. */
@@ -341,10 +367,16 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
       const [x, y] = story.backdrops[index]?.focus ?? [0.5, 0.5]
       return [x, 1 - y]
     }
+    const levels = (index: number): [number, number] => story.backdrops[index]?.levels ?? [0, 1]
+    const mirror = (index: number) => (story.backdrops[index]?.mirror ? 1 : 0)
+    const slotA = roomA >= 0 ? roomA : roomB
+    const slotB = roomB >= 0 ? roomB : roomA
     cu.uBackA.value = first?.texture ?? null
     cu.uBackB.value = second?.texture ?? null
     cu.uBackAspect.value.set(first?.aspect ?? 16 / 9, second?.aspect ?? 16 / 9)
-    cu.uFocus.value.set(...focus(roomA >= 0 ? roomA : roomB), ...focus(roomB >= 0 ? roomB : roomA))
+    cu.uFocus.value.set(...focus(slotA), ...focus(slotB))
+    cu.uLevels.value.set(...levels(slotA), ...levels(slotB))
+    cu.uMirror.value.set(mirror(slotA), mirror(slotB))
     cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
     cu.uBackGain.value = first ? gain : 0
     cu.uGlyphOnly.value = glyphOnly
@@ -409,6 +441,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     camera.projectionMatrix.fromArray(applyLensShift(camera.projectionMatrix.toArray(), pose.camera.shift, aspect))
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
     applyComposite(pose, aspect)
+    applyCopyMask(glide.value)
 
     renderer.setRenderTarget(target)
     renderer.render(scene, camera)
@@ -422,8 +455,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
       return at ? { x: at.x * width, y: at.y * height } : null
     }
     story.acts.forEach((act, a) => act.callouts.forEach((callout, c) => anchors.set(`c:${a}:${c}`, toPx(anchorWorld(pose, callout.anchor)))))
-    pose.cards.forEach((card, k) => anchors.set(`k:${k}`, toPx([card.center[0], card.center[1] - card.halfH * 1.08, card.center[2]])))
-    callbacks.current.onFrame({ progress: glide.value, anchors, cards: pose.cards.map((card) => card.develop) })
+    callbacks.current.onFrame({ progress: glide.value, anchors, cards: cardShots(pose, aspect, width, height), explode: pose.explode })
 
     if (!ready && [...screens.values()].every((screen) => screen.ready)) {
       ready = true

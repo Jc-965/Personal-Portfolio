@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { actWindows } from '../../src/components/teardown/timeline.ts'
-import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, planePoint, poseAt, projectPoint, roomDrift } from '../../src/components/teardown/rig.ts'
+import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, coachWorld, planePoint, poseAt, projectPoint, projectRect, roomDrift } from '../../src/components/teardown/rig.ts'
+import { COACH_JOINTS, jointsAt } from '../../src/components/teardown/coach.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
 
 const windows = actWindows(PARKIWELL.acts)
@@ -44,20 +45,67 @@ test('the phone is assembled at the start and the end of the chapter', () => {
   }
 })
 
-test('the explode amount is zero outside acts 5 to 7 and rises through the first 80% of act 5', () => {
+test('the explode amount is zero outside acts 5 and 6 and rises through the first 40% of act 5', () => {
   for (const key of ['arrival', 'hand', 'day', 'quiet']) {
     assert.equal(at((w(key).start + w(key).end) / 2).explode, 0)
   }
   assert.equal(at(1).explode, 0)
   let last = -1
   for (let i = 0; i <= 32; i++) {
-    const e = at(inAct('glass', 0.8 * (i / 32))).explode
+    const e = at(inAct('glass', 0.4 * (i / 32))).explode
     assert.ok(e >= last - 1e-12)
     last = e
   }
-  assert.ok(at(inAct('glass', 0.5)).explode > 0.5)
-  assert.ok(last > 0.95)
-  assert.ok(at(inAct('proof', 0.5)).explode > 0.99, 'the stack stays apart through the proof act')
+  const half = at(inAct('glass', 0.2)).explode
+  assert.ok(half > 0.45 && half < 0.55, `the stack is half apart at 20% of the glass act: ${half}`)
+  assert.equal(last, 1, 'the stack is fully apart by 40% of the glass act and holds')
+  // The revealed stack, the code layer included, holds for the act's last 60%, about 2.6 viewport-heights.
+  for (const local of [0.4, 0.65, 0.9]) {
+    const pose = at(inAct('glass', local))
+    assert.equal(pose.explode, 1, `explode at glass ${local}`)
+    assert.equal(pose.code.opacity, 1, `code opacity at glass ${local}`)
+  }
+  assert.ok(at(inAct('proof', 0.5)).explode > 0.99, 'the stack stays apart while the proof readout types')
+  assert.ok(at(inAct('proof', 0.8)).explode > 0.99, 'the stack stays apart while the typed readout rests')
+})
+
+test('the stack is fully closed from the start of the coach act through the close, with the glass back on the screen', () => {
+  for (const narrow of [false, true]) {
+    for (let i = 0; i <= 40; i++) {
+      for (const [key, from] of [['coach', 0], ['close', 0]]) {
+        const pose = at(inAct(key, from + (1 - from) * (i / 40)), narrow)
+        assert.equal(pose.explode, 0, `explode at ${key} ${from + (1 - from) * (i / 40)}`)
+        const glass = pose.phone.pos.map((v, k) => v + pose.phone.normal[k] * LAYER_Z.glass)
+        pose.glass.center.forEach((v, k) => assert.ok(near(v, glass[k], 1e-9), `glass centre at ${key} ${i / 40}`))
+      }
+    }
+  }
+})
+
+test('the skeleton draws only once every layer is home', () => {
+  for (const narrow of [false, true]) {
+    for (let i = 0; i <= 400; i++) {
+      const pose = at(i / 400, narrow)
+      if (pose.explode > 0.01) assert.equal(pose.coach.amount, 0, `skeleton at ${i / 400} with explode ${pose.explode}`)
+    }
+  }
+  assert.equal(at(inAct('coach', 0.15)).coach.amount, 0)
+  assert.ok(at(inAct('coach', 0.375)).coach.amount > 0.4 && at(inAct('coach', 0.375)).coach.amount < 0.6, 'the figure is half drawn at 0.375')
+  assert.equal(at(inAct('coach', 0.6)).coach.amount, 1)
+})
+
+test('each act reaches its station by half the act and holds it, with only the drifts moving', () => {
+  // The turn and the dolly end at RAMP_END, so between 0.5 and 0.99 of an act the camera's distance is unchanged
+  // and the phone's normal moves only by the yaw drift, whose amplitude is 0.05 radians. The arrival turns with
+  // the product's formation (0.65), the day row completes at 0.76, and proof's camera follows the drifting code
+  // layer, so those sample later or compare the normal alone.
+  for (const [key, from] of [['arrival', 0.65], ['hand', 0.5], ['day', 0.76], ['quiet', 0.65], ['glass', 0.65], ['proof', 0.5], ['coach', 0.5], ['close', 0.5]]) {
+    const a = at(inAct(key, from))
+    const b = at(inAct(key, 0.99))
+    const turn = Math.hypot(...a.phone.normal.map((v, k) => v - b.phone.normal[k]))
+    assert.ok(turn < 0.11, `${key} keeps turning after ${from}: ${turn}`)
+    if (key !== 'proof') assert.ok(Math.abs(a.camera.pos[2] - b.camera.pos[2]) < 1e-9, `${key} keeps dollying after ${from}`)
+  }
 })
 
 test('card develop and opacity values stay within 0 to 1', () => {
@@ -102,11 +150,11 @@ test('planePoint scales with the basis and anchorWorld reads screen anchors thro
 
 test('backdrops crossfade between room acts and hold the last room as a dim field in acts without one', () => {
   const quietLate = backdropAt(windows, backdrops, w('quiet').end - 1e-6)
-  assert.ok(near(quietLate.gain, 0.45, 1e-6))
+  assert.ok(near(quietLate.gain, 0.3, 1e-6))
   assert.equal(quietLate.glyphOnly, 1)
   assert.equal(quietLate.a, PARKIWELL.acts.find((a) => a.key === 'day').backdrop)
-  const quietMid = backdropAt(windows, backdrops, (w('quiet').start + w('quiet').end) / 2)
-  assert.ok(quietMid.gain > 0.45 && quietMid.gain < 0.9, 'the room dims across the quiet act instead of at its start')
+  const quietMid = backdropAt(windows, backdrops, inAct('quiet', 0.25))
+  assert.ok(quietMid.gain > 0.3 && quietMid.gain < 0.9, 'the room dims across the quiet act instead of at its start')
   assert.ok(quietMid.glyphOnly > 0 && quietMid.glyphOnly < 1, 'the photograph under the glyphs fades across the quiet act')
   const handStart = backdropAt(windows, backdrops, w('hand').start + 1e-6)
   assert.equal(handStart.a, 0)
@@ -118,13 +166,38 @@ test('backdrops crossfade between room acts and hold the last room as a dim fiel
   assert.equal(handLate.glyphOnly, 0, 'a room act shows the photograph under its glyphs')
 })
 
+test('each room change takes about 0.6 viewport-heights, so every act holds its whole room', () => {
+  // A change eases over 0.035 of chapter progress from the start of its act, or 70% of a shorter act. With the
+  // spans in parkiwell.ts it ends at 0.144 of the day act (card 0's hold), 0.30 of the close, 0.47 of the hand
+  // and coach acts, and 0.55 of the quiet act.
+  for (const [key, done] of [['hand', 0.47], ['day', 0.145], ['quiet', 0.555], ['coach', 0.47], ['close', 0.31]]) {
+    const span = w(key).end - w(key).start
+    assert.ok(near(Math.min(0.7, 0.035 / span), done, 0.01), `${key} swap ends at ${0.035 / span}`)
+    const mid = backdropAt(windows, backdrops, inAct(key, done / 2))
+    const whole = backdropAt(windows, backdrops, inAct(key, done))
+    const late = backdropAt(windows, backdrops, inAct(key, 0.99))
+    if (key === 'quiet') {
+      assert.ok(mid.glyphOnly > 0 && mid.glyphOnly < 1, `quiet is still dimming at ${done / 2}`)
+      assert.equal(whole.glyphOnly, 1, 'the quiet act holds the dimmed field once the change ends')
+      assert.ok(near(whole.gain, late.gain, 1e-9))
+      continue
+    }
+    assert.ok(mid.mix > 0 && mid.mix < 1, `${key} is still changing rooms at ${done / 2}: ${mid.mix}`)
+    for (const state of [whole, late]) {
+      assert.equal(state.mix, 1, `${key} shows its whole room from ${done}`)
+      assert.equal(state.glyphOnly, 0)
+      assert.ok(near(state.gain, 0.9, 1e-9))
+    }
+  }
+})
+
 test('a room act after a dark act dissolves from the held room back to full brightness', () => {
   const held = PARKIWELL.acts.find((a) => a.key === 'day').backdrop
   const coach = PARKIWELL.acts.find((a) => a.key === 'coach').backdrop
   const start = backdropAt(windows, backdrops, w('coach').start + 1e-6)
   assert.equal(start.a, held)
   assert.equal(start.b, coach)
-  assert.ok(start.mix < 0.05 && start.glyphOnly > 0.95 && start.gain < 0.46)
+  assert.ok(start.mix < 0.05 && start.glyphOnly > 0.95 && start.gain < 0.31)
   const late = backdropAt(windows, backdrops, w('coach').end - 1e-6)
   assert.equal(late.mix, 1)
   assert.equal(late.glyphOnly, 0)
@@ -150,18 +223,29 @@ test('backdrop state is continuous across every act boundary', () => {
   }
 })
 
-test('the room prints in from the page over the first 8.5% of the chapter and dissolves back into it with the close scatter', () => {
-  // The stage pins and unpins with no room drawn, so the page background runs through it at both edges.
+test('the room prints in from the page over the first 63% of the arrival and dissolves back into it with the close scatter', () => {
+  // The stage pins and unpins with no room drawn, so the page background runs through it at both edges. The print
+  // ends just after the product has formed (decode reaches 1 at 0.62 of the arrival act). Both edges are fractions
+  // of their acts, so a span change cannot move them off the product's phases.
   assert.equal(at(0).backdrop.reveal, 0)
   assert.equal(at(1).backdrop.reveal, 0)
-  assert.ok(near(at(0.0425).backdrop.reveal, 0.5, 1e-6), `reveal at the print's midpoint: ${at(0.0425).backdrop.reveal}`)
-  assert.ok(near(at(0.085).backdrop.reveal, 1, 1e-6), `reveal at the end of the print: ${at(0.085).backdrop.reveal}`)
-  assert.ok(near(at(0.93).backdrop.reveal, 1, 1e-6), `reveal at the start of the dissolve: ${at(0.93).backdrop.reveal}`)
-  assert.ok(near(at(0.961).backdrop.reveal, 0.5, 1e-6), `reveal at the dissolve's midpoint: ${at(0.961).backdrop.reveal}`)
-  assert.equal(at(0.992).backdrop.reveal, 0)
+  assert.ok(near(at(inAct('arrival', 0.315)).backdrop.reveal, 0.5, 1e-6), `reveal at the print's midpoint: ${at(inAct('arrival', 0.315)).backdrop.reveal}`)
+  assert.ok(near(at(inAct('arrival', 0.63)).backdrop.reveal, 1, 1e-6), `reveal at the end of the print: ${at(inAct('arrival', 0.63)).backdrop.reveal}`)
+  assert.equal(at(inAct('arrival', 0.62)).decode, 1)
+  assert.ok(at(inAct('arrival', 0.6)).backdrop.reveal > 0.99, 'the room has printed by the time the product is solid')
+  // The evening room is whole from 0.3 of the close, and the close holds it with the posed phone (from 0.5) and
+  // the settled copy (from 0.4) until 0.74.
+  for (const local of [0.31, 0.5, 0.74]) {
+    const room = at(inAct('close', local)).backdrop
+    assert.equal(room.b, 3, `the evening room is in slot b at close ${local}`)
+    assert.equal(room.mix, 1, `the evening room is whole at close ${local}`)
+  }
+  assert.ok(near(at(inAct('close', 0.74)).backdrop.reveal, 1, 1e-6), `reveal at the start of the dissolve: ${at(inAct('close', 0.74)).backdrop.reveal}`)
+  assert.ok(near(at(inAct('close', 0.835)).backdrop.reveal, 0.5, 1e-6), `reveal at the dissolve's midpoint: ${at(inAct('close', 0.835)).backdrop.reveal}`)
+  assert.equal(at(inAct('close', 0.93)).backdrop.reveal, 0)
   // The dissolve ends with the phone's scatter, so no room outlives the product, and the room's gain stays the
   // act's own, so the print and the dissolve are the chapter's only edge fades.
-  assert.equal(at(0.992).gather, 0)
+  assert.equal(at(inAct('close', 0.93)).gather, 0)
   assert.ok(near(at(0).backdrop.gain, 0.9, 1e-6), `gain at the pin: ${at(0).backdrop.gain}`)
 })
 
@@ -170,15 +254,16 @@ test('each room pans over its own time on screen, at a bounded rate, and the pos
   assert.equal(roomDrift(windows, backdrops, 0, 0), 0)
   assert.ok(near(roomDrift(windows, backdrops, 0, 0.2), 0.5, 1e-9))
   assert.equal(roomDrift(windows, backdrops, 0, 0.5), 1)
-  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.267 of progress, so it pans over
+  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.318 of progress, so it pans over
   // that span and is done by the end of the day act.
   const hand = w('hand')
   assert.equal(roomDrift(windows, backdrops, 1, hand.start - 1e-6), 0)
-  assert.ok(roomDrift(windows, backdrops, 1, hand.end) > 0.3)
+  assert.ok(roomDrift(windows, backdrops, 1, hand.end) > 0.2)
   assert.equal(roomDrift(windows, backdrops, 1, w('day').end), 1)
-  // The evening room (3) is on screen for only the close act, under the 0.25 floor, so it pans part way.
+  // The evening room (3) is on screen for only the close act, 0.116 of progress, under the 0.25 floor, so it pans
+  // about half way.
   const evening = roomDrift(windows, backdrops, 3, 1)
-  assert.ok(evening > 0.3 && evening < 0.4, `evening drift at the end: ${evening}`)
+  assert.ok(evening > 0.45 && evening < 0.55, `evening drift at the end: ${evening}`)
   assert.equal(roomDrift(windows, backdrops, 9, 0.5), 0, 'a room no act uses never pans')
   // Each slot carries its own room's drift, and both are continuous across every act boundary.
   for (const win of windows.slice(1)) {
@@ -193,7 +278,7 @@ test('each room pans over its own time on screen, at a bounded rate, and the pos
     const { driftA, driftB } = at(i / 100).backdrop
     assert.ok(driftA >= 0 && driftA <= 1 && driftB >= 0 && driftB <= 1, `drifts at ${i / 100}: ${driftA} ${driftB}`)
   }
-  // At the end the close act is still dissolving from the chair room (slot a) into the evening room (slot b).
+  // At the end the close act holds the evening room in slot b, with the chair room it replaced in slot a.
   const end = at(1).backdrop
   assert.equal(end.b, 3)
   assert.ok(near(end.driftB, evening, 1e-9))
@@ -226,7 +311,9 @@ test('the drifts keep the phone and the camera moving late in an act', () => {
   const a = at(inAct('glass', 0.96))
   const b = at(inAct('glass', 0.99))
   assert.ok(Math.abs(a.phone.normal[0] - b.phone.normal[0]) > 1e-4, 'yaw drifts')
-  assert.ok(Math.abs(a.phone.pos[1] - b.phone.pos[1]) > 1e-4, 'the phone drifts vertically')
+  // The sink, the station step, and the wave can balance for a moment, where the phone turns from rising to
+  // sinking, so the vertical drift is measured over the act's last 6%.
+  assert.ok(Math.abs(at(inAct('glass', 0.93)).phone.pos[1] - b.phone.pos[1]) > 1e-4, 'the phone drifts vertically')
   assert.ok(Math.abs(a.camera.pos[1] - b.camera.pos[1]) > 1e-5, 'the camera drifts vertically')
   // The sink runs the whole chapter and the station steps lift the phone back by most of it, so the phone ends
   // between 0.08 and 0.2 lower than it starts, against the 0.6 the sink alone would drop it.
@@ -238,57 +325,164 @@ test('the product forms from glyphs in act 1 and dissolves back before the end o
   assert.equal(at(0).decode, 0)
   assert.equal(at(1).decode, 0)
   assert.ok(at((w('hand').start + w('hand').end) / 2).decode > 0.99)
-  assert.ok(at(inAct('arrival', 0.5)).decode > 0.3 && at(inAct('arrival', 0.5)).decode < 0.7, 'the arrival decode runs across the act')
+  assert.ok(at(inAct('arrival', 0.36)).decode > 0.3 && at(inAct('arrival', 0.36)).decode < 0.7, 'the arrival decode runs across the first 62% of the act')
+  assert.equal(at(inAct('arrival', 0.62)).decode, 1, 'the product is formed by 62% of the arrival and holds')
   assert.ok(at(inAct('close', 0.5)).decode > 0.99, 'the close holds the real render through its first half')
-  // The dissolve ends at 0.82 and the scatter at 0.9 of the close, so both complete while the stage is still pinned.
-  assert.equal(at(inAct('close', 0.82)).decode, 0, 'the dissolve completes while the stage is still pinned')
+  assert.equal(at(inAct('close', 0.78)).decode, 1, 'the reassembled phone rests until 0.78 of the close')
+  // The dissolve ends at 0.9 and the scatter at 0.93 of the close, so both complete while the stage is still pinned.
+  assert.equal(at(inAct('close', 0.9)).decode, 0, 'the dissolve completes while the stage is still pinned')
   // The gather reverses behind the dissolve, so the characters drift apart instead of holding a phone-shaped block.
   assert.equal(at(0).gather, 0)
-  assert.equal(at(inAct('close', 0.62)).gather, 1)
-  assert.ok(at(inAct('close', 0.75)).gather > 0 && at(inAct('close', 0.75)).gather < 1, 'the scatter runs behind the dissolve')
-  assert.equal(at(inAct('close', 0.9)).gather, 0)
+  assert.equal(at(inAct('close', 0.82)).gather, 1)
+  assert.ok(at(inAct('close', 0.88)).gather > 0 && at(inAct('close', 0.88)).gather < 1, 'the scatter runs behind the dissolve')
+  assert.equal(at(inAct('close', 0.93)).gather, 0)
   assert.equal(at(1).gather, 0)
 })
 
-test('the coach screen is solid and unghosted before the figure starts to draw', () => {
-  // The coach screen swaps in by 0.12 of the act and the figure draws from 0.25. The proof dimming and the code
-  // layer are gone by 0.3 and the stack is nearly closed, so the screen is not seen through the code or the chassis.
-  const swapped = at(inAct('coach', 0.12))
-  assert.ok(swapped.screen.opacity > 0.5, `screen opacity at the end of the swap: ${swapped.screen.opacity}`)
-  const drawing = at(inAct('coach', 0.25))
-  assert.ok(drawing.screen.opacity > 0.9 && drawing.code.opacity < 0.1, `screen ${drawing.screen.opacity} and code ${drawing.code.opacity} opacity as the figure starts`)
-  const settled = at(inAct('coach', 0.3))
-  assert.equal(settled.screen.opacity, 1)
-  assert.equal(settled.code.opacity, 0)
-  assert.ok(settled.explode < 0.25, `explode at 0.3 of the coach act: ${settled.explode}`)
-  assert.ok(at(inAct('coach', 0.4)).explode < 0.081, 'the stack is closed by 0.4 of the coach act')
-  assert.ok(at(inAct('coach', 0.25)).coach.amount < 1e-9, 'the figure has not started to draw at 0.25')
+test('the coach act opens on a whole, unghosted phone that already shows Motion coach', () => {
+  // The stack closes, the glass seats on the screen, and the proof dimming and the code layer fade over the last
+  // 20% of the proof act, after the readout has rested from about 0.49. The coach copy is opaque from 0.085, so
+  // the phone must be whole from the act's first frame. The proof act has already booted the screen into the
+  // coach capture, so the coach act never dips, and the figure starts at 0.15.
+  for (const narrow of [false, true]) {
+    const resting = at(inAct('proof', 0.78), narrow)
+    assert.ok(resting.explode > 0.99, `explode while the readout rests: ${resting.explode}`)
+    const open = at(inAct('coach', 0), narrow)
+    assert.equal(open.explode, 0, 'the stack is closed at the start of the coach act')
+    assert.equal(open.code.opacity, 0)
+    assert.equal(open.screen.opacity, 1)
+    const glass = open.phone.pos.map((v, k) => v + open.phone.normal[k] * LAYER_Z.glass)
+    open.glass.center.forEach((v, k) => assert.ok(near(v, glass[k], 1e-9), 'the glass is on the screen'))
+  }
+  for (const local of [0, 0.03, 0.06, 0.12]) {
+    const screen = at(inAct('coach', local)).screen
+    assert.equal(screen.texture, 'coach', `screen at coach ${local}`)
+    assert.ok(screen.develop > 0.999, `develop at coach ${local}: ${screen.develop}`)
+  }
+  assert.equal(at(inAct('coach', 0.15)).coach.amount, 0, 'the figure has not started to draw at 0.15')
+  assert.ok(at(inAct('coach', 0.2)).coach.amount > 0, 'the figure is drawing by 0.2')
+})
+
+test('proof hides the screen and the glass in front of the code layer, and relights them only after the code is gone', () => {
+  // The composite blends in linear light, so even 5% of the Home capture prints legibly over the code, and the
+  // fanned sheet's rim outlines a rectangle clipped by the frame. Only the code layer and the chassis stay.
+  for (const local of [0.5, 0.6, 0.8]) {
+    const pose = at(inAct('proof', local))
+    assert.equal(pose.screen.opacity, 0, `screen opacity at proof ${local}`)
+    assert.equal(pose.glass.light, 0, `glass light at proof ${local}`)
+    assert.equal(pose.code.opacity, 1, `code opacity at proof ${local}`)
+  }
+  // As the stack closes the code fades out first, and the screen and the glass return only once it is gone, so no
+  // frame prints a capture through the code.
+  for (let i = 0; i <= 40; i++) {
+    const pose = at(inAct('proof', 0.8 + 0.2 * (i / 40)))
+    assert.ok(pose.code.opacity === 0 || pose.screen.opacity === 0, `code ${pose.code.opacity} and screen ${pose.screen.opacity} at proof ${0.8 + 0.2 * (i / 40)}`)
+  }
+  // While hidden, the screen dips to glyphs (0.5 to 0.6) and takes the coach capture at the dip's bottom. It returns
+  // opaque as glyphs by 0.9, never translucent over a resolved capture, and resolves while the stack seats.
+  assert.equal(at(inAct('proof', 0.55)).screen.texture, 'home')
+  for (const local of [0.6, 0.7, 0.88, 0.9]) {
+    const screen = at(inAct('proof', local)).screen
+    assert.equal(screen.texture, 'coach', `screen at proof ${local}`)
+    assert.ok(screen.develop < 0.051, `develop at proof ${local}: ${screen.develop}`)
+  }
+  for (let i = 0; i <= 20; i++) {
+    const local = 0.88 + 0.12 * (i / 20)
+    const { screen } = at(inAct('proof', local))
+    if (screen.opacity > 0 && screen.opacity < 1) assert.ok(screen.develop < 0.051, `a translucent screen (${screen.opacity}) shows a resolved capture at proof ${local}`)
+  }
+  assert.equal(at(inAct('proof', 0.9)).screen.opacity, 1)
+  const booting = at(inAct('proof', 0.95)).screen.develop
+  assert.ok(booting > 0.1 && booting < 0.9, `the screen resolves while the stack seats: ${booting}`)
 })
 
 test('each narrow deck card is whole in frame through the middle of its window and never with two neighbours', () => {
-  // The day camera shows 0.54 to 0.65 world units of half-width at a card's depth, so a card of half-width 0.335
-  // is whole in frame while |x| is under about 0.21, which the 0.85 reach holds from 0.3 to 0.72 of the card's
-  // window. The fades span the same 0.3 at each end, so a card is opaque only while it is whole.
-  const aspect = 0.46
+  // A card is centred from 0.3 to 0.7 of its window. Windows open 0.22 apart and last 0.3 of the act. At z -0.6
+  // and 0.15 below the phone's line a held card spans about 59% to 70% of a 390 by 844 frame's height as the day
+  // camera pushes in, and its top stays at least 3% below the frame's, clear of the menu pill.
+  const aspect = 390 / 844
   for (let i = 0; i < 4; i++) {
-    const s = 0.04 + i * 0.2
+    const s = 0.04 + i * 0.22
     for (const wnd of [0.3, 0.5, 0.7]) {
-      const pose = at(inAct('day', s + wnd * 0.36), true, aspect)
+      const pose = at(inAct('day', s + wnd * 0.3), true, aspect)
       const card = pose.cards[i]
       assert.ok(card.opacity > 0.999, `card ${i} is opaque at ${wnd} of its window: ${card.opacity}`)
       for (const p of corners(pose, aspect, planeRect(card))) {
         assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `card ${i} corner at ${wnd} of its window: ${p.x} ${p.y}`)
       }
+      const rect = projectRect(pose, card, aspect)
+      assert.ok(rect.top >= 0.03, `card ${i} top at ${wnd} of its window: ${rect.top}`)
+      const height = rect.bottom - rect.top
+      assert.ok(height > 0.57 && height < 0.72, `card ${i} spans ${height} of the frame height at ${wnd} of its window`)
     }
-    // A card enters and leaves through its fades, so a clipped card is translucent.
-    for (const wnd of [0.1, 0.2, 0.8, 0.9]) {
-      const card = at(inAct('day', s + wnd * 0.36), true, aspect).cards[i]
+    // A card fades only over the first and last 12% of its window, while it is still at the frame's edge.
+    for (const wnd of [0.12, 0.2, 0.8, 0.88]) {
+      const card = at(inAct('day', s + wnd * 0.3), true, aspect).cards[i]
+      assert.ok(card.opacity > 0.999, `card ${i} is opaque at ${wnd} of its window: ${card.opacity}`)
+    }
+    for (const wnd of [0.05, 0.95]) {
+      const pose = at(inAct('day', s + wnd * 0.3), true, aspect)
+      const card = pose.cards[i]
       assert.ok(card.opacity > 0 && card.opacity < 0.9, `card ${i} is translucent at ${wnd} of its window: ${card.opacity}`)
+      const [left, right] = xSpan(pose, aspect, planeRect(card))
+      assert.ok(left < 0 || right > 1, `card ${i} fades at ${wnd} of its window while whole in frame: ${left} to ${right}`)
     }
   }
+  for (let k = 0; k <= 400; k++) {
+    const pose = at(inAct('day', k / 400), true, aspect)
+    const shown = pose.cards.filter((card) => card.opacity > 0)
+    assert.ok(shown.length <= 2, `${shown.length} deck cards shown at day ${k / 400}`)
+    // Two cards on screen at once never overlap, so neither is drawn through the other.
+    if (shown.length === 2) {
+      const [a, b] = shown.map((card) => xSpan(pose, aspect, planeRect(card)))
+      assert.ok(a[1] < b[0] || b[1] < a[0], `deck cards overlap at day ${k / 400}: ${a} and ${b}`)
+    }
+    // A card is opaque wherever it crosses the phone, so the two screens never print through each other.
+    const phone = xSpan(pose, aspect, chassisRect(pose))
+    for (const card of pose.cards) {
+      if (card.opacity <= 0 || card.opacity >= 0.98) continue
+      const span = xSpan(pose, aspect, planeRect(card))
+      assert.ok(span[1] < phone[0] || span[0] > phone[1], `a translucent deck card (${card.opacity}) crosses the phone at day ${k / 400}`)
+    }
+  }
+  // The receded phone behind the deck is a dark body from card 0's hold on, so the gap between two moving cards
+  // never shows its form.
   for (let k = 0; k <= 100; k++) {
-    const shown = at(inAct('day', k / 100), true, aspect).cards.filter((card) => card.opacity > 0).length
-    assert.ok(shown <= 2, `${shown} deck cards shown at day ${k / 100}`)
+    const local = 0.13 + 0.87 * (k / 100)
+    assert.equal(at(inAct('day', local), true, aspect).screen.opacity, 0, `the phone's screen behind the deck at day ${local}`)
+  }
+  assert.ok(at(inAct('quiet', 0.95), true, aspect).screen.opacity > 0.99, 'the phone returns lit through the quiet act')
+})
+
+test('the narrow hand phone keeps its top bezel clear of the frame\'s top edge', () => {
+  // At 390 by 844 a hand distance of 2.15 left the bezel within about 5 px of the edge.
+  const height = 844, aspect = 390 / height
+  for (const local of [0.5, 0.7, 0.9, 1]) {
+    const pose = at(inAct('hand', local), true, aspect)
+    const top = projectRect(pose, { center: pose.phone.pos, right: pose.phone.right, up: pose.phone.up, halfW: PHONE.hx, halfH: PHONE.hy }, aspect).top * height
+    assert.ok(top >= 20, `the hand phone's top at ${local} is ${top} px from the frame's top`)
+  }
+})
+
+test('the narrow coach figure keeps its wrists clear of the receded phone and inside the frame', () => {
+  // At 390 by 844 the arms reach level at the top of the raise, where the near wrist sat inside the phone's top
+  // right corner and the far one off the frame. Each wrist must stay 12 CSS px outside the phone's projected rect
+  // and the far wrist's 4 px ring inside the frame's right edge.
+  const width = 390, height = 844, aspect = width / height
+  const wrists = [COACH_JOINTS.indexOf(15), COACH_JOINTS.indexOf(16)]
+  for (let k = 0; k <= 80; k++) {
+    const local = 0.6 + 0.4 * (k / 80)
+    const pose = at(inAct('coach', local), true, aspect)
+    const phone = projectRect(pose, { center: pose.phone.pos, right: pose.phone.right, up: pose.phone.up, halfW: PHONE.hx, halfH: PHONE.hy }, aspect)
+    const box = { left: phone.left * width, right: phone.right * width, top: phone.top * height, bottom: phone.bottom * height }
+    const joints = coachWorld(pose, jointsAt(PARKIWELL.pose, pose.coach.frame))
+    for (const j of wrists) {
+      const p = projectPoint(pose, joints[j], aspect)
+      const x = p.x * width, y = p.y * height
+      const gap = Math.hypot(Math.max(box.left - x, 0, x - box.right), Math.max(box.top - y, 0, y - box.bottom))
+      assert.ok(gap >= 12, `wrist ${j} is ${gap} px from the phone at coach ${local}`)
+      assert.ok(x <= width - 4, `wrist ${j} at x ${x} at coach ${local}`)
+    }
   }
 })
 
@@ -349,8 +543,11 @@ test('the wide day row is the phone then the cards in order, centred, without ov
   }
 })
 
-test('wide day cards peel off the front of the screen and land at 0.86 scale', () => {
-  const start = at(inAct('day', 0.08))
+/** Chapter progress at `wnd` of wide day card `i`'s window: the window opens at 0.06 + 0.14 i and lasts 0.28 of the act. */
+const inCard = (i, wnd) => inAct('day', 0.06 + i * 0.14 + wnd * 0.28)
+
+test('wide day cards peel off the front of the screen and land at 0.95 scale by 76% of the act', () => {
+  const start = at(inCard(0, -1e-6))
   const card = start.cards[0]
   assert.equal(card.opacity, 0)
   assert.ok(near(length(card.right), 1, 1e-9) && near(length(card.up), 1, 1e-9), 'a card still on the screen has the screen\'s scale')
@@ -359,46 +556,114 @@ test('wide day cards peel off the front of the screen and land at 0.86 scale', (
   card.center.forEach((v, i) => assert.ok(near(v, front[i], 1e-6)))
   start.cards.slice(1).forEach((later) => assert.equal(later.opacity, 0))
 
-  const mid = at(inAct('day', 0.29))
-  assert.ok(mid.cards[0].opacity > 0.99 && mid.cards[0].develop > 0 && mid.cards[0].develop < 1, 'a card develops while it slides')
+  const mid = at(inCard(0, 0.15))
+  assert.ok(mid.cards[0].opacity > 0.5 && mid.cards[0].develop > 0 && mid.cards[0].develop < 1, 'a card develops while it travels to the spotlight')
 
-  // The last card lands exactly at the end of the act, so the fan is in motion for the whole act.
-  const landed = at(inAct('day', 1))
-  landed.cards.forEach((c, k) => {
-    assert.ok(near(length(c.right), 0.86, 1e-6) && near(length(c.up), 0.86, 1e-6), `card ${k} scale`)
-    assert.equal(c.develop, 1)
-    assert.equal(c.opacity, 1)
-    assert.equal(c.halfW, PHONE.sx)
-  })
-  const late = at(inAct('day', 0.9)).cards[3]
-  assert.ok(length(late.right) > 0.865 && late.opacity > 0.99 && late.develop === 1, 'the last card is developed but still sliding to its slot at 90% of the act')
-  // Card k starts at local 0.08 + 0.14 k, so just before that it is still hidden while card k - 1 is more than half
-  // shown. The slides overlap, so card k - 1 is still fading in when card k starts.
-  for (let k = 1; k < landed.cards.length; k++) {
-    const before = at(inAct('day', 0.08 + k * 0.14 - 0.01))
+  // The last card lands at 0.76 of the act and the row then holds to the end.
+  for (const local of [0.76, 0.88, 1]) {
+    at(inAct('day', local)).cards.forEach((c, k) => {
+      assert.ok(near(length(c.right), 0.95, 1e-6) && near(length(c.up), 0.95, 1e-6), `card ${k} scale at ${local}`)
+      assert.equal(c.develop, 1)
+      assert.equal(c.opacity, 1)
+      assert.equal(c.halfW, PHONE.sx)
+    })
+  }
+  const late = at(inAct('day', 0.7)).cards[3]
+  assert.ok(length(late.right) > 0.955 && late.opacity > 0.99 && late.develop === 1, 'the last card is developed but still settling into its slot at 70% of the act')
+  // Card k's window opens at local 0.06 + 0.14 k, so just before that it is still hidden while card k - 1 is fully
+  // shown and in its spotlight.
+  for (let k = 1; k < 4; k++) {
+    const before = at(inCard(k, -0.01 / 0.28))
     assert.equal(before.cards[k].opacity, 0, `card ${k} waits its turn`)
-    assert.ok(before.cards[k - 1].opacity > 0.5, `card ${k - 1} is more than half shown before card ${k} starts`)
+    assert.ok(before.cards[k - 1].opacity > 0.99, `card ${k - 1} is fully shown before card ${k} starts`)
+  }
+})
+
+test('each wide day card holds in the spotlight at full scale, developed, facing the camera, at one place and size', () => {
+  for (const aspect of [0.75, 1.33, 1.6, 2.0]) {
+    for (let i = 0; i < 4; i++) {
+      for (const wnd of [0.3, 0.45, 0.6]) {
+        const pose = at(inCard(i, wnd), false, aspect)
+        const card = pose.cards[i]
+        assert.equal(card.develop, 1, `card ${i} develop at ${wnd} of its window`)
+        assert.equal(card.opacity, 1, `card ${i} opacity at ${wnd} of its window`)
+        assert.ok(near(length(card.right), 1, 1e-9) && near(length(card.up), 1, 1e-9), `card ${i} scale at ${wnd}: ${length(card.right)}`)
+        assert.ok(near(card.right[0], 1, 1e-9) && near(card.up[1], 1, 1e-9), `card ${i} faces the camera at ${wnd}`)
+        // The spotlight is fixed to the camera, so the held card keeps its place and its size while the day dolly
+        // pushes in: centred at 0.72 of the width and 0.66 of the height tall, against about 0.42 to 0.51 for a
+        // settled card at 1.33 and 1.6.
+        const centre = projectPoint(pose, card.center, aspect)
+        assert.ok(near(centre.x, 0.72, 1e-6), `${aspect} card ${i} centre x at ${wnd}: ${centre.x}`)
+        const ys = corners(pose, aspect, planeRect(card)).map((p) => p.y)
+        assert.ok(near(Math.max(...ys) - Math.min(...ys), 0.66, 1e-6), `${aspect} card ${i} height at ${wnd}: ${Math.max(...ys) - Math.min(...ys)}`)
+        for (const p of corners(pose, aspect, planeRect(card))) {
+          assert.ok(p.x >= 0.02 && p.x <= 0.98 && p.y >= 0.02 && p.y <= 0.98, `${aspect} card ${i} corner at ${wnd}: ${p.x} ${p.y}`)
+        }
+        // The label hangs 1.08 half-heights below the centre and must stay inside the frame.
+        const label = projectPoint(pose, [card.center[0], card.center[1] - card.halfH * 1.08, card.center[2]], aspect)
+        assert.ok(label.y < 0.97, `${aspect} card ${i} label at ${wnd}: ${label.y}`)
+        // Earlier cards are still settling, behind the spotlight, and keep moving through the hold.
+        if (i > 0 && wnd === 0.3) {
+          const prev = pose.cards[i - 1]
+          assert.ok(prev.center[2] > card.center[2] + 0.1, `card ${i - 1} is behind card ${i}'s spotlight: ${prev.center[2]} against ${card.center[2]}`)
+          const later = at(inCard(i, 0.6), false, aspect).cards[i - 1]
+          assert.ok(Math.hypot(...prev.center.map((v, k) => v - later.center[k])) > 0.01, `card ${i - 1} keeps sliding during card ${i}'s hold`)
+        }
+      }
+    }
+  }
+})
+
+test('the phone is at its day station, facing the camera, before card 0 reaches the spotlight', () => {
+  // The phone's move, its turn, and the dolly out all end as card 0's hold starts, so through the hold the phone
+  // turns only with the yaw drift (0.05 radians) and the camera moves only with the slow push-in, under 1%.
+  for (const aspect of [0.75, 1.33, 1.6, 2.0]) {
+    const end = at(inAct('day', 0.99), false, aspect)
+    const held = [0.3, 0.45, 0.6].map((wnd) => at(inCard(0, wnd), false, aspect))
+    for (const pose of held) {
+      assert.ok(near(pose.phone.pos[0], end.phone.pos[0], 1e-9), `${aspect}: phone x ${pose.phone.pos[0]} against its station ${end.phone.pos[0]}`)
+      const turn = Math.hypot(...pose.phone.normal.map((v, k) => v - held[0].phone.normal[k]))
+      assert.ok(turn < 0.05, `${aspect}: the phone turns by ${turn} during card 0's hold`)
+      const push = Math.abs(pose.camera.pos[2] / held[0].camera.pos[2] - 1)
+      assert.ok(push < 0.01, `${aspect}: the camera moves by ${push} of its distance during card 0's hold`)
+    }
+    assert.ok(Math.abs(held[0].phone.normal[0]) < 0.06, `${aspect}: the phone faces the camera at card 0's hold, normal x ${held[0].phone.normal[0]}`)
+  }
+})
+
+test('each narrow deck card holds at the centre, developed and opaque, for the middle 40% of its window', () => {
+  for (let i = 0; i < 4; i++) {
+    const s = 0.04 + i * 0.22
+    for (const wnd of [0.3, 0.5, 0.7]) {
+      const card = at(inAct('day', s + wnd * 0.3), true).cards[i]
+      assert.ok(near(card.center[0], 0, 1e-9), `card ${i} x at ${wnd}: ${card.center[0]}`)
+      assert.equal(card.develop, 1)
+      assert.equal(card.opacity, 1)
+    }
+    assert.ok(at(inAct('day', s + 0.2 * 0.3), true).cards[i].center[0] > 0.05, 'the card is still arriving from the right at 0.2')
+    assert.ok(at(inAct('day', s + 0.8 * 0.3), true).cards[i].center[0] < -0.05, 'the card is leaving to the left at 0.8')
   }
 })
 
 test('in the quiet act the cards slide home, fade before they arrive, and never re-encode', () => {
-  const slot = at(inAct('day', 0.99)).cards[1].center
   let lastGap = Infinity
   for (let i = 0; i <= 10; i++) {
-    const pose = at(inAct('quiet', 0.7 * (i / 10)))
+    const pose = at(inAct('quiet', 0.6 * (i / 10)))
     const card = pose.cards[1]
-    assert.equal(card.develop, 1, `develop held at quiet ${0.7 * (i / 10)}`)
+    assert.equal(card.develop, 1, `develop held at quiet ${0.6 * (i / 10)}`)
     const gap = Math.hypot(...card.center.map((v, k) => v - pose.screen.center[k]))
     assert.ok(gap <= lastGap + 1e-9, 'the card only ever approaches the screen')
     lastGap = gap
   }
-  // The cards fade over the first 30% of the act, so they are gone while still most of the way out to their slots.
-  const faded = at(inAct('quiet', 0.3)).cards[1]
-  assert.equal(faded.opacity, 0)
-  assert.ok(at(inAct('quiet', 0.15)).cards[1].opacity < 0.6, 'the cards are half gone by the middle of the fade window')
-  const slotGap = Math.hypot(...slot.map((v, k) => v - at(inAct('day', 0.99)).screen.center[k]))
-  const fadedGap = Math.hypot(...faded.center.map((v, k) => v - at(inAct('quiet', 0.3)).screen.center[k]))
-  assert.ok(fadedGap > 0.4 * slotGap, 'the card is gone before it is more than 60% of the way home')
+  // The row folds: the cards hold full for the first 10% of the act, fade from 10% to 50% while they slide home
+  // over the first 60%, and are gone before they reach the screen.
+  assert.equal(at(inAct('quiet', 0.1)).cards[1].opacity, 1)
+  const mid = at(inAct('quiet', 0.3)).cards[1].opacity
+  assert.ok(mid > 0.4 && mid < 0.6, `the cards are half gone by the middle of the fade: ${mid}`)
+  const faded = at(inAct('quiet', 0.5))
+  assert.equal(faded.cards[1].opacity, 0)
+  const fadedGap = Math.hypot(...faded.cards[1].center.map((v, k) => v - faded.screen.center[k]))
+  assert.ok(fadedGap > 0.01, `the card is gone before it reaches the screen: ${fadedGap}`)
   assert.equal(at(inAct('glass', 0.5)).cards[1].opacity, 0)
 })
 
@@ -409,23 +674,28 @@ test('the main screen shows each act\'s screen and re-encodes briefly at every s
     assert.equal(at(inAct(key, 0.5)).screen.texture, screen)
   }
   assert.equal(at(inAct('hand', 0.5)).screen.texture, 'log')
+  assert.equal(at(inAct('day', 0.5)).screen.texture, 'log', 'the day phone never shows Home beside the Home card')
+  assert.equal(at(inAct('quiet', 0.05)).screen.texture, 'log', 'the row folds into a phone that shows a different screen')
   assert.equal(at(inAct('coach', 0.5)).screen.texture, 'coach')
   assert.equal(at(inAct('close', 0.5)).screen.texture, 'results')
-  // A swap dips the develop to 0.05 at 6% of the act and restores it by 12%. The texture changes at the dip's
-  // bottom, where the shader's scan has resolved no cell past about 10%, so the screen it leaves and the one it
-  // reveals are both drawn as glyphs at that instant.
-  for (const [key, from] of [['hand', 'welcome'], ['day', 'log'], ['coach', 'home'], ['close', 'coach']]) {
-    assert.ok(at(inAct(key, 0)).screen.develop > 0.99, `${key} enters at full develop`)
+  // A swap dips the develop to 0.05 of its level at 6% of the act and restores it by 12%. The texture changes at
+  // the dip's bottom, where the shader's scan has resolved no cell past about 10%, so the screen it leaves and the
+  // one it reveals are both drawn as glyphs at that instant. The glass act enters at the quiet act's dimmed develop
+  // of about two thirds, which it restores over its first 60%.
+  for (const [key, from] of [['hand', 'welcome'], ['glass', 'log'], ['close', 'coach']]) {
+    const level = key === 'glass' ? 0.6 : 0.99
+    assert.ok(at(inAct(key, 0)).screen.develop > level, `${key} enters at its develop`)
     assert.equal(at(inAct(key, 0.03)).screen.texture, from, `${key} keeps the previous screen into the dip`)
     const before = at(inAct(key, 0.0595)).screen
     const after = at(inAct(key, 0.0605)).screen
     assert.equal(before.texture, from)
     assert.equal(after.texture, ACT_SCREEN[key])
-    assert.ok(near(before.develop, 0.05, 0.01) && near(after.develop, 0.05, 0.01), `${key} swaps at the dip's bottom: ${before.develop} ${after.develop}`)
-    assert.ok(at(inAct(key, 0.12)).screen.develop > 0.99, `${key} restores the develop by 12%`)
+    for (const develop of [before.develop, after.develop]) assert.ok(develop > 0.02 && develop < 0.06, `${key} swaps at the dip's bottom: ${develop}`)
+    assert.ok(at(inAct(key, 0.12)).screen.develop > level, `${key} restores the develop by 12%`)
   }
-  // Acts that keep the previous screen never dip.
-  for (const key of ['quiet', 'glass', 'proof']) assert.ok(at(inAct(key, 0.06)).screen.develop > 0.6, `${key} holds its screen`)
+  // Acts that keep the screen the act before ended on never dip. The coach act enters on the coach capture, which
+  // the proof act's hidden screen has booted into.
+  for (const key of ['day', 'quiet', 'proof', 'coach']) assert.ok(at(inAct(key, 0.06)).screen.develop > 0.6, `${key} holds its screen`)
 })
 
 test('every screen the story lists is drawn by an act or a day card', () => {

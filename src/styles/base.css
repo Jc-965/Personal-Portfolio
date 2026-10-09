@@ -21,6 +21,7 @@
   --glow-magenta: 0 0 20px rgba(255, 0, 255, 0.3);
   --font-display: 'Space Grotesk', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Fira Code', monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
   --max-width: 1200px;
   --max-width-wide: 1340px;
   --section-pad: clamp(112px, 14vh, 188px);
@@ -332,7 +333,7 @@ img {
   padding: var(--section-pad) 32px;
 }
 
-/* Projects expands into the ParkiWell teardown track (100svh plus 13.7 x 100svh
+/* Projects expands into the ParkiWell teardown track (100svh plus 17.3 x 100svh
    of pinned travel, the sum of the act spans in src/content/teardown/parkiwell.ts)
    and the gallery scenes after its lazy chunk resolves. Reserve that height up
    front so the page never grows under the reader. Measured 2026-10-09 at 1440,
@@ -344,42 +345,42 @@ img {
    flow instead of pinning, so its values are measured separately with reduced
    motion emulated. */
 #projects > .section__placeholder {
-  min-height: calc(1470svh + 273vh + 176px);
+  min-height: calc(1830svh + 273vh + 176px);
   padding: 0;
 }
 
 @media (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(1470svh + 51vh + 2740px);
+    min-height: calc(1830svh + 51vh + 2740px);
   }
 }
 
 @media (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: calc(1470svh + 2695px);
+    min-height: calc(1830svh + 2695px);
   }
 }
 
-/* Reduced motion. The stacked chapter is 5570 to 5640 px tall across the wide
-   range, 5590 to 5610 px in the middle range, and 5230 to 5350 px at 640 px and
+/* Reduced motion. The stacked chapter is 5530 to 5600 px tall across the wide
+   range, 5530 to 5550 px in the middle range, and 5120 to 5250 px at 640 px and
    narrower, and none of it depends on the viewport height, so each rule folds
    the chapter into its constant and keeps the gallery's vh term. Within 0.5%
    at every measured size. */
 @media (prefers-reduced-motion: reduce) {
   #projects > .section__placeholder {
-    min-height: calc(273vh + 5780px);
+    min-height: calc(273vh + 5740px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(51vh + 8340px);
+    min-height: calc(51vh + 8280px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: 7970px;
+    min-height: 7870px;
   }
 }
 

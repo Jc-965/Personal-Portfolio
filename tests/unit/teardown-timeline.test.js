@@ -81,10 +81,11 @@ test('copyRide carries the copy from below centre to above it, readable through 
     assert.ok(y < lastY, `y falls at ${i / 50}`)
     lastY = y
     assert.ok(opacity >= 0 && opacity <= 1)
-    if (Math.abs(y) <= 0.28) assert.equal(opacity, 1, `fully shown at ${i / 50} where y is ${y}`)
+    if (Math.abs(y) <= 0.32) assert.equal(opacity, 1, `fully shown at ${i / 50} where y is ${y}`)
     if (Math.abs(y) >= 0.45 - 1e-9) assert.equal(opacity, 0, `gone at ${i / 50} where y is ${y}`)
   }
-  // Slow through the middle: the copy stays within reading range for most of the act.
-  assert.equal(copyRide(0.15).opacity, 1)
-  assert.equal(copyRide(0.85).opacity, 1)
+  // Slow through the middle and a late fade: the copy is fully shown from about 0.085 to 0.915 of the act.
+  assert.equal(copyRide(0.1).opacity, 1)
+  assert.equal(copyRide(0.9).opacity, 1)
+  assert.ok(copyRide(0.05).opacity < 1 && copyRide(0.95).opacity < 1)
 })

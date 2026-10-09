@@ -5,32 +5,21 @@ import { sceneProgress } from '../hero/world'
 import { lenisRef } from '../../scroll/lenisRef'
 import type { ActKey, ScreenKey, TeardownStory } from '../../content/teardown/types'
 import type { TeardownFrame } from './TeardownCanvas'
-import { ACT_SCREEN, PHONE, poseAt, projectPoint, type Interaction, type Pose, type Vec3 } from './rig'
-import { actAt, actWindows, copyRide, localOf, ramp, totalSpan } from './timeline'
+import { layoutCardLabels } from './labels'
+import { ACT_SCREEN, PHONE, poseAt, projectPoint, projectRect, type Interaction, type Pose, type WorldRect } from './rig'
+import { RIDE_FADE, actAt, actCopyRide, actWindows, ramp, totalSpan } from './timeline'
 import '../../styles/teardown.css'
 
 const TeardownCanvas = lazy(() => import('./TeardownCanvas'))
 
 type Mode = 'dom' | 'gl' | 'static'
-type Ride = ReturnType<typeof copyRide>
+type Ride = ReturnType<typeof actCopyRide>
 
 /** Acts that show a phone in the reduced-motion layout. Each shows the rig's screen for that act, so the hand act's callouts sit beside the form they describe. */
 const STATIC_PHONE_ACTS: ReadonlySet<ActKey> = new Set<ActKey>(['arrival', 'hand', 'day', 'coach', 'close'])
 const AMBER = '#eab76a'
-/** A card's label shows once the card's develop, 0 to 1, reaches this. */
-const LABEL_DEVELOP = 0.85
-/** CSS px every card label keeps from the stage edges. */
-const LABEL_EDGE = 12
-/** CSS px two shown card labels keep between them. */
-const LABEL_GAP = 8
 /** Stage widths below this use the phone layout, matching the 767px breakpoint in teardown.css. */
 const NARROW_MAX = 768
-/**
- * Share of the first and last acts over which their copy holds the centre. The arrival copy is in place
- * when the chapter pins and rides out over the act's last 60%, and the close copy rides in over the act's
- * first 60% and then holds, so the chapter opens and ends with its copy in place.
- */
-const EDGE_HOLD = 0.4
 /** CSS px the phone layout's copy region starts below the product's lowest projected point. */
 const FLOOR_GAP = 12
 /** A product part counts toward the floor once its opacity reaches this, so a card fading in or out off frame does not move the copy. */
@@ -38,24 +27,26 @@ const FLOOR_OPACITY = 0.05
 /** copyRide's full travel, +0.45 to -0.45, in units of the ride scale. A phone ride is capped so that travel fits its region. */
 const RIDE_SPAN = 0.9
 /** copyRide's |y| while the copy is fully opaque. The phone ride is scaled so the block's top meets the floor there. */
-const RIDE_OPAQUE = 0.28
+const RIDE_OPAQUE = RIDE_FADE[0]
 /** Smallest phone ride scale as a fraction of the stage height, so a block with no headroom still moves. */
 const RIDE_FLOOR = 0.08
 /** Teardown has no pointer state, so the floor is taken from the still pose. A drag lowers the product by up to a tenth of the stage until it is released. */
 const STILL: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
-const CORNERS: readonly [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
 /** A leader line draws in as its callout's ride y falls from LINE_START to LINE_END, each callout LINE_STEP after the one above. */
 const LINE_START = 0.4
 const LINE_END = 0.24
 const LINE_STEP = 0.025
+/** Explode values over which a glass leader may draw, so none lands on layers that are still stacked together. */
+const GLASS_APART: readonly [number, number] = [0.5, 0.8]
+/**
+ * CSS px the proof readout keeps between its bottom border and the stage's bottom edge on phones. The readout types
+ * from 3% of its act, so on the way in it rises only from this line instead of from below the edge.
+ */
+const READOUT_CLEAR = 20
 
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value))
-/** Local progress an act's copy rides on. The first act starts in place and the last settles in place (EDGE_HOLD). */
-const rideLocal = (index: number, count: number, local: number) => {
-  if (index === 0) return 0.5 + 0.5 * clamp((local - EDGE_HOLD) / (1 - EDGE_HOLD), 0, 1)
-  if (index === count - 1) return 0.5 * clamp(local / (1 - EDGE_HOLD), 0, 1)
-  return local
-}
+/** A leader starts this many CSS px right of the widest callout of its act. */
+const LEADER_GAP = 8
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -67,29 +58,15 @@ const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia(
  */
 function productFloor(pose: Pose, aspect: number, coachLow: number): number {
   let low = 0
-  const rect = (center: Vec3, right: Vec3, up: Vec3, halfW: number, halfH: number) => {
-    let left = Infinity
-    let rightEdge = -Infinity
-    let bottom = 0
-    for (const [u, v] of CORNERS) {
-      const point: Vec3 = [
-        center[0] + right[0] * u * halfW + up[0] * v * halfH,
-        center[1] + right[1] * u * halfW + up[1] * v * halfH,
-        center[2] + right[2] * u * halfW + up[2] * v * halfH,
-      ]
-      const at = projectPoint(pose, point, aspect)
-      if (!at) return
-      left = Math.min(left, at.x)
-      rightEdge = Math.max(rightEdge, at.x)
-      bottom = Math.max(bottom, at.y)
-    }
-    if (rightEdge > 0 && left < 1) low = Math.max(low, bottom)
+  const rect = (part: WorldRect) => {
+    const bounds = projectRect(pose, part, aspect)
+    if (bounds && bounds.right > 0 && bounds.left < 1) low = Math.max(low, bounds.bottom)
   }
   const { phone } = pose
-  rect(phone.pos, phone.right, phone.up, PHONE.hx, PHONE.hy)
-  rect(pose.glass.center, phone.right, phone.up, PHONE.sx, PHONE.sy)
+  rect({ center: phone.pos, right: phone.right, up: phone.up, halfW: PHONE.hx, halfH: PHONE.hy })
+  rect({ center: pose.glass.center, right: phone.right, up: phone.up, halfW: PHONE.sx, halfH: PHONE.sy })
   for (const plane of [pose.screen, pose.code, ...pose.cards]) {
-    if (plane.opacity >= FLOOR_OPACITY) rect(plane.center, plane.right, plane.up, plane.halfW, plane.halfH)
+    if (plane.opacity >= FLOOR_OPACITY) rect(plane)
   }
   if (pose.coach.amount > 0.01) {
     const feet = projectPoint(pose, [pose.coach.pos[0], pose.coach.pos[1] + coachLow * pose.coach.scale, pose.coach.pos[2]], aspect)
@@ -126,8 +103,11 @@ function Teardown({ story }: { story: TeardownStory }) {
   const coachLow = useMemo(() => story.pose.points.reduce((low, v, i) => (i % 2 ? Math.min(low, v) : low), 0), [story])
   const travel = totalSpan(story.acts)
   const proofIndex = story.acts.findIndex((a) => a.key === 'proof')
+  const glassIndex = story.acts.findIndex((a) => a.key === 'glass')
   const screenOf = (key: ScreenKey) => story.screens.find((s) => s.key === key) ?? story.screens[0]
-  const screenFor = (actKey: ActKey) => screenOf(ACT_SCREEN[actKey])
+  // The DOM stage and the static layout draw no day cards, so their day and quiet acts show the first card's
+  // screen instead of repeating the hand act's form, which the GL phone keeps under the cards.
+  const screenFor = (actKey: ActKey) => screenOf((actKey === 'day' || actKey === 'quiet') && story.cards[0] ? story.cards[0].screen : ACT_SCREEN[actKey])
 
   useEffect(() => { modeRef.current = mode }, [mode])
   useEffect(() => { actRef.current = act }, [act])
@@ -160,7 +140,8 @@ function Teardown({ story }: { story: TeardownStory }) {
   // |y| = RIDE_OPAQUE, where the fade starts. The path is symmetric, so on the way in the block starts that
   // far below its rest, past the stage bottom, and rises in from the edge. A block taller than the region is
   // scaled by its overflow instead, so its top shows at the same point on the way in and its bottom from
-  // rest on. Every height is read before the first write, so the call forces no layout of its own.
+  // rest on. The proof readout types while it rides in, so on the way in it rises only from READOUT_CLEAR above
+  // the stage bottom. Every height is read before the first write, so the call forces no layout of its own.
   const rideCopy = useCallback((progress: number) => {
     const stage = stageRef.current
     const rail = railRef.current
@@ -175,7 +156,9 @@ function Teardown({ story }: { story: TeardownStory }) {
       const headroom = railTop + el.offsetTop - floor
       return Math.min((stageH - floor) / RIDE_SPAN, Math.max(RIDE_FLOOR * stageH, Math.abs(headroom) / RIDE_OPAQUE))
     })
-    const rides = windows.map((w, i) => copyRide(rideLocal(i, windows.length, localOf(windows, w.key, progress))))
+    const readout = narrow ? acts[proofIndex] : undefined
+    const readoutDrop = readout ? Math.max(0, stageH - READOUT_CLEAR - (railTop + readout.offsetTop + readout.offsetHeight)) : 0
+    const rides = windows.map((_, i) => actCopyRide(windows, i, progress))
     ridesRef.current = rides
     if (narrow && floor !== floorRef.current) {
       floorRef.current = floor
@@ -184,10 +167,11 @@ function Teardown({ story }: { story: TeardownStory }) {
     acts.forEach((el, i) => {
       const ride = rides[i]
       if (!ride) return
-      el.style.setProperty('--copy-y', `${((ride.y * scales[i] * 100) / stageH).toFixed(2)}svh`)
+      const scale = el === readout && ride.y > 0 ? Math.min(scales[i], readoutDrop / RIDE_OPAQUE) : scales[i]
+      el.style.setProperty('--copy-y', `${((ride.y * scale * 100) / stageH).toFixed(2)}svh`)
       el.style.setProperty('--copy-o', ride.opacity.toFixed(3))
     })
-  }, [windows, floorAt])
+  }, [windows, floorAt, proofIndex])
 
   // Sets the act, the arrival print, the copy ride, and the proof readout from one progress value. The
   // scroll listener calls it in dom mode and onFrame calls it with the canvas's glided progress in gl mode,
@@ -198,10 +182,11 @@ function Teardown({ story }: { story: TeardownStory }) {
     if (progress > 0) setPrinted(true)
     rideCopy(progress)
     if (current.index === proofIndex) {
-      // Typing starts 3% into the act, so the first line is half typed by the time the panel's ride brings it to
-      // full opacity at about 0.1, and the last line is typed by about 0.62, before the panel rides out.
+      // Typing starts 3% into the act, so the first line is about half typed by the time the panel's ride brings
+      // it to full opacity at about 0.1. The last line is typed by about 0.49, and the readout rests for about
+      // 0.57 viewport-heights before the stack closes at 0.8.
       stageRef.current?.querySelectorAll<HTMLElement>('.teardown__readout li').forEach((li, i, all) => {
-        li.style.setProperty('--typed', clamp((current.local - 0.03) * all.length * 1.7 - i, 0, 1).toFixed(3))
+        li.style.setProperty('--typed', clamp((current.local - 0.03) * all.length * 2.2 - i, 0, 1).toFixed(3))
       })
     }
   }, [windows, proofIndex, rideCopy])
@@ -300,65 +285,58 @@ function Teardown({ story }: { story: TeardownStory }) {
     const stageRect = stage.getBoundingClientRect()
     const writes: (() => void)[] = []
 
-    // Each card label is centred under its card and held inside the stage. It shows while its card has
-    // developed to LABEL_DEVELOP and the card's anchor is in frame, so a deck card that has crossed off the
-    // phone layout takes its label with it. Cards land in story order from the left, and a card slides past
-    // the landed ones to its slot, so each shown label is pushed right of the one before it with LABEL_GAP
-    // between, and the row is then pushed back from the right edge. A pushed label slides onto its centre as
-    // its card lands. Hidden labels keep tracking their cards while they fade out.
-    const labels = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__card-label'), (label, k) => {
-      const anchor = frame.anchors.get(label.dataset.anchor ?? '')
-      if (!anchor) return { label, box: null, on: false }
-      const w = label.offsetWidth
-      const h = label.offsetHeight
-      const box = { left: clamp(anchor.x - w / 2, LABEL_EDGE, stageRect.width - LABEL_EDGE - w), top: clamp(anchor.y, LABEL_EDGE, stageRect.height - LABEL_EDGE - h), w }
-      const inFrame = anchor.x >= 0 && anchor.x <= stageRect.width && anchor.y >= 0 && anchor.y <= stageRect.height
-      // cards is optional at runtime only while a hot reload has this file ahead of TeardownCanvas.
-      return { label, box, on: inFrame && (frame.cards?.[k] ?? 0) >= LABEL_DEVELOP }
-    })
-    const row: { left: number; w: number }[] = []
-    for (const entry of labels) if (entry.on && entry.box) row.push(entry.box)
-    for (let i = 1; i < row.length; i++) row[i].left = Math.max(row[i].left, row[i - 1].left + row[i - 1].w + LABEL_GAP)
-    for (let i = row.length - 1; i >= 0; i--) {
-      const limit = i === row.length - 1 ? stageRect.width - LABEL_EDGE - row[i].w : row[i + 1].left - row[i].w - LABEL_GAP
-      row[i].left = Math.min(row[i].left, limit)
-    }
-    labels.forEach(({ label, box, on }) => writes.push(() => {
-      if (box) label.style.transform = `translate3d(${box.left.toFixed(1)}px, ${box.top.toFixed(1)}px, 0)`
-      label.classList.toggle('is-on', on)
+    // Card labels follow labels.ts: centred under their cards, hidden while a nearer card covers them, and
+    // pushed apart in order of x. The labels are in story order, the order of frame.cards.
+    const labels = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__card-label'))
+    const sizes = labels.map((label) => ({ w: label.offsetWidth, h: label.offsetHeight }))
+    // frame.cards is absent at runtime only while a hot reload has this file ahead of TeardownCanvas.
+    const places = layoutCardLabels(frame.cards ?? [], sizes, { width: stageRect.width, height: stageRect.height })
+    labels.forEach((label, k) => writes.push(() => {
+      const place = places[k]
+      if (place) label.style.transform = `translate3d(${place.left.toFixed(1)}px, ${place.top.toFixed(1)}px, 0)`
+      label.classList.toggle('is-on', place?.on ?? false)
     }))
 
     // A leader line draws from its callout toward the anchor as the callout rides in (positive ride.y), holds
     // its full length on the way out, and fades with its callout through the opacity, so it never retracts
-    // from the anchor while the callout is still readable. Its start follows the callout's ridden rect every
-    // frame.
-    stage.querySelectorAll<HTMLElement>('.teardown__callout[data-anchor]').forEach((label) => {
+    // from the anchor while the callout is still readable. Every leader of an act leaves its callout on a
+    // horizontal stub to one shared x, LEADER_GAP right of the act's widest callout, and turns toward its
+    // anchor there, so a narrow callout's leader never runs behind a wider callout below it. Starts follow the
+    // callouts' ridden rects every frame, read only for acts whose copy is showing. A glass leader also waits for
+    // the stack to come apart (GLASS_APART), so it never points at layers that are still stacked together.
+    const leaders = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__callout[data-anchor]'), (label) => {
       const key = label.dataset.anchor ?? ''
-      const line = svg.querySelector<SVGPathElement>(`path[data-anchor="${key}"]`)
-      if (!line) return
       const [, ai, ci] = key.split(':').map(Number)
       const ride = ridesRef.current[ai]
+      return { key, ai, ci, ride, path: svg.querySelector<SVGPathElement>(`path[data-anchor="${key}"]`), rect: gl && ride && ride.opacity > 0 ? label.getBoundingClientRect() : null }
+    })
+    const turnX = new Map<number, number>()
+    for (const { ai, rect } of leaders) if (rect) turnX.set(ai, Math.max(turnX.get(ai) ?? -Infinity, rect.right - stageRect.left + LEADER_GAP))
+    for (const { key, ai, ci, ride, path, rect } of leaders) {
+      if (!path) continue
       const anchor = gl ? frame.anchors.get(key) : null
       const start = LINE_START - LINE_STEP * ci
-      const drawn = ride ? (ride.y > 0 ? 1 - ramp(ride.y, start - (LINE_START - LINE_END), start) : 1) : 0
+      // frame.explode is absent at runtime only while a hot reload has this file ahead of TeardownCanvas.
+      const apart = ai === glassIndex ? ramp(frame.explode ?? 1, GLASS_APART[0], GLASS_APART[1]) : 1
+      const drawn = ride ? (ride.y > 0 ? 1 - ramp(ride.y, start - (LINE_START - LINE_END), start) : 1) * apart : 0
       const reveal = anchor && ride ? drawn * ride.opacity : 0
-      if (!anchor || reveal <= 0) {
-        writes.push(() => { line.style.opacity = '0' })
-        return
+      const turn = turnX.get(ai)
+      if (!anchor || !rect || turn === undefined || reveal <= 0) {
+        writes.push(() => { path.style.opacity = '0' })
+        continue
       }
-      const r = label.getBoundingClientRect()
-      const x1 = (r.right - stageRect.left + 8).toFixed(1)
-      const y1 = (r.top + r.height / 2 - stageRect.top).toFixed(1)
+      const x1 = (rect.right - stageRect.left + LEADER_GAP).toFixed(1)
+      const y1 = (rect.top + rect.height / 2 - stageRect.top).toFixed(1)
       // The path runs from the callout to the anchor, so its dash draws in from the callout's side.
-      const d = `M${x1} ${y1}L${anchor.x.toFixed(1)} ${anchor.y.toFixed(1)}`
+      const d = `M${x1} ${y1}H${turn.toFixed(1)}L${anchor.x.toFixed(1)} ${anchor.y.toFixed(1)}`
       writes.push(() => {
-        line.setAttribute('d', d)
-        line.style.strokeDashoffset = (1 - drawn).toFixed(3)
-        line.style.opacity = (0.75 * reveal).toFixed(3)
+        path.setAttribute('d', d)
+        path.style.strokeDashoffset = (1 - drawn).toFixed(3)
+        path.style.opacity = (0.75 * reveal).toFixed(3)
       })
-    })
+    }
     writes.forEach((write) => write())
-  }, [])
+  }, [glassIndex])
   const onFrame = useCallback((frame: TeardownFrame) => {
     if (modeRef.current === 'gl') follow(frame.progress)
     placeOverlay(frame)
@@ -497,8 +475,8 @@ function Teardown({ story }: { story: TeardownStory }) {
 
         {!isStatic && (
           <ol className={`teardown__cards${actKey === 'day' ? ' is-active' : ''}`} aria-label={`${story.name} features`}>
-            {story.cards.map((card, k) => (
-              <li key={card.screen} className="teardown__card-label" data-anchor={`k:${k}`}>{card.label}</li>
+            {story.cards.map((card) => (
+              <li key={card.screen} className="teardown__card-label">{card.label}</li>
             ))}
           </ol>
         )}

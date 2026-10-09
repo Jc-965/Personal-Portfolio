@@ -59,8 +59,14 @@ export interface TeardownStory {
   screens: TeardownScreen[]
   /** The 'day' act's cards in order. Each label has at most eight words. */
   cards: { screen: ScreenKey; label: string }[]
-  /** Full-colour room photographs. `focus` is the subject's centre, x from the left and y from the top, 0 to 1. */
-  backdrops: { src: string; focus: [number, number] }[]
+  /**
+   * Full-colour room photographs. `focus` is the subject's centre, x from the left and y from the top, 0 to 1,
+   * measured on the photograph as drawn, so on a mirrored room x counts on the mirrored image. `levels` is the
+   * lightness range, 0 to 1, that the glyph ramp spans for this room: a cell at or below the first value draws no
+   * glyph and a cell at or above the second draws the densest flat glyph. `mirror` draws the photograph flipped
+   * left to right.
+   */
+  backdrops: { src: string; focus: [number, number]; levels: [number, number]; mirror?: boolean }[]
   /** Source excerpt drawn on the code layer. */
   code: string
   codeSource: string

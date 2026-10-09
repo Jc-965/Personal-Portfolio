@@ -7,7 +7,7 @@
    stage's edges print on the page while it scrolls in and out. */
 
 .teardown {
-  --teardown-travel: 13.7;
+  --teardown-travel: 17.3;
   --td-amber: #eab76a;
   /* Warm white for copy over the glyph rooms. */
   --td-ink: #f3efe8;
@@ -188,11 +188,13 @@
    holds the heading's box, so the print does not shift the layout. */
 .teardown__unprinted { visibility: hidden; }
 
-/* The chapter's copy is set in the mono face the hero's printed copy and the
-   callouts use. A mono glyph is 0.6em wide, so the sizes here run smaller
-   than a display face would. The title's nine characters must fit the 500px
-   rail at every width, and a line wraps at about 36 characters on a 390px
-   phone. */
+/* The chapter's sentences (the lede and every act line) are set in IBM Plex
+   Sans, which pairs with the IBM Plex Mono the site already loads. The title
+   stays in the mono face, since Printed writes it glyph by glyph through the
+   ramp and a proportional face would change the word's width on every frame of
+   the print. The eyebrow, the callouts, the readout, the chips, the card
+   labels, and the links keep the mono face as the terminal's form language.
+   The title's nine characters must fit the 500px rail at every width. */
 .teardown__title {
   margin: 0 0 20px;
   font-family: var(--font-mono);
@@ -206,10 +208,10 @@
 
 .teardown__line {
   margin: 0 0 12px;
-  font-family: var(--font-mono);
-  font-size: clamp(1rem, 1.3vw, 1.18rem);
+  font-family: var(--font-sans);
+  font-size: clamp(1.05rem, 1.35vw, 1.25rem);
   font-weight: 400;
-  line-height: 1.7;
+  line-height: 1.6;
   letter-spacing: 0;
   color: var(--td-ink);
   text-shadow: var(--td-shadow);
@@ -258,10 +260,13 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
 }
 
+/* A callout that wraps keeps at least two words on its last line. Balance would
+   halve the lines inside a box that stays the rail's width. */
 .teardown__callout {
   padding: 10px 14px;
   font: 500 .88rem/1.45 var(--font-mono);
   color: var(--td-ink);
+  text-wrap: pretty;
 }
 
 .teardown__readout {
@@ -352,13 +357,15 @@
 }
 
 /* Teardown writes transform every frame, so the rise on show uses the
-   separate translate property. 17vw is about one card's spacing in the day
-   act's fan, so a label wraps before it reaches the next card's label. */
+   separate translate property. Below 1280px the row's cards are less than
+   230px apart, so every label wraps at 160px and the four read alike. From
+   1280px each label fits on one line beside its neighbours (see the wide
+   block below), and labels.ts measures the box either way. */
 .teardown__card-label {
   position: absolute;
   left: 0;
   top: 0;
-  max-width: max(160px, calc(17vw - 20px));
+  max-width: 160px;
   padding: 5px 11px;
   border: 1px solid rgba(234, 183, 106, .28);
   background: rgba(10, 8, 6, .72);
@@ -383,6 +390,10 @@
 .teardown__card-label::before { content: '// '; color: var(--td-amber); }
 .teardown.is-dom .teardown__cards { display: none; }
 
+@media (min-width: 1280px) {
+  .teardown__card-label { max-width: none; white-space: nowrap; }
+}
+
 /* Short landscape screens: the tallest act must fit the column at rest. */
 @media (min-width: 768px) and (max-height: 560px) {
   .teardown__title { margin-bottom: 12px; font-size: clamp(2rem, 4.4vw, 2.75rem); }
@@ -405,7 +416,11 @@
    outside their panels, and all but the faint outer edge of their shadows.
    The copy sizes here keep the tallest act (the glass callouts or the coach
    lines) inside about a quarter of the stage, which is the room the lowest
-   product pose leaves. */
+   product pose leaves. The one row is the rail's content box and no taller,
+   so every act rests at the region's bottom, as Teardown's ride assumes. An
+   auto row grew to the tallest act, hidden ones included, and in the proof
+   act, whose region is about 168px, that pushed the readout below the frame.
+   An act taller than the region overflows upward, under the rail's clip. */
 @media (max-width: 767px) {
   .teardown { --td-gutter: 20px; }
   .teardown__rail {
@@ -414,6 +429,7 @@
     right: 0;
     width: auto;
     padding: 0 var(--td-gutter) max(20px, 4svh);
+    grid-template-rows: minmax(0, 1fr);
     align-items: end;
     overflow: clip;
   }
@@ -432,10 +448,12 @@
   .teardown__callouts,
   .teardown__readout { margin-top: 12px; gap: 6px; }
   .teardown__callout { padding: 6px 10px; font-size: .76rem; line-height: 1.4; }
-  /* The readout's longest lines are 37 characters with the prompt. At .9rem mono they take about 320px, which
-     fits the 328px the rail leaves inside this padding at 390px, so no line wraps on a phone. */
-  .teardown__readout { padding: 12px 10px; gap: 6px; }
-  .teardown__readout li { font-size: .9rem; }
+  /* The readout's longest lines are 37 characters with the prompt. At .76rem mono they take about 270px, inside
+     the 328px the panel's padding leaves at 390px, so no line wraps even in a wider fallback face. The three
+     typed lines make a panel of about 95px with its margin, inside the 168px the proof stack leaves above an
+     844px stage's bottom padding. */
+  .teardown__readout { padding: 9px 10px; gap: 6px; }
+  .teardown__readout li { font-size: .76rem; line-height: 1.4; }
   .teardown__tags,
   .teardown__links { margin-top: 12px; }
   .teardown__card-label { max-width: calc(100vw - 40px); }

@@ -1,7 +1,8 @@
 /**
  * The chapter's final pass, one full-screen draw to the canvas. It owns the
  * room (a softened photograph under a layer of colored glyphs, which drifts
- * with chapter progress and crossfades cell by cell between rooms), the darkening behind
+ * with chapter progress and whose glyphs cross cell by cell between rooms while
+ * the photograph crossfades smoothly), the darkening behind
  * the copy, the product layer's glyph decode, shadow pool, and glow, and the
  * coach skeleton. Everything is computed in linear light and written to the
  * canvas as sRGB exactly once, here, so the renderer's own output conversion
@@ -58,14 +59,20 @@ const COPY_DARK = 0.6
  * and their subjects sit in shadow (the hands and the mug are linear 0.03 to
  * 0.1), and a coverage layer over the near-black page multiplies them down,
  * so the photograph takes a shadow lift of PHOTO_GAMMA before the glyphs'
- * lift. At 0.35 the hands room was a few amber blotches. At 0.65 the hands
- * and the mug are identifiable at a glance, and the glyphs still read as
- * strokes on the picture. Above about 0.8 the room outshines the product.
+ * lift. The glyphs carry the picture and the photograph is the ground under
+ * them: at 0.8 the photograph led and the room read as a picture with glyph
+ * texture on its lit planes, so the gain is 0.6. Raise it and the characters
+ * fall behind the photograph and the room competes with the product.
  */
-const PHOTO_GAIN = 0.65
-const PHOTO_GAMMA = 0.7
-/** Mip levels past the glyph cell at which the photograph is sampled, so it carries the room's shapes and none of its grain. */
-const PHOTO_SOFTEN = 1.5
+const PHOTO_GAIN = 0.6
+const PHOTO_GAMMA = 0.55
+/**
+ * Mip levels relative to the glyph cell at which the photograph is sampled.
+ * At -0.8 there are about two texels per cell, so the photograph's
+ * interpolation grid falls below the glyph grid and never shows as a mosaic
+ * of cell-sized blocks, which it did at 0.6, one texel per cell plus 0.6.
+ */
+const PHOTO_SOFTEN = -0.8
 
 const VERTEX = /* glsl */ `
 void main() {
@@ -78,6 +85,8 @@ uniform sampler2D uBackA;
 uniform sampler2D uBackB;
 uniform vec2 uBackAspect;
 uniform vec4 uFocus;
+uniform vec4 uLevels;
+uniform vec2 uMirror;
 uniform float uBackMix;
 uniform float uBackGain;
 uniform float uGlyphOnly;
@@ -87,6 +96,7 @@ uniform vec2 uDrift;
 uniform float uSurge;
 uniform vec2 uPointer;
 uniform vec4 uCopyMask;
+uniform float uCopyNarrow;
 uniform float uPixelRatio;
 uniform sampler2D uProduct;
 uniform float uDecode;
@@ -140,22 +150,23 @@ vec4 tint(vec4 under, vec3 color, float t) {
   return over(under, vec4(color, 1.0) * t);
 }
 
-// The pan across a photograph over its room's drift, 4% across and 14% down in texture units so the room visibly
-// travels upward with the scroll, the pointer parallax at full tilt, and the surge drag: at full surge the window
-// leads the scroll by 3% of the photograph, so the room moves with the wheel and settles when it stops.
-const vec2 PAN = vec2(.04, -.14);
+// The pan across a photograph over its room's drift, 3% across and 5% down in texture units so the room travels
+// upward with the scroll, the pointer parallax at full tilt, and the surge drag: at full surge the window leads
+// the scroll by 3% of the photograph, so the room moves with the wheel and settles when it stops.
+const vec2 PAN = vec2(.03, -.05);
 const vec2 PARALLAX = vec2(.025, .016);
 const float SURGE_DRAG = .03;
 
-// The window onto a room photograph at drift 0, in texture units: cover-fitted with 36% overscan. The overscan is
-// sized for the pan, the parallax, and the surge drag in roomUv. On the fitted axis they reach .12 past the window
-// on each side (the .004 edge pad, half of PAN, PARALLAX, and SURGE_DRAG) against the .18 the overscan leaves, so
-// roomUv's margin is .44 there and the focus point can still move the window by .06 either way. Grow any of them
-// past .18 and the clamp bounds in roomUv cross on the fitted axis, which GLSL leaves undefined.
+// The window onto a room photograph at drift 0, in texture units: cover-fitted with 20% overscan, so most of each
+// photograph is in frame and its subject reads at a glance. The overscan is sized for the pan, the parallax, and
+// the surge drag in roomUv. On the fitted axis they reach at most .075 past the window on each side (the .004 edge
+// pad, half of PAN, PARALLAX, and SURGE_DRAG) against the .1 the overscan leaves, so roomUv's margin is at most
+// .475 there and the focus point can still move the window by .025 either way. Grow their sum past .1 and the clamp
+// bounds in roomUv cross on the fitted axis, which GLSL leaves undefined.
 vec2 roomSize(float aspect) {
   float screenAspect = uRes.x / uRes.y;
   vec2 size = screenAspect > aspect ? vec2(1.0, aspect / screenAspect) : vec2(screenAspect / aspect, 1.0);
-  return size * .64;
+  return size * .8;
 }
 
 // The window's centre: the focus point, held inside the photograph by the drift-0 half window plus the edge pad, half
@@ -176,19 +187,22 @@ float roomLod(sampler2D tex, vec2 size) {
 }
 
 // The window onto a room at canvas point q: the texture coordinate in xy and, in z, the lod at which one texel
-// covers one glyph cell.
-vec3 roomWindow(sampler2D tex, float aspect, vec2 focus, float drift, vec2 q) {
+// covers one glyph cell. A mirrored room (mirror 1) samples the photograph flipped left to right, and its focus
+// counts on the flipped image.
+vec3 roomWindow(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
   vec2 size0 = roomSize(aspect);
   // The window is pushed in by 8% over the room's drift, a slow zoom that rides the pan.
   vec2 size = size0 * (1.0 - .08 * drift);
-  return vec3(roomUv(size0, size, focus, drift, q), max(roomLod(tex, size) + log2(sqrt(uCell.x * uCell.y)), 0.0));
+  vec2 uv = roomUv(size0, size, focus, drift, q);
+  uv.x = mix(uv.x, 1.0 - uv.x, mirror);
+  return vec3(uv, max(roomLod(tex, size) + log2(sqrt(uCell.x * uCell.y)), 0.0));
 }
 
 // The photograph's mean colour over the glyph cell at canvas point q, and in w its local contrast: how far the cell's
 // lightness sits from the mean of a patch about six cells across around it. That patch is wide enough that the
 // term scores the edges of objects (a mug's rim, a pill box, the back of a chair) and not the grain of a surface.
-vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, vec2 q) {
-  vec3 w = roomWindow(tex, aspect, focus, drift, q);
+vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
+  vec3 w = roomWindow(tex, aspect, focus, drift, mirror, q);
   vec3 tone = textureLod(tex, w.xy, w.z).rgb;
   vec3 around = textureLod(tex, w.xy, w.z + 2.5).rgb;
   return vec4(tone, abs(lightness(tone) - lightness(around)));
@@ -196,35 +210,41 @@ vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, vec2 q) {
 
 // The softened photograph at canvas point q. It is sampled at the fragment itself, not at the cell's centre, so
 // it is smooth across the glyph grid instead of a mosaic of cells.
-vec3 roomPhoto(sampler2D tex, float aspect, vec2 focus, float drift, vec2 q) {
-  vec3 w = roomWindow(tex, aspect, focus, drift, q);
-  return textureLod(tex, w.xy, w.z + ${glslFloat(PHOTO_SOFTEN)}).rgb;
+vec3 roomPhoto(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
+  vec3 w = roomWindow(tex, aspect, focus, drift, mirror, q);
+  return textureLod(tex, w.xy, w.z + (${glslFloat(PHOTO_SOFTEN)})).rgb;
 }
 
-// Glyph ink for a cell colour: saturation up by a third, then brightness up by 1.25x, a little less for the
-// brightest cells, since a glyph's strokes cover only part of its cell and the photographs are dim. The cap of
-// 1.25x keeps every room cell short of the product's own brightness, so the lit table never outshines the phone.
-// The lift scales every channel as one and stops where the largest reaches 1.0, so the hue holds: sky stays blue
-// and wood stays warm, only more vivid than the photograph.
+// Glyph ink for a cell colour: saturation up by half, then a brightness lift that is largest for the darkest
+// cells, up to 1.8x, since a glyph's strokes cover only part of its cell and the photographs are dim. The lift
+// scales every channel as one and stops where the largest reaches 1.0, so the hue holds: sky stays blue and wood
+// stays warm, only more vivid than the photograph.
 vec3 ink(vec3 tone) {
-  vec3 c = max(mix(vec3(dot(tone, LUMA)), tone, 1.35), 0.0);
+  vec3 c = max(mix(vec3(dot(tone, LUMA)), tone, 1.5), 0.0);
   float v = max(max(c.r, max(c.g, c.b)), 1e-3);
-  return c * min(min(1.22 * pow(v, -.3), 1.25), 1.0 / v);
+  return c * min(min(1.3 * pow(v, -.4), 1.8), 1.0 / v);
 }
 
 // How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the copy column's right
-// edge x from the left, the copy block's top y from the top, 1 when narrow, and the strength. The wide ramp runs
-// from 100 CSS px inside the column to 100 px past it, so the room's subject in the gap between the copy and the
-// phone (the focus points in the story put it there) keeps its photograph and its glyphs: a ramp that reached
-// 180 px past the column shaded the hands room's mug to 0.6. The wide floor of .16 holds the evening table's lit
-// band under the close act's chips, which sit at the band's height with no scrim of their own. The narrow floor
-// of .45 keeps the room legible, since teardown.css already draws a bottom gradient under the phone layout's copy.
+// edge x from the left, the copy block's top and bottom y from the top, and the strength, all in device px.
+// Wide stages shade only the copy block's own band, feathered over 80 CSS px above and below it, so the rest of
+// the column keeps its room. Across, the ramp runs from 100 CSS px inside the column to 100 px past it, so the
+// room's subject in the gap between the copy and the phone keeps its photograph and its glyphs. The wide floor of
+// .3 holds the evening table's lit band under the close act's chips, which have no scrim of their own. Narrow
+// stages (uCopyNarrow 1) shade from 90 CSS px above the rail's top to 12 px below it, to a floor of .25, so no
+// bright row of the room runs through the eyebrow or the first line, and teardown.css draws a bottom gradient
+// under the rest of the phone layout's copy.
 float copyShade() {
   if (uCopyMask.w <= 0.0) return 1.0;
   float px = uPixelRatio;
-  float lit = uCopyMask.z > .5
-    ? mix(1.0, .45, smoothstep(uCopyMask.y - 60.0 * px, uCopyMask.y + 24.0 * px, uRes.y - gl_FragCoord.y))
-    : mix(.16, 1.0, smoothstep(uCopyMask.x - 100.0 * px, uCopyMask.x + 100.0 * px, gl_FragCoord.x));
+  float y = uRes.y - gl_FragCoord.y;
+  float lit;
+  if (uCopyNarrow > .5) {
+    lit = mix(1.0, .25, smoothstep(uCopyMask.y - 90.0 * px, uCopyMask.y + 12.0 * px, y));
+  } else {
+    float band = smoothstep(uCopyMask.y - 80.0 * px, uCopyMask.y, y) * (1.0 - smoothstep(uCopyMask.z, uCopyMask.z + 80.0 * px, y));
+    lit = mix(1.0, mix(.3, 1.0, smoothstep(uCopyMask.x - 100.0 * px, uCopyMask.x + 100.0 * px, gl_FragCoord.x)), band);
+  }
   return mix(1.0, lit, min(uCopyMask.w, 1.0));
 }
 
@@ -246,34 +266,44 @@ void main() {
   vec3 photo = vec3(0.0);
   float photoCover = 0.0;
   if (uBackGain > .002 && uReveal > .002) {
-    // Cells cross from room A to room B in a diagonal order from the top left, loosened by a sixth of hash, each
-    // over 60% of the dissolve. The band is wide so the front is a soft slope across the frame, never a hard wipe,
-    // and the small hash share keeps the front from sparkling. The photograph crosses on the same cell order.
+    // Glyph cells cross from room A to room B in a diagonal order from the top left, loosened by a sixth of hash,
+    // each over 60% of the dissolve. The band is wide so the front is a soft slope across the frame, never a hard
+    // wipe, and the small hash share keeps the front from sparkling. The photograph crosses on the same diagonal
+    // per fragment, without the hash, so mid-swap it is one soft blend and never a mosaic of cells from two rooms.
     float swap = uBackMix;
+    float photoSwap = uBackMix;
     if (uBackMix > 0.0 && uBackMix < 1.0) {
       swap = staggered(sweep(sc, .55) * .84 + hash12(cell * 1.37) * .16, .6, uBackMix);
+      photoSwap = staggered(sweep(s, .55), .6, uBackMix);
     }
     vec4 tone = vec4(0.0);
-    if (swap < 1.0) {
-      tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, sc) * (1.0 - swap);
-      photo += roomPhoto(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, s) * (1.0 - swap);
-    }
-    if (swap > 0.0) {
-      tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, sc) * swap;
-      photo += roomPhoto(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, s) * swap;
-    }
+    if (swap < 1.0) tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, uMirror.x, sc) * (1.0 - swap);
+    if (swap > 0.0) tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, uMirror.y, sc) * swap;
+    if (photoSwap < 1.0) photo += roomPhoto(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, uMirror.x, s) * (1.0 - photoSwap);
+    if (photoSwap > 0.0) photo += roomPhoto(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, uMirror.y, s) * photoSwap;
 
-    // Density follows the cell's lightness over the whole range, from a bare dot in the shadows to the open o on
-    // a lit surface, so the picture's tones carry across the frame instead of breaking into lit patches on black.
-    // A flat surface never passes ROOM_FLAT_TOP, so a window or a lamp is a field of rings and not a solid bar.
-    // An object edge (tone.a from roomCell) adds up to .3 and may reach ROOM_EDGE_TOP, so the outlines of the mug,
-    // the pill box, the glasses, and the chair read as the picture's lines. Cells under 3% lightness stay empty,
-    // so the deepest shadows read as the stage itself.
-    float l = lightness(tone.rgb);
-    float fill = min(.1 + .55 * pow(l, .85), ${glslFloat(ROOM_FLAT_TOP)} / (uGlyphs - 1.0));
-    float level = min(fill + .3 * smoothstep(.02, .12, tone.a), ${glslFloat(ROOM_EDGE_TOP)} / (uGlyphs - 1.0));
+    // Density follows the cell's lightness within the room's own levels (uLevels), from a bare dot in the shadows
+    // to the open o on its brightest lit surface, so each dim photograph spans the whole ramp and its tones carry
+    // across the frame instead of breaking into lit patches on black. A flat surface never passes ROOM_FLAT_TOP,
+    // so a window or a lamp is a field of rings and not a solid bar. An object edge (tone.a from roomCell) adds up
+    // to .45 and may reach ROOM_EDGE_TOP, so the outlines of the mug, the pill box, the glasses, and the chair read
+    // as the picture's lines. The edge's share halves toward the top of the levels and the coverage thins by up to
+    // 35% there, since the grain inside a bright window scores as an edge too and otherwise prints as a wall of O
+    // and # glyphs. Density then sits on the contours (the chair back, the mug rim, the mullions), and a window
+    // reads as a lighter field. Cells near the bottom of the levels stay empty, so the deepest shadows read as the
+    // stage itself, except on an object edge, which prints whatever its lightness, so a dark subject (the mug's
+    // body, the forearms, the back of the armchair) keeps its whole outline and not only its lit side. A held room
+    // (uGlyphOnly 1) caps its edges at the flat ceiling, so an outline is a dotted contour of o and never a solid
+    // bar of # behind the exploded stack.
+    vec2 levels = mix(uLevels.xy, uLevels.zw, swap);
+    float l = smoothstep(levels.x, levels.y, lightness(tone.rgb));
+    float edge = smoothstep(.025, .1, tone.a);
+    float flatTop = ${glslFloat(ROOM_FLAT_TOP)} / (uGlyphs - 1.0);
+    float fill = min(.08 + .45 * pow(l, .85), flatTop);
+    float level = min(fill + .45 * edge * (1.0 - .5 * l), ${glslFloat(ROOM_EDGE_TOP)} / (uGlyphs - 1.0));
+    level = mix(level, min(level, flatTop), uGlyphOnly);
     float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local);
-    float body = smoothstep(.03, .14, l);
+    float body = max(smoothstep(.03, .14, l), edge);
     float shimmer = 1.0 + .4 * swap * (1.0 - swap);
     roomInk = ink(tone.rgb) * shimmer;
     // Static grain of 2% per cell, fixed to the cell grid. It never animates.
@@ -283,7 +313,13 @@ void main() {
     vec3 p = clamp(sqrt(roomInk), 0.0, 1.0);
     p = mix(p, p * p * (3.0 - 2.0 * p), .15);
     roomInk = p * p;
-    roomCover = alpha * body * uBackGain;
+    // An edge on a dark subject takes at least a quarter of the amber, so its outline stays visible over the
+    // near-black page instead of printing as near-black glyphs.
+    roomInk = max(roomInk, AMBER * .25 * edge);
+    // A held room (uGlyphOnly 1) keeps only the glyphs on object edges, so the field behind the exploded stack is
+    // the previous room's outlines and never a scatter of dense clusters from its flat surfaces.
+    roomCover = alpha * body * uBackGain * mix(1.0, smoothstep(.02, .1, tone.a), uGlyphOnly);
+    roomCover *= 1.0 - .35 * smoothstep(.8, 1.0, l);
     // The photograph takes the shadow lift and then the glyphs' lift, so the two share one hue and the strokes
     // read as texture on the picture, and its own deep shadows stay clear, as the glyphs' do, so the stage shows
     // through both.
@@ -417,6 +453,8 @@ export interface Composite {
  * Uniforms in device pixels: `uCell`, `uRes`, `uBones` (x1, y1, x2, y2 per
  * bone, origin bottom left), and `uHead` (centre and radius). `uFocus` holds
  * room A's focus then room B's, x from the left and y from the bottom, 0 to 1.
+ * `uLevels` holds room A's lightness levels (low, high) then room B's, and
+ * `uMirror` is 1 for each room drawn flipped left to right, else 0.
  * `uBackGain` scales the room's coverage, 1 for fully opaque glyphs.
  * `uGlyphOnly` fades the photograph under the glyphs, 0 for the full room
  * and 1 for a glyph-only field. `uReveal` is the room's print-in, 0 for no
@@ -427,9 +465,10 @@ export interface Composite {
  * is the scroll's eased speed, -1 to 1, and drags the room ahead of the
  * scroll while the visitor moves.
  * `uCopyMask` is the copy column's right edge x from the left, the copy
- * block's top y from the top, 1 when narrow else 0, and a strength from 0 to
- * 1. At strength 0 the room is untouched. Wide darkens the room left of the
- * edge, narrow darkens it from 60 CSS px above the top downward. `uLimb` is
+ * block's top and bottom y from the top, and a strength from 0 to 1. At
+ * strength 0 the room is untouched. `uCopyNarrow` is 1 on phone stages, which
+ * read only the top. Wide darkens the room left of the edge within the
+ * block's band, narrow darkens it from 90 CSS px above the top downward. `uLimb` is
  * kept for callers and not read, since the coach draws at fixed CSS sizes.
  * `uPixelRatio` is set from the renderer before every draw.
  */
@@ -444,6 +483,8 @@ export function createComposite(): Composite {
       uBackB: { value: null },
       uBackAspect: { value: new THREE.Vector2(16 / 9, 16 / 9) },
       uFocus: { value: new THREE.Vector4(0.5, 0.5, 0.5, 0.5) },
+      uLevels: { value: new THREE.Vector4(0, 1, 0, 1) },
+      uMirror: { value: new THREE.Vector2() },
       uBackMix: { value: 0 },
       uBackGain: { value: 0 },
       uGlyphOnly: { value: 0 },
@@ -453,6 +494,7 @@ export function createComposite(): Composite {
       uSurge: { value: 0 },
       uPointer: { value: new THREE.Vector2() },
       uCopyMask: { value: new THREE.Vector4(0, 0, 0, 0) },
+      uCopyNarrow: { value: 0 },
       uPixelRatio: { value: 1 },
       uProduct: { value: null },
       uDecode: { value: 1 },

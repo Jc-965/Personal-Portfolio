@@ -20,7 +20,7 @@ test('acts follow the teardown order and the peak has the largest span', () => {
   const glass = PARKIWELL.acts.find((a) => a.key === 'glass').span
   assert.ok(PARKIWELL.acts.every((a) => a.key === 'glass' || a.span < glass))
   // The pinned travel matches the --teardown-travel fallback in teardown.css, and the e2e geometry is sized to it.
-  assert.ok(Math.abs(totalSpan(PARKIWELL.acts) - 13.7) < 1e-9, `pinned travel ${totalSpan(PARKIWELL.acts)}`)
+  assert.ok(Math.abs(totalSpan(PARKIWELL.acts) - 17.3) < 1e-9, `pinned travel ${totalSpan(PARKIWELL.acts)}`)
   // The quiet act must outlast two wheel notches (about 0.67 viewport-heights under Lenis) to read as a pause.
   assert.ok(PARKIWELL.acts.find((a) => a.key === 'quiet').span >= 0.7)
 })

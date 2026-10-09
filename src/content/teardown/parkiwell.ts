@@ -1,7 +1,9 @@
 /**
  * ParkiWell's teardown chapter. Every figure comes from ParkiWell's repo
  * (ARCHITECTURE.md, supabase/schema.sql, test/offline_sync_engine_test.dart,
- * lib/services/encrypted_cache_store.dart, lib/motion_coach/README.md),
+ * lib/services/encrypted_cache_store.dart, lib/motion_coach/README.md,
+ * lib/motion_coach/motion_routine_results_screen.dart,
+ * lib/utils/session_wakelock.dart, lib/linechart.dart, packages/motion_engine),
  * parkiwell.com's journey, assurance, and features content, or Jesse's resume.
  * Unsupported claims (camera-to-feedback latency, process kills, user,
  * download, or rating numbers) must not be added here. An act's copy never
@@ -45,27 +47,50 @@ export const PARKIWELL: TeardownStory = {
         { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.94, v: -0.85 } },
       ],
     },
-    { key: 'day', span: 3.0, backdrop: 0, lines: [], callouts: [] },
-    // The quiet act is the chapter's one authored pause. At 0.8 viewport-heights it outlasts two wheel notches
-    // under Lenis, so it reads as a pause instead of a cut between the day and the glass.
-    { key: 'quiet', span: 0.8, backdrop: null, lines: [], callouts: [] },
+    // At 4.2 viewport-heights each wide card holds in the spotlight for about 0.35 viewport-heights, each narrow
+    // deck card holds at the centre for about 0.5, and the finished row rests for about 1.0 before the quiet act
+    // folds it.
+    { key: 'day', span: 4.2, backdrop: 0, lines: [], callouts: [] },
+    // The quiet act is the chapter's one authored pause. At 1.1 viewport-heights the row folds over its first half
+    // and the edge-on phone still holds for more than two wheel notches under Lenis, so it reads as a pause
+    // instead of a cut between the day and the glass.
+    { key: 'quiet', span: 1.1, backdrop: null, lines: [], callouts: [] },
     {
       key: 'glass',
-      span: 3.4,
+      // The peak keeps the chapter's largest span, so it stays longer than the day act.
+      span: 4.3,
       backdrop: null,
       lines: [],
+      // Each callout names the part its leader lands on, front to back: the Home capture's top left corner, the
+      // display the wake lock keeps on, its Symptoms chart (its plot runs from v -0.08 to -0.44), the code layer's
+      // expect() lines, and the phone's chassis frame. The first anchor sat on the bare cover glass, whose top
+      // corner is fanned right of the screen, and its leader cut through the capture's greeting to reach it. The
+      // charging coil shows through the translucent code layer above those lines, and an
+      // anchor inside it read as a caption for the coil, so the code anchor stays at v -0.72. Each anchor sits lower
+      // and further left than the one above it, so the leaders, which turn at one shared x, never cross while the
+      // copy rides through the act. The chassis anchor sits at v -0.8, below the code anchor, since at v -0.66 the
+      // two leaders crossed early in the act on tablets in portrait. An anchor on the logic board, in the chassis's
+      // top half, sits above the others and crosses them as the copy rides out. Sources:
+      // lib/utils/session_wakelock.dart, which the exercise video (lib/Recovery/exerciseVideo.dart line 63), speech
+      // practice (lib/Recovery/speechAudio.dart line 37), and both motion coach screens
+      // (lib/motion_coach/motion_routine_screen.dart line 95 and motion_coach_screen.dart line 103) acquire, the
+      // chart's Semantics label in lib/linechart.dart line 494, and ARCHITECTURE.md lines 47 and 48.
       callouts: [
-        { text: 'Screen reader labels, large targets, light and dark', anchor: { plane: 'glass', u: -0.92, v: 0.86 } },
-        { text: 'Flutter app: symptoms, medications, practice, support', anchor: { plane: 'screen', u: -0.92, v: 0.4 } },
-        { text: 'Offline sync: an encrypted journal, applied exactly once', anchor: { plane: 'code', u: -0.92, v: -0.1 } },
-        { text: 'Supabase and PostgreSQL, row-level security on 16 tables', anchor: { plane: 'chassis', u: -0.95, v: -0.66 } },
+        { text: 'Screen stays awake through practice sessions', anchor: { plane: 'screen', u: -0.92, v: 0.86 } },
+        { text: 'The trend chart reads out to screen readers', anchor: { plane: 'screen', u: -0.92, v: -0.25 } },
+        { text: 'Every change journaled until the server acknowledges it', anchor: { plane: 'code', u: -0.92, v: -0.72 } },
+        { text: 'Authoritative copy on the phone, cloud as backup', anchor: { plane: 'chassis', u: -0.95, v: -0.8 } },
       ],
     },
     {
       key: 'proof',
-      span: 1.5,
+      // The readout is typed by about 0.49 of the act and rests for about 0.57 viewport-heights before the stack
+      // closes over the act's last 20%, so the coach act opens on a phone that is already whole.
+      span: 1.8,
       backdrop: null,
-      lines: ['1,000,000 fault-injected writes', '0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Works offline. Cloud sync optional.'],
+      // The code layer prints the test's title (1M fault-injected writes), so the readout opens on its result. The
+      // last line counts the 16 create table and 16 enable row level security statements in supabase/schema.sql.
+      lines: ['0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Row-level security on all 16 tables'],
       callouts: [],
     },
     {
@@ -73,19 +98,26 @@ export const PARKIWELL: TeardownStory = {
       span: 1.3,
       backdrop: 2,
       // The coach screen's own cards say the camera measures on the device, nothing is uploaded, and name the
-      // two guided routines, so these lines carry only what the engine adds: maximumTempoRatio 8.0 in
+      // two guided routines, so these lines carry only what the engine adds: maximumTempoRatio 8.0 times
+      // referenceTempoS, the rep time measured from the exercise template's reference series, in
       // packages/motion_engine/lib/src/live_exercise_coach.dart, the per-rep ExerciseRepScore whose
       // symmetryScore is null unless both sides move, the ten templates under assets/motion/templates, and the
-      // text, speech, and haptic cue channels in lib/motion_coach/README.md.
+      // text, speech, and haptic cue channels in lib/motion_coach/README.md. The score names are the ones the
+      // close act's results screen prints for rangeScore, tempoScore, smoothnessScore, and symmetryScore
+      // (lib/motion_coach/motion_routine_results_screen.dart lines 482 to 486), so both acts use one vocabulary.
       lines: [
         'Motion coach, in development',
-        'Reps still count at up to 8x slower than the reference.',
-        'Every rep scored on range, tempo, and smoothness, plus symmetry when both sides move.',
+        "Reps still count at up to 8x slower than the exercise's set pace.",
+        'Every rep scored on movement size, pace, and smoothness, plus evenness when both sides move.',
         'Ten exercises, cued by text, speech, and haptic taps.',
       ],
       callouts: [],
     },
-    { key: 'close', span: 1.1, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
+    // The evening room is whole from 0.3 of the act. The reassembled phone reaches its close pose at half the act
+    // and rests there on the results screen, with the evening room and the copy in place, until the room starts to
+    // dissolve at 0.74 (0.48 viewport-heights). The phone dissolves from 0.78 and scatters by 0.93 of the act,
+    // before the stage unpins.
+    { key: 'close', span: 2.0, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
@@ -105,14 +137,21 @@ export const PARKIWELL: TeardownStory = {
   ],
   // The composite centres its window on the focus point, so a larger x moves the photograph's content left on
   // the screen. The window's overscan pins the y centre at every aspect up to 16:9, so only x places the subject.
-  // Each x puts the subject beside the phone on a 1440 px screen rather than behind it: the morning mug in the gap
-  // left of the phone with the notebook's end and the right lens to its right, both hands and their mug left of
-  // the phone, and the evening lamp right of the phone with the notebook and glasses to its left.
+  // At 1440 by 900 the window is 0.72 of a plate wide and its centre clamps to 0.404 to 0.596. The hands x puts
+  // the fingers (plate x 0.3 to 0.47) at about 0.27 to 0.51 of the frame width, in the gap between the callout
+  // column and the phone, with the mug's rim at the phone's left edge and its handle half visible right of it.
+  // At x 0.4 the grip and the mug's body sat behind the phone. The hands levels run from 0.05 to 0.45, so the
+  // shadowed skin (linear 0.03 to 0.1, a lightness of about 0.17 to 0.32) prints at full coverage instead of
+  // fading into bare dots. The chair x moves the window's bright band of floor and wall off the coach figure's
+  // shoulder line. The evening x puts the water glass at 0.32 to 0.42 of the width and the
+  // pill organiser's right half between the chips and the phone, and leaves the lamp out of frame. Each levels
+  // pair spans the room's own lit range: the plates are dim, and without it the glyph ramp used only its lower
+  // half.
   backdrops: [
-    { src: '/ParkiWell/rooms/morning.webp', focus: [0.52, 0.64] },
-    { src: '/ParkiWell/rooms/hands.webp', focus: [0.57, 0.58] },
-    { src: '/ParkiWell/rooms/chair.webp', focus: [0.63, 0.6] },
-    { src: '/ParkiWell/rooms/evening.webp', focus: [0.57, 0.5] },
+    { src: '/ParkiWell/rooms/morning.webp', focus: [0.48, 0.62], levels: [0.12, 0.7] },
+    { src: '/ParkiWell/rooms/hands.webp', focus: [0.47, 0.6], levels: [0.05, 0.45] },
+    { src: '/ParkiWell/rooms/chair.webp', focus: [0.52, 0.5], levels: [0.1, 0.65] },
+    { src: '/ParkiWell/rooms/evening.webp', focus: [0.42, 0.5], levels: [0.08, 0.6] },
   ],
   codeSource: 'test/offline_sync_engine_test.dart',
   code: `test(
