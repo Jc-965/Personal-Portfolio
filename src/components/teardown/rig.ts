@@ -44,6 +44,26 @@ export const MAX_DRAG = 0.7
  * than half its projected width, so no layer hides behind the one in front.
  */
 export const EXPLODE_DIRECTION = { normal: 0.6, right: 0.8 } as const
+/**
+ * Screen the main plane shows in each act. The DOM stage and the reduced-motion
+ * layout read the same table, so every mode shows one screen per act. The hand
+ * act shows the symptom form, which its accessibility callouts describe, and
+ * the close act shows the routine summary that follows a coach session. The
+ * canvas waits for every screen the story lists before it switches to GL, so
+ * each listed screen must appear here or among the day cards.
+ */
+export const ACT_SCREEN: Record<ActKey, ScreenKey> = { arrival: 'welcome', hand: 'log', day: 'home', quiet: 'home', glass: 'home', proof: 'home', coach: 'coach', close: 'results' }
+/**
+ * Fraction of an act over which a screen swap re-encodes the main plane, and
+ * the develop the dip reaches at its midpoint, where the texture changes. The
+ * dip is 0 at the act boundary, so the develop stays continuous into the act.
+ * The screen shader resolves cells in a scan, each over a quarter of the
+ * develop, so at a floor of 0.2 the first cells are already 90% sharp and the
+ * top left corner cuts hard between captures. At 0.05 no cell is more than
+ * about 10% resolved when the texture changes.
+ */
+const SWAP_SPAN = 0.12
+const SWAP_FLOOR = 0.05
 
 /** Fraction of an act over which its transition ramps. At 1 every transition ends exactly where the next act's begins. */
 const RAMP_END = 1.0
@@ -111,8 +131,16 @@ const CARD_START = 0.08
 const CARD_STEP = 0.14
 const CARD_SLIDE = 0.5
 /** Room gain in an act with a room, and the gain an act without one holds the previous room at. */
-const BACKDROP_GAIN = 0.8
+const BACKDROP_GAIN = 0.9
 const HELD_GAIN = 0.45
+/**
+ * Share of chapter progress over which the room's gain rises from 0 at the
+ * start and falls back to 0 at the end, so the glyph room emerges from the
+ * page background and dissolves into it. The product's decode brackets it:
+ * the phone forms from glyphs through the arrival and is scattered by 0.9
+ * of the close, and the close act alone spans about 0.086 of progress.
+ */
+const ROOM_EDGE_FADE = 0.07
 /**
  * Bounds, in chapter progress, on the span over which a room pans its full
  * distance. A room that is on screen for less than the minimum (about 2.6
@@ -168,8 +196,8 @@ export interface Pose {
   code: PlanePose
   cards: PlanePose[]
   /**
-   * `gain` is 1 at full room brightness. `glyphOnly` is kept for the composite's interface and is 1 in effect.
-   * `driftA` and `driftB` are each room's own pan progress from `roomDrift`.
+   * `gain` is 1 at full room brightness. `glyphOnly` is 1 where the room is held as a glyph-only field, with the
+   * photograph under the glyphs faded out. `driftA` and `driftB` are each room's own pan progress from `roomDrift`.
    */
   backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; driftA: number; driftB: number }
   coach: { amount: number; frame: number; pos: Vec3; scale: number }
@@ -268,11 +296,12 @@ export function poseAt(input: RigInput): Pose {
   const rise = (local: number, end = RAMP_END) => ramp(local, 0, end)
 
   // Each act's term is 0 before the act and complete after it, so the sums chain. The day row forms over the
-  // first 55% of the day act, ahead of the cards, and the quiet act folds it away. The stack is home by 60% of
-  // the coach act, before the figure draws, so the figure never crosses the fanned glass.
+  // first 55% of the day act, ahead of the cards, and the quiet act folds it away. The stack is closed by 40% of
+  // the coach act and the proof dimming is gone by 30%, so the coach screen, which swaps in at 12%, is solid
+  // and unghosted before the figure starts to draw at 25%.
   const dayOut = rise(day, 0.55) * (1 - rise(quiet))
-  const explode = rise(glass, 0.8) * (1 - 0.85 * ramp(coach, 0, 0.6)) * (1 - rise(close))
-  const proofDim = rise(proof) * (1 - rise(coach))
+  const explode = rise(glass, 0.8) * (1 - 0.92 * ramp(coach, 0, 0.4)) * (1 - rise(close))
+  const proofDim = rise(proof) * (1 - ramp(coach, 0, 0.3))
   const spread = narrow ? 0.75 : 1
   const surge = interaction.surge ?? 0
 
@@ -334,22 +363,32 @@ export function poseAt(input: RigInput): Pose {
   const glassCenter = layer(LAYER_Z.glass, 0.95 * explode * spread)
 
   // The quiet act takes the main screen's develop down to about two thirds, at full opacity, while the phone
-  // turns to 80 degrees. The screen swaps from welcome to home at 0.9 of that act, while it is a narrow sliver of
-  // glyphs, so the swap needs no cover and the day row shows five different screens.
+  // turns to 80 degrees.
   const quietDim = rise(quiet) * (1 - ramp(glass, 0, 0.6))
-  const screenDevelop = ramp(arrival, 0.4, 0.9) * (1 - 0.35 * quietDim)
-  const screen = plane(screenCenter, right, up, PHONE.sx, PHONE.sy, PHONE.sRadius, screenDevelop, ramp(arrival, 0.2, 0.6) * (1 - 0.65 * proofDim), quiet >= 0.9 ? 'home' : 'welcome')
-  const code = plane(codeCenter, right, up, CODE.hx, CODE.hy, CODE.radius, 1, ramp(glass, 0.1, 0.6) * (1 - rise(coach)), 'code')
+  // An act whose screen differs from the one before re-encodes the main plane over its first SWAP_SPAN: the
+  // develop dips to SWAP_FLOOR at the midpoint and the texture swaps there, under the glyphs, so it never pops.
+  const actKey = windows[actIndex].key
+  const prevKey = actIndex > 0 ? windows[actIndex - 1].key : actKey
+  const swapping = ACT_SCREEN[actKey] !== ACT_SCREEN[prevKey]
+  const swapDip = swapping ? ramp(actLocal, 0, SWAP_SPAN / 2) * (1 - ramp(actLocal, SWAP_SPAN / 2, SWAP_SPAN)) : 0
+  const screenKey = swapping && actLocal < SWAP_SPAN / 2 ? ACT_SCREEN[prevKey] : ACT_SCREEN[actKey]
+  const screenDevelop = ramp(arrival, 0.4, 0.9) * (1 - 0.35 * quietDim) * (1 - (1 - SWAP_FLOOR) * swapDip)
+  const screen = plane(screenCenter, right, up, PHONE.sx, PHONE.sy, PHONE.sRadius, screenDevelop, ramp(arrival, 0.2, 0.6) * (1 - 0.65 * proofDim), screenKey)
+  const code = plane(codeCenter, right, up, CODE.hx, CODE.hy, CODE.radius, 1, ramp(glass, 0.1, 0.6) * (1 - ramp(coach, 0, 0.3)), 'code')
 
   const cardKeys: ScreenKey[] = ['home', 'manage', 'recovery', 'community']
   const cards = cardKeys.map((key, i) => {
     if (narrow) {
-      // The deck: each card crosses the frame in front of the receded phone, lingering through the middle.
+      // The deck: each card crosses the frame in front of the receded phone, lingering through the middle. At
+      // the day camera's 0.61 world units of half-width at the card's depth, a card is whole in frame while
+      // |x| < 0.28, which the 0.95 reach holds for about the middle half of its window, and it enters and leaves
+      // through the fades, so a clipped card is always translucent. Windows are 0.36 of the act at a 0.2 step,
+      // so a card is never on screen with more than its one neighbour.
       const s = 0.04 + i * 0.2
       const wnd = clamp01((day - s) / 0.36)
-      const x = 1.6 - 3.2 * dwell(wnd)
+      const x = 0.95 - 1.9 * dwell(wnd)
       const develop = ramp(wnd, 0.02, 0.34)
-      const opacity = ramp(wnd, 0, 0.12) * (1 - ramp(wnd, 0.88, 1)) * (1 - rise(quiet, 0.5))
+      const opacity = ramp(wnd, 0, 0.2) * (1 - ramp(wnd, 0.8, 1)) * (1 - rise(quiet, 0.5))
       return plane([x, sinkY + wave(0.7 * (i + 1)), -0.3], [1, 0, 0], [0, 1, 0], PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
     }
     // Each card peels off the front of the screen, matching the phone's turn and size there, and lands in its slot
@@ -382,11 +421,12 @@ export function poseAt(input: RigInput): Pose {
   // At 2.25 the fanned stack crosses the right edge below an aspect of about 1.33, which includes tablets in portrait.
   // The wide glass distance grows as 3.1 / aspect below 1.38, which holds the glass's right edge under 0.99 of the width.
   dist = lerp(dist, narrow ? 3.0 : Math.max(2.25, 3.1 / aspect), rise(glass))
-  // The wide proof distance grows as 2.4 / aspect below 1.26, which keeps the chassis and the screen inside the
-  // right edge, and the floor of 1.9 keeps the turned glass's far corner inside it from 1.6 up. They must fit
-  // between the copy rail's clearance at 0.44 and that edge at every wide aspect. The narrow distance of 2.25
-  // keeps the exploded stack's top under the menu pill with the lens shift below.
-  dist = lerp(dist, narrow ? 2.25 : Math.max(1.9, 2.4 / aspect), rise(proof))
+  // The wide proof distance grows as 2.1 / aspect below 1.35, which keeps the chassis right of the copy rail's
+  // clearance at 0.44, and the floor of 1.55 puts the code layer at about 0.72 of the frame height from 1.35 up,
+  // so its text is legible, while the nearer screen's corners stay inside the frame's top and bottom 2%. The
+  // fanned glass crosses the right edge at this distance, dimmed. The narrow distance of 2.25 keeps the exploded
+  // stack's top under the menu pill with the lens shift below.
+  dist = lerp(dist, narrow ? 2.25 : Math.max(1.55, 2.1 / aspect), rise(proof))
   dist = lerp(dist, narrow ? 2.6 : 2.2, rise(coach))
   dist = lerp(dist, narrow ? 2.25 : 1.7, rise(close))
   // A moving scroll backs the camera off a little, so the product breathes with the wheel and settles closer.
@@ -411,11 +451,13 @@ export function poseAt(input: RigInput): Pose {
   // The coach figure draws from a quarter of its act, once the stack has closed and the phone is moving aside,
   // and is gone a quarter into the close, before the close copy is in place.
   const coachAmount = ramp(coach, 0.25, 0.8) * (1 - ramp(close, 0, 0.25))
-  // The close dissolve ends at 0.72 of the act and the scatter at 0.85, about 180 px of scroll before the stage
-  // unpins, so the glide's lag behind a fast wheel never carries loose characters past the chapter's end. The
-  // gather reverses behind the dissolve so the characters drift apart instead of holding a phone-shaped block.
-  const decode = ramp(arrival, 0.15, 0.85) * (1 - ramp(close, 0.3, 0.72))
-  const gather = ramp(arrival, 0, 0.7) * (1 - ramp(close, 0.45, 0.85))
+  // The reassembled phone holds through the first half of the close, under the chips and the links. The dissolve
+  // then ends at 0.82 of the act and the scatter at 0.9, about 80 px of scroll before the stage unpins at 844 px,
+  // which covers the glide's lag behind a fast wheel (END_GLIDE_TIME in TeardownCanvas.tsx) so no loose
+  // characters outlive the chapter. The gather reverses behind the dissolve so the characters drift apart
+  // instead of holding a phone-shaped block.
+  const decode = ramp(arrival, 0.15, 0.85) * (1 - ramp(close, 0.5, 0.82))
+  const gather = ramp(arrival, 0, 0.7) * (1 - ramp(close, 0.62, 0.9))
 
   return {
     camera: { pos: [target[0], cameraY, target[2] - dist], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, 1], focal: FOCAL, shift },
@@ -428,12 +470,11 @@ export function poseAt(input: RigInput): Pose {
     screen,
     code,
     cards,
-    // The room is already up at 55% when the stage pins, so the chapter never opens on a black frame, and reaches
-    // its full gain as the phone forms. It dims to 40% as the phone dissolves, so the chapter ends on the copy
-    // against a quiet room.
+    // The room fades up from the page over the chapter's first ROOM_EDGE_FADE and back into it over the last, so
+    // the stage pins and unpins with nothing drawn but the copy, and the chapter ends on the copy against the page.
     backdrop: {
       ...bd,
-      gain: bd.gain * (0.55 + 0.45 * ramp(arrival, 0, 0.6)) * (1 - 0.6 * ramp(close, 0.3, 0.85)),
+      gain: bd.gain * ramp(p, 0, ROOM_EDGE_FADE) * (1 - ramp(p, 1 - ROOM_EDGE_FADE, 1)),
       driftA: roomDrift(windows, input.backdrops, bd.a, p),
       driftB: roomDrift(windows, input.backdrops, bd.b, p),
     },

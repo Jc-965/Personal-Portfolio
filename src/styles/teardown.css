@@ -1,7 +1,10 @@
 /* Teardown chapter. A pinned stage sits over a track whose height is the stage
    plus the pinned travel. Overflow on any ancestor of .teardown__stage turns
    that ancestor into the scroll container and stops the stage pinning, so
-   clipping happens inside the stage only. */
+   clipping happens inside the stage only. The stage has no background in any
+   mode: the page's background canvas shows through between the glyphs, and
+   anything laid over the full stage must fade at its top and bottom, or the
+   stage's edges print on the page while it scrolls in and out. */
 
 .teardown {
   --teardown-travel: 10.5;
@@ -30,7 +33,6 @@
   top: 0;
   height: 100svh;
   overflow: clip;
-  background: #090705;
   touch-action: pan-y;
   isolation: isolate;
 }
@@ -92,7 +94,10 @@
    it holds steady while one act hands over to the next. The composite's
    uCopyMask dims the same column in the glyph pass, so this one stays light.
    It clears for the acts that put nothing in the column and in dom mode,
-   whose stage is already dark. */
+   whose copy sits on the near-black page. The mask fades the scrim over its
+   own top and bottom 10%, so its ends never print on the page. On wide
+   screens that is the same seam the composite fades the room over. On
+   phones the scrim is the stage's lower half, so the fade is its bottom 5%. */
 .teardown__stage::after {
   content: '';
   position: absolute;
@@ -101,6 +106,8 @@
   left: 0;
   width: calc(var(--td-gutter) + var(--td-rail) + 160px);
   background: linear-gradient(to right, rgba(9, 7, 5, .62), rgba(9, 7, 5, .4) 45%, rgba(9, 7, 5, 0));
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent);
   z-index: 1;
   pointer-events: none;
   transition: opacity var(--td-fade) var(--td-ease);
@@ -417,8 +424,10 @@
   .teardown__callouts,
   .teardown__readout { margin-top: 12px; gap: 6px; }
   .teardown__callout { padding: 6px 10px; font-size: .76rem; line-height: 1.4; }
-  .teardown__readout { padding: 12px 14px; gap: 6px; }
-  .teardown__readout li { font-size: .98rem; }
+  /* The readout's longest lines are 37 characters with the prompt. At .9rem mono they take about 320px, which
+     fits the 328px the rail leaves inside this padding at 390px, so no line wraps on a phone. */
+  .teardown__readout { padding: 12px 10px; gap: 6px; }
+  .teardown__readout li { font-size: .9rem; }
   .teardown__tags,
   .teardown__links { margin-top: 12px; }
   .teardown__card-label { max-width: calc(100vw - 40px); }
@@ -433,12 +442,11 @@
   .teardown__line { font-size: .94rem; }
   .teardown__lede { font-size: 1.04rem; }
   .teardown__callout { padding: 5px 9px; font-size: .72rem; }
-  .teardown__readout li { font-size: .92rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .teardown--static { height: auto; }
-  .teardown--static .teardown__stage { position: relative; height: auto; overflow: visible; background: none; }
+  .teardown--static .teardown__stage { position: relative; height: auto; overflow: visible; }
   .teardown--static .teardown__stage::after { content: none; }
   .teardown--static .teardown__rail { position: relative; inset: auto; display: block; width: auto; padding: 0 var(--td-gutter); overflow: visible; }
   /* Every act is is-active in the static layout. Inline --copy-y and --copy-o

@@ -1,12 +1,11 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PhoneFrame from '../PhoneFrame'
-import { setCovering } from '../hero/heroCover'
 import Printed from '../hero/Printed'
 import { sceneProgress } from '../hero/world'
 import { lenisRef } from '../../scroll/lenisRef'
-import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
+import type { ActKey, ScreenKey, TeardownStory } from '../../content/teardown/types'
 import type { TeardownFrame } from './TeardownCanvas'
-import { PHONE, poseAt, projectPoint, type Interaction, type Pose, type Vec3 } from './rig'
+import { ACT_SCREEN, PHONE, poseAt, projectPoint, type Interaction, type Pose, type Vec3 } from './rig'
 import { actAt, actWindows, copyRide, localOf, ramp, totalSpan } from './timeline'
 import '../../styles/teardown.css'
 
@@ -15,10 +14,8 @@ const TeardownCanvas = lazy(() => import('./TeardownCanvas'))
 type Mode = 'dom' | 'gl' | 'static'
 type Ride = ReturnType<typeof copyRide>
 
-/** Screen the DOM stage shows per act, matching the rig's screen texture, which swaps to Home late in the quiet act. Acts not listed show Home. */
-const ACT_SCREEN: Partial<Record<string, ScreenKey>> = { arrival: 'welcome', hand: 'welcome', day: 'welcome', quiet: 'welcome' }
-/** Acts that show a phone in the reduced-motion layout, and the screen each shows. The day act's phone shows Home, the first screen its card labels name. */
-const STATIC_PHONE: Partial<Record<string, ScreenKey>> = { arrival: 'welcome', hand: 'welcome', day: 'home', close: 'home' }
+/** Acts that show a phone in the reduced-motion layout. Each shows the rig's screen for that act, so the hand act's callouts sit beside the form they describe. */
+const STATIC_PHONE_ACTS: ReadonlySet<ActKey> = new Set<ActKey>(['arrival', 'hand', 'day', 'coach', 'close'])
 const AMBER = '#eab76a'
 /** A card's label shows once the card's develop, 0 to 1, reaches this. */
 const LABEL_DEVELOP = 0.85
@@ -130,7 +127,7 @@ function Teardown({ story }: { story: TeardownStory }) {
   const travel = totalSpan(story.acts)
   const proofIndex = story.acts.findIndex((a) => a.key === 'proof')
   const screenOf = (key: ScreenKey) => story.screens.find((s) => s.key === key) ?? story.screens[0]
-  const screenFor = (actKey: string) => screenOf(ACT_SCREEN[actKey] ?? 'home')
+  const screenFor = (actKey: ActKey) => screenOf(ACT_SCREEN[actKey])
 
   useEffect(() => { modeRef.current = mode }, [mode])
   useEffect(() => { actRef.current = act }, [act])
@@ -209,23 +206,15 @@ function Teardown({ story }: { story: TeardownStory }) {
     }
   }, [windows, proofIndex, rideCopy])
 
-  // Scroll drives the copy only in dom mode, before the renderer is ready and after a fallback.
+  // Scroll drives the copy only in dom mode, before the renderer is ready and after a fallback. The stage is
+  // transparent in every mode, so the chapter never reports the page background's cover signal (heroCover.ts).
   useEffect(() => {
     if (!track || mode !== 'dom') return
     let raf = 0
     const update = () => {
       raf = 0
-      const stage = stageRef.current
       const top = track.getBoundingClientRect().top + window.scrollY
-      follow(sceneProgress(window.scrollY - top, track.offsetHeight, stage?.clientHeight || window.innerHeight))
-      // TeardownCanvas reports cover under its own source once the renderer is ready. Until then, and
-      // after a fallback, the opaque DOM stage reports it here. A collapsed phone toolbar leaves a strip
-      // below the 100svh stage, so the stage must reach the visual viewport's bottom edge.
-      if (stage) {
-        const rect = stage.getBoundingClientRect()
-        const visibleHeight = window.visualViewport?.height ?? window.innerHeight
-        setCovering('teardown-dom', rect.top <= 0.5 && rect.bottom + 0.5 >= visibleHeight)
-      }
+      follow(sceneProgress(window.scrollY - top, track.offsetHeight, stageRef.current?.clientHeight || window.innerHeight))
     }
     const schedule = () => { if (!raf) raf = requestAnimationFrame(update) }
     schedule()
@@ -235,12 +224,12 @@ function Teardown({ story }: { story: TeardownStory }) {
       cancelAnimationFrame(raf)
       window.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', schedule)
-      setCovering('teardown-dom', false)
     }
   }, [track, mode, follow])
 
   // The root carries teardown-pinned while the track spans the whole viewport, which is when the sticky
-  // stage is pinned and covers it, and base.css then dims the vintage overlay's scanlines. This runs in dom
+  // stage is pinned and covers it. base.css then dims the vintage overlay's scanlines and Background.tsx
+  // stops the page graph's pointer halos, which otherwise light up across the product. This runs in dom
   // and gl mode alike, and the class never outlives the chapter. The same measurement starts the heading's
   // print once the stage's top third is on screen, so the title is typing as the stage arrives instead of
   // waiting for the pin.
@@ -427,8 +416,7 @@ function Teardown({ story }: { story: TeardownStory }) {
 
         <div ref={railRef} className="teardown__rail">
           {story.acts.map((a, ai) => {
-            const staticKey = STATIC_PHONE[a.key]
-            const phone = staticKey ? screenOf(staticKey) : null
+            const phone = STATIC_PHONE_ACTS.has(a.key) ? screenFor(a.key) : null
             return (
               // The close act stays out of inert so its links keep their place in the tab order. See onFocusIn.
               <div

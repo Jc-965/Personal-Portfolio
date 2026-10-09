@@ -35,7 +35,7 @@ export interface TeardownAct {
   backdrop: number | null
 }
 
-export type ScreenKey = 'welcome' | 'home' | 'manage' | 'recovery' | 'community'
+export type ScreenKey = 'welcome' | 'home' | 'manage' | 'recovery' | 'community' | 'log' | 'coach' | 'results'
 
 export interface TeardownScreen {
   key: ScreenKey

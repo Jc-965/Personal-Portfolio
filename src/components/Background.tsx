@@ -128,8 +128,9 @@ export default function Background() {
 
     // While something opaque spans the viewport the canvas cannot be seen, so
     // the renderer keeps simulating but stops painting. heroCovering is true
-    // while the hero or the teardown stage covers, and sketchbookCovering
-    // while the Sketchbook overlay does.
+    // while the hero's terminal sheet covers, and sketchbookCovering while the
+    // Sketchbook overlay does. The teardown chapter's stage is transparent
+    // and never covers.
     let heroCovering = isHeroCovering()
     let sketchbookCovering = coveredBySketchbook()
     let covered = false
@@ -143,9 +144,18 @@ export default function Background() {
       heroCovering = covering
       syncCovered()
     })
+    // While the teardown chapter is pinned (Teardown.tsx sets teardown-pinned on the root) the pointer leaves
+    // the graph alone. The grid drift and the idle edges keep running under the chapter's glyphs, which ties the
+    // chapter to the page, and only the halos and the cursor ring stop, so the tree never lights up across the
+    // product while the visitor drags it.
+    const pinnedByTeardown = () => document.documentElement.classList.contains('teardown-pinned')
+    let calm = pinnedByTeardown()
     const classObserver = new MutationObserver(() => {
       sketchbookCovering = coveredBySketchbook()
       syncCovered()
+      const next = pinnedByTeardown()
+      if (next && !calm) post({ type: 'leave' })
+      calm = next
     })
     classObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     syncCovered()
@@ -158,13 +168,13 @@ export default function Background() {
       post({ type: 'scroll', progress })
     })
 
-    const onMove = (e: PointerEvent) => post({ type: 'pointer', x: e.clientX, y: e.clientY })
+    const onMove = (e: PointerEvent) => { if (!calm) post({ type: 'pointer', x: e.clientX, y: e.clientY }) }
     const onLeave = () => post({ type: 'leave' })
-    const onPointerDown = (e: PointerEvent) => post({ type: 'interact', x: e.clientX, y: e.clientY })
+    const onPointerDown = (e: PointerEvent) => { if (!calm) post({ type: 'interact', x: e.clientX, y: e.clientY }) }
     const onPointerUp = () => post({ type: 'end' })
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0]
-      if (t) post({ type: 'interact', x: t.clientX, y: t.clientY })
+      if (t && !calm) post({ type: 'interact', x: t.clientX, y: t.clientY })
     }
     const onTouchEnd = () => post({ type: 'end' })
     const handleVisibility = () => post({ type: 'hidden', hidden: document.hidden })

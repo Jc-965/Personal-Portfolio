@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { actWindows } from '../../src/components/teardown/timeline.ts'
-import { FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, planePoint, poseAt, projectPoint, roomDrift } from '../../src/components/teardown/rig.ts'
+import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, planePoint, poseAt, projectPoint, roomDrift } from '../../src/components/teardown/rig.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
 
 const windows = actWindows(PARKIWELL.acts)
@@ -106,14 +106,16 @@ test('backdrops crossfade between room acts and hold the last room as a dim fiel
   assert.equal(quietLate.glyphOnly, 1)
   assert.equal(quietLate.a, PARKIWELL.acts.find((a) => a.key === 'day').backdrop)
   const quietMid = backdropAt(windows, backdrops, (w('quiet').start + w('quiet').end) / 2)
-  assert.ok(quietMid.gain > 0.45 && quietMid.gain < 0.8, 'the room dims across the quiet act instead of at its start')
+  assert.ok(quietMid.gain > 0.45 && quietMid.gain < 0.9, 'the room dims across the quiet act instead of at its start')
+  assert.ok(quietMid.glyphOnly > 0 && quietMid.glyphOnly < 1, 'the photograph under the glyphs fades across the quiet act')
   const handStart = backdropAt(windows, backdrops, w('hand').start + 1e-6)
   assert.equal(handStart.a, 0)
   assert.equal(handStart.b, 1)
   assert.ok(handStart.mix < 0.05)
   const handLate = backdropAt(windows, backdrops, w('hand').end - 1e-6)
   assert.equal(handLate.mix, 1)
-  assert.ok(near(handLate.gain, 0.8, 1e-6))
+  assert.ok(near(handLate.gain, 0.9, 1e-6))
+  assert.equal(handLate.glyphOnly, 0, 'a room act shows the photograph under its glyphs')
 })
 
 test('a room act after a dark act dissolves from the held room back to full brightness', () => {
@@ -126,7 +128,7 @@ test('a room act after a dark act dissolves from the held room back to full brig
   const late = backdropAt(windows, backdrops, w('coach').end - 1e-6)
   assert.equal(late.mix, 1)
   assert.equal(late.glyphOnly, 0)
-  assert.ok(near(late.gain, 0.8, 1e-6))
+  assert.ok(near(late.gain, 0.9, 1e-6))
 })
 
 test('backdrop state is continuous across every act boundary', () => {
@@ -146,6 +148,16 @@ test('backdrop state is continuous across every act boundary', () => {
       assert.ok(Math.abs((wb.get(key) ?? 0) - (wa.get(key) ?? 0)) < 1e-3, `room ${key} jumps entering ${win.key}`)
     }
   }
+})
+
+test('the room fades up from the page over the first 7% of the chapter and back into it over the last 7%', () => {
+  // The stage pins and unpins with no room drawn, so the page background runs through it at both edges.
+  assert.equal(at(0).backdrop.gain, 0)
+  assert.equal(at(1).backdrop.gain, 0)
+  assert.ok(near(at(0.035).backdrop.gain, 0.45, 1e-6), `gain at the opening fade's midpoint: ${at(0.035).backdrop.gain}`)
+  assert.ok(near(at(0.07).backdrop.gain, 0.9, 1e-6), `gain at the end of the opening fade: ${at(0.07).backdrop.gain}`)
+  assert.ok(near(at(0.93).backdrop.gain, 0.9, 1e-6), `gain at the start of the closing fade: ${at(0.93).backdrop.gain}`)
+  assert.ok(near(at(0.965).backdrop.gain, 0.45, 1e-6), `gain at the closing fade's midpoint: ${at(0.965).backdrop.gain}`)
 })
 
 test('each room pans over its own time on screen, at a bounded rate, and the pose carries both slots', () => {
@@ -222,12 +234,55 @@ test('the product forms from glyphs in act 1 and dissolves back before the end o
   assert.equal(at(1).decode, 0)
   assert.ok(at((w('hand').start + w('hand').end) / 2).decode > 0.99)
   assert.ok(at(inAct('arrival', 0.5)).decode > 0.3 && at(inAct('arrival', 0.5)).decode < 0.7, 'the arrival decode runs across the act')
-  assert.ok(at(inAct('close', 0.25)).decode > 0.99, 'the close holds the real render through its first 25%')
-  assert.equal(at(inAct('close', 0.75)).decode, 0, 'the dissolve completes while the stage is still pinned')
+  assert.ok(at(inAct('close', 0.5)).decode > 0.99, 'the close holds the real render through its first half')
+  // The dissolve ends at 0.82 and the scatter at 0.9 of the close, so both complete while the stage is still pinned.
+  assert.equal(at(inAct('close', 0.82)).decode, 0, 'the dissolve completes while the stage is still pinned')
   // The gather reverses behind the dissolve, so the characters drift apart instead of holding a phone-shaped block.
   assert.equal(at(0).gather, 0)
-  assert.equal(at(inAct('close', 0.4)).gather, 1)
+  assert.equal(at(inAct('close', 0.62)).gather, 1)
+  assert.ok(at(inAct('close', 0.75)).gather > 0 && at(inAct('close', 0.75)).gather < 1, 'the scatter runs behind the dissolve')
+  assert.equal(at(inAct('close', 0.9)).gather, 0)
   assert.equal(at(1).gather, 0)
+})
+
+test('the coach screen is solid and unghosted before the figure starts to draw', () => {
+  // The coach screen swaps in by 0.12 of the act and the figure draws from 0.25. The proof dimming and the code
+  // layer are gone by 0.3 and the stack is nearly closed, so the screen is not seen through the code or the chassis.
+  const swapped = at(inAct('coach', 0.12))
+  assert.ok(swapped.screen.opacity > 0.5, `screen opacity at the end of the swap: ${swapped.screen.opacity}`)
+  const drawing = at(inAct('coach', 0.25))
+  assert.ok(drawing.screen.opacity > 0.9 && drawing.code.opacity < 0.1, `screen ${drawing.screen.opacity} and code ${drawing.code.opacity} opacity as the figure starts`)
+  const settled = at(inAct('coach', 0.3))
+  assert.equal(settled.screen.opacity, 1)
+  assert.equal(settled.code.opacity, 0)
+  assert.ok(settled.explode < 0.25, `explode at 0.3 of the coach act: ${settled.explode}`)
+  assert.ok(at(inAct('coach', 0.4)).explode < 0.081, 'the stack is closed by 0.4 of the coach act')
+  assert.ok(at(inAct('coach', 0.25)).coach.amount < 1e-9, 'the figure has not started to draw at 0.25')
+})
+
+test('each narrow deck card is whole in frame through the middle of its window and never with two neighbours', () => {
+  // The day camera shows 0.54 world units of half-width at a card's depth at the start of the act and 0.65 by its
+  // middle, so a card of half-width 0.335 is whole in frame while |x| is under 0.2 to 0.31, which the 0.95 reach
+  // holds from about 0.3 to 0.7 of the card's window.
+  const aspect = 0.46
+  for (let i = 0; i < 4; i++) {
+    const s = 0.04 + i * 0.2
+    for (const wnd of [0.35, 0.5, 0.65]) {
+      const pose = at(inAct('day', s + wnd * 0.36), true, aspect)
+      const card = pose.cards[i]
+      assert.equal(card.opacity, 1, `card ${i} is opaque at ${wnd} of its window`)
+      for (const p of corners(pose, aspect, planeRect(card))) {
+        assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `card ${i} corner at ${wnd} of its window: ${p.x} ${p.y}`)
+      }
+    }
+    // A card enters and leaves through its fades, so a clipped card is translucent.
+    assert.ok(at(inAct('day', s + 0.05 * 0.36), true, aspect).cards[i].opacity < 0.2, `card ${i} fades in`)
+    assert.ok(at(inAct('day', s + 0.95 * 0.36), true, aspect).cards[i].opacity < 0.2, `card ${i} fades out`)
+  }
+  for (let k = 0; k <= 100; k++) {
+    const shown = at(inAct('day', k / 100), true, aspect).cards.filter((card) => card.opacity > 0).length
+    assert.ok(shown <= 2, `${shown} deck cards shown at day ${k / 100}`)
+  }
 })
 
 test('exploded layers fan out sideways so they do not stack in projection', () => {
@@ -338,6 +393,39 @@ test('in the quiet act the cards slide home, fade before they arrive, and never 
   const fadedGap = Math.hypot(...faded.center.map((v, k) => v - at(inAct('quiet', 0.3)).screen.center[k]))
   assert.ok(fadedGap > 0.4 * slotGap, 'the card is gone before it is more than 60% of the way home')
   assert.equal(at(inAct('glass', 0.5)).cards[1].opacity, 0)
+})
+
+test('the main screen shows each act\'s screen and re-encodes briefly at every swap', () => {
+  const keys = new Set(PARKIWELL.screens.map((s) => s.key))
+  for (const [key, screen] of Object.entries(ACT_SCREEN)) {
+    assert.ok(keys.has(screen), `${key} names a screen the story has`)
+    assert.equal(at(inAct(key, 0.5)).screen.texture, screen)
+  }
+  assert.equal(at(inAct('hand', 0.5)).screen.texture, 'log')
+  assert.equal(at(inAct('coach', 0.5)).screen.texture, 'coach')
+  assert.equal(at(inAct('close', 0.5)).screen.texture, 'results')
+  // A swap dips the develop to 0.05 at 6% of the act and restores it by 12%. The texture changes at the dip's
+  // bottom, where the shader's scan has resolved no cell past about 10%, so the screen it leaves and the one it
+  // reveals are both drawn as glyphs at that instant.
+  for (const [key, from] of [['hand', 'welcome'], ['day', 'log'], ['coach', 'home'], ['close', 'coach']]) {
+    assert.ok(at(inAct(key, 0)).screen.develop > 0.99, `${key} enters at full develop`)
+    assert.equal(at(inAct(key, 0.03)).screen.texture, from, `${key} keeps the previous screen into the dip`)
+    const before = at(inAct(key, 0.0595)).screen
+    const after = at(inAct(key, 0.0605)).screen
+    assert.equal(before.texture, from)
+    assert.equal(after.texture, ACT_SCREEN[key])
+    assert.ok(near(before.develop, 0.05, 0.01) && near(after.develop, 0.05, 0.01), `${key} swaps at the dip's bottom: ${before.develop} ${after.develop}`)
+    assert.ok(at(inAct(key, 0.12)).screen.develop > 0.99, `${key} restores the develop by 12%`)
+  }
+  // Acts that keep the previous screen never dip.
+  for (const key of ['quiet', 'glass', 'proof']) assert.ok(at(inAct(key, 0.06)).screen.develop > 0.6, `${key} holds its screen`)
+})
+
+test('every screen the story lists is drawn by an act or a day card', () => {
+  // The canvas loads every listed screen and waits for all of them before it switches to GL, so a screen nothing
+  // draws delays the chapter for a download the visitor never sees.
+  const drawn = new Set([...Object.values(ACT_SCREEN), ...PARKIWELL.cards.map((c) => c.screen)])
+  for (const screen of PARKIWELL.screens) assert.ok(drawn.has(screen.key), `${screen.key} is loaded but never drawn`)
 })
 
 test('the quiet act turns the phone edge-on and dips the screen develop to about two thirds at full opacity', () => {

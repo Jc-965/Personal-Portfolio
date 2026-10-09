@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
-import { setCovering } from '../hero/heroCover'
 import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
 import { COACH_BONES, jointsAt } from './coach'
@@ -176,20 +175,21 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
 function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement, story: TeardownStory, callbacks: { current: Callbacks }): () => void {
   let failed = false
   let stop = () => {}
-  let covering = false
   const fail = (reason: unknown) => {
     if (failed) return
     failed = true
     stop()
     console.warn('[teardown] falling back to the DOM stage', reason)
-    if (covering) { covering = false; setCovering('teardown', false) }
     callbacks.current.onFallback()
   }
 
   let renderer: THREE.WebGLRenderer
   let gpu: ReturnType<typeof createStage>
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' })
+    // The canvas is transparent over the page background, and the composite writes premultiplied colour, which
+    // is what premultipliedAlpha tells the browser to expect. The chapter never claims the page background's
+    // cover signal (heroCover.ts), since the page must keep painting under the glyphs.
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: true, depth: false, stencil: false, powerPreference: 'high-performance' })
   } catch (error) {
     fail(error)
     return () => {}
@@ -423,7 +423,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
 
     if (!ready && [...screens.values()].every((screen) => screen.ready)) {
       ready = true
-      updateCovering()
       callbacks.current.onReady()
     }
     // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the track is visible and
@@ -433,14 +432,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     else lastPaint = 0
   }
 
-  // A collapsed phone toolbar makes the visible viewport taller than the 100svh stage. The strip
-  // below the stage then shows the page background, so the stage does not claim to cover.
-  const updateCovering = () => {
-    const y = window.scrollY
-    const visibleHeight = window.visualViewport?.height ?? window.innerHeight
-    const next = ready && !lost && !failed && y >= trackTop && y + height <= trackTop + trackHeight + 0.5 && height + 0.01 >= visibleHeight
-    if (next !== covering) { covering = next; setCovering('teardown', covering) }
-  }
   const onScroll = () => {
     const y = window.scrollY
     progress = sceneProgress(y - trackTop, trackHeight, height)
@@ -451,7 +442,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     // Leaving lands the glide on the final progress and draws that frame once, so data-act and the copy settle on
     // the end state instead of wherever the glide was when the track left the viewport.
     if (wasVisible && !visible) { glide = { value: progress, velocity: 0 }; flush = true }
-    updateCovering()
     if (visible || flush) start()
     else stop()
   }
@@ -578,11 +568,17 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     stage.removeEventListener('pointerleave', onLeave)
     document.removeEventListener('visibilitychange', onVisibility)
     canvas.removeEventListener('webglcontextlost', onLost)
-    if (covering) setCovering('teardown', false)
     owned.forEach((texture) => texture.dispose())
     atlas?.dispose()
     code?.dispose()
-    if (!lost) settleLinks(renderer)
+    if (!lost) {
+      settleLinks(renderer)
+      // A hot reload remounts on the same canvas, whose context keeps the unpack flags the last texture upload
+      // set. The next renderer allocates its default 3D textures first, and texImage3D rejects both flags.
+      const gl = renderer.getContext()
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+    }
     disposeStage()
     renderer.dispose()
   }

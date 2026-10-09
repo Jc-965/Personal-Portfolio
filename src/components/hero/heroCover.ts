@@ -1,10 +1,9 @@
 /**
- * Imperative, React-free signal that says whether an opaque stage (the hero's
- * terminal sheet or the teardown chapter's stage) currently spans the whole
- * viewport. While any producer covers, anything fixed beneath (the page
- * background canvas) is invisible and can skip painting.
+ * Imperative, React-free signal that says whether the hero's terminal sheet
+ * currently spans the whole viewport. While it covers, anything fixed beneath
+ * (the page background canvas) is invisible and can skip painting.
  *
- * Written by AsciiWorld and TeardownCanvas on scroll and resize, read by Background per change.
+ * Written by AsciiWorld on scroll and resize, read by Background per change.
  */
 
 type CoverListener = (covering: boolean) => void

@@ -4,6 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { ACT_ORDER } from '../../src/content/teardown/types.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
+import { totalSpan } from '../../src/components/teardown/timeline.ts'
 
 const words = (text) => text.trim().split(/\s+/).length
 const allCopy = () => [
@@ -18,6 +19,10 @@ test('acts follow the teardown order and the peak has the largest span', () => {
   assert.deepEqual(PARKIWELL.acts.map((a) => a.key), ACT_ORDER)
   const glass = PARKIWELL.acts.find((a) => a.key === 'glass').span
   assert.ok(PARKIWELL.acts.every((a) => a.key === 'glass' || a.span < glass))
+  // The pinned travel matches the --teardown-travel fallback in teardown.css, and the e2e geometry is sized to it.
+  assert.ok(Math.abs(totalSpan(PARKIWELL.acts) - 10.5) < 1e-9, `pinned travel ${totalSpan(PARKIWELL.acts)}`)
+  // The quiet act must outlast two wheel notches (about 0.67 viewport-heights under Lenis) to read as a pause.
+  assert.ok(PARKIWELL.acts.find((a) => a.key === 'quiet').span >= 0.7)
 })
 
 test('labels have at most eight words', () => {
@@ -46,6 +51,7 @@ test('room focus points sit inside the photo', () => {
 
 test('cards and backdrops reference real entries', () => {
   const keys = new Set(PARKIWELL.screens.map((s) => s.key))
+  assert.equal(keys.size, PARKIWELL.screens.length, 'screen keys are unique')
   for (const card of PARKIWELL.cards) assert.ok(keys.has(card.screen))
   for (const act of PARKIWELL.acts) if (act.backdrop !== null) assert.ok(act.backdrop >= 0 && act.backdrop < PARKIWELL.backdrops.length)
 })

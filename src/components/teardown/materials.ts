@@ -19,8 +19,12 @@ export const CHAPTER_RAMP = ' .·:;+*xoO#%@█'
 /** GLSL float literal, so integers never land in float arithmetic as ints. */
 export const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
-/** Densest glyph an undeveloped screen cell draws. The x is the densest glyph that stays open at a 6.5 px cell, so a white button or a thumbnail never packs into a solid bar. */
-const SCREEN_TOP = Array.from(CHAPTER_RAMP).indexOf('x')
+/**
+ * Densest glyph an undeveloped screen cell draws. A bright region of the capture (a white button, a thumbnail) is
+ * a field of this glyph until it resolves, so it must stay open at a 6.5 px cell. The x, one step denser, packed
+ * a peeling card's thumbnail into a solid block over the screen behind it, which read as the screen tearing.
+ */
+const SCREEN_TOP = Array.from(CHAPTER_RAMP).indexOf('+')
 
 /**
  * Helpers shared by every chapter shader. `lightness` approximates the sRGB
@@ -92,11 +96,13 @@ void main() {
   if (resolved < 1.0) {
     // Glyphs fade out over the dark UI, so its background stays a clean base, and brighten a little at the scan
     // front. The lift and the boost stay low so the front never flares to white over the screen's colours. The cap
-    // at SCREEN_TOP, with cells above .6 lightness dimmed toward .55, keeps the UI's white buttons, white text, and
-    // bright thumbnails as mid-grey open characters, so only their edges stand out from the forming screen.
+    // at SCREEN_TOP keeps the UI's white buttons, white text, and bright thumbnails as open characters, and cells
+    // above .55 lightness thin toward the dots and dim toward .55, so a bright thumbnail is an open field on the
+    // base instead of a packed block, and only its edges stand out from the forming screen.
     vec3 cellColor = textureLod(uMap, centerUv, lodCell).rgb;
     float l = lightness(cellColor);
-    float glyphAlpha = glyphMask(uAtlas, uGlyphs, glyphIndex(min(pow(l, .8), ${glslFloat(SCREEN_TOP)} / (uGlyphs - 1.0)), uGlyphs), local) * smoothstep(.08, .35, l);
+    float density = min(pow(l, .8), ${glslFloat(SCREEN_TOP)} / (uGlyphs - 1.0)) * (1.0 - .5 * smoothstep(.55, .95, l));
+    float glyphAlpha = glyphMask(uAtlas, uGlyphs, glyphIndex(density, uGlyphs), local) * smoothstep(.08, .35, l);
     vec3 glyph = lifted(cellColor, .1) * mix(1.0, .55, smoothstep(.6, .95, l)) * (1.0 + 0.4 * resolved * (1.0 - resolved));
     color = mix(mix(SCREEN_BASE, glyph, glyphAlpha), developed.rgb, resolved);
   }

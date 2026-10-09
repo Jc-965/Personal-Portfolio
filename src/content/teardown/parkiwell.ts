@@ -27,24 +27,31 @@ export const PARKIWELL: TeardownStory = {
       span: 1.0,
       backdrop: 1,
       lines: ['Designed for hands with a tremor.'],
+      // Each callout names a feature the Log a symptom screen shows, and its anchor sits on that feature, in
+      // screen order from the top so the leader lines never cross: the backfill sentence under the heading
+      // (lib/Manage/editLog.dart, firstDate 2000), the severity chips (minHeight 48), the date and time controls
+      // under "Choose a day first, then adjust the time separately", and the Save button, which disables itself
+      // while a save is in flight so a second tap records nothing.
       callouts: [
-        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.9, v: 0.64 } },
-        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.9, v: 0.18 } },
-        { text: 'Sign-in waits three minutes', anchor: { plane: 'screen', u: -0.9, v: -0.3 } },
-        { text: 'Reps counted at up to 8x slower', anchor: { plane: 'screen', u: -0.9, v: -0.78 } },
+        { text: 'Backfill any date from 2000 onward', anchor: { plane: 'screen', u: -0.6, v: 0.58 } },
+        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.6, v: -0.04 } },
+        { text: 'Day first, then the time', anchor: { plane: 'screen', u: -0.6, v: -0.58 } },
+        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.5, v: -0.85 } },
       ],
     },
     { key: 'day', span: 1.8, backdrop: 0, lines: [], callouts: [] },
-    { key: 'quiet', span: 0.5, backdrop: null, lines: [], callouts: [] },
+    // The quiet act is the chapter's one authored pause. At 0.8 viewport-heights it outlasts two wheel notches
+    // under Lenis, so it reads as a pause instead of a cut between the day and the glass.
+    { key: 'quiet', span: 0.8, backdrop: null, lines: [], callouts: [] },
     {
       key: 'glass',
-      span: 3.0,
+      span: 2.7,
       backdrop: null,
       lines: [],
       callouts: [
         { text: 'Screen reader labels, large targets, light and dark', anchor: { plane: 'glass', u: -0.92, v: 0.86 } },
         { text: 'Flutter app: symptoms, medications, practice, support', anchor: { plane: 'screen', u: -0.92, v: 0.4 } },
-        { text: 'Offline sync: an encrypted journal, replayed exactly once', anchor: { plane: 'code', u: -0.92, v: -0.1 } },
+        { text: 'Offline sync: an encrypted journal, applied exactly once', anchor: { plane: 'code', u: -0.92, v: -0.1 } },
         { text: 'Supabase and PostgreSQL, row-level security on 16 tables', anchor: { plane: 'chassis', u: -0.95, v: -0.66 } },
       ],
     },
@@ -52,7 +59,7 @@ export const PARKIWELL: TeardownStory = {
       key: 'proof',
       span: 1.1,
       backdrop: null,
-      lines: ['1,000,000 fault-injected writes', '0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Works offline. Account optional.'],
+      lines: ['1,000,000 fault-injected writes', '0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Works offline. Cloud sync optional.'],
       callouts: [],
     },
     {
@@ -62,7 +69,7 @@ export const PARKIWELL: TeardownStory = {
       lines: [
         'Motion coach, in development',
         '33 body landmarks, tracked on the phone',
-        'The camera feed is never recorded or uploaded',
+        'Guided sessions record nothing. No video or landmark ever leaves the phone.',
         'Grew from my research at SoftCom Lab: a first-authored paper and 95.4% mean accuracy in controlled video trials.',
       ],
       callouts: [],
@@ -71,10 +78,13 @@ export const PARKIWELL: TeardownStory = {
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
-    { key: 'home', src: '/ParkiWell/hd/home.webp', alt: 'ParkiWell Home with symptom and medication counts, a health pattern insight, and trend charts', ...SCREEN },
+    { key: 'home', src: '/ParkiWell/hd/home.webp', alt: 'ParkiWell Home greeting Winding down, Janet, with symptom and medication counts, a health patterns insight, and a symptoms trend chart', ...SCREEN },
     { key: 'manage', src: '/ParkiWell/hd/manage.webp', alt: "ParkiWell Manage with symptom logs and today's medications", ...SCREEN },
     { key: 'recovery', src: '/ParkiWell/hd/recovery.webp', alt: 'ParkiWell Recovery with the weekly practice plan and the next session', ...SCREEN },
     { key: 'community', src: '/ParkiWell/hd/community.webp', alt: 'ParkiWell Community on the Resources tab', ...SCREEN },
+    { key: 'log', src: '/ParkiWell/hd/log.webp', alt: 'ParkiWell Log a symptom form, filled in with a note, with large severity chips from Very Mild to Very Severe and date and time controls', ...SCREEN },
+    { key: 'coach', src: '/ParkiWell/hd/coach.webp', alt: 'ParkiWell Motion coach home with the on-device privacy card, the weekly movement goal, and guided routines', ...SCREEN },
+    { key: 'results', src: '/ParkiWell/hd/results.webp', alt: 'ParkiWell Routine summary for Seated foundation, a movement score of 81 out of 100, with what went well and step by step scores', ...SCREEN },
   ],
   cards: [
     { screen: 'home', label: 'Review your symptoms' },

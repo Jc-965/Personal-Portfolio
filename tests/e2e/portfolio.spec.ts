@@ -128,7 +128,7 @@ test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page })
     "A calmer way to manage Parkinson's care.",
     '48 pt tap targets',
     'Review your symptoms',
-    'Offline sync: an encrypted journal, replayed exactly once',
+    'Offline sync: an encrypted journal, applied exactly once',
     '1,000,000 fault-injected writes',
     'Motion coach, in development',
     'Coming to iPhone and Android.',
