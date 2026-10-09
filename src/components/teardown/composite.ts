@@ -1,15 +1,17 @@
 /**
  * The chapter's final pass, one full-screen draw to the canvas. It owns the
- * room (a softened photograph under fine colored glyphs, with a cell-wise
- * dissolve between rooms), the product layer's glyph decode, shadow pool,
- * and glow, and the coach skeleton. Everything is computed in linear light
- * and written to the canvas as sRGB exactly once, here, so the renderer's
- * own output conversion stays off.
+ * room (a photograph drawn only as colored glyphs on the stage colour, which
+ * drifts with chapter progress and crossfades cell by cell between rooms),
+ * the darkening behind the copy, the product layer's glyph decode, shadow
+ * pool, and glow, and the coach skeleton. Everything is computed in linear
+ * light and written to the canvas as sRGB exactly once, here, so the
+ * renderer's own output conversion stays off.
  *
  * `uProduct` is the product render target: linear, premultiplied by
  * coverage, the same size as the canvas, and mipmapped. Room textures are
  * sRGB with mipmaps and `flipY`, so texture v runs bottom to top and focus
- * points arrive with y already flipped to match.
+ * points arrive with y already flipped to match. Device pixels here are
+ * drawing-buffer pixels, CSS pixels times the renderer's pixel ratio.
  */
 import * as THREE from 'three'
 import { COACH_BONES } from './coach'
@@ -17,6 +19,15 @@ import { GLSL_COMMON, glslFloat, CHAPTER_RAMP } from './materials'
 import { SCATTER_CELLS } from './rig'
 
 const BONES = COACH_BONES.length
+const RAMP = Array.from(CHAPTER_RAMP)
+/** Densest glyph the product decode draws. The decode phase stays fine and bright, so it stops short of the block tail. */
+const DECODE_TOP = RAMP.indexOf('O')
+/** Densest glyph a flat room surface reaches. Only an object edge goes past it, up to ROOM_EDGE_TOP. */
+const ROOM_FLAT_TOP = RAMP.indexOf('o')
+/** Densest glyph any room cell draws. From % up the glyphs fill their cells, and a run of them reads as a bar, not a picture. */
+const ROOM_EDGE_TOP = RAMP.indexOf('#')
+/** The centred dot, drawn faintly along the coach's bones. */
+const DOT = RAMP.indexOf('·')
 
 const VERTEX = /* glsl */ `
 void main() {
@@ -31,9 +42,11 @@ uniform vec2 uBackAspect;
 uniform vec4 uFocus;
 uniform float uBackMix;
 uniform float uBackGain;
-uniform float uGlyphOnly;
-uniform float uDrift;
+uniform vec2 uDrift;
+uniform float uSurge;
 uniform vec2 uPointer;
+uniform vec4 uCopyMask;
+uniform float uPixelRatio;
 uniform sampler2D uProduct;
 uniform float uDecode;
 uniform float uGather;
@@ -43,13 +56,15 @@ uniform vec2 uCell;
 uniform vec2 uRes;
 uniform vec4 uBones[${BONES}];
 uniform vec3 uHead;
-uniform float uLimb;
 uniform float uCoach;
 out vec4 fragColor;
 ${GLSL_COMMON}
 // The CSS stage colour #090705 in linear light. The room never falls below it, so the canvas edge never shows a seam.
 const vec3 STAGE = vec3(.00273, .00213, .00152);
 const vec3 IVORY = vec3(1.0, .9, .72);
+// --td-amber #eab76a in linear light.
+const vec3 AMBER = vec3(.8228, .4735, .1441);
+const vec3 LUMA = vec3(.2126, .7152, .0722);
 
 // Identity up to .8 per channel, so unlit screen colours pass unchanged, then an asymptote at 1.0 for lit highlights.
 vec3 shoulder(vec3 c) {
@@ -57,20 +72,98 @@ vec3 shoulder(vec3 c) {
   return min(c, vec3(.8)) + x / (1.0 + x / .2);
 }
 
-// One room photograph as seen through the frame. s is the pixel and sc its cell centre, both 0 to 1 on the canvas.
-// The photo is cover-fitted with 3% overscan for the parallax, pushed in by up to 5% over the chapter, and centred
-// on its focus point wherever the frame crops it, so the subject stays in view on narrow screens.
-vec3 room(sampler2D tex, float aspect, vec2 focus, vec2 s, vec2 sc, vec2 local, float glyphOnly) {
+// Value noise, 0 to 1, smooth between integer lattice points.
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), u.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+// Scan order for canvas point q (0 to 1, y up): 0 at the top left corner, 1 at the bottom right. tilt is the weight of x.
+float sweep(vec2 q, float tilt) {
+  return clamp(q.x * tilt + (1.0 - q.y) * (1.0 - tilt), 0.0, 1.0);
+}
+
+float segment(vec2 p, vec2 a, vec2 b) {
+  vec2 pa = p - a;
+  vec2 ba = b - a;
+  return length(pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0));
+}
+
+// The pan across a photograph over its room's drift, 4% across and 14% down in texture units so the room visibly
+// travels upward with the scroll, the pointer parallax at full tilt, and the surge drag: at full surge the window
+// leads the scroll by 3% of the photograph, so the room moves with the wheel and settles when it stops.
+const vec2 PAN = vec2(.04, -.14);
+const vec2 PARALLAX = vec2(.025, .016);
+const float SURGE_DRAG = .03;
+
+// The window onto a room photograph at drift 0, in texture units: cover-fitted with 36% overscan. The overscan is
+// sized for the pan, the parallax, and the surge drag in roomUv. On the fitted axis they reach .12 past the window
+// on each side (the .004 edge pad, half of PAN, PARALLAX, and SURGE_DRAG) against the .18 the overscan leaves, so
+// roomUv's margin is .44 there and the focus point can still move the window by .06 either way. Grow any of them
+// past .18 and the clamp bounds in roomUv cross on the fitted axis, which GLSL leaves undefined.
+vec2 roomSize(float aspect) {
   float screenAspect = uRes.x / uRes.y;
   vec2 size = screenAspect > aspect ? vec2(1.0, aspect / screenAspect) : vec2(screenAspect / aspect, 1.0);
-  size *= (1.0 - .05 * uDrift) * .97;
-  vec2 centre = clamp(focus, size * .5 + .012, 1.0 - size * .5 - .012) + uPointer * vec2(.01, .007);
-  float lodPixel = log2(max(size.y * float(textureSize(tex, 0).y) / uRes.y, 1e-3));
-  vec3 base = textureLod(tex, centre + (s - .5) * size, 1.2 + max(lodPixel, 0.0)).rgb;
-  vec3 cellColor = textureLod(tex, centre + (sc - .5) * size, max(lodPixel + log2(sqrt(uCell.x * uCell.y)), 0.0)).rgb;
-  float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(pow(lightness(cellColor), .75), uGlyphs), local);
-  vec3 glyph = lifted(cellColor, .4) * 1.35 * alpha;
-  return mix(base * .62 + glyph * .9, glyph * .8, glyphOnly);
+  return size * .64;
+}
+
+// The window's centre: the focus point, held inside the photograph by the drift-0 half window plus the edge pad, half
+// the pan, the parallax, and the surge drag, then panned by the room's drift, offset by the pointer, and led by the
+// surge. The clamp bounds do not move and the window only shrinks with drift, so the window stays inside the
+// photograph at every drift and the centre is monotonic in drift: every room pans its full distance in one
+// direction and never reverses while the visitor scrolls one way. size0 is the drift-0 window from roomSize and
+// size the pushed-in window for this frame.
+vec2 roomUv(vec2 size0, vec2 size, vec2 focus, float drift, vec2 q) {
+  vec2 margin = size0 * .5 + .004 + abs(PAN) * .5 + PARALLAX + vec2(0.0, SURGE_DRAG);
+  vec2 centre = clamp(focus, margin, 1.0 - margin) + PAN * (drift - .5) + uPointer * PARALLAX - vec2(0.0, SURGE_DRAG * uSurge);
+  return centre + (q - .5) * size;
+}
+
+// log2 of photo texels per device pixel. Negative when the photo is smaller than the frame.
+float roomLod(sampler2D tex, vec2 size) {
+  return log2(max(size.y * float(textureSize(tex, 0).y) / uRes.y, 1e-3));
+}
+
+// The photograph's mean colour over the glyph cell at canvas point q, and in w its local contrast: how far the cell's
+// lightness sits from the mean of a patch about six cells across around it. That patch is wide enough that the
+// term scores the edges of objects (a mug's rim, a pill box, the back of a chair) and not the grain of a surface.
+vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, vec2 q) {
+  vec2 size0 = roomSize(aspect);
+  // The window is pushed in by 8% over the room's drift, a slow zoom that rides the pan.
+  vec2 size = size0 * (1.0 - .08 * drift);
+  vec2 uv = roomUv(size0, size, focus, drift, q);
+  float lod = max(roomLod(tex, size) + log2(sqrt(uCell.x * uCell.y)), 0.0);
+  vec3 tone = textureLod(tex, uv, lod).rgb;
+  vec3 around = textureLod(tex, uv, lod + 2.5).rgb;
+  return vec4(tone, abs(lightness(tone) - lightness(around)));
+}
+
+// Glyph ink for a cell colour: saturation up by a third, then brightness up by 1.25x, a little less for the
+// brightest cells, since a glyph's strokes cover only part of its cell and the photographs are dim. The cap of
+// 1.25x keeps every room cell short of the product's own brightness, so the lit table never outshines the phone.
+// The lift scales every channel as one and stops where the largest reaches 1.0, so the hue holds: sky stays blue
+// and wood stays warm, only more vivid than the photograph.
+vec3 ink(vec3 tone) {
+  vec3 c = max(mix(vec3(dot(tone, LUMA)), tone, 1.35), 0.0);
+  float v = max(max(c.r, max(c.g, c.b)), 1e-3);
+  return c * min(min(1.22 * pow(v, -.3), 1.25), 1.0 / v);
+}
+
+// How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the copy column's right
+// edge x from the left, the copy block's top y from the top, 1 when narrow, and the strength. The wide ramp ends
+// 180 CSS px past the column, so the room's subject in the gap between the copy and the phone keeps most of its
+// glyphs. The wide floor of .16 holds the evening table's lit band under the close act's chips, which sit at the
+// band's height with no scrim of their own. The narrow floor of .45 keeps the room legible, since teardown.css
+// already draws a bottom gradient under the phone layout's copy.
+float copyShade() {
+  if (uCopyMask.w <= 0.0) return 1.0;
+  float px = uPixelRatio;
+  float lit = uCopyMask.z > .5
+    ? mix(1.0, .45, smoothstep(uCopyMask.y - 60.0 * px, uCopyMask.y + 24.0 * px, uRes.y - gl_FragCoord.y))
+    : mix(.16, 1.0, smoothstep(uCopyMask.x - 80.0 * px, uCopyMask.x + 180.0 * px, gl_FragCoord.x));
+  return mix(1.0, lit, min(uCopyMask.w, 1.0));
 }
 
 void main() {
@@ -84,51 +177,110 @@ void main() {
 
   vec3 back = vec3(0.0);
   if (uBackGain > .002) {
-    float roll = hash12(cell * 1.37);
-    float swap = smoothstep(roll - .06, roll + .06, uBackMix * 1.12 - .06);
-    // A cell mid-swap drops its photograph and shows only glyphs, so a room change reads as characters rewriting it.
-    float rewriting = smoothstep(.1, .2, swap) * (1.0 - smoothstep(.8, .9, swap));
-    float glyphOnly = max(uGlyphOnly, rewriting);
-    if (swap < 1.0) back += room(uBackA, uBackAspect.x, uFocus.xy, s, sc, local, glyphOnly) * (1.0 - swap);
-    if (swap > 0.0) back += room(uBackB, uBackAspect.y, uFocus.zw, s, sc, local, glyphOnly) * swap;
-    // A gentle S-curve in perceptual space adds contrast without crushing the shadows.
+    // Cells cross from room A to room B in a diagonal order from the top left, loosened by a sixth of hash, each
+    // over 60% of the dissolve. The band is wide so the front is a soft slope across the frame, never a hard wipe,
+    // and the small hash share keeps the front from sparkling.
+    float swap = uBackMix;
+    if (uBackMix > 0.0 && uBackMix < 1.0) {
+      swap = staggered(sweep(sc, .55) * .84 + hash12(cell * 1.37) * .16, .6, uBackMix);
+    }
+    vec4 tone = vec4(0.0);
+    if (swap < 1.0) tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, sc) * (1.0 - swap);
+    if (swap > 0.0) tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, sc) * swap;
+
+    // Density follows the cell's lightness over the whole range, from a bare dot in the shadows to the open o on
+    // a lit surface, so the picture's tones carry across the frame instead of breaking into lit patches on black.
+    // A flat surface never passes ROOM_FLAT_TOP, so a window or a lamp is a field of rings and not a solid bar.
+    // An object edge (tone.a from roomCell) adds up to .3 and may reach ROOM_EDGE_TOP, so the outlines of the mug,
+    // the pill box, the glasses, and the chair read as the picture's lines. Cells under 3% lightness stay empty,
+    // so the deepest shadows read as the stage itself.
+    float l = lightness(tone.rgb);
+    float fill = min(.1 + .55 * pow(l, .85), ${glslFloat(ROOM_FLAT_TOP)} / (uGlyphs - 1.0));
+    float level = min(fill + .3 * smoothstep(.02, .12, tone.a), ${glslFloat(ROOM_EDGE_TOP)} / (uGlyphs - 1.0));
+    float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local);
+    float body = smoothstep(.03, .14, l);
+    float shimmer = 1.0 + .4 * swap * (1.0 - swap);
+    back = ink(tone.rgb) * (alpha * body * shimmer);
+    // Static grain of 2% per cell, fixed to the cell grid. It never animates.
+    back *= 1.0 + (hash12(cell + 41.7) - .5) * .04;
+    // A gentle S-curve in perceptual space adds a little contrast without crushing the shadows or the mid-tones
+    // that carry the room's shapes.
     vec3 p = clamp(sqrt(back * uBackGain), 0.0, 1.0);
-    p = mix(p, p * p * (3.0 - 2.0 * p), .3);
+    p = mix(p, p * p * (3.0 - 2.0 * p), .15);
     back = p * p;
   }
-  back *= 1.0 - .35 * smoothstep(.3, 1.0, length((s - .5) * 2.0) * .7071);
-  back = max(back, STAGE);
+  back *= 1.0 - .25 * smoothstep(.3, 1.0, length((s - .5) * 2.0) * .7071);
+  back = max(back * copyShade(), STAGE);
 
   vec4 product = texelFetch(uProduct, ivec2(gl_FragCoord.xy), 0);
   if (uDecode < 1.0) {
-    // Before the gather completes, each cell draws the product as seen from a hashed nearby cell, so it reads as loose characters.
+    // Before the gather completes, each cell draws the product as seen from a nearby cell. The offset is mostly a
+    // smooth flow over about 55 cells, so the loose characters stream in as coherent fragments instead of static.
     vec2 src = cell;
-    if (uGather < .999) src = floor(cell + (hash22(cell) - .5) * 2.0 * ${glslFloat(SCATTER_CELLS)} * (1.0 - uGather));
+    if (uGather < .999) {
+      vec2 flow = vec2(vnoise(cell * .018), vnoise(cell * .018 + 31.7)) * 2.0 - 1.0;
+      vec2 jitter = hash22(cell) * 2.0 - 1.0;
+      src = floor(cell + (flow * .75 + jitter * .25) * ${glslFloat(SCATTER_CELLS)} * (1.0 - uGather));
+    }
     vec4 sampled = textureLod(uProduct, (src + .5) * uCell / uRes, log2(sqrt(uCell.x * uCell.y)));
-    vec3 color = sampled.rgb / max(sampled.a, 1e-4);
-    float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(pow(lightness(color), .75), uGlyphs), local) * sampled.a;
-    vec4 glyph = vec4(lifted(color, .4) * 1.35 * alpha, alpha);
-    float roll = hash12(cell + 7.31);
-    float resolved = smoothstep(roll - .04, roll + .04, uDecode * 1.08 - .04);
+    vec3 tone = sampled.rgb / max(sampled.a, 1e-4);
+    float l = lightness(tone);
+    // Every covered cell draws at least a light glyph, so the forming phone reads as one body of characters. A
+    // cell takes its own hue where it has one, so the screen's teal and blue survive, and the grey of the body
+    // takes the room's amber instead of white, so the characters belong to the room rather than to static. The
+    // plume's alpha is the gather itself, so the arrival forms from nothing and the close scatters to nothing. A
+    // floor here kept the dissolved phone's cloud on screen after the stage unpinned.
+    float level = mix(.28, 1.0, l) * ${glslFloat(DECODE_TOP)} / (uGlyphs - 1.0);
+    float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local) * sampled.a * uGather;
+    float top = max(max(tone.r, max(tone.g, tone.b)), 1e-3);
+    float chroma = (top - min(min(tone.r, tone.g), tone.b)) / top;
+    vec3 tint = mix(AMBER * 1.3, tone / top, smoothstep(.1, .4, chroma)) * mix(.5, 1.3, l);
+    // Cells resolve in a diagonal scan with a little jitter, each over a third of the decode, brightest at the front.
+    float resolved = staggered(clamp(sweep(sc, .3) * .94 + hash12(cell + 7.31) * .06, 0.0, 1.0), .33, uDecode);
+    vec4 glyph = vec4(tint * (1.0 + 1.4 * resolved * (1.0 - resolved)) * alpha, alpha);
     product = mix(glyph, product, resolved);
   }
   product.rgb = shoulder(product.rgb);
 
   // The shadow pool sits a little below the product, as if lit from above, and the glow only shows outside it.
-  float shadow = textureLod(uProduct, s + vec2(0.0, .012), 5.5 + lodScale).a;
+  // Both scale with the decode, so the loose characters of the arrival and the close cast no shadow and the
+  // dissolved phone leaves no dark print on the room.
+  float shadow = textureLod(uProduct, s + vec2(0.0, .012), 5.5 + lodScale).a * uDecode;
   vec3 glow = textureLod(uProduct, s, 4.0 + lodScale).rgb * .22 * uDecode;
   vec3 color = product.rgb + (back * (1.0 - .6 * shadow) + glow) * (1.0 - product.a);
 
   if (uCoach > .01) {
-    vec2 p = (cell + .5) * uCell;
-    float d = max(length(p - uHead.xy) - uHead.z, 0.0);
+    // A pose-tracking overlay at fixed CSS sizes: 1.6 px amber bones, ivory rings of 4 px radius and 1.2 px stroke
+    // at the joints and around the head, a 2 px dark keyline, a 20% amber glow, and faint dots in the cells along
+    // each bone. Bones stop at the ring's centreline, so each joint reads as a separate marker.
+    float px = uPixelRatio;
+    vec2 p = gl_FragCoord.xy;
+    vec2 pc = (cell + .5) * uCell;
+    float bone = 1e5;
+    float boneCell = 1e5;
+    float joint = 1e5;
     for (int i = 0; i < ${BONES}; i++) {
-      vec2 pa = p - uBones[i].xy;
-      vec2 ba = uBones[i].zw - uBones[i].xy;
-      d = min(d, length(pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0)));
+      vec2 a = uBones[i].xy;
+      vec2 b = uBones[i].zw;
+      bone = min(bone, segment(p, a, b));
+      boneCell = min(boneCell, segment(pc, a, b));
+      joint = min(joint, min(distance(p, a), distance(p, b)));
     }
-    float intensity = 1.0 - smoothstep(uLimb * .6, uLimb, d);
-    color = mix(color, IVORY, glyphMask(uAtlas, uGlyphs, glyphIndex(intensity, uGlyphs), local) * uCoach);
+    float ring = min(abs(joint - 4.0 * px), abs(distance(p, uHead.xy) - uHead.z));
+    float inside = 1.0 - smoothstep(4.0 * px - 1.0, 4.0 * px, joint);
+    float boneCover = clamp(.8 * px + .5 - bone, 0.0, 1.0) * (1.0 - inside);
+    float ringCover = clamp(.6 * px + .5 - ring, 0.0, 1.0);
+    // Inside a ring only the ring counts, so the cleared bone adds no glow there and the ring keeps a dark centre.
+    float near = min(mix(bone, 1e5, inside), ring);
+    float glow = .2 * exp(-near * near / (25.0 * px * px)) * (1.0 - .7 * inside);
+    float keyline = max(1.0 - smoothstep(px, 3.0 * px, near), inside);
+    float dots = glyphMask(uAtlas, uGlyphs, ${glslFloat(DOT)}, local) * .3 * (1.0 - smoothstep(.3, 1.2, boneCell / uCell.y));
+    float k = uCoach;
+    color *= 1.0 - .35 * keyline * k;
+    color += AMBER * glow * k;
+    color = mix(color, AMBER, dots * k);
+    color = mix(color, AMBER, boneCover * k);
+    color = mix(color, IVORY, ringCover * k);
   }
 
   color = clamp(color, 0.0, 1.0);
@@ -147,9 +299,19 @@ export interface Composite {
 
 /**
  * Uniforms in device pixels: `uCell`, `uRes`, `uBones` (x1, y1, x2, y2 per
- * bone, origin bottom left), `uHead` (centre and radius), and `uLimb` (limb
- * half-width). `uFocus` holds room A's focus then room B's, x from the left
- * and y from the bottom, 0 to 1.
+ * bone, origin bottom left), and `uHead` (centre and radius). `uFocus` holds
+ * room A's focus then room B's, x from the left and y from the bottom, 0 to 1.
+ * `uBackGain` multiplies the room, 1 for its full glyph brightness. `uDrift`
+ * holds room A's and room B's pan progress, each 0 to 1, from the rig's
+ * `roomDrift`. `uSurge` is the scroll's eased speed, -1 to 1, and drags the
+ * room ahead of the scroll while the visitor moves.
+ * `uCopyMask` is the copy column's right edge x from the left, the copy
+ * block's top y from the top, 1 when narrow else 0, and a strength from 0 to
+ * 1. At strength 0 the room is untouched. Wide darkens the room left of the
+ * edge, narrow darkens it from 60 CSS px above the top downward. The room is
+ * glyphs only, so `uGlyphOnly` is kept for callers and not read, as is
+ * `uLimb`, since the coach draws at fixed CSS sizes. `uPixelRatio` is set
+ * from the renderer before every draw.
  */
 export function createComposite(): Composite {
   const material = new THREE.ShaderMaterial({
@@ -165,13 +327,16 @@ export function createComposite(): Composite {
       uBackMix: { value: 0 },
       uBackGain: { value: 0 },
       uGlyphOnly: { value: 0 },
-      uDrift: { value: 0 },
+      uDrift: { value: new THREE.Vector2() },
+      uSurge: { value: 0 },
       uPointer: { value: new THREE.Vector2() },
+      uCopyMask: { value: new THREE.Vector4(0, 0, 0, 0) },
+      uPixelRatio: { value: 1 },
       uProduct: { value: null },
       uDecode: { value: 1 },
       uGather: { value: 1 },
       uAtlas: { value: null },
-      uGlyphs: { value: Array.from(CHAPTER_RAMP).length },
+      uGlyphs: { value: RAMP.length },
       uCell: { value: new THREE.Vector2(6, 13) },
       uRes: { value: new THREE.Vector2(1, 1) },
       uBones: { value: new Float32Array(BONES * 4) },
@@ -185,6 +350,7 @@ export function createComposite(): Composite {
   const geometry = new THREE.PlaneGeometry(2, 2)
   const quad = new THREE.Mesh(geometry, material)
   quad.frustumCulled = false
+  quad.onBeforeRender = (renderer) => { material.uniforms.uPixelRatio.value = renderer.getPixelRatio() }
   const scene = new THREE.Scene()
   scene.add(quad)
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)

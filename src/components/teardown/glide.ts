@@ -8,8 +8,8 @@ export interface Glide {
   velocity: number
 }
 
-/** Seconds. Larger is slower and smoother. */
-export const GLIDE_TIME = 0.35
+/** Seconds. Larger is slower and smoother. Lenis already smooths the scroll, so this stays short enough that rendered progress keeps up with the wheel. */
+export const GLIDE_TIME = 0.32
 
 /**
  * Advances the follow by `dt` seconds toward `target`. The decay factor is a

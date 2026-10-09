@@ -121,9 +121,16 @@ html {
     );
   will-change: opacity;
   backface-visibility: hidden;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.5s ease, filter 0.5s ease;
   animation: crt-flicker 7s steps(60) infinite;
 }
+
+/* Teardown sets teardown-pinned on the root while its stage is pinned over the
+   viewport, and the scanlines dim so they do not beat against the chapter's
+   glyph rooms, whose cells are about twice the scanline period. The running
+   crt-flicker animation overrides any plain opacity rule (and Chrome starts no
+   transition on a property an animation holds), so the dimming uses filter. */
+.teardown-pinned .vintage-overlay { filter: opacity(0.22); }
 
 @keyframes crt-flicker {
   0%, 100% { opacity: 1; }
@@ -326,46 +333,52 @@ img {
 }
 
 /* Projects expands into the ParkiWell teardown track (100svh plus 10.5 x 100svh
-   of pinned travel) and three gallery scenes after its lazy chunk resolves.
+   of pinned travel) and the gallery scenes after its lazy chunk resolves.
    Reserve that height up front so the page never grows under the reader.
-   Re-measure at 1440, 1024, 768, 640, 480, and 390 px wide whenever the scenes
-   change. Under reduced motion the chapter stacks in normal flow instead of
-   pinning, so its values are measured separately with reduced motion emulated. */
+   Measured 2026-10-09 at 1440, 1200, 1024, 900, 768, 640, 480, and 390 px wide
+   at 900 tall (844 at 390), plus 700 and 1100 tall at 1440, 768, and 640, and
+   within 0.35% everywhere. The gallery below the track is 273vh + 176px on wide
+   screens, 51vh + 2740px between 641 and 900 px, and a flat 2695px at 640 px
+   and narrower. Re-measure whenever the scenes or the teardown spans change.
+   Under reduced motion the chapter stacks in normal flow instead of pinning,
+   so its values are measured separately with reduced motion emulated. */
 #projects > .section__placeholder {
-  min-height: calc(1150svh + 238vh + clamp(360px, 27vh, 584px));
+  min-height: calc(1150svh + 273vh + 176px);
   padding: 0;
 }
 
 @media (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(1150svh + clamp(1800px, 270vh, 2850px));
+    min-height: calc(1150svh + 51vh + 2740px);
   }
 }
 
 @media (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: calc(1150svh + clamp(1950px, 315vh, 2550px));
+    min-height: calc(1150svh + 2695px);
   }
 }
 
-/* Reduced motion. Measured 2026-10-08 at the six widths above, each at 700,
-   900 (844 at 390 wide), and 1100 px tall, and within 1% everywhere. At 640 px
-   and narrower the height does not depend on the viewport height. */
+/* Reduced motion. The stacked chapter is 5020 to 5125 px tall across the wide
+   range, 5007 to 5016 px in the middle range, and 4650 to 4750 px at 640 px and
+   narrower, and none of it depends on the viewport height, so each rule folds
+   the chapter into its constant and keeps the gallery's vh term. Within 0.75%
+   at every measured size. */
 @media (prefers-reduced-motion: reduce) {
   #projects > .section__placeholder {
-    min-height: calc(273vh + 5030px);
+    min-height: calc(273vh + 5249px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(51vh + 7544px);
+    min-height: calc(51vh + 7750px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: 7352px;
+    min-height: 7400px;
   }
 }
 

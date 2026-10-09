@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { actWindows } from '../../src/components/teardown/timeline.ts'
-import { FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, poseAt, projectPoint } from '../../src/components/teardown/rig.ts'
+import { FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, planePoint, poseAt, projectPoint, roomDrift } from '../../src/components/teardown/rig.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
 
 const windows = actWindows(PARKIWELL.acts)
@@ -9,7 +9,10 @@ const backdrops = PARKIWELL.acts.map((a) => a.backdrop)
 const still = { dragYaw: 0, tiltX: 0, tiltY: 0 }
 const at = (progress, narrow = false, aspect = narrow ? 0.46 : 1.6) => poseAt({ progress, windows, backdrops, narrow, aspect, interaction: still, poseFrames: PARKIWELL.pose.frames })
 const w = (key) => windows.find((x) => x.key === key)
+/** Chapter progress at `local` within an act. */
+const inAct = (key, local) => w(key).start + (w(key).end - w(key).start) * local
 const near = (a, b, eps = 1e-9) => Math.abs(a - b) < eps
+const length = (v) => Math.hypot(v[0], v[1], v[2])
 /** Projected corners of a rectangle given as [center, right, up, halfW, halfH]. */
 const corners = (pose, aspect, [c, r, u, hw, hh]) =>
   [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => projectPoint(pose, c.map((v, k) => v + r[k] * a * hw + u[k] * b * hh), aspect))
@@ -19,6 +22,7 @@ const xSpan = (pose, aspect, rect) => {
 }
 const planeRect = (p) => [p.center, p.right, p.up, p.halfW, p.halfH]
 const chassisRect = (pose) => [pose.phone.pos, pose.phone.right, pose.phone.up, PHONE.hx, PHONE.hy]
+const glassRect = (pose) => [pose.glass.center, pose.phone.right, pose.phone.up, PHONE.sx, PHONE.sy]
 
 test('basis is orthonormal for any yaw and pitch', () => {
   for (const [yaw, pitch] of [[0, 0], [0.7, -0.3], [-1.4, 0.9]]) {
@@ -40,19 +44,20 @@ test('the phone is assembled at the start and the end of the chapter', () => {
   }
 })
 
-test('the explode amount is zero outside acts 5 to 7 and rises through the first half of act 5', () => {
+test('the explode amount is zero outside acts 5 to 7 and rises through the first 80% of act 5', () => {
   for (const key of ['arrival', 'hand', 'day', 'quiet']) {
     assert.equal(at((w(key).start + w(key).end) / 2).explode, 0)
   }
   assert.equal(at(1).explode, 0)
   let last = -1
-  const g = w('glass')
-  for (let i = 0; i <= 20; i++) {
-    const e = at(g.start + (g.end - g.start) * 0.5 * (i / 20)).explode
+  for (let i = 0; i <= 32; i++) {
+    const e = at(inAct('glass', 0.8 * (i / 32))).explode
     assert.ok(e >= last - 1e-12)
     last = e
   }
+  assert.ok(at(inAct('glass', 0.5)).explode > 0.5)
   assert.ok(last > 0.95)
+  assert.ok(at(inAct('proof', 0.5)).explode > 0.99, 'the stack stays apart through the proof act')
 })
 
 test('card develop and opacity values stay within 0 to 1', () => {
@@ -86,32 +91,42 @@ test('a screen anchor at the plane centre projects inside the viewport during th
   assert.ok(p.x > 0.3 && p.x < 0.95 && p.y > 0.1 && p.y < 0.9)
 })
 
-test('backdrops crossfade between photo acts and hold the last room as glyphs in acts without one', () => {
-  const quietMid = (w('quiet').start + w('quiet').end) / 2
-  const quiet = backdropAt(windows, backdrops, quietMid)
-  assert.ok(quiet.gain <= 0.21)
-  assert.equal(quiet.glyphOnly, 1)
-  assert.equal(quiet.a, PARKIWELL.acts.find((a) => a.key === 'day').backdrop)
+test('planePoint scales with the basis and anchorWorld reads screen anchors through it', () => {
+  const pose = at(inAct('hand', 0.5))
+  const corner = planePoint(pose.screen, 1, -1)
+  const expected = pose.screen.center.map((v, i) => v + pose.screen.right[i] * pose.screen.halfW - pose.screen.up[i] * pose.screen.halfH)
+  corner.forEach((v, i) => assert.ok(near(v, expected[i])))
+  const anchor = anchorWorld(pose, { plane: 'screen', u: -0.6, v: 0.64 })
+  planePoint(pose.screen, -0.6, 0.64).forEach((v, i) => assert.ok(near(v, anchor[i])))
+})
+
+test('backdrops crossfade between room acts and hold the last room as a dim field in acts without one', () => {
+  const quietLate = backdropAt(windows, backdrops, w('quiet').end - 1e-6)
+  assert.ok(near(quietLate.gain, 0.45, 1e-6))
+  assert.equal(quietLate.glyphOnly, 1)
+  assert.equal(quietLate.a, PARKIWELL.acts.find((a) => a.key === 'day').backdrop)
+  const quietMid = backdropAt(windows, backdrops, (w('quiet').start + w('quiet').end) / 2)
+  assert.ok(quietMid.gain > 0.45 && quietMid.gain < 0.8, 'the room dims across the quiet act instead of at its start')
   const handStart = backdropAt(windows, backdrops, w('hand').start + 1e-6)
   assert.equal(handStart.a, 0)
   assert.equal(handStart.b, 1)
   assert.ok(handStart.mix < 0.05)
   const handLate = backdropAt(windows, backdrops, w('hand').end - 1e-6)
   assert.equal(handLate.mix, 1)
-  assert.ok(handLate.gain > 0.6)
+  assert.ok(near(handLate.gain, 0.8, 1e-6))
 })
 
-test('a photo act after a glyph-only act dissolves from the held room back to a photo', () => {
+test('a room act after a dark act dissolves from the held room back to full brightness', () => {
   const held = PARKIWELL.acts.find((a) => a.key === 'day').backdrop
   const coach = PARKIWELL.acts.find((a) => a.key === 'coach').backdrop
   const start = backdropAt(windows, backdrops, w('coach').start + 1e-6)
   assert.equal(start.a, held)
   assert.equal(start.b, coach)
-  assert.ok(start.mix < 0.05 && start.glyphOnly > 0.95 && start.gain < 0.21)
+  assert.ok(start.mix < 0.05 && start.glyphOnly > 0.95 && start.gain < 0.46)
   const late = backdropAt(windows, backdrops, w('coach').end - 1e-6)
   assert.equal(late.mix, 1)
   assert.equal(late.glyphOnly, 0)
-  assert.ok(late.gain > 0.6)
+  assert.ok(near(late.gain, 0.8, 1e-6))
 })
 
 test('backdrop state is continuous across every act boundary', () => {
@@ -133,38 +148,105 @@ test('backdrop state is continuous across every act boundary', () => {
   }
 })
 
-test('the product forms from glyphs in act 1 and dissolves back at the end of act 8', () => {
+test('each room pans over its own time on screen, at a bounded rate, and the pose carries both slots', () => {
+  // The morning room (0) opens the chapter and is held through proof, so its pan caps at 0.4 of progress and rests.
+  assert.equal(roomDrift(windows, backdrops, 0, 0), 0)
+  assert.ok(near(roomDrift(windows, backdrops, 0, 0.2), 0.5, 1e-9))
+  assert.equal(roomDrift(windows, backdrops, 0, 0.5), 1)
+  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.267 of progress, so it pans over
+  // that span and is done by the end of the day act.
+  const hand = w('hand')
+  assert.equal(roomDrift(windows, backdrops, 1, hand.start - 1e-6), 0)
+  assert.ok(roomDrift(windows, backdrops, 1, hand.end) > 0.3)
+  assert.equal(roomDrift(windows, backdrops, 1, w('day').end), 1)
+  // The evening room (3) is on screen for only the close act, under the 0.25 floor, so it pans part way.
+  const evening = roomDrift(windows, backdrops, 3, 1)
+  assert.ok(evening > 0.3 && evening < 0.4, `evening drift at the end: ${evening}`)
+  assert.equal(roomDrift(windows, backdrops, 9, 0.5), 0, 'a room no act uses never pans')
+  // Each slot carries its own room's drift, and both are continuous across every act boundary.
+  for (const win of windows.slice(1)) {
+    const before = at(win.start - 1e-6).backdrop
+    const after = at(win.start + 1e-6).backdrop
+    for (const [room, drift] of [[before.a, before.driftA], [before.b, before.driftB]]) {
+      const now = after.a === room ? after.driftA : after.b === room ? after.driftB : null
+      if (now !== null) assert.ok(Math.abs(drift - now) < 1e-3, `room ${room} drift jumps entering ${win.key}`)
+    }
+  }
+  for (let i = 0; i <= 100; i++) {
+    const { driftA, driftB } = at(i / 100).backdrop
+    assert.ok(driftA >= 0 && driftA <= 1 && driftB >= 0 && driftB <= 1, `drifts at ${i / 100}: ${driftA} ${driftB}`)
+  }
+  // At the end the close act is still dissolving from the chair room (slot a) into the evening room (slot b).
+  const end = at(1).backdrop
+  assert.equal(end.b, 3)
+  assert.ok(near(end.driftB, evening, 1e-9))
+})
+
+test('the pose is continuous across every act boundary', () => {
+  for (const narrow of [false, true]) {
+    for (const win of windows.slice(1)) {
+      const before = at(win.start - 1e-6, narrow)
+      const after = at(win.start + 1e-6, narrow)
+      const close = (a, b, what) => assert.ok(Math.abs(a - b) < 1e-3, `${what} jumps entering ${win.key} (${narrow ? 'narrow' : 'wide'}): ${a} to ${b}`)
+      for (let i = 0; i < 3; i++) {
+        close(before.phone.pos[i], after.phone.pos[i], `phone.pos[${i}]`)
+        close(before.phone.normal[i], after.phone.normal[i], `phone.normal[${i}]`)
+        close(before.camera.pos[i], after.camera.pos[i], `camera.pos[${i}]`)
+        close(before.screen.center[i], after.screen.center[i], `screen.center[${i}]`)
+        before.cards.forEach((card, k) => close(card.center[i], after.cards[k].center[i], `card ${k} center[${i}]`))
+      }
+      close(before.camera.shift[0], after.camera.shift[0], 'shift x')
+      close(before.explode, after.explode, 'explode')
+      close(before.screen.develop, after.screen.develop, 'screen develop')
+      close(before.decode, after.decode, 'decode')
+    }
+  }
+})
+
+test('the drifts keep the phone and the camera moving late in an act', () => {
+  // Every ramp eases to a stop at the end of its act, so without the drifts and the station step the last few
+  // percent of the glass act would be nearly still.
+  const a = at(inAct('glass', 0.96))
+  const b = at(inAct('glass', 0.99))
+  assert.ok(Math.abs(a.phone.normal[0] - b.phone.normal[0]) > 1e-4, 'yaw drifts')
+  assert.ok(Math.abs(a.phone.pos[1] - b.phone.pos[1]) > 1e-4, 'the phone drifts vertically')
+  assert.ok(Math.abs(a.camera.pos[1] - b.camera.pos[1]) > 1e-5, 'the camera drifts vertically')
+  // The sink runs the whole chapter and the station steps lift the phone back by most of it, so the phone ends
+  // between 0.08 and 0.2 lower than it starts, against the 0.6 the sink alone would drop it.
+  const drop = at(0).phone.pos[1] - at(1).phone.pos[1]
+  assert.ok(drop > 0.08 && drop < 0.2, `net drop over the chapter: ${drop}`)
+})
+
+test('the product forms from glyphs in act 1 and dissolves back before the end of act 8', () => {
   assert.equal(at(0).decode, 0)
   assert.equal(at(1).decode, 0)
   assert.ok(at((w('hand').start + w('hand').end) / 2).decode > 0.99)
+  assert.ok(at(inAct('arrival', 0.5)).decode > 0.3 && at(inAct('arrival', 0.5)).decode < 0.7, 'the arrival decode runs across the act')
+  assert.ok(at(inAct('close', 0.25)).decode > 0.99, 'the close holds the real render through its first 25%')
+  assert.equal(at(inAct('close', 0.75)).decode, 0, 'the dissolve completes while the stage is still pinned')
+  // The gather reverses behind the dissolve, so the characters drift apart instead of holding a phone-shaped block.
+  assert.equal(at(0).gather, 0)
+  assert.equal(at(inAct('close', 0.4)).gather, 1)
+  assert.equal(at(1).gather, 0)
 })
 
 test('exploded layers fan out sideways so they do not stack in projection', () => {
-  const g = w('glass')
-  const pose = at(g.start + (g.end - g.start) * 0.6)
+  const pose = at(inAct('glass', 0.6))
   const a = projectPoint(pose, pose.glass.center, 1.6)
   const b = projectPoint(pose, pose.screen.center, 1.6)
   assert.ok(Math.abs(a.x - b.x) > 0.04, `glass and screen centres ${a.x} ${b.x}`)
   // On wide screens each layer steps sideways by more than the screen's projected half-width.
-  const s = pose.screen
-  const edge = s.center.map((v, i) => v + s.right[i] * s.halfW)
-  const half = Math.abs(projectPoint(pose, edge, 1.6).x - b.x)
-  const xs = [pose.glass.center, s.center, pose.code.center, pose.phone.pos].map((p) => projectPoint(pose, p, 1.6).x)
+  const half = Math.abs(projectPoint(pose, planePoint(pose.screen, 1, 0), 1.6).x - b.x)
+  const xs = [pose.glass.center, pose.screen.center, pose.code.center, pose.phone.pos].map((p) => projectPoint(pose, p, 1.6).x)
   for (let i = 1; i < xs.length; i++) assert.ok(xs[i - 1] - xs[i] > half, `step ${i}: ${xs[i - 1] - xs[i]} against half-width ${half}`)
 })
 
 test('every layer of the exploded stack stays inside the frame through act 5', () => {
-  const g = w('glass')
   // Wide covers tablets in portrait (0.75) up to a 1440x900 desktop. Narrow is a phone in portrait.
   for (const [narrow, aspect] of [[false, 0.75], [false, 1.0], [false, 1.33], [false, 1.6], [true, 0.46]]) {
     for (let i = 1; i <= 9; i++) {
-      const pose = at(g.start + (g.end - g.start) * (i / 10), narrow, aspect)
-      const layers = {
-        glass: [pose.glass.center, pose.phone.right, pose.phone.up, PHONE.sx, PHONE.sy],
-        screen: planeRect(pose.screen),
-        code: planeRect(pose.code),
-        chassis: chassisRect(pose),
-      }
+      const pose = at(inAct('glass', i / 10), narrow, aspect)
+      const layers = { glass: glassRect(pose), screen: planeRect(pose.screen), code: planeRect(pose.code), chassis: chassisRect(pose) }
       for (const [name, rect] of Object.entries(layers)) {
         for (const p of corners(pose, aspect, rect)) {
           assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `${narrow ? 'narrow' : 'wide'} ${aspect} ${name} corner at glass ${i / 10}: ${p.x} ${p.y}`)
@@ -174,31 +256,134 @@ test('every layer of the exploded stack stays inside the frame through act 5', (
   }
 })
 
-test('the wide day act keeps the phone, its lifted screen, and every shown card inside the frame', () => {
-  const d = w('day')
+test('the wide day act keeps the phone, its screen, and every shown card inside the frame', () => {
+  // 1024x768, 1280x800, and 1440x900 are 1.33 and 1.6. The others cover tablets in portrait and ultra-wide.
   for (const aspect of [0.75, 1.0, 1.33, 1.6, 2.0]) {
     for (let i = 1; i <= 19; i++) {
-      const pose = at(d.start + (d.end - d.start) * (i / 20), false, aspect)
+      const pose = at(inAct('day', i / 20), false, aspect)
       const parts = { chassis: chassisRect(pose), screen: planeRect(pose.screen) }
       pose.cards.forEach((card, k) => { if (card.opacity > 0) parts[`card ${k}`] = planeRect(card) })
       for (const [name, rect] of Object.entries(parts)) {
         for (const p of corners(pose, aspect, rect)) {
-          assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `${aspect} ${name} corner at day ${i / 20}: ${p.x} ${p.y}`)
+          assert.ok(p.x >= 0.02 && p.x <= 0.98 && p.y >= 0.02 && p.y <= 0.98, `${aspect} ${name} corner at day ${i / 20}: ${p.x} ${p.y}`)
         }
       }
     }
   }
 })
 
-test('the wide day cards fan across the width in order without overlapping the phone or each other', () => {
-  const d = w('day')
+test('the wide day row is the phone then the cards in order, centred, without overlaps', () => {
   for (const aspect of [0.75, 1.33, 1.6, 2.0]) {
-    const pose = at(d.start + (d.end - d.start) * 0.95, false, aspect)
+    const pose = at(inAct('day', 0.99), false, aspect)
     const phone = Math.max(xSpan(pose, aspect, chassisRect(pose))[1], xSpan(pose, aspect, planeRect(pose.screen))[1])
     const cards = pose.cards.map((card) => xSpan(pose, aspect, planeRect(card)))
     assert.ok(cards[0][0] > phone, `${aspect}: card 0 starts at ${cards[0][0]}, phone ends at ${phone}`)
     for (let k = 1; k < cards.length; k++) assert.ok(cards[k][0] > cards[k - 1][1], `${aspect}: card ${k} starts at ${cards[k][0]}, card ${k - 1} ends at ${cards[k - 1][1]}`)
-    assert.ok(cards[cards.length - 1][1] > 0.9, `${aspect}: last card ends at ${cards[cards.length - 1][1]}`)
+    const left = xSpan(pose, aspect, chassisRect(pose))[0]
+    const right = 1 - cards[cards.length - 1][1]
+    assert.ok(left > 0.03 && left < 0.14, `${aspect}: left margin ${left}`)
+    assert.ok(right > 0.03 && right < 0.14, `${aspect}: right margin ${right}`)
+    assert.ok(Math.abs(left - right) < 0.03, `${aspect}: margins ${left} and ${right} are not centred`)
+  }
+})
+
+test('wide day cards peel off the front of the screen and land at 0.86 scale', () => {
+  const start = at(inAct('day', 0.08))
+  const card = start.cards[0]
+  assert.equal(card.opacity, 0)
+  assert.ok(near(length(card.right), 1, 1e-9) && near(length(card.up), 1, 1e-9), 'a card still on the screen has the screen\'s scale')
+  // At its start the card sits 0.02 in front of the screen along the screen normal.
+  const front = start.screen.center.map((v, i) => v - start.phone.normal[i] * 0.02)
+  card.center.forEach((v, i) => assert.ok(near(v, front[i], 1e-6)))
+  start.cards.slice(1).forEach((later) => assert.equal(later.opacity, 0))
+
+  const mid = at(inAct('day', 0.29))
+  assert.ok(mid.cards[0].opacity > 0.99 && mid.cards[0].develop > 0 && mid.cards[0].develop < 1, 'a card develops while it slides')
+
+  // The last card lands exactly at the end of the act, so the fan is in motion for the whole act.
+  const landed = at(inAct('day', 1))
+  landed.cards.forEach((c, k) => {
+    assert.ok(near(length(c.right), 0.86, 1e-6) && near(length(c.up), 0.86, 1e-6), `card ${k} scale`)
+    assert.equal(c.develop, 1)
+    assert.equal(c.opacity, 1)
+    assert.equal(c.halfW, PHONE.sx)
+  })
+  const late = at(inAct('day', 0.9)).cards[3]
+  assert.ok(length(late.right) > 0.865 && late.opacity > 0.99 && late.develop === 1, 'the last card is developed but still sliding to its slot at 90% of the act')
+  // Card k starts at local 0.08 + 0.14 k, so just before that it is still hidden while card k - 1 is more than half
+  // shown. The slides overlap, so card k - 1 is still fading in when card k starts.
+  for (let k = 1; k < landed.cards.length; k++) {
+    const before = at(inAct('day', 0.08 + k * 0.14 - 0.01))
+    assert.equal(before.cards[k].opacity, 0, `card ${k} waits its turn`)
+    assert.ok(before.cards[k - 1].opacity > 0.5, `card ${k - 1} is more than half shown before card ${k} starts`)
+  }
+})
+
+test('in the quiet act the cards slide home, fade before they arrive, and never re-encode', () => {
+  const slot = at(inAct('day', 0.99)).cards[1].center
+  let lastGap = Infinity
+  for (let i = 0; i <= 10; i++) {
+    const pose = at(inAct('quiet', 0.7 * (i / 10)))
+    const card = pose.cards[1]
+    assert.equal(card.develop, 1, `develop held at quiet ${0.7 * (i / 10)}`)
+    const gap = Math.hypot(...card.center.map((v, k) => v - pose.screen.center[k]))
+    assert.ok(gap <= lastGap + 1e-9, 'the card only ever approaches the screen')
+    lastGap = gap
+  }
+  // The cards fade over the first 30% of the act, so they are gone while still most of the way out to their slots.
+  const faded = at(inAct('quiet', 0.3)).cards[1]
+  assert.equal(faded.opacity, 0)
+  assert.ok(at(inAct('quiet', 0.15)).cards[1].opacity < 0.6, 'the cards are half gone by the middle of the fade window')
+  const slotGap = Math.hypot(...slot.map((v, k) => v - at(inAct('day', 0.99)).screen.center[k]))
+  const fadedGap = Math.hypot(...faded.center.map((v, k) => v - at(inAct('quiet', 0.3)).screen.center[k]))
+  assert.ok(fadedGap > 0.4 * slotGap, 'the card is gone before it is more than 60% of the way home')
+  assert.equal(at(inAct('glass', 0.5)).cards[1].opacity, 0)
+})
+
+test('the quiet act turns the phone edge-on and dips the screen develop to about two thirds at full opacity', () => {
+  const pose = at(inAct('quiet', 0.95))
+  assert.ok(near(pose.screen.develop, 0.65, 0.015), `develop ${pose.screen.develop}`)
+  assert.equal(pose.screen.opacity, 1)
+  // Edge-on: the screen normal is nearly perpendicular to the view axis.
+  assert.ok(Math.abs(pose.phone.normal[2]) < 0.3, `normal z ${pose.phone.normal[2]}`)
+  assert.ok(Math.abs(at(inAct('day', 0.99)).phone.normal[2]) > 0.9, 'the day phone faces the camera')
+  assert.ok(at(inAct('glass', 0.95)).screen.develop > 0.99, 'the glass act restores the screen')
+})
+
+test('the proof act keeps the product right of 0.44 of the width on wide screens', () => {
+  for (const aspect of [0.75, 1.0, 1.33, 1.6, 2.0]) {
+    for (const local of [0.85, 1]) {
+      const pose = at(inAct('proof', local), false, aspect)
+      const parts = [chassisRect(pose), planeRect(pose.screen), planeRect(pose.code), glassRect(pose)]
+      const left = Math.min(...parts.map((rect) => xSpan(pose, aspect, rect)[0]))
+      assert.ok(left >= 0.44, `${aspect} at proof ${local}: product starts at ${left}`)
+    }
+  }
+})
+
+test('the proof close-up and the start of the coach act keep the chassis and the screen inside the frame', () => {
+  // 1024x768, 1280x800, and 1440x900 are 1.33 and 1.6. The glass stays fanned past the right edge, dimmed, so it is
+  // left out. The sink has carried the phone 0.08 below its start by the end of proof, and the camera must follow.
+  for (const aspect of [0.75, 1.0, 1.33, 1.6, 2.0]) {
+    for (const [key, local] of [['proof', 0.85], ['proof', 1], ['coach', 0.1], ['coach', 0.25]]) {
+      const pose = at(inAct(key, local), false, aspect)
+      for (const [name, rect] of [['chassis', chassisRect(pose)], ['screen', planeRect(pose.screen)]]) {
+        for (const p of corners(pose, aspect, rect)) {
+          assert.ok(p.x >= 0.02 && p.x <= 0.98 && p.y >= 0.02 && p.y <= 0.98, `${aspect} ${name} corner at ${key} ${local}: ${p.x} ${p.y}`)
+        }
+      }
+    }
+  }
+})
+
+test('the proof camera follows the code layer, which sits centred in the space right of the copy rail', () => {
+  for (const aspect of [1.33, 1.6]) {
+    for (const local of [0.85, 1]) {
+      const pose = at(inAct('proof', local), false, aspect)
+      const centre = projectPoint(pose, pose.code.center, aspect)
+      assert.ok(Math.abs(centre.y - 0.5) < 0.03, `${aspect} at proof ${local}: code centre y ${centre.y}`)
+      assert.ok(centre.x > 0.68 && centre.x < 0.74, `${aspect} at proof ${local}: code centre x ${centre.x}`)
+    }
   }
 })
 

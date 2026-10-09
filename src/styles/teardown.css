@@ -6,13 +6,19 @@
 .teardown {
   --teardown-travel: 10.5;
   --td-amber: #eab76a;
+  /* Warm white for copy over the glyph rooms. */
+  --td-ink: #f3efe8;
+  --td-shadow: 0 1px 14px rgba(0, 0, 0, .55);
+  --td-panel: rgba(10, 8, 6, .7);
+  --td-frost: blur(10px) saturate(120%);
+  --td-hairline: rgba(234, 183, 106, .35);
   --td-gutter: max(24px, 6vw);
-  --td-rail: min(36vw, 480px);
-  /* Long, soft ease-out shared by every copy transition. */
+  --td-rail: min(36vw, 500px);
+  /* Long, soft ease-out shared by the transitions that remain: the scrim,
+     the card labels, and the stage crossfades. The copy has none, since
+     Teardown writes its position and opacity from the scroll every frame. */
   --td-ease: cubic-bezier(.2, .7, .2, 1);
-  /* Delay before an incoming act and its items start to rise. COPY_MS in
-     Teardown.tsx includes it, so a change here must change COPY_MS too. */
-  --td-handoff: .2s;
+  --td-fade: .8s;
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
@@ -82,6 +88,28 @@
   white-space: pre;
 }
 
+/* One scrim under the copy column, above the canvas and below the copy, so
+   it holds steady while one act hands over to the next. The composite's
+   uCopyMask dims the same column in the glyph pass, so this one stays light.
+   It clears for the acts that put nothing in the column and in dom mode,
+   whose stage is already dark. */
+.teardown__stage::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--td-gutter) + var(--td-rail) + 160px);
+  background: linear-gradient(to right, rgba(9, 7, 5, .62), rgba(9, 7, 5, .4) 45%, rgba(9, 7, 5, 0));
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity var(--td-fade) var(--td-ease);
+}
+
+.teardown.is-gl[data-act='day'] .teardown__stage::after,
+.teardown[data-act='quiet'] .teardown__stage::after,
+.teardown.is-dom .teardown__stage::after { opacity: 0; }
+
 .teardown__leaders {
   position: absolute;
   inset: 0;
@@ -91,174 +119,213 @@
   z-index: 2;
 }
 
-/* Teardown toggles is-on per frame. A line fades in after its callout has
-   risen into place (--i is the callout's position in its list) and fades out
-   faster than it arrives. */
-.teardown__leaders line {
+/* Teardown writes each path's d, opacity, and stroke-dashoffset every frame
+   from its callout's ride. Each path has pathLength 1, so a dash of 1 offset
+   by 1 hides it and offset 0 draws it whole. */
+.teardown__leaders path {
+  fill: none;
   stroke: var(--td-amber);
-  stroke-width: 1;
+  stroke-width: 1.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   opacity: 0;
-  transition: opacity .45s ease;
+  /* A dark halo keeps the line attached where it crosses the room's bright amber rows. */
+  filter: drop-shadow(0 0 1.5px rgba(9, 7, 5, .9));
 }
 
-.teardown__leaders line.is-on {
-  opacity: .7;
-  transition: opacity .9s var(--td-ease) calc(var(--i, 0) * 90ms + .3s + var(--td-handoff));
-}
+.teardown.is-dom .teardown__leaders { display: none; }
 
+/* The copy column. Every act shares the rail's one grid cell, centred, and
+   rides through the column on --copy-y. The rail spans the whole region the
+   copy can occupy: TeardownCanvas measures .teardown__rail for the
+   composite's copy mask, so it must stay the copy container. */
 .teardown__rail {
   position: absolute;
   left: var(--td-gutter);
-  top: 50%;
+  top: 0;
+  bottom: 0;
   width: var(--td-rail);
-  transform: translateY(-50%);
+  display: grid;
+  align-items: center;
   z-index: 3;
 }
 
-/* Later acts wait 14px below their place and passed acts 14px above it, so
-   the copy rises with the scroll in either direction. Both acts share one
-   rail slot, so the incoming act waits --td-handoff before it rises. By then
-   the outgoing act's .6s fade is at 0.17 opacity, and the two are never both
-   above 0.13 opacity. */
+/* An act rides on --copy-y, in svh so 1 is 1% of the 100svh stage, and fades
+   on --copy-o. Teardown writes both every frame, so neither may transition.
+   A hidden act is also inert (Teardown.tsx). */
 .teardown__act {
-  position: absolute;
-  inset: auto 0 auto 0;
-  top: 50%;
-  transform: translateY(calc(-50% + 14px));
-  opacity: 0;
+  --copy-y: 0svh;
+  --copy-o: 0;
+  grid-area: 1 / 1;
+  align-self: center;
+  min-width: 0;
+  transform: translate3d(0, var(--copy-y), 0);
   visibility: hidden;
-  isolation: isolate;
   pointer-events: none;
-  transition: opacity .6s var(--td-ease), transform .9s var(--td-ease), visibility 0s linear .9s;
+  transition: visibility 0s linear .15s;
 }
-
-.teardown__act.is-past { transform: translateY(calc(-50% - 14px)); }
 
 .teardown__act.is-active {
-  transform: translateY(-50%);
-  opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition: opacity .9s var(--td-ease) var(--td-handoff), transform .9s var(--td-ease) var(--td-handoff), visibility 0s;
+  transition: visibility 0s;
 }
 
-/* Callouts and readout lines rise in one after another behind their act.
-   Teardown sets --i, the item's position in its list. */
-.teardown__callout,
-.teardown__readout li {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity .45s ease, transform .9s var(--td-ease);
-}
-
-.teardown__act.is-active .teardown__callout,
-.teardown__act.is-active .teardown__readout li {
-  opacity: 1;
-  transform: none;
-  transition: opacity .9s var(--td-ease), transform .9s var(--td-ease);
-  transition-delay: calc(var(--i, 0) * 90ms + var(--td-handoff));
-}
-
-/* Local scrim behind each act's copy, never a full-frame overlay. The acts are
-   absolutely positioned and the rail has no height, so the scrim must sit on
-   the act to cover the copy. */
-.teardown__act::before {
-  content: '';
-  position: absolute;
-  inset: -48px -64px -48px calc(-1 * var(--td-gutter));
-  background: radial-gradient(closest-side, rgba(9, 7, 5, .82), rgba(9, 7, 5, 0));
-  z-index: -1;
-  pointer-events: none;
-}
+/* The fade sits on each item and never on the act or a list: an ancestor
+   below full opacity cuts a frosted panel off from the canvas, and its blur
+   pops in when the fade ends. */
+.teardown__act > :not(.teardown__callouts),
+.teardown__callout { opacity: var(--copy-o); }
 
 /* The arrival heading's text before its print starts. It stays invisible and
    holds the heading's box, so the print does not shift the layout. */
 .teardown__unprinted { visibility: hidden; }
 
 .teardown__title {
-  margin: 0 0 18px;
+  margin: 0 0 20px;
   font-family: var(--font-display);
   font-size: clamp(3rem, 6.4vw, 6rem);
-  line-height: 1;
-  letter-spacing: 0;
-  color: var(--text-primary);
+  font-weight: 600;
+  line-height: .98;
+  letter-spacing: -.02em;
+  color: var(--td-ink);
+  text-shadow: var(--td-shadow);
 }
 
 .teardown__line {
   margin: 0 0 10px;
-  font-size: clamp(1.05rem, 1.45vw, 1.3rem);
-  line-height: 1.55;
-  color: var(--text-secondary);
+  font-size: clamp(1.15rem, 1.6vw, 1.45rem);
+  line-height: 1.5;
+  color: var(--td-ink);
+  text-shadow: var(--td-shadow);
+  text-wrap: pretty;
+}
+
+.teardown__lede {
+  margin-bottom: 14px;
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+  line-height: 1.35;
 }
 
 .teardown__eyebrow {
   margin: 0 0 14px;
-  font: 600 .74rem/1.4 var(--font-mono);
+  font: 600 .78rem/1.4 var(--font-mono);
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--td-amber);
+  text-shadow: var(--td-shadow);
 }
 
-/* minmax(0, 1fr) gives the callouts' max-width: 100% a definite track to
+/* minmax(0, 1fr) gives the panels' max-width: 100% a definite track to
    resolve against. An auto track grows to the widest max-content label and
    pushes it past the rail and the viewport. */
 .teardown__callouts,
 .teardown__readout {
   list-style: none;
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
-.teardown__callout {
+/* Frosted panels. The blur reads the canvas only while every ancestor up to
+   the stage is fully opaque (see the fade above). */
+.teardown__callout,
+.teardown__readout {
   position: relative;
   width: max-content;
   max-width: 100%;
-  padding: 8px 12px;
-  border: 1px solid rgba(234, 183, 106, .35);
-  font: 500 .82rem/1.4 var(--font-mono);
-  color: var(--text-primary);
+  border: 1px solid var(--td-hairline);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
+}
+
+.teardown__callout {
+  padding: 10px 14px;
+  font: 500 .88rem/1.45 var(--font-mono);
+  color: var(--td-ink);
+}
+
+.teardown__readout {
+  padding: 18px 22px;
+  gap: 10px;
 }
 
 .teardown__callout::before,
-.teardown__callout::after {
+.teardown__callout::after,
+.teardown__readout::before,
+.teardown__readout::after {
   position: absolute;
   font: 500 10px/1 var(--font-mono);
   color: var(--td-amber);
 }
 
-.teardown__callout::before { content: '+'; top: -6px; left: -4px; }
-.teardown__callout::after { content: '+'; bottom: -6px; right: -4px; }
+.teardown__callout::before,
+.teardown__readout::before { content: '+'; top: -6px; left: -4px; }
+
+.teardown__callout::after,
+.teardown__readout::after { content: '+'; bottom: -6px; right: -4px; }
 
 .teardown__slashes,
 .teardown__prompt { color: var(--td-amber); }
 
+/* A line takes no height until Teardown starts typing it (--typed above 0),
+   so the panel grows line by line instead of opening as an empty tray with
+   three blank rows. 100em is past any wrapped line's height, so a line
+   reaches its full height within the first 3% of its typing. */
 .teardown__readout li {
   --typed: 0;
-  font: 500 clamp(.95rem, 1.4vw, 1.2rem)/1.4 var(--font-mono);
+  font: 500 clamp(1.1rem, 1.5vw, 1.25rem)/1.4 var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
+  color: var(--td-ink);
+  overflow: hidden;
+  max-height: calc(var(--typed) * 100em);
   clip-path: inset(0 calc((1 - var(--typed)) * 100%) 0 0);
 }
 
-.teardown__tags { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 18px 0 0; font: 500 .78rem/1.4 var(--font-mono); color: var(--text-muted); }
+.teardown__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 20px 0 0;
+  font: 500 .8rem/1.4 var(--font-mono);
+  color: rgba(243, 239, 232, .86);
+}
+
+/* The chips and the links sit on the evening table's lit band in the close
+   act, so each carries the callouts' frosted backing. The blur reads the
+   canvas only while every ancestor is fully opaque (see the fade above). */
+.teardown__tag,
+.teardown__link {
+  padding: 3px 7px;
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
+}
+
 /* The links stay visible to focus and assistive technology while the close act
-   is hidden (transparent through the act's opacity), and Teardown scrolls to
-   the act when a link takes focus. The hidden act's pointer-events: none keeps
-   the transparent links from catching clicks meant for other acts. */
-.teardown__links { display: flex; gap: 18px; margin: 18px 0 0; visibility: visible; }
+   is hidden (transparent through their item's opacity), and Teardown scrolls
+   to the act when a link takes focus. The hidden act's pointer-events: none
+   keeps the transparent links from catching clicks meant for other acts. */
+.teardown__links { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; visibility: visible; }
 
 .teardown__link {
-  font: 600 .86rem/1.4 var(--font-mono);
-  color: var(--text-primary);
+  font: 600 .9rem/1.4 var(--font-mono);
+  color: var(--td-ink);
   text-decoration: none;
+  border: 1px solid var(--td-hairline);
+  transition: color .25s ease, border-color .25s ease;
 }
 
 .teardown__link:hover,
-.teardown__link:focus-visible { color: var(--td-amber); }
+.teardown__link:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
 
+/* The list never fades, so each label's frosted backing keeps reading the
+   canvas. A label shows only while the list is active (the day act) and
+   Teardown has set is-on, once its card has developed. */
 .teardown__cards {
   position: absolute;
   inset: 0;
@@ -266,79 +333,132 @@
   padding: 0;
   list-style: none;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity .6s var(--td-ease);
   z-index: 3;
 }
 
-.teardown__cards.is-active {
-  opacity: 1;
-  transition: opacity .9s var(--td-ease);
-}
-
+/* Teardown writes transform every frame, so the rise on show uses the
+   separate translate property. 17vw is about one card's spacing in the day
+   act's fan, so a label wraps before it reaches the next card's label. */
 .teardown__card-label {
   position: absolute;
   left: 0;
   top: 0;
-  white-space: nowrap;
-  font: 500 .86rem/1.4 var(--font-mono);
-  color: var(--text-secondary);
+  max-width: max(160px, calc(17vw - 20px));
+  padding: 5px 11px;
+  border: 1px solid rgba(234, 183, 106, .28);
+  background: rgba(10, 8, 6, .72);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+  font: 500 .8rem/1.35 var(--font-mono);
+  color: var(--td-ink);
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0;
+  translate: 0 6px;
+  transition: opacity .3s var(--td-ease), translate .3s var(--td-ease);
   will-change: transform;
+}
+
+.teardown__cards.is-active .teardown__card-label.is-on {
+  opacity: 1;
+  translate: none;
+  transition: opacity var(--td-fade) var(--td-ease), translate var(--td-fade) var(--td-ease);
 }
 
 .teardown__card-label::before { content: '// '; color: var(--td-amber); }
 .teardown.is-dom .teardown__cards { display: none; }
 
+/* Short landscape screens: the tallest act must fit the column at rest. */
+@media (min-width: 768px) and (max-height: 560px) {
+  .teardown__title { margin-bottom: 12px; font-size: clamp(2.2rem, 5vw, 3rem); }
+  .teardown__line { margin-bottom: 6px; font-size: 1rem; }
+  .teardown__lede { font-size: 1.15rem; }
+  .teardown__callouts,
+  .teardown__readout { margin-top: 12px; gap: 8px; }
+  .teardown__callout { padding: 6px 10px; font-size: .78rem; }
+  .teardown__readout { padding: 12px 16px; }
+  .teardown__readout li { font-size: 1rem; }
+}
+
+/* Phones keep the copy below the product. Teardown writes --copy-floor on the
+   rail each frame, the product's lowest projected point (the phone, the
+   exploded stack, the deck, or the coach figure) plus a gap, and 58% holds
+   until the first frame. Acts rest at the region's bottom and rise out through
+   its top, where the rail's clip takes over, so no part of a block is ever
+   drawn over the product. The rail spans the stage's width with the gutter as
+   padding, so the clip box holds the panels' corner markers, which sit 4px
+   outside their panels, and all but the faint outer edge of their shadows.
+   The copy sizes here keep the tallest act (the glass callouts or the coach
+   lines) inside about a quarter of the stage, which is the room the lowest
+   product pose leaves. */
 @media (max-width: 767px) {
   .teardown { --td-gutter: 20px; }
   .teardown__rail {
-    top: auto;
-    bottom: max(20px, 4svh);
-    right: var(--td-gutter);
+    top: var(--copy-floor, 58%);
+    left: 0;
+    right: 0;
     width: auto;
-    transform: none;
+    padding: 0 var(--td-gutter) max(20px, 4svh);
+    align-items: end;
+    overflow: clip;
   }
-  .teardown__act { top: auto; bottom: 0; transform: translateY(14px); }
-  .teardown__act.is-past { transform: translateY(-14px); }
-  .teardown__act.is-active { transform: none; }
+  .teardown__stage::after {
+    top: 50%;
+    right: 0;
+    width: auto;
+    background: linear-gradient(to top, rgba(9, 7, 5, .85), rgba(9, 7, 5, .6) 45%, rgba(9, 7, 5, 0));
+  }
+  .teardown__act { align-self: end; }
   .teardown__leaders { display: none; }
-  .teardown__callout { padding: 0; border: 0; font-size: .78rem; }
-  .teardown__callout::before,
-  .teardown__callout::after { content: none; }
-  .teardown__title { font-size: clamp(2rem, 9vw, 2.6rem); }
+  .teardown__title { margin-bottom: 10px; font-size: clamp(2.1rem, 9.5vw, 2.75rem); }
+  .teardown__line { margin-bottom: 6px; font-size: 1rem; line-height: 1.45; }
+  .teardown__lede { margin-bottom: 8px; font-size: 1.12rem; line-height: 1.35; }
+  .teardown__eyebrow { margin-bottom: 8px; }
+  .teardown__callouts,
+  .teardown__readout { margin-top: 12px; gap: 6px; }
+  .teardown__callout { padding: 6px 10px; font-size: .76rem; line-height: 1.4; }
+  .teardown__readout { padding: 12px 14px; gap: 6px; }
+  .teardown__readout li { font-size: .98rem; }
+  .teardown__tags,
+  .teardown__links { margin-top: 12px; }
+  .teardown__card-label { max-width: calc(100vw - 40px); }
   .teardown__dom-stage { justify-content: center; align-items: flex-start; padding: 7svh 20px 42svh; }
   /* 24svh keeps the phone inside the 51svh between the stage's top and bottom padding. */
   .teardown__dom-stage .phone-frame { width: min(230px, 56vw, 24svh); }
   .teardown__code { display: none; }
 }
 
+@media (max-width: 767px) and (max-height: 700px) {
+  .teardown__title { font-size: 2rem; }
+  .teardown__line { font-size: .94rem; }
+  .teardown__lede { font-size: 1.04rem; }
+  .teardown__callout { padding: 5px 9px; font-size: .72rem; }
+  .teardown__readout li { font-size: .92rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .teardown--static { height: auto; }
   .teardown--static .teardown__stage { position: relative; height: auto; overflow: visible; background: none; }
-  .teardown--static .teardown__rail { position: relative; inset: auto; width: auto; transform: none; padding: 0 var(--td-gutter); }
-  .teardown--static .teardown__act::before { content: none; }
-  /* Every act is is-active in the static layout. These selectors match the
-     specificity of the active-act stagger rules and win by source order only,
-     so this block must stay after them or the static stack animates. */
-  .teardown--static .teardown__act,
-  .teardown--static .teardown__act .teardown__callout,
-  .teardown--static .teardown__act .teardown__readout li {
-    transform: none;
-    opacity: 1;
-    transition: none;
-  }
+  .teardown--static .teardown__stage::after { content: none; }
+  .teardown--static .teardown__rail { position: relative; inset: auto; display: block; width: auto; padding: 0 var(--td-gutter); overflow: visible; }
+  /* Every act is is-active in the static layout. Inline --copy-y and --copy-o
+     from a session that switched to reduced motion must not reach it, so the
+     properties they feed are set outright here. */
   .teardown--static .teardown__act {
-    position: relative;
-    top: auto;
     visibility: visible;
+    transform: none;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     padding: 48px 0;
   }
+  .teardown--static .teardown__act > :not(.teardown__callouts),
+  .teardown--static .teardown__callout { opacity: 1; }
   .teardown--static .teardown__static-phone { width: min(260px, 60vw); }
-  /* The act tracking writes --typed inline, which beats any rule here, so the static layout clears clip-path. */
-  .teardown--static .teardown__readout li { clip-path: none; }
+  /* The act tracking never runs in the static layout, so --typed stays at its 0 default, and the inline value a
+     session wrote before switching to reduced motion beats any rule here. Both properties --typed feeds are
+     set outright, so every line shows at its full height. */
+  .teardown--static .teardown__readout li { clip-path: none; max-height: none; overflow: visible; }
   /* Overrides the phone rule that hides the excerpt. The block must not scroll, since axe then requires it to take focus. */
   .teardown--static .teardown__code {
     display: block;

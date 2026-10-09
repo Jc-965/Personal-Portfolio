@@ -8,18 +8,20 @@ import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
 import { COACH_BONES, jointsAt } from './coach'
 import { createComposite } from './composite'
-import { glideStep, type Glide } from './glide'
+import { GLIDE_TIME, glideStep, type Glide } from './glide'
 import { CHAPTER_RAMP } from './materials'
 import { createProduct, type PlaneMesh } from './product'
 import { FOCAL, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
 import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
-import { actWindows } from './timeline'
+import { actAt, actWindows } from './timeline'
 
 export interface TeardownFrame {
   /** Glided chapter progress, the value every visual and the act state follow. */
   progress: number
   /** Stage-relative CSS px per anchor key, null when behind the camera. Keys: `c:<act>:<callout>`, `k:<card>`. */
   anchors: Map<string, { x: number; y: number } | null>
+  /** Develop value per day-act card, 0 glyphs to 1 sharp, in story order. */
+  cards: number[]
 }
 
 export interface TeardownCanvasProps {
@@ -33,15 +35,58 @@ export interface TeardownCanvasProps {
   onFallback: () => void
 }
 
-/** Glyph cells, about 3 by 6.5 CSS px on wide screens and 2.7 by 5.5 on phones. The width is the font's advance. */
-const CELL = { wide: { fontPx: 5, height: 6.5 }, narrow: { fontPx: 4.5, height: 5.5 } }
+type Callbacks = Pick<TeardownCanvasProps, 'onFrame' | 'onReady' | 'onFallback'>
+
+/**
+ * Glyph cells, about 5.7 by 7.5 CSS px on wide screens and 4.2 by 5.5 on phones. The width is the font's advance.
+ * The font is 1.28 times its row, so a lowercase glyph's body fills about 70% of the row and a capital nearly all
+ * of it, and neighbouring rows close into a picture. A font the size of its row or smaller leaves a gap between
+ * rows that reads as scanlines and collapses the room into stripes. The tallest glyphs (#, %, @) lose a sliver at
+ * the top and bottom of their atlas cell, which the picture never shows.
+ */
+const CELL = { wide: { fontPx: 9.6, height: 7.5 }, narrow: { fontPx: 7, height: 5.5 } }
 const FONT_FAMILY = '"JetBrains Mono", "IBM Plex Mono", monospace'
 /** Pixels of the right edge left to the scroll rail. */
 const RAIL_GUTTER = 32
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
+/**
+ * rig.ts turns the phone by 0.07 rad per unit of tilt, so this reach puts the stage's edges at ±0.035 rad.
+ * The composite's room parallax reads the pointer at its full -1 to 1 reach.
+ */
+const TILT_REACH = 0.5
+/** Time constants of the pointer easing, seconds. The tilt drifts after the pointer, and a drag keeps up with the hand. */
+const EASE = { dragYaw: 0.15, tiltX: 0.6, tiltY: 0.6 } as const
+/** An interaction this close to its goal, in its own units, lands on it and stops the loop. */
+const EASE_REST = 1e-3
+/**
+ * Progress within this much of either end of the chapter follows the scroll on the shorter END_GLIDE_TIME, so the
+ * pose settles before the stage unpins. At 0.06 s a wheel flick of 2500 px/s leaves the glide about half a frame
+ * behind the scroll, so the close dissolve finishes while the stage is still pinned.
+ */
+const END_REACH = 0.12
+const END_GLIDE_TIME = 0.06
+/**
+ * Glide speed, in chapter progress per second, that counts as a full surge. A steady wheel scroll runs at about
+ * 0.05 and a flick at 0.1 to 0.2, so the surge sits around half for reading-pace scrolling and saturates on a fling.
+ */
+const SURGE_FULL = 0.12
 
 type Loaded = { texture: THREE.Texture; ready: boolean; width: number; height: number; aspect: number }
+
+/**
+ * Waits for every pending program link. Chrome tracks each parallel link
+ * with a completion query, and a program deleted while that query is still
+ * pending logs "GL_INVALID_VALUE: glGetProgramiv: Program object expected"
+ * once per poll. Reading LINK_STATUS makes the client wait for the query
+ * first, so this must run before any material of the renderer is disposed.
+ */
+function settleLinks(renderer: THREE.WebGLRenderer) {
+  const gl = renderer.getContext()
+  for (const entry of renderer.info.programs ?? []) {
+    if (entry.program) gl.getProgramParameter(entry.program as WebGLProgram, gl.LINK_STATUS)
+  }
+}
 
 /**
  * The product scene, its render target, and the composite. Throws after
@@ -54,18 +99,24 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
     const pmrem = new THREE.PMREMGenerator(renderer)
     const room = new RoomEnvironment()
     const environment = pmrem.fromScene(room, 0.04)
+    settleLinks(renderer)
     room.dispose()
     pmrem.dispose()
     disposers.push(() => environment.dispose())
 
     const scene = new THREE.Scene()
     scene.environment = environment.texture
-    // three.js world space: the camera sits on +z and looks along -z, so "front" is +z.
-    const key = new THREE.DirectionalLight('#ffe2b8', 2.2)
+    // three.js world space: the camera sits on +z and looks along -z, so "front" is +z. A soft top light draws
+    // the gradient along the frame, the low warm key lights the glass and the lenses, and the faint back-left
+    // rim separates the silhouette from the glyph room.
+    const sky = new THREE.HemisphereLight('#fff1dc', '#0b0806', 0.5)
+    const top = new THREE.DirectionalLight('#fff4e4', 1.5)
+    top.position.set(0.4, 5, 2)
+    const key = new THREE.DirectionalLight('#ffe2b8', 1)
     key.position.set(-2.2, 2.6, 3)
-    const rim = new THREE.DirectionalLight('#ffc27a', 1.6)
-    rim.position.set(2.6, 1.2, -3)
-    scene.add(key, rim, new THREE.AmbientLight('#ffffff', 0.08))
+    const rim = new THREE.DirectionalLight('#ffd9a8', 0.8)
+    rim.position.set(-3, 1.4, -3)
+    scene.add(sky, top, key, rim)
 
     const product = createProduct(story, { narrow, environment: environment.texture })
     disposers.push(() => product.dispose())
@@ -101,389 +152,438 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
 /** The chapter's 3D stage. All hot state stays outside React, as in the hero's AsciiWorld. */
 export default function TeardownCanvas({ story, track, onFrame, onReady, onFallback }: TeardownCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const callbacks = useRef({ onFrame, onReady, onFallback })
+  const callbacks = useRef<Callbacks>({ onFrame, onReady, onFallback })
   useEffect(() => { callbacks.current = { onFrame, onReady, onFallback } })
 
   useEffect(() => {
     const canvas = canvasRef.current
     const stage = canvas?.parentElement
     if (!canvas || !stage) return
-    let failed = false
-    let stop = () => {}
-    let covering = false
-    const fail = (reason: unknown) => {
-      if (failed) return
-      failed = true
-      stop()
-      console.warn('[teardown] falling back to the DOM stage', reason)
-      if (covering) { covering = false; setCovering('teardown', false) }
-      callbacks.current.onFallback()
-    }
-
-    let renderer: THREE.WebGLRenderer
-    let gpu: ReturnType<typeof createStage>
-    try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' })
-    } catch (error) {
-      fail(error)
-      return
-    }
-    try {
-      // The composite writes sRGB itself, and every lit material renders into the linear target.
-      renderer.outputColorSpace = THREE.LinearSRGBColorSpace
-      renderer.toneMapping = THREE.NoToneMapping
-      renderer.setClearColor(0x000000, 0)
-      renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
-        fail([gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertex), gl.getShaderInfoLog(fragment)].filter(Boolean).join('\n'))
-      }
-      gpu = createStage(renderer, story, stage.clientWidth < 768)
-    } catch (error) {
-      renderer.dispose()
-      fail(error)
-      return
-    }
-    const { scene, camera, product, target, composite, dispose: disposeStage } = gpu
-    const cu = composite.material.uniforms
-    const planes: PlaneMesh[] = [product.screen, ...product.cards]
-
-    const windows = actWindows(story.acts)
-    const actBackdrops = story.acts.map((a) => a.backdrop)
-    // Screens and the code layer turn away from the camera in the exploded fan, and 8x keeps their UI text
-    // sharp there. Rooms are sampled only through textureLod, which has no derivatives, so the value does not
-    // apply to them.
-    const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
-    const loader = new THREE.TextureLoader()
-    const owned: THREE.Texture[] = []
-    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
-    const drawingBuffer = new THREE.Vector2(1, 1)
-    let atlas: THREE.CanvasTexture | null = null
-    let code: THREE.CanvasTexture | null = null
-    let narrow = stage.clientWidth < 768
-    let width = 1
-    let height = 1
-    let trackTop = 0
-    let trackHeight = 1
-    let progress = 0
-    let glide: Glide = { value: 0, velocity: 0 }
-    let visible = false
-    let lost = false
-    let disposed = false
-    let compiled = false
-    let ready = false
-    let raf = 0
-    let lastPaint = 0
-    let frameInterval = 1000 / 60
-    const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
-    const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
-    let drag: { id: number; x: number; start: number } | null = null
-
-    stop = () => { cancelAnimationFrame(raf); raf = 0; lastPaint = 0 }
-    const start = () => { if (!raf && visible && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
-
-    /** Loads an sRGB, mipmapped image texture and uploads it as soon as it arrives, so first use never stalls a frame. */
-    const load = (src: string): Loaded => {
-      const texture = loader.load(src, () => {
-        if (disposed || failed) return
-        entry.width = texture.image.naturalWidth
-        entry.height = texture.image.naturalHeight
-        entry.aspect = entry.width / Math.max(1, entry.height)
-        renderer.initTexture(texture)
-        entry.ready = true
-        start()
-      }, undefined, () => undefined)
-      texture.colorSpace = THREE.SRGBColorSpace
-      texture.anisotropy = anisotropy
-      owned.push(texture)
-      const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
-      return entry
-    }
-    const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src)]))
-    const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
-    const requestRoom = (index: number | null) => {
-      if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
-      rooms[index] = load(story.backdrops[index].src)
-    }
-    const uploadCode = () => {
-      if (code || disposed || failed) return
-      const source = buildCodeTexture(story.code, story.codeSource)
-      if (!source) return
-      code = new THREE.CanvasTexture(source)
-      code.colorSpace = THREE.SRGBColorSpace
-      code.anisotropy = anisotropy
-      renderer.initTexture(code)
-      product.code.material.uniforms.uMap.value = code
-      start()
-    }
-
-    /** Eases interaction toward its goal. Returns true while anything is still moving. */
-    const settle = (dt: number) => {
-      const k = 1 - Math.exp(-dt * 8)
-      let moving = false
-      for (const key of ['dragYaw', 'tiltX', 'tiltY'] as const) {
-        const delta = goal[key] - interaction[key]
-        if (Math.abs(delta) > 1e-4) { interaction[key] += delta * k; moving = true } else interaction[key] = goal[key]
-      }
-      return moving
-    }
-
-    /** Plane uniforms. A plane whose texture has not arrived stays hidden instead of drawing black. */
-    const applyPlane = (mesh: PlaneMesh, plane: PlanePose | undefined) => {
-      const u = mesh.material.uniforms
-      let opacity = plane?.opacity ?? 0
-      if (plane && plane.texture !== 'code') {
-        const screen = screens.get(plane.texture)
-        if (screen?.ready) {
-          u.uMap.value = screen.texture
-          u.uTexSize.value.set(screen.width, screen.height)
-          u.uDevelop.value = plane.develop
-        } else opacity = 0
-      } else if (!code) opacity = 0
-      u.uOpacity.value = opacity
-      mesh.visible = opacity > 0.001
-    }
-
-    const applyComposite = (pose: Pose, aspect: number) => {
-      const { a, b, mix, gain, glyphOnly, drift } = pose.backdrop
-      const roomA = a >= 0 && rooms[a]?.ready ? a : -1
-      const roomB = b >= 0 && rooms[b]?.ready ? b : -1
-      // Until both rooms of a dissolve have loaded, the one that has stands in for both.
-      const first = rooms[roomA >= 0 ? roomA : roomB] ?? null
-      const second = rooms[roomB] ?? first
-      // Focus points count y from the top of the photo, and texture v counts from the bottom.
-      const focus = (index: number): [number, number] => {
-        const [x, y] = story.backdrops[index]?.focus ?? [0.5, 0.5]
-        return [x, 1 - y]
-      }
-      cu.uBackA.value = first?.texture ?? null
-      cu.uBackB.value = second?.texture ?? null
-      cu.uBackAspect.value.set(first?.aspect ?? 16 / 9, second?.aspect ?? 16 / 9)
-      cu.uFocus.value.set(...focus(roomA >= 0 ? roomA : roomB), ...focus(roomB >= 0 ? roomB : roomA))
-      cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
-      cu.uBackGain.value = first ? gain : 0
-      cu.uGlyphOnly.value = glyphOnly
-      cu.uDrift.value = drift
-      cu.uPointer.value.set(interaction.tiltX, -interaction.tiltY)
-      cu.uDecode.value = pose.decode
-      cu.uGather.value = pose.gather
-      cu.uCoach.value = pose.coach.amount
-      if (pose.coach.amount <= 0.01) return
-      // Skeleton in device px with the origin at the bottom left, as gl_FragCoord counts.
-      const toDevice = (point: Vec3): [number, number] => {
-        const at = projectPoint(pose, point, aspect)
-        return at ? [at.x * drawingBuffer.x, (1 - at.y) * drawingBuffer.y] : [-1e5, -1e5]
-      }
-      const joints = coachWorld(pose, jointsAt(story.pose, pose.coach.frame)).map(toDevice)
-      const bones = cu.uBones.value as Float32Array
-      COACH_BONES.forEach(([i, k], n) => bones.set([...joints[i], ...joints[k]], n * 4))
-      const centre = projectPoint(pose, pose.coach.pos, aspect)
-      const pixelsPerUnit = centre ? (drawingBuffer.y / 2) * FOCAL / centre.depth : 0
-      cu.uLimb.value = 0.024 * pose.coach.scale * pixelsPerUnit
-      cu.uHead.value.set(joints[0][0], joints[0][1], 0.07 * pose.coach.scale * pixelsPerUnit)
-    }
-
-    const draw = (now: number) => {
-      raf = 0
-      if (disposed || failed || lost || !visible || document.hidden || !compiled) return
-      if (lastPaint && now - lastPaint < frameInterval - FRAME_SLACK) { raf = requestAnimationFrame(draw); return }
-      const dt = lastPaint ? Math.min(0.1, (now - lastPaint) / 1000) : 0
-      lastPaint = now
-      const easing = settle(dt)
-      glide = glideStep(glide, progress, dt)
-      // The follow decays toward the target without reaching it, so it lands on the target once it is within
-      // 1e-4 progress and moving slower than 1e-3 progress per second.
-      if (Math.abs(glide.value - progress) < 1e-4 && Math.abs(glide.velocity) < 1e-3) glide = { value: progress, velocity: 0 }
-      const aspect = width / height
-      const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames })
-      requestRoom(pose.backdrop.a)
-      requestRoom(pose.backdrop.b)
-      const nextAct = windows.findIndex((w) => glide.value < w.start)
-      if (nextAct >= 0) requestRoom(actBackdrops[nextAct])
-
-      product.update(pose)
-      applyPlane(product.screen, pose.screen)
-      applyPlane(product.code, pose.code)
-      product.cards.forEach((card, i) => applyPlane(card, pose.cards[i]))
-      camera.aspect = aspect
-      camera.position.fromArray(toThreePosition(pose.camera.pos))
-      camera.updateProjectionMatrix()
-      camera.projectionMatrix.fromArray(applyLensShift(camera.projectionMatrix.toArray(), pose.camera.shift, aspect))
-      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
-      applyComposite(pose, aspect)
-
-      renderer.setRenderTarget(target)
-      renderer.render(scene, camera)
-      renderer.setRenderTarget(null)
-      renderer.render(composite.scene, composite.camera)
-      if (failed) return
-
-      const anchors = new Map<string, { x: number; y: number } | null>()
-      const toPx = (point: Vec3) => {
-        const at = projectPoint(pose, point, aspect)
-        return at ? { x: at.x * width, y: at.y * height } : null
-      }
-      story.acts.forEach((act, a) => act.callouts.forEach((callout, c) => anchors.set(`c:${a}:${c}`, toPx(anchorWorld(pose, callout.anchor)))))
-      pose.cards.forEach((card, k) => anchors.set(`k:${k}`, toPx([card.center[0], card.center[1] - card.halfH * 1.08, card.center[2]])))
-      callbacks.current.onFrame({ progress: glide.value, anchors })
-
-      if (!ready && [...screens.values()].every((screen) => screen.ready)) {
-        ready = true
-        updateCovering()
-        callbacks.current.onReady()
-      }
-      // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the glide or the interaction is still moving.
-      if (easing || glide.value !== progress) raf = requestAnimationFrame(draw)
-      else lastPaint = 0
-    }
-
-    // A collapsed phone toolbar makes the visible viewport taller than the 100svh stage. The strip
-    // below the stage then shows the page background, so the stage does not claim to cover.
-    const updateCovering = () => {
-      const y = window.scrollY
-      const visibleHeight = window.visualViewport?.height ?? window.innerHeight
-      const next = ready && !lost && !failed && y >= trackTop && y + height <= trackTop + trackHeight + 0.5 && height + 0.01 >= visibleHeight
-      if (next !== covering) { covering = next; setCovering('teardown', covering) }
-    }
-    const onScroll = () => {
-      const y = window.scrollY
-      progress = sceneProgress(y - trackTop, trackHeight, height)
-      const wasVisible = visible
-      visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
-      // Arriving from off screen starts at the scroll position instead of gliding through every act in between.
-      if (visible && !wasVisible) glide = { value: progress, velocity: 0 }
-      updateCovering()
-      if (visible) start()
-      else stop()
-    }
-    const measure = () => {
-      if (disposed || lost || failed) return
-      const rect = stage.getBoundingClientRect()
-      if (!rect.width || !rect.height) return
-      width = rect.width
-      height = rect.height
-      const nextNarrow = width < 768
-      if (nextNarrow !== narrow) product.setNarrow(nextNarrow)
-      narrow = nextNarrow
-      frameInterval = 1000 / (narrow ? 45 : 60)
-      const pixelRatio = Math.min(width > 1800 ? 1.75 : 2, window.devicePixelRatio || 1)
-      renderer.setPixelRatio(pixelRatio)
-      renderer.setSize(width, height, false)
-      renderer.getDrawingBufferSize(drawingBuffer)
-      target.setSize(drawingBuffer.x, drawingBuffer.y)
-      // three raises no error for an incomplete target (for example, multisampled RGBA16F unsupported at 4
-      // samples), and drawing into one leaves the phone invisible. setRenderTarget rebuilds the framebuffers
-      // after a resize and binds the multisampled one, so the check sees the attachments the frame draws into.
-      renderer.setRenderTarget(target)
-      const gl = renderer.getContext()
-      const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
-      renderer.setRenderTarget(null)
-      if (!complete) { fail('the product render target is incomplete'); return }
-      cu.uRes.value.copy(drawingBuffer)
-
-      // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp.
-      const cell = narrow ? CELL.narrow : CELL.wide
-      const ctx = document.createElement('canvas').getContext('2d')
-      if (ctx) ctx.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
-      const advance = ctx?.measureText('M').width || cell.fontPx * 0.6
-      const cellW = Math.max(2, Math.round(advance * pixelRatio))
-      const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
-      cu.uCell.value.set(cellW, cellH)
-      planes.forEach((plane) => plane.material.uniforms.uCell.value.set(cellW, cellH))
-      const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
-      if (glyphs) {
-        atlas?.dispose()
-        atlas = new THREE.CanvasTexture(glyphs)
-        atlas.flipY = false
-        atlas.generateMipmaps = false
-        atlas.minFilter = THREE.LinearFilter
-        cu.uAtlas.value = atlas
-        planes.forEach((plane) => { plane.material.uniforms.uAtlas.value = atlas })
-      }
-
-      trackTop = track.getBoundingClientRect().top + window.scrollY
-      trackHeight = track.offsetHeight
-      lastPaint = 0
-      onScroll()
-    }
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || event.clientX > window.innerWidth - RAIL_GUTTER) return
-      if ((event.target as Element | null)?.closest('a, button')) return
-      drag = { id: event.pointerId, x: event.clientX, start: goal.dragYaw }
-      stage.setPointerCapture?.(event.pointerId)
-    }
-    const onPointerMove = (event: PointerEvent) => {
-      if (drag && event.pointerId === drag.id) {
-        goal.dragYaw = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, drag.start + (event.clientX - drag.x) * 0.006))
-        start()
-      }
-      if (finePointer.matches) {
-        goal.tiltX = (event.clientX / window.innerWidth - 0.5) * 2
-        goal.tiltY = (event.clientY / window.innerHeight - 0.5) * 2
-        start()
-      }
-    }
-    const release = (event: PointerEvent) => {
-      if (!drag || event.pointerId !== drag.id) return
-      drag = null
-      goal.dragYaw = 0
-      start()
-    }
-    const onLeave = () => { goal.tiltX = 0; goal.tiltY = 0; start() }
-    const onLost = () => {
-      lost = true
-      fail('the WebGL context was lost')
-    }
-    const onVisibility = () => { lastPaint = 0; if (document.hidden) stop(); else start() }
-
-    // compile() prepares a program for every mesh in the scene whether or not it is visible, so the internals
-    // and glass programs exist before the glass act first shows them. It only submits the programs, and the
-    // driver builds them in the background where KHR_parallel_shader_compile exists. compileAsync is avoided
-    // because its polling cannot be cancelled and reads deleted programs after an unmount.
-    renderer.compile(scene, camera)
-    renderer.compile(composite.scene, composite.camera)
-    const firstFrame = requestAnimationFrame(() => {
-      compiled = true
-      start()
-    })
-
-    const resizeObserver = new ResizeObserver(measure)
-    resizeObserver.observe(stage)
-    resizeObserver.observe(track)
-    const fontsReady = document.fonts ? document.fonts.load('500 12px "JetBrains Mono"') : Promise.resolve([])
-    fontsReady.then(() => { uploadCode(); measure() }, uploadCode)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    stage.addEventListener('pointerdown', onPointerDown)
-    stage.addEventListener('pointermove', onPointerMove, { passive: true })
-    stage.addEventListener('pointerup', release)
-    stage.addEventListener('pointercancel', release)
-    stage.addEventListener('pointerleave', onLeave)
-    document.addEventListener('visibilitychange', onVisibility)
-    canvas.addEventListener('webglcontextlost', onLost)
-    measure()
-
+    // React's development double mount runs this cleanup right after the first effect. Booting on the next
+    // frame keeps that first mount from building a renderer, an environment, and six programs only to delete them.
+    let unmount: (() => void) | null = null
+    const boot = requestAnimationFrame(() => { unmount = mount(canvas, stage, track, story, callbacks) })
     return () => {
-      disposed = true
-      stop()
-      cancelAnimationFrame(firstFrame)
-      resizeObserver.disconnect()
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      stage.removeEventListener('pointerdown', onPointerDown)
-      stage.removeEventListener('pointermove', onPointerMove)
-      stage.removeEventListener('pointerup', release)
-      stage.removeEventListener('pointercancel', release)
-      stage.removeEventListener('pointerleave', onLeave)
-      document.removeEventListener('visibilitychange', onVisibility)
-      canvas.removeEventListener('webglcontextlost', onLost)
-      if (covering) setCovering('teardown', false)
-      owned.forEach((texture) => texture.dispose())
-      atlas?.dispose()
-      code?.dispose()
-      disposeStage()
-      renderer.dispose()
+      cancelAnimationFrame(boot)
+      unmount?.()
     }
   }, [story, track])
 
   return <canvas ref={canvasRef} className="teardown__canvas" aria-hidden="true" />
+}
+
+/** Builds the renderer and runs the chapter until the returned function is called. */
+function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement, story: TeardownStory, callbacks: { current: Callbacks }): () => void {
+  let failed = false
+  let stop = () => {}
+  let covering = false
+  const fail = (reason: unknown) => {
+    if (failed) return
+    failed = true
+    stop()
+    console.warn('[teardown] falling back to the DOM stage', reason)
+    if (covering) { covering = false; setCovering('teardown', false) }
+    callbacks.current.onFallback()
+  }
+
+  let renderer: THREE.WebGLRenderer
+  let gpu: ReturnType<typeof createStage>
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' })
+  } catch (error) {
+    fail(error)
+    return () => {}
+  }
+  try {
+    // The composite writes sRGB itself, and every lit material renders into the linear target.
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+    renderer.toneMapping = THREE.NoToneMapping
+    renderer.setClearColor(0x000000, 0)
+    renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
+      fail([gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertex), gl.getShaderInfoLog(fragment)].filter(Boolean).join('\n'))
+    }
+    gpu = createStage(renderer, story, stage.clientWidth < 768)
+  } catch (error) {
+    renderer.dispose()
+    fail(error)
+    return () => {}
+  }
+  const { scene, camera, product, target, composite, dispose: disposeStage } = gpu
+  const cu = composite.material.uniforms
+  const planes: PlaneMesh[] = [product.screen, ...product.cards]
+
+  const windows = actWindows(story.acts)
+  const actBackdrops = story.acts.map((a) => a.backdrop)
+  // Screens and the code layer turn away from the camera in the exploded fan, and 8x keeps their UI text
+  // sharp there. Rooms are sampled only through textureLod, which has no derivatives, so the value does not
+  // apply to them.
+  const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
+  const loader = new THREE.TextureLoader()
+  const owned: THREE.Texture[] = []
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
+  const drawingBuffer = new THREE.Vector2(1, 1)
+  let atlas: THREE.CanvasTexture | null = null
+  let code: THREE.CanvasTexture | null = null
+  let narrow = stage.clientWidth < 768
+  let width = 1
+  let height = 1
+  let trackTop = 0
+  let trackHeight = 1
+  let progress = 0
+  let glide: Glide = { value: 0, velocity: 0 }
+  let visible = false
+  /** Set when the track leaves the viewport: the next draw runs once at the final progress even though the track is off screen. */
+  let flush = false
+  let lost = false
+  let disposed = false
+  let compiled = false
+  let ready = false
+  let raf = 0
+  let lastPaint = 0
+  let frameInterval = 1000 / 60
+  let lastAct = -1
+  let copyDirty = true
+  const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0, surge: 0 }
+  const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
+  let drag: { id: number; x: number; start: number } | null = null
+
+  stop = () => { cancelAnimationFrame(raf); raf = 0; lastPaint = 0 }
+  const start = () => { if (!raf && (visible || flush) && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
+
+  /** Loads an sRGB, mipmapped image texture and uploads it as soon as it arrives, so first use never stalls a frame. */
+  const load = (src: string): Loaded => {
+    const texture = loader.load(src, () => {
+      if (disposed || failed) return
+      entry.width = texture.image.naturalWidth
+      entry.height = texture.image.naturalHeight
+      entry.aspect = entry.width / Math.max(1, entry.height)
+      renderer.initTexture(texture)
+      entry.ready = true
+      start()
+    }, undefined, () => undefined)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.anisotropy = anisotropy
+    owned.push(texture)
+    const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
+    return entry
+  }
+  const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src)]))
+  const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
+  const requestRoom = (index: number | null) => {
+    if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
+    rooms[index] = load(story.backdrops[index].src)
+  }
+  const uploadCode = () => {
+    if (code || disposed || failed) return
+    const source = buildCodeTexture(story.code, story.codeSource)
+    if (!source) return
+    code = new THREE.CanvasTexture(source)
+    code.colorSpace = THREE.SRGBColorSpace
+    code.anisotropy = anisotropy
+    renderer.initTexture(code)
+    product.code.material.uniforms.uMap.value = code
+    start()
+  }
+
+  /** Eases each interaction toward its goal with its own time constant. Returns true while anything is still moving. */
+  const settle = (dt: number) => {
+    let moving = false
+    for (const key of ['dragYaw', 'tiltX', 'tiltY'] as const) {
+      const delta = goal[key] - interaction[key]
+      if (Math.abs(delta) > EASE_REST) {
+        interaction[key] += delta * (1 - Math.exp(-dt / EASE[key]))
+        moving = true
+      } else interaction[key] = goal[key]
+    }
+    return moving
+  }
+
+  /**
+   * The copy mask: the rail's right edge and top in device px, the narrow flag, and full strength. The rail's
+   * rect is independent of the active act, since the acts ride inside it on --copy-y. It is measured on resize
+   * and again on the frame after each act change, so a layout change that coincides with an act boundary is
+   * picked up without waiting for a resize.
+   */
+  const measureCopy = () => {
+    copyDirty = false
+    const rail = stage.querySelector<HTMLElement>('.teardown__rail')?.getBoundingClientRect()
+    if (!rail || !rail.width || !rail.height) { cu.uCopyMask.value.set(0, 0, 0, 0); return }
+    const rect = stage.getBoundingClientRect()
+    const px = renderer.getPixelRatio()
+    cu.uCopyMask.value.set((rail.right - rect.left) * px, (rail.top - rect.top) * px, narrow ? 1 : 0, 1)
+  }
+
+  /** Plane uniforms. A plane whose texture has not arrived stays hidden instead of drawing black. */
+  const applyPlane = (mesh: PlaneMesh, plane: PlanePose | undefined) => {
+    const u = mesh.material.uniforms
+    let opacity = plane?.opacity ?? 0
+    if (plane && plane.texture !== 'code') {
+      const screen = screens.get(plane.texture)
+      if (screen?.ready) {
+        u.uMap.value = screen.texture
+        u.uTexSize.value.set(screen.width, screen.height)
+        u.uDevelop.value = plane.develop
+      } else opacity = 0
+    } else if (!code) opacity = 0
+    u.uOpacity.value = opacity
+    mesh.visible = opacity > 0.001
+  }
+
+  const applyComposite = (pose: Pose, aspect: number) => {
+    const { a, b, mix, gain, glyphOnly, driftA, driftB } = pose.backdrop
+    const roomA = a >= 0 && rooms[a]?.ready ? a : -1
+    const roomB = b >= 0 && rooms[b]?.ready ? b : -1
+    // Until both rooms of a dissolve have loaded, the one that has stands in for both.
+    const first = rooms[roomA >= 0 ? roomA : roomB] ?? null
+    const second = rooms[roomB] ?? first
+    // Focus points count y from the top of the photo, and texture v counts from the bottom.
+    const focus = (index: number): [number, number] => {
+      const [x, y] = story.backdrops[index]?.focus ?? [0.5, 0.5]
+      return [x, 1 - y]
+    }
+    cu.uBackA.value = first?.texture ?? null
+    cu.uBackB.value = second?.texture ?? null
+    cu.uBackAspect.value.set(first?.aspect ?? 16 / 9, second?.aspect ?? 16 / 9)
+    cu.uFocus.value.set(...focus(roomA >= 0 ? roomA : roomB), ...focus(roomB >= 0 ? roomB : roomA))
+    cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
+    cu.uBackGain.value = first ? gain : 0
+    cu.uGlyphOnly.value = glyphOnly
+    // Each slot carries its own room's drift. While one room stands in for both, both slots get that room's drift.
+    cu.uDrift.value.set(roomA >= 0 ? driftA : driftB, roomB >= 0 ? driftB : driftA)
+    cu.uSurge.value = interaction.surge ?? 0
+    cu.uPointer.value.set(interaction.tiltX / TILT_REACH, -interaction.tiltY / TILT_REACH)
+    cu.uDecode.value = pose.decode
+    cu.uGather.value = pose.gather
+    cu.uCoach.value = pose.coach.amount
+    if (pose.coach.amount <= 0.01) return
+    // Skeleton in device px with the origin at the bottom left, as gl_FragCoord counts.
+    const toDevice = (point: Vec3): [number, number] => {
+      const at = projectPoint(pose, point, aspect)
+      return at ? [at.x * drawingBuffer.x, (1 - at.y) * drawingBuffer.y] : [-1e5, -1e5]
+    }
+    const joints = coachWorld(pose, jointsAt(story.pose, pose.coach.frame)).map(toDevice)
+    const bones = cu.uBones.value as Float32Array
+    COACH_BONES.forEach(([i, k], n) => bones.set([...joints[i], ...joints[k]], n * 4))
+    const centre = projectPoint(pose, pose.coach.pos, aspect)
+    const pixelsPerUnit = centre ? (drawingBuffer.y / 2) * FOCAL / centre.depth : 0
+    cu.uLimb.value = 0.024 * pose.coach.scale * pixelsPerUnit
+    cu.uHead.value.set(joints[0][0], joints[0][1], 0.07 * pose.coach.scale * pixelsPerUnit)
+  }
+
+  const draw = (now: number) => {
+    raf = 0
+    if (disposed || failed || lost || (!visible && !flush) || document.hidden || !compiled) return
+    if (lastPaint && now - lastPaint < frameInterval - FRAME_SLACK) { raf = requestAnimationFrame(draw); return }
+    const dt = lastPaint ? Math.min(0.1, (now - lastPaint) / 1000) : 0
+    lastPaint = now
+    if (copyDirty) measureCopy()
+    const easing = settle(dt)
+    const atEnd = progress > 1 - END_REACH || progress < END_REACH
+    glide = glideStep(glide, progress, dt, atEnd ? END_GLIDE_TIME : GLIDE_TIME)
+    // The follow decays toward the target without reaching it, so it lands on the target once it is within
+    // 1e-4 progress and moving slower than 1e-3 progress per second.
+    if (Math.abs(glide.value - progress) < 1e-4 && Math.abs(glide.velocity) < 1e-3) glide = { value: progress, velocity: 0 }
+    // The surge is the glide's own velocity, so it is as smooth as the glide, and the landing above zeroes it only
+    // once it is already under 1% of full.
+    interaction.surge = Math.max(-1, Math.min(1, glide.velocity / SURGE_FULL))
+    const aspect = width / height
+    const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames })
+    requestRoom(pose.backdrop.a)
+    requestRoom(pose.backdrop.b)
+    const nextAct = windows.findIndex((w) => glide.value < w.start)
+    if (nextAct >= 0) requestRoom(actBackdrops[nextAct])
+    const act = actAt(windows, glide.value).index
+    if (act !== lastAct) { lastAct = act; copyDirty = true }
+
+    product.update(pose)
+    applyPlane(product.screen, pose.screen)
+    applyPlane(product.code, pose.code)
+    product.cards.forEach((card, i) => applyPlane(card, pose.cards[i]))
+    camera.aspect = aspect
+    camera.position.fromArray(toThreePosition(pose.camera.pos))
+    camera.updateProjectionMatrix()
+    camera.projectionMatrix.fromArray(applyLensShift(camera.projectionMatrix.toArray(), pose.camera.shift, aspect))
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
+    applyComposite(pose, aspect)
+
+    renderer.setRenderTarget(target)
+    renderer.render(scene, camera)
+    renderer.setRenderTarget(null)
+    renderer.render(composite.scene, composite.camera)
+    if (failed) return
+
+    const anchors = new Map<string, { x: number; y: number } | null>()
+    const toPx = (point: Vec3) => {
+      const at = projectPoint(pose, point, aspect)
+      return at ? { x: at.x * width, y: at.y * height } : null
+    }
+    story.acts.forEach((act, a) => act.callouts.forEach((callout, c) => anchors.set(`c:${a}:${c}`, toPx(anchorWorld(pose, callout.anchor)))))
+    pose.cards.forEach((card, k) => anchors.set(`k:${k}`, toPx([card.center[0], card.center[1] - card.halfH * 1.08, card.center[2]])))
+    callbacks.current.onFrame({ progress: glide.value, anchors, cards: pose.cards.map((card) => card.develop) })
+
+    if (!ready && [...screens.values()].every((screen) => screen.ready)) {
+      ready = true
+      updateCovering()
+      callbacks.current.onReady()
+    }
+    // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the track is visible and
+    // the glide or an interaction is still moving, or an act change has left the copy mask to measure.
+    flush = false
+    if (visible && (easing || glide.value !== progress || copyDirty)) raf = requestAnimationFrame(draw)
+    else lastPaint = 0
+  }
+
+  // A collapsed phone toolbar makes the visible viewport taller than the 100svh stage. The strip
+  // below the stage then shows the page background, so the stage does not claim to cover.
+  const updateCovering = () => {
+    const y = window.scrollY
+    const visibleHeight = window.visualViewport?.height ?? window.innerHeight
+    const next = ready && !lost && !failed && y >= trackTop && y + height <= trackTop + trackHeight + 0.5 && height + 0.01 >= visibleHeight
+    if (next !== covering) { covering = next; setCovering('teardown', covering) }
+  }
+  const onScroll = () => {
+    const y = window.scrollY
+    progress = sceneProgress(y - trackTop, trackHeight, height)
+    const wasVisible = visible
+    visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
+    // Arriving from off screen starts at the scroll position instead of gliding through every act in between.
+    if (visible && !wasVisible) glide = { value: progress, velocity: 0 }
+    // Leaving lands the glide on the final progress and draws that frame once, so data-act and the copy settle on
+    // the end state instead of wherever the glide was when the track left the viewport.
+    if (wasVisible && !visible) { glide = { value: progress, velocity: 0 }; flush = true }
+    updateCovering()
+    if (visible || flush) start()
+    else stop()
+  }
+  const measure = () => {
+    if (disposed || lost || failed) return
+    const rect = stage.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    width = rect.width
+    height = rect.height
+    const nextNarrow = width < 768
+    if (nextNarrow !== narrow) product.setNarrow(nextNarrow)
+    narrow = nextNarrow
+    frameInterval = 1000 / (narrow ? 45 : 60)
+    const pixelRatio = Math.min(width > 1800 ? 1.75 : 2, window.devicePixelRatio || 1)
+    renderer.setPixelRatio(pixelRatio)
+    renderer.setSize(width, height, false)
+    renderer.getDrawingBufferSize(drawingBuffer)
+    target.setSize(drawingBuffer.x, drawingBuffer.y)
+    // three raises no error for an incomplete target (for example, multisampled RGBA16F unsupported at 4
+    // samples), and drawing into one leaves the phone invisible. setRenderTarget rebuilds the framebuffers
+    // after a resize and binds the multisampled one, so the check sees the attachments the frame draws into.
+    renderer.setRenderTarget(target)
+    const gl = renderer.getContext()
+    const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
+    renderer.setRenderTarget(null)
+    if (!complete) { fail('the product render target is incomplete'); return }
+    cu.uRes.value.copy(drawingBuffer)
+    measureCopy()
+
+    // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp.
+    const cell = narrow ? CELL.narrow : CELL.wide
+    const ctx = document.createElement('canvas').getContext('2d')
+    if (ctx) ctx.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
+    const advance = ctx?.measureText('M').width || cell.fontPx * 0.6
+    const cellW = Math.max(2, Math.round(advance * pixelRatio))
+    const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
+    cu.uCell.value.set(cellW, cellH)
+    planes.forEach((plane) => plane.material.uniforms.uCell.value.set(cellW, cellH))
+    const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
+    if (glyphs) {
+      atlas?.dispose()
+      atlas = new THREE.CanvasTexture(glyphs)
+      atlas.flipY = false
+      atlas.generateMipmaps = false
+      atlas.minFilter = THREE.LinearFilter
+      cu.uAtlas.value = atlas
+      planes.forEach((plane) => { plane.material.uniforms.uAtlas.value = atlas })
+    }
+
+    trackTop = track.getBoundingClientRect().top + window.scrollY
+    trackHeight = track.offsetHeight
+    lastPaint = 0
+    onScroll()
+  }
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 || event.clientX > window.innerWidth - RAIL_GUTTER) return
+    if ((event.target as Element | null)?.closest('a, button')) return
+    drag = { id: event.pointerId, x: event.clientX, start: goal.dragYaw }
+    stage.setPointerCapture?.(event.pointerId)
+  }
+  const onPointerMove = (event: PointerEvent) => {
+    if (drag && event.pointerId === drag.id) {
+      goal.dragYaw = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, drag.start + (event.clientX - drag.x) * 0.006))
+      start()
+    }
+    if (finePointer.matches) {
+      goal.tiltX = (event.clientX / window.innerWidth - 0.5) * 2 * TILT_REACH
+      goal.tiltY = (event.clientY / window.innerHeight - 0.5) * 2 * TILT_REACH
+      start()
+    }
+  }
+  const release = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.id) return
+    drag = null
+    goal.dragYaw = 0
+    start()
+  }
+  const onLeave = () => { goal.tiltX = 0; goal.tiltY = 0; start() }
+  const onLost = () => {
+    lost = true
+    fail('the WebGL context was lost')
+  }
+  const onVisibility = () => { lastPaint = 0; if (document.hidden) stop(); else start() }
+
+  // compile() prepares a program for every mesh in the scene whether or not it is visible, so the internals
+  // and glass programs exist before the glass act first shows them. It only submits the programs, and the
+  // driver builds them in the background where KHR_parallel_shader_compile exists. compileAsync is avoided
+  // because its polling cannot be cancelled and reads deleted programs after an unmount.
+  renderer.compile(scene, camera)
+  renderer.compile(composite.scene, composite.camera)
+  const firstFrame = requestAnimationFrame(() => {
+    compiled = true
+    start()
+  })
+
+  const resizeObserver = new ResizeObserver(measure)
+  resizeObserver.observe(stage)
+  resizeObserver.observe(track)
+  const fontsReady = document.fonts ? document.fonts.load('500 12px "JetBrains Mono"') : Promise.resolve([])
+  fontsReady.then(() => { uploadCode(); measure() }, uploadCode)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onScroll, { passive: true })
+  stage.addEventListener('pointerdown', onPointerDown)
+  stage.addEventListener('pointermove', onPointerMove, { passive: true })
+  stage.addEventListener('pointerup', release)
+  stage.addEventListener('pointercancel', release)
+  stage.addEventListener('pointerleave', onLeave)
+  document.addEventListener('visibilitychange', onVisibility)
+  canvas.addEventListener('webglcontextlost', onLost)
+  measure()
+
+  return () => {
+    disposed = true
+    stop()
+    cancelAnimationFrame(firstFrame)
+    resizeObserver.disconnect()
+    window.removeEventListener('scroll', onScroll)
+    window.removeEventListener('resize', onScroll)
+    stage.removeEventListener('pointerdown', onPointerDown)
+    stage.removeEventListener('pointermove', onPointerMove)
+    stage.removeEventListener('pointerup', release)
+    stage.removeEventListener('pointercancel', release)
+    stage.removeEventListener('pointerleave', onLeave)
+    document.removeEventListener('visibilitychange', onVisibility)
+    canvas.removeEventListener('webglcontextlost', onLost)
+    if (covering) setCovering('teardown', false)
+    owned.forEach((texture) => texture.dispose())
+    atlas?.dispose()
+    code?.dispose()
+    if (!lost) settleLinks(renderer)
+    disposeStage()
+    renderer.dispose()
+  }
 }

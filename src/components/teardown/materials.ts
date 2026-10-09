@@ -1,27 +1,39 @@
 /**
  * Shader materials for the teardown's unlit planes: the app screens, which
- * develop cell by cell from colored glyphs into the sharp capture, and the
- * code layer. Both write premultiplied colour into the linear product target
- * and are never lit or tone-mapped, so a developed screen keeps the capture's
- * exact colours. GLSL_COMMON is shared with the composite pass.
+ * develop from colored glyphs on the screen's dark base into the sharp
+ * capture in a diagonal scan, and the code layer. Both write premultiplied
+ * colour into the linear product target and are never lit or tone-mapped,
+ * so a developed screen keeps the capture's exact colours. GLSL_COMMON is
+ * shared with the composite pass.
  */
 import * as THREE from 'three'
 import { CODE } from './rig'
 
-/** The chapter's glyph ramp, dark to bright. Index 0 is the empty cell. */
-export const CHAPTER_RAMP = ' .·:;-=+*xoO#%@█'
+/**
+ * The chapter's glyph ramp, dark to bright. Index 0 is the empty cell. It
+ * has no horizontal strokes: a run of - or = across a photograph's mid-tones
+ * builds scanline rows instead of a picture.
+ */
+export const CHAPTER_RAMP = ' .·:;+*xoO#%@█'
 
 /** GLSL float literal, so integers never land in float arithmetic as ints. */
 export const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
+
+/** Densest glyph an undeveloped screen cell draws. The x is the densest glyph that stays open at a 6.5 px cell, so a white button or a thumbnail never packs into a solid bar. */
+const SCREEN_TOP = Array.from(CHAPTER_RAMP).indexOf('x')
 
 /**
  * Helpers shared by every chapter shader. `lightness` approximates the sRGB
  * curve on a linear colour, so ramp steps follow perceived brightness instead
  * of crowding every dark UI tone into the empty glyph. `glyphMask` reads an
  * atlas built by buildGlyphAtlas and uploaded without a vertical flip.
+ * `staggered` is one element's share of a transition at progress t: an
+ * element at order o (0 to 1) fades over the band w, every element is 0 at
+ * t = 0 and 1 at t = 1, and w must be above 0.
  */
 export const GLSL_COMMON = /* glsl */ `
 float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float staggered(float o, float w, float t) { float start = clamp(o, 0.0, 1.0) * (1.0 - w); return smoothstep(start, start + w, t); }
 vec2 hash22(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
 float roundRect(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
 float lightness(vec3 c) { return sqrt(max(dot(c, vec3(.2126, .7152, .0722)), 0.0)); }
@@ -54,6 +66,9 @@ uniform float uSeed;
 in vec2 vUv;
 out vec4 fragColor;
 ${GLSL_COMMON}
+// The app's screen background #05070c in linear light. An undeveloped cell paints it under its glyph, so the screen
+// stays opaque at every develop value and nothing behind it shows through.
+const vec3 SCREEN_BASE = vec3(.00152, .00212, .00368);
 void main() {
   // Every derivative is taken before the discard, while all four pixels of the quad are still running.
   float sd = roundRect((vUv * 2.0 - 1.0) * uHalf, uHalf, uRadius);
@@ -68,14 +83,24 @@ void main() {
   vec4 developed = texture(uMap, vUv);
   if (mask <= 0.0) discard;
 
-  vec3 cellColor = textureLod(uMap, centerUv, lodCell).rgb;
-  float glyphAlpha = glyphMask(uAtlas, uGlyphs, glyphIndex(pow(lightness(cellColor), .8), uGlyphs), local);
-  vec3 glyph = lifted(cellColor, .55) * 1.25;
-  float roll = hash12(cell + uSeed);
-  float resolved = smoothstep(roll - .04, roll + .04, uDevelop * 1.08 - .04);
-  vec3 color = mix(glyph * glyphAlpha, developed.rgb, resolved);
-  float alpha = mix(glyphAlpha, 1.0, resolved);
-  fragColor = vec4(color, alpha) * (mask * uOpacity);
+  // Cells develop in a scan from the screen's top left corner to its bottom right, with a little jitter, each over
+  // a quarter of the develop. The near-equal weights run the scan front along the screen's diagonal, so it never
+  // reads as a horizontal band.
+  float order = clamp(centerUv.x * .45 + (1.0 - centerUv.y) * .55, 0.0, 1.0) * .9 + hash12(cell + uSeed) * .1;
+  float resolved = staggered(order, .25, uDevelop);
+  vec3 color = developed.rgb;
+  if (resolved < 1.0) {
+    // Glyphs fade out over the dark UI, so its background stays a clean base, and brighten a little at the scan
+    // front. The lift and the boost stay low so the front never flares to white over the screen's colours. The cap
+    // at SCREEN_TOP, with cells above .6 lightness dimmed toward .55, keeps the UI's white buttons, white text, and
+    // bright thumbnails as mid-grey open characters, so only their edges stand out from the forming screen.
+    vec3 cellColor = textureLod(uMap, centerUv, lodCell).rgb;
+    float l = lightness(cellColor);
+    float glyphAlpha = glyphMask(uAtlas, uGlyphs, glyphIndex(min(pow(l, .8), ${glslFloat(SCREEN_TOP)} / (uGlyphs - 1.0)), uGlyphs), local) * smoothstep(.08, .35, l);
+    vec3 glyph = lifted(cellColor, .1) * mix(1.0, .55, smoothstep(.6, .95, l)) * (1.0 + 0.4 * resolved * (1.0 - resolved));
+    color = mix(mix(SCREEN_BASE, glyph, glyphAlpha), developed.rgb, resolved);
+  }
+  fragColor = vec4(color, 1.0) * (mask * uOpacity);
 }
 `
 

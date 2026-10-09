@@ -17,9 +17,9 @@ export type PlaneMesh = THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>
 
 export interface Product {
   group: THREE.Group
-  /** Frame, back plate, camera bump, and buttons. Carries the phone transform. */
+  /** Frame, back plate, bands, buttons, island, ports, and the camera module. Carries the phone transform. */
   body: THREE.Group
-  /** Board, chips, battery, and coil, a child of `body`. Hidden while the stack is assembled. */
+  /** Board, chips, cables, modules, battery, and coil, a child of `body`. Hidden while the stack is assembled. */
   internals: THREE.Group
   glass: THREE.Mesh<THREE.ExtrudeGeometry, THREE.MeshPhysicalMaterial>
   screen: PlaneMesh
@@ -27,7 +27,7 @@ export interface Product {
   cards: PlaneMesh[]
   /** Moves every part to the pose and sets the glass's light. Plane uniforms are left to the caller. */
   update(pose: Pose): void
-  /** Switches the glass between its wide and narrow tuning without a shader recompile. */
+  /** Switches the glass between its wide and narrow opacity without a shader recompile. */
   setNarrow(narrow: boolean): void
   dispose(): void
 }
@@ -38,22 +38,32 @@ export interface Product {
  * open tray (the back plate and the internals) reflect it as a flat grey wash
  * unless they reflect much less than the frame, which sees it only at grazing angles.
  */
-const ENV = { frame: 1, interior: 0.3, battery: 0.5, coil: 0.9 } as const
+const ENV = { frame: 1, interior: 0.3, battery: 0.5, coil: 0.9, steel: 0.7 } as const
 /** Frame and front lip bevel, world units. */
 const BEVEL = 0.012
 /** Inset of the frame's front and back lip from the outer silhouette. The lip edge sits between the screen and the glass edge. */
 const LIP = 0.022
 const GLASS_HALF = { x: PHONE.sx + 0.012, y: PHONE.sy + 0.012, radius: PHONE.sRadius + 0.01, depth: 0.006, bevel: 0.0015 }
 /**
- * Glass tuning. At `env` 1.2 a clear sheet reflects RoomEnvironment as a veil
- * that lifts the dark screens beneath it and turns the exploded glass milky,
- * so the glass reflects at `env * GLASS_ENV`. The rim and the sweeping band
- * carry the glass's outline instead. Opacity applies only as the stack comes apart.
+ * Glass tuning. The sheet is a clear physical material drawn with
+ * premultiplied alpha, so its reflection scales by `env` times `opacity`,
+ * and that product must stay near 0.035 wide and 0.05 narrow. RoomEnvironment's
+ * ceiling panel reflects across the tilted sheet's upper half, and a larger
+ * product fills the exploded sheet with a flat grey that reads as frost
+ * instead of a sheen. The rim ring and the sweeping band in the shader carry
+ * the sheet's outline, so the body itself stays nearly clear. While the stack
+ * is assembled the sheet runs at `assembled` of its opacity, so the screen
+ * beneath keeps its colours.
  */
-const GLASS = { wide: { env: 1.2, roughness: 0.04, opacity: 0.1 }, narrow: { env: 1.6, roughness: 0.05, opacity: 0.16 } } as const
-const GLASS_ENV = 0.05
+const GLASS = { opacity: { wide: 0.1, narrow: 0.14 }, env: 0.35, roughness: 0.02, assembled: 0.4 } as const
 /** Glass light while assembled, from rig.ts. Below it the glass fades out with the arrival. */
 const ASSEMBLED_LIGHT = 0.35
+/** Lens centres on the camera bump, bump-local. The camera barrels inside the tray sit behind them. */
+const LENSES: readonly [number, number][] = [[-0.05, 0.05], [-0.05, -0.05], [0.05, 0]]
+/** Camera bump centre, 0.03 proud of the back plate and sunk 0.01 into it. */
+const BUMP: Vec3 = [-0.17, 0.53, -PHONE.hz - 0.01]
+/** Wireless charging coil centre on the battery's screen-side face. */
+const COIL: [number, number] = [0, -0.28]
 
 /** Rounded rectangle centred on the origin. Both shapes and holes use this counter-clockwise path, which ExtrudeGeometry expects. */
 function roundedRect<T extends THREE.Path>(path: T, hx: number, hy: number, r: number): T {
@@ -73,7 +83,8 @@ function roundedRect<T extends THREE.Path>(path: T, hx: number, hy: number, r: n
  * Extruded rounded slab centred on z = 0 whose outer silhouette, bevel
  * included, has exactly the given half-extents and total depth. A hole has
  * its given half-extents only at the two cap faces. ExtrudeGeometry bevels a
- * hole inward, so its walls stand `bevel` inside those extents.
+ * hole inward, so its walls stand `bevel` inside those extents. A radius equal
+ * to the half-height gives a pill.
  */
 function slab(hx: number, hy: number, r: number, depth: number, bevel: number, segments = 32, hole?: { hx: number; hy: number; r: number }): THREE.ExtrudeGeometry {
   const shape = roundedRect(new THREE.Shape(), hx - bevel, hy - bevel, Math.max(0.001, r - bevel))
@@ -91,10 +102,16 @@ function slab(hx: number, hy: number, r: number, depth: number, bevel: number, s
   return geometry
 }
 
+/** Cylinder with its axis along z, centred on the origin. */
+function cylinderZ(radius: number, height: number, segments = 32): THREE.CylinderGeometry {
+  return new THREE.CylinderGeometry(radius, radius, height, segments).rotateX(Math.PI / 2)
+}
+
 export function createProduct(story: TeardownStory, opts: { narrow: boolean; environment: THREE.Texture | null }): Product {
-  const geometries: THREE.BufferGeometry[] = []
+  const geometries = new Set<THREE.BufferGeometry>()
   const materials: THREE.Material[] = []
-  const keep = <G extends THREE.BufferGeometry>(g: G) => { geometries.push(g); return g }
+  const instanced: THREE.InstancedMesh[] = []
+  const keep = <G extends THREE.BufferGeometry>(g: G) => { geometries.add(g); return g }
   const own = <M extends THREE.Material>(m: M) => { materials.push(m); return m }
   const envMap = opts.environment
   // A blank texture keeps the plane samplers complete until TeardownCanvas assigns the real maps.
@@ -104,12 +121,20 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   // Materials set envMap themselves: with only scene.environment, three replaces every envMapIntensity with the scene's.
   const lit = (envMapIntensity: number) => ({ envMap, envMapIntensity })
   const frameMat = own(new THREE.MeshPhysicalMaterial({ color: '#2b2d31', metalness: 0.9, roughness: 0.3, clearcoat: 0.5, clearcoatRoughness: 0.25, ...lit(ENV.frame) }))
+  const bandMat = own(new THREE.MeshStandardMaterial({ color: '#43454a', metalness: 0.1, roughness: 0.7, ...lit(ENV.interior) }))
   const backMat = own(new THREE.MeshStandardMaterial({ color: '#1c1d20', metalness: 0.6, roughness: 0.45, ...lit(ENV.interior) }))
   const lensMat = own(new THREE.MeshPhysicalMaterial({ color: '#06070a', roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.03, ...lit(ENV.frame) }))
-  const boardMat = own(new THREE.MeshStandardMaterial({ color: '#0f1513', roughness: 0.65, ...lit(ENV.interior) }))
-  const chipMat = own(new THREE.MeshStandardMaterial({ color: '#0b0b0d', roughness: 0.35, ...lit(ENV.interior) }))
+  const elementMat = own(new THREE.MeshPhysicalMaterial({ color: '#0c1a30', roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.02, ...lit(ENV.frame) }))
+  const flashMat = own(new THREE.MeshStandardMaterial({ color: '#f1e3c4', emissive: '#6b5230', emissiveIntensity: 0.4, roughness: 0.35, ...lit(ENV.interior) }))
+  const darkMat = own(new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.55, ...lit(ENV.interior) }))
+  const boardMat = own(new THREE.MeshStandardMaterial({ color: '#12221c', roughness: 0.6, ...lit(ENV.interior) }))
+  const chipMat = own(new THREE.MeshStandardMaterial({ color: '#16161a', roughness: 0.3, ...lit(ENV.battery) }))
+  const steelMat = own(new THREE.MeshStandardMaterial({ color: '#7d8187', metalness: 0.92, roughness: 0.32, ...lit(ENV.steel) }))
+  const flexMat = own(new THREE.MeshStandardMaterial({ color: '#5a3a18', metalness: 0.35, roughness: 0.4, ...lit(ENV.battery) }))
   const batteryMat = own(new THREE.MeshStandardMaterial({ color: '#3a3d42', metalness: 0.75, roughness: 0.42, ...lit(ENV.battery) }))
+  const labelMat = own(new THREE.MeshStandardMaterial({ color: '#4d5057', metalness: 0.2, roughness: 0.72, ...lit(ENV.interior) }))
   const coilMat = own(new THREE.MeshStandardMaterial({ color: '#b87333', metalness: 1, roughness: 0.28, ...lit(ENV.coil) }))
+  const magnetMat = own(new THREE.MeshStandardMaterial({ color: '#2d2f34', metalness: 0.9, roughness: 0.3, ...lit(ENV.battery) }))
 
   const group = new THREE.Group()
   const body = new THREE.Group()
@@ -123,6 +148,20 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
     parent.add(m)
     return m
   }
+  const instances = (geometry: THREE.BufferGeometry, material: THREE.Material, parent: THREE.Object3D, count: number, place: (i: number, matrix: THREE.Matrix4) => void) => {
+    const m = new THREE.InstancedMesh(keep(geometry), material, count)
+    const matrix = new THREE.Matrix4()
+    for (let i = 0; i < count; i++) {
+      matrix.identity()
+      place(i, matrix)
+      m.setMatrixAt(i, matrix)
+    }
+    m.instanceMatrix.needsUpdate = true
+    parent.add(m)
+    instanced.push(m)
+    return m
+  }
+  const box = (w: number, h: number, d: number, radius: number) => new RoundedBoxGeometry(w, h, d, 2, radius)
 
   // Side frame: an open ring whose lips stop LIP inside the silhouette, and the glass rests on the front lip.
   // The hole's bevel narrows the opening to 0.327 by 0.722 half-extents at the screen's depth (local z 0.038),
@@ -132,75 +171,128 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   // The back plate's outer face stops 0.0015 short of the frame's back lip, so the two never share a depth.
   mesh(slab(PHONE.hx - 0.004, PHONE.hy - 0.004, PHONE.radius - 0.004, 0.008, 0), backMat, body, 0, 0, -PHONE.hz + 0.0055)
 
-  // Camera bump on the back (local -z), 0.03 proud of the back plate and sunk 0.01 into it.
+  // Antenna bands: matte inserts 0.0015 proud of the frame's walls, across the frame's flat core depth.
+  const bandDepth = 2 * PHONE.hz - 2 * BEVEL + 0.004
+  const sideBand = keep(new THREE.BoxGeometry(0.003, 0.007, bandDepth))
+  const endBand = keep(new THREE.BoxGeometry(0.007, 0.003, bandDepth))
+  for (const y of [0.56, -0.56]) for (const x of [PHONE.hx, -PHONE.hx]) mesh(sideBand, bandMat, body, x, y, 0)
+  for (const x of [0.19, -0.19]) for (const y of [PHONE.hy, -PHONE.hy]) mesh(endBand, bandMat, body, x, y, 0)
+
+  // Chamfered buttons: the action and volume buttons on the left, the side button on the right. Each is a slab
+  // turned so its bevelled cap faces outward, sunk 0.008 into the frame and standing 0.012 proud of it.
+  const button = (halfLength: number) => slab(0.016, halfLength, 0.006, 0.02, 0.003, 8).rotateY(Math.PI / 2)
+  for (const [x, y, half] of [[PHONE.hx + 0.002, 0.32, 0.07], [-PHONE.hx - 0.002, 0.5, 0.022], [-PHONE.hx - 0.002, 0.38, 0.045], [-PHONE.hx - 0.002, 0.24, 0.045]]) {
+    mesh(button(half), frameMat, body, x, y, 0)
+  }
+
+  // Dynamic Island: a pill just in front of the screen plane (local z 0.038), with its camera dot, over the
+  // captures' empty top strip. Top speaker slot on the front lip above it, between the screen and the glass.
+  mesh(slab(0.105, 0.0315, 0.0315, 0.004, 0.0005, 16), darkMat, body, 0, PHONE.sy - 0.0505, 0.0405)
+  mesh(cylinderZ(0.009, 0.002, 20), lensMat, body, 0.068, PHONE.sy - 0.0505, 0.0431)
+  mesh(slab(0.05, 0.002, 0.002, 0.002, 0, 6), darkMat, body, 0, PHONE.hy - LIP + 0.005, 0.0455)
+
+  // Bottom edge: the charging port and six speaker holes each side, all sunk into the frame and 0.0015 proud of it.
+  mesh(box(0.075, 0.012, 0.024, 0.005), darkMat, body, 0, -PHONE.hy + 0.0045, 0)
+  instances(new THREE.CylinderGeometry(0.0035, 0.0035, 0.012, 12), darkMat, body, 12, (i, matrix) => {
+    const side = i < 6 ? 1 : -1
+    matrix.setPosition(side * (0.085 + (i % 6) * 0.017), -PHONE.hy + 0.0045, 0)
+  })
+
+  // Camera module on the back (local -z): three lenses with their inner elements, the flash, and a depth sensor.
   const bump = new THREE.Group()
-  bump.position.set(-0.17, 0.53, -PHONE.hz - 0.01)
+  bump.position.set(...BUMP)
   body.add(bump)
   mesh(slab(0.13, 0.13, 0.05, 0.04, 0.005, 16), frameMat, bump)
   const ringGeometry = keep(new THREE.TorusGeometry(0.042, 0.007, 12, 48))
-  const lensGeometry = keep(new THREE.CylinderGeometry(0.036, 0.036, 0.006, 40).rotateX(Math.PI / 2))
-  for (const [x, y] of [[-0.05, 0.05], [-0.05, -0.05], [0.05, 0]]) {
-    const ring = new THREE.Mesh(ringGeometry, frameMat)
-    ring.position.set(x, y, -0.021)
-    const lens = new THREE.Mesh(lensGeometry, lensMat)
-    lens.position.set(x, y, -0.022)
-    bump.add(ring, lens)
+  const lensGeometry = keep(cylinderZ(0.036, 0.006, 40))
+  const elementGeometry = keep(cylinderZ(0.022, 0.004, 32))
+  for (const [x, y] of LENSES) {
+    mesh(ringGeometry, frameMat, bump, x, y, -0.021)
+    mesh(lensGeometry, lensMat, bump, x, y, -0.022)
+    mesh(elementGeometry, elementMat, bump, x, y, -0.0235)
   }
-
-  // Buttons, placed as in the first renderer: one on the right edge, two on the left.
-  for (const [x, y, h] of [[PHONE.hx + 0.006, 0.32, 0.14], [-PHONE.hx - 0.006, 0.38, 0.09], [-PHONE.hx - 0.006, 0.24, 0.09]]) {
-    mesh(new RoundedBoxGeometry(0.016, h, 0.032, 2, 0.006), frameMat, body, x, y, 0)
-  }
+  mesh(cylinderZ(0.016, 0.004, 24), flashMat, bump, 0.055, 0.075, -0.021)
+  mesh(cylinderZ(0.011, 0.004, 24), lensMat, bump, 0.055, -0.075, -0.021)
 
   // Internals stay behind LAYER_Z.code (local z 0.012), so the assembled code layer covers them. The highest
-  // point is the coil's top at local z 0.011.
-  mesh(new RoundedBoxGeometry(0.56, 0.48, 0.012, 2, 0.004), boardMat, internals, 0, 0.42, -0.02)
-  mesh(new RoundedBoxGeometry(0.14, 0.12, 0.024, 2, 0.004), chipMat, internals, -0.08, 0.46, -0.008)
-  mesh(new RoundedBoxGeometry(0.1, 0.07, 0.02, 2, 0.004), chipMat, internals, 0.12, 0.36, -0.01)
-  mesh(new RoundedBoxGeometry(0.08, 0.08, 0.02, 2, 0.004), chipMat, internals, 0.13, 0.53, -0.01)
+  // points are the coil's top and the camera barrels at local z 0.011 and 0.010. The board's top face is at
+  // -0.014, the battery's at 0.002, and the back plate's inner face at -0.0355.
+  mesh(box(0.58, 0.5, 0.012, 0.004), boardMat, internals, 0, 0.41, -0.02)
+  // Camera barrels in the top left corner, behind the bump.
+  mesh(box(0.2, 0.2, 0.016, 0.006), chipMat, internals, BUMP[0], BUMP[1], -0.006)
+  const barrelGeometry = keep(cylinderZ(0.036, 0.008, 32))
+  for (const [x, y] of LENSES) mesh(barrelGeometry, steelMat, internals, BUMP[0] + x, BUMP[1] + y, 0.006)
+  // Eight chips on the board: shielded packages in steel, bare packages in black epoxy.
+  const chips: [number, number, number, number, number, THREE.Material][] = [
+    [0.15, 0.15, 0.018, 0.08, 0.5, steelMat],
+    [0.09, 0.07, 0.014, 0.22, 0.54, chipMat],
+    [0.09, 0.1, 0.016, 0.22, 0.4, steelMat],
+    [0.07, 0.07, 0.012, 0.07, 0.34, chipMat],
+    [0.12, 0.06, 0.012, -0.15, 0.33, chipMat],
+    [0.05, 0.04, 0.01, -0.04, 0.26, chipMat],
+    [0.06, 0.035, 0.01, 0.15, 0.25, chipMat],
+    [0.045, 0.045, 0.012, 0.25, 0.25, steelMat],
+  ]
+  for (const [w, h, d, x, y, material] of chips) mesh(box(w, h, d, 0.003), material, internals, x, y, -0.014 + d / 2)
+  // Two flex cables lying on the board's face: one down the right edge beside the battery, one bridging the gap
+  // from the board to the battery and slipping under its top edge.
+  mesh(box(0.035, 0.86, 0.002, 0.001), flexMat, internals, 0.3, -0.19, -0.013)
+  mesh(box(0.12, 0.16, 0.002, 0.001), flexMat, internals, -0.1, 0.16, -0.013)
+  // Haptic motor and speaker module below the battery.
+  mesh(box(0.15, 0.06, 0.02, 0.004), steelMat, internals, -0.17, -0.68, -0.016)
+  mesh(box(0.2, 0.06, 0.02, 0.004), darkMat, internals, 0.1, -0.68, -0.016)
+  // Battery with a matte label panel on its screen-side face.
   mesh(new RoundedBoxGeometry(0.54, 0.72, 0.028, 3, 0.03), batteryMat, internals, 0, -0.28, -0.012)
-  // The coil lies on the battery's screen-side face (local z 0.002), the side the camera sees when the stack
-  // is apart. It sinks 0.003 into the battery so its top stays below the code layer.
-  mesh(new THREE.TorusGeometry(0.13, 0.012, 16, 96), coilMat, internals, 0, -0.28, -0.001)
+  mesh(box(0.4, 0.46, 0.0016, 0.004), labelMat, internals, 0, -0.33, 0.0028)
+  mesh(box(0.3, 0.05, 0.001, 0.002), darkMat, internals, 0, -0.12, 0.0038)
+  // The coil sinks 0.003 into the battery so its top stays below the code layer, ringed by sixteen magnets
+  // standing on the battery's face with their long sides tangential.
+  mesh(new THREE.TorusGeometry(0.13, 0.012, 16, 96), coilMat, internals, COIL[0], COIL[1], -0.001)
+  const magnetUp = new THREE.Vector3(0, 0, 1)
+  const magnetTurn = new THREE.Quaternion()
+  const magnetAt = new THREE.Vector3()
+  const unit = new THREE.Vector3(1, 1, 1)
+  instances(new THREE.BoxGeometry(0.028, 0.012, 0.005), magnetMat, internals, 16, (i, matrix) => {
+    const angle = (i / 16) * Math.PI * 2
+    magnetAt.set(COIL[0] + Math.cos(angle) * 0.165, COIL[1] + Math.sin(angle) * 0.165, 0.0045)
+    magnetTurn.setFromAxisAngle(magnetUp, angle + Math.PI / 2)
+    matrix.compose(magnetAt, magnetTurn, unit)
+  })
 
-  // Glass: a clear sheet whose rim and a sweeping band are added on top of the physical reflection.
+  // Glass: a clear sheet whose rim ring and sweeping band are added as light over its premultiplied colour.
   const glassUniforms = { uGlassLight: { value: 0 }, uSweep: { value: 0 }, uBand: { value: 0 } }
   const glassMat = own(new THREE.MeshPhysicalMaterial({
     color: '#000000',
     metalness: 0,
-    roughness: (opts.narrow ? GLASS.narrow : GLASS.wide).roughness,
+    roughness: GLASS.roughness,
     ior: 1.5,
     clearcoat: 1,
     clearcoatRoughness: 0.03,
     envMap,
-    envMapIntensity: 0,
+    envMapIntensity: GLASS.env,
     transparent: true,
     opacity: 0,
     depthWrite: false,
-    // The shader's colour is reflected light, so it is added as written while alpha darkens what lies behind.
-    blending: THREE.CustomBlending,
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-    blendSrcAlpha: THREE.OneFactor,
-    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    premultipliedAlpha: true,
   }))
   glassMat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, glassUniforms)
     shader.vertexShader = `varying vec2 vGlassLocal;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlassLocal = position.xy;')}`
+    // Injected after the premultiply, so the ring and the band add light whatever the sheet's opacity.
     shader.fragmentShader = `varying vec2 vGlassLocal;
 uniform float uGlassLight;
 uniform float uSweep;
 uniform float uBand;
-${shader.fragmentShader.replace('#include <opaque_fragment>', `#include <opaque_fragment>
+${shader.fragmentShader.replace('#include <premultiplied_alpha_fragment>', `#include <premultiplied_alpha_fragment>
 {
   vec2 q = abs(vGlassLocal) - vec2(${glslFloat(GLASS_HALF.x)}, ${glslFloat(GLASS_HALF.y)}) + ${glslFloat(GLASS_HALF.radius)};
   float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - ${glslFloat(GLASS_HALF.radius)};
-  float rim = 1.0 - smoothstep(0.0, .012, -sd);
+  float rim = 1.0 - smoothstep(0.0, .005, -sd);
   // GLSL ES gives pow() no defined result for a negative base, so the Gaussian squares by multiplication.
   float across = (vGlassLocal.x + vGlassLocal.y * .6 - uSweep) * 7.0;
-  float glint = (rim * .35 + exp(-across * across) * .35 * uBand) * uGlassLight;
-  gl_FragColor.rgb += vec3(1.0, .94, .84) * glint;
-  gl_FragColor.a = min(1.0, gl_FragColor.a + glint * .4);
+  float glint = (rim * 1.1 + exp(-across * across) * .22 * uBand) * uGlassLight;
+  gl_FragColor.rgb += vec3(1.0, .95, .86) * glint;
+  gl_FragColor.a = min(1.0, gl_FragColor.a + glint * .6);
 }`)}`
   }
   const glass = new THREE.Mesh(keep(slab(GLASS_HALF.x, GLASS_HALF.y, GLASS_HALF.radius, GLASS_HALF.depth, GLASS_HALF.bevel, 24)), glassMat)
@@ -224,7 +316,7 @@ ${shader.fragmentShader.replace('#include <opaque_fragment>', `#include <opaque_
   const code = plane(CODE.hx, CODE.hy, createCodeMaterial(blank))
   const cards = story.cards.map((_, i) => screenPlane(17 * (i + 1)))
 
-  let narrow = opts.narrow
+  let opacity = opts.narrow ? GLASS.opacity.narrow : GLASS.opacity.wide
   const setMatrix = (object: THREE.Object3D, position: Vec3, right: Vec3, up: Vec3, normal: Vec3) => {
     object.matrix.fromArray(toThreeMatrix(position, right, up, normal))
     object.matrixWorldNeedsUpdate = true
@@ -244,22 +336,20 @@ ${shader.fragmentShader.replace('#include <opaque_fragment>', `#include <opaque_
       setMatrix(body, phone.pos, phone.right, phone.up, phone.normal)
       internals.visible = pose.internals >= 0.01
       setMatrix(glass, pose.glass.center, phone.right, phone.up, phone.normal)
-      const tune = narrow ? GLASS.narrow : GLASS.wide
       const shown = Math.min(1, pose.glass.light / ASSEMBLED_LIGHT)
       glass.visible = shown > 0.005
-      glassMat.opacity = tune.opacity * pose.explode * shown
-      glassMat.envMapIntensity = tune.env * GLASS_ENV * shown
+      glassMat.opacity = opacity * shown * (GLASS.assembled + (1 - GLASS.assembled) * pose.explode)
       glassUniforms.uGlassLight.value = pose.glass.light
       glassUniforms.uSweep.value = pose.glass.sweep
       glassUniforms.uBand.value = pose.glass.band
       const planes: [PlaneMesh, PlanePose | undefined][] = [[screen, pose.screen], [code, pose.code], ...cards.map((c, i): [PlaneMesh, PlanePose | undefined] => [c, pose.cards[i]])]
       for (const [m, p] of planes) if (p) setMatrix(m, p.center, p.right, p.up, cross(p.right, p.up))
     },
-    setNarrow(next) {
-      narrow = next
-      glassMat.roughness = (narrow ? GLASS.narrow : GLASS.wide).roughness
+    setNarrow(narrow) {
+      opacity = narrow ? GLASS.opacity.narrow : GLASS.opacity.wide
     },
     dispose() {
+      instanced.forEach((m) => m.dispose())
       geometries.forEach((g) => g.dispose())
       materials.forEach((m) => m.dispose())
       blank.dispose()

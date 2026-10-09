@@ -28,10 +28,10 @@ export const PARKIWELL: TeardownStory = {
       backdrop: 1,
       lines: ['Designed for hands with a tremor.'],
       callouts: [
-        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.6, v: 0.64 } },
-        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.66, v: 0.18 } },
-        { text: 'Sign-in waits three minutes', anchor: { plane: 'screen', u: -0.7, v: -0.3 } },
-        { text: 'Reps counted at up to 8x slower', anchor: { plane: 'screen', u: -0.62, v: -0.78 } },
+        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.9, v: 0.64 } },
+        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.9, v: 0.18 } },
+        { text: 'Sign-in waits three minutes', anchor: { plane: 'screen', u: -0.9, v: -0.3 } },
+        { text: 'Reps counted at up to 8x slower', anchor: { plane: 'screen', u: -0.9, v: -0.78 } },
       ],
     },
     { key: 'day', span: 1.8, backdrop: 0, lines: [], callouts: [] },
@@ -82,11 +82,16 @@ export const PARKIWELL: TeardownStory = {
     { screen: 'recovery', label: 'Plan your practice' },
     { screen: 'community', label: 'Access support resources' },
   ],
+  // The composite centres its window on the focus point, so a larger x moves the photograph's content left on
+  // the screen. The window's overscan pins the y centre at every aspect up to 16:9, so only x places the subject.
+  // Each x puts the subject beside the phone on a 1440 px screen rather than behind it: the morning mug in the gap
+  // left of the phone with the notebook's end and the right lens to its right, both hands and their mug left of
+  // the phone, and the evening lamp right of the phone with the notebook and glasses to its left.
   backdrops: [
-    { src: '/ParkiWell/rooms/morning.webp', focus: [0.51, 0.64] },
-    { src: '/ParkiWell/rooms/hands.webp', focus: [0.48, 0.58] },
+    { src: '/ParkiWell/rooms/morning.webp', focus: [0.52, 0.64] },
+    { src: '/ParkiWell/rooms/hands.webp', focus: [0.57, 0.58] },
     { src: '/ParkiWell/rooms/chair.webp', focus: [0.63, 0.6] },
-    { src: '/ParkiWell/rooms/evening.webp', focus: [0.4, 0.5] },
+    { src: '/ParkiWell/rooms/evening.webp', focus: [0.57, 0.5] },
   ],
   codeSource: 'test/offline_sync_engine_test.dart',
   code: `test(

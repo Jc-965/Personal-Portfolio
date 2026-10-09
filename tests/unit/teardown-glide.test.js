@@ -2,10 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { GLIDE_TIME, glideStep } from '../../src/components/teardown/glide.ts'
 
+test('the glide time constant is about a third of a second', () => {
+  assert.equal(GLIDE_TIME, 0.32)
+})
+
 test('glide approaches the target without overshoot', () => {
   let s = { value: 0, velocity: 0 }
   let max = 0
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 300; i++) {
     s = glideStep(s, 1, 1 / 60)
     max = Math.max(max, s.value)
   }
