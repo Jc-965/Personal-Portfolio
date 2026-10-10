@@ -96,6 +96,13 @@ const EDGE_HOLD = 0.4
  * the room starts to dissolve at 0.74 (ROOM_REVEAL in rig.ts).
  */
 const CLOSE_SETTLE = 0.4
+/**
+ * Share of the glass act its copy waits before it starts to ride in. The glass callouts are then fully opaque from
+ * about 0.195 of the act, as the first leader draws (the stack's explode passes 0.5 at 0.2, GLASS_APART in
+ * Teardown.tsx), and still leave by the act's end. Riding from 0, they stood fully opaque beside an unparted,
+ * edge-on phone with no leader attached for about 0.5 viewport-heights.
+ */
+const GLASS_LATE = 0.12
 
 /**
  * The copy ride of act `index` at chapter `progress`. Teardown.tsx moves the copy with it and the composite's
@@ -106,5 +113,6 @@ export function actCopyRide(windows: readonly ActWindow[], index: number, progre
   const local = localOf(windows, windows[index].key, progress)
   if (index === 0) return copyRide(0.5 + 0.5 * clamp01((local - EDGE_HOLD) / (1 - EDGE_HOLD)))
   if (index === windows.length - 1) return copyRide(0.5 * clamp01(local / CLOSE_SETTLE))
+  if (windows[index].key === 'glass') return copyRide(clamp01((local - GLASS_LATE) / (1 - GLASS_LATE)))
   return copyRide(local)
 }

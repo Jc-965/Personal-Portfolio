@@ -246,8 +246,9 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   let frameInterval = 1000 / 60
   let lastAct = -1
   let copyDirty = true
-  let copyRail: { right: number; top: number } | null = null
+  let copyRail: { left: number; right: number; top: number } | null = null
   let copyBlocks: HTMLElement[] = []
+  const inkRange = document.createRange()
   const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0, surge: 0 }
   const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
   let drag: { id: number; x: number; start: number } | null = null
@@ -304,7 +305,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   }
 
   /**
-   * The rail's right edge and top in stage CSS px, and its act blocks in act order. The rail's rect is
+   * The rail's left and right edges and its top in stage CSS px, and its act blocks in act order. The rail's rect is
    * independent of the active act, since the acts ride inside it on --copy-y. It is measured on resize and again
    * on the frame after each act change, so a layout change that coincides with an act boundary is picked up
    * without waiting for a resize.
@@ -316,15 +317,33 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     copyBlocks = railEl ? (Array.from(railEl.children) as HTMLElement[]) : []
     if (!rail || !rail.width || !rail.height) { copyRail = null; return }
     const rect = stage.getBoundingClientRect()
-    copyRail = { right: rail.right - rect.left, top: rail.top - rect.top }
+    copyRail = { left: rail.left - rect.left, right: rail.right - rect.left, top: rail.top - rect.top }
+  }
+
+  /**
+   * Right edge of a copy block's ink, CSS px from the block's left edge. A line is a block box as wide as the rail,
+   * so a child counts its contents (a line's text runs, a list's item boxes) and, when it is narrower than the
+   * block, its own border box, which takes in the readout panel's padding. The ride moves a block only vertically,
+   * so differences of client x are exact.
+   */
+  const inkRight = (block: HTMLElement) => {
+    const left = block.getBoundingClientRect().left
+    let right = 0
+    for (const child of Array.from(block.children) as HTMLElement[]) {
+      if (child.offsetWidth < block.clientWidth) right = Math.max(right, child.getBoundingClientRect().right - left)
+      inkRange.selectNodeContents(child)
+      right = Math.max(right, inkRange.getBoundingClientRect().right - left)
+    }
+    return right
   }
 
   /**
    * The copy mask for one frame, in device px. Phones shade from the rail's top down. Wide stages shade the
-   * active act's block where Teardown rides it this frame (actCopyRide) and fade the shade with the block's
-   * opacity, so an act with no copy shades nothing. The block's offsetTop and offsetHeight exclude the ride's
-   * transform, and the proof readout grows as it types, so both are read every frame. The draw runs before
-   * Teardown's writes for the frame, so the reads find layout clean.
+   * active act's block where Teardown rides it this frame (actCopyRide), out to the block's own ink (inkRight)
+   * and not the rail's right edge, so the room right of a short act's copy keeps its glyphs, and fade the
+   * shade with the block's opacity, so an act with no copy shades nothing. The block's offsetTop and offsetHeight
+   * exclude the ride's transform, and the proof readout grows as it types, so the block is read every frame. The
+   * draw runs before Teardown's writes for the frame, so the reads find layout clean.
    */
   const applyCopyMask = (progress: number) => {
     const px = renderer.getPixelRatio()
@@ -336,7 +355,8 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     const ride = actCopyRide(windows, act, progress)
     const blockH = block?.offsetHeight ?? 0
     const top = copyRail.top + (block?.offsetTop ?? 0) + ride.y * height
-    cu.uCopyMask.value.set(copyRail.right * px, top * px, (top + blockH) * px, blockH > 0 ? ride.opacity : 0)
+    const right = block && blockH > 0 && ride.opacity > 0 ? copyRail.left + inkRight(block) : copyRail.right
+    cu.uCopyMask.value.set(right * px, top * px, (top + blockH) * px, blockH > 0 ? ride.opacity : 0)
   }
 
   /** Plane uniforms. A plane whose texture has not arrived stays hidden instead of drawing black. */

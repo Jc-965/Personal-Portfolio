@@ -6,6 +6,7 @@ import { lenisRef } from '../../scroll/lenisRef'
 import type { ActKey, ScreenKey, TeardownStory } from '../../content/teardown/types'
 import type { TeardownFrame } from './TeardownCanvas'
 import { layoutCardLabels } from './labels'
+import { routeLeaders, type Box, type Point } from './leaders'
 import { ACT_SCREEN, PHONE, poseAt, projectPoint, projectRect, type Interaction, type Pose, type WorldRect } from './rig'
 import { RIDE_FADE, actAt, actCopyRide, actWindows, ramp, totalSpan } from './timeline'
 import '../../styles/teardown.css'
@@ -32,7 +33,7 @@ const RIDE_OPAQUE = RIDE_FADE[0]
 const RIDE_FLOOR = 0.08
 /** Teardown has no pointer state, so the floor is taken from the still pose. A drag lowers the product by up to a tenth of the stage until it is released. */
 const STILL: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
-/** A leader line draws in as its callout's ride y falls from LINE_START to LINE_END, each callout LINE_STEP after the one above. */
+/** A leader line draws in as its callout's ride y falls from LINE_START to LINE_END, each callout LINE_STEP after the one before it in callout order. */
 const LINE_START = 0.4
 const LINE_END = 0.24
 const LINE_STEP = 0.025
@@ -45,8 +46,6 @@ const GLASS_APART: readonly [number, number] = [0.5, 0.8]
 const READOUT_CLEAR = 20
 
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value))
-/** A leader starts this many CSS px right of the widest callout of its act. */
-const LEADER_GAP = 8
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -299,36 +298,44 @@ function Teardown({ story }: { story: TeardownStory }) {
 
     // A leader line draws from its callout toward the anchor as the callout rides in (positive ride.y), holds
     // its full length on the way out, and fades with its callout through the opacity, so it never retracts
-    // from the anchor while the callout is still readable. Every leader of an act leaves its callout on a
-    // horizontal stub to one shared x, LEADER_GAP right of the act's widest callout, and turns toward its
-    // anchor there, so a narrow callout's leader never runs behind a wider callout below it. Starts follow the
-    // callouts' ridden rects every frame, read only for acts whose copy is showing. A glass leader also waits for
-    // the stack to come apart (GLASS_APART), so it never points at layers that are still stacked together.
+    // from the anchor while the callout is still readable. leaders.ts routes each act's leaders from the
+    // callouts' ridden rects, which are read every frame only for acts whose copy is showing. On phones a
+    // callout whose middle is above the rail's top, where the rail's clip hides it, keeps no leader. A glass
+    // leader also waits for the stack to come apart (GLASS_APART), so it never points at layers that are still
+    // stacked together.
+    const narrow = stageRect.width < NARROW_MAX
+    const clipTop = narrow && railRef.current ? railRef.current.getBoundingClientRect().top : -Infinity
     const leaders = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__callout[data-anchor]'), (label) => {
       const key = label.dataset.anchor ?? ''
       const [, ai, ci] = key.split(':').map(Number)
       const ride = ridesRef.current[ai]
-      return { key, ai, ci, ride, path: svg.querySelector<SVGPathElement>(`path[data-anchor="${key}"]`), rect: gl && ride && ride.opacity > 0 ? label.getBoundingClientRect() : null }
+      const rect = gl && ride && ride.opacity > 0 ? label.getBoundingClientRect() : null
+      const box: Box | null = rect && rect.top + rect.height / 2 >= clipTop
+        ? { left: rect.left - stageRect.left, top: rect.top - stageRect.top, right: rect.right - stageRect.left, bottom: rect.bottom - stageRect.top }
+        : null
+      return { key, ai, ci, ride, box, anchor: gl ? frame.anchors.get(key) ?? null : null, path: svg.querySelector<SVGPathElement>(`path[data-anchor="${key}"]`) }
     })
-    const turnX = new Map<number, number>()
-    for (const { ai, rect } of leaders) if (rect) turnX.set(ai, Math.max(turnX.get(ai) ?? -Infinity, rect.right - stageRect.left + LEADER_GAP))
-    for (const { key, ai, ci, ride, path, rect } of leaders) {
+    // The callouts are in DOM order, which is callout order within each act whatever order teardown.css shows.
+    const routes = new Map<string, Point[] | null>()
+    for (const ai of new Set(leaders.map((leader) => leader.ai))) {
+      const group = leaders.filter((leader) => leader.ai === ai)
+      const route = routeLeaders(group.map((leader) => leader.box), group.map((leader) => leader.anchor), narrow)
+      group.forEach((leader, k) => routes.set(leader.key, route[k]))
+    }
+    for (const { key, ai, ci, ride, path } of leaders) {
       if (!path) continue
-      const anchor = gl ? frame.anchors.get(key) : null
+      const route = routes.get(key)
       const start = LINE_START - LINE_STEP * ci
       // frame.explode is absent at runtime only while a hot reload has this file ahead of TeardownCanvas.
       const apart = ai === glassIndex ? ramp(frame.explode ?? 1, GLASS_APART[0], GLASS_APART[1]) : 1
       const drawn = ride ? (ride.y > 0 ? 1 - ramp(ride.y, start - (LINE_START - LINE_END), start) : 1) * apart : 0
-      const reveal = anchor && ride ? drawn * ride.opacity : 0
-      const turn = turnX.get(ai)
-      if (!anchor || !rect || turn === undefined || reveal <= 0) {
+      const reveal = route && ride ? drawn * ride.opacity : 0
+      if (!route || reveal <= 0) {
         writes.push(() => { path.style.opacity = '0' })
         continue
       }
-      const x1 = (rect.right - stageRect.left + LEADER_GAP).toFixed(1)
-      const y1 = (rect.top + rect.height / 2 - stageRect.top).toFixed(1)
       // The path runs from the callout to the anchor, so its dash draws in from the callout's side.
-      const d = `M${x1} ${y1}H${turn.toFixed(1)}L${anchor.x.toFixed(1)} ${anchor.y.toFixed(1)}`
+      const d = route.map((point, k) => `${k ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join('')
       writes.push(() => {
         path.setAttribute('d', d)
         path.style.strokeDashoffset = (1 - drawn).toFixed(3)
@@ -449,7 +456,7 @@ function Teardown({ story }: { story: TeardownStory }) {
                   </ul>
                 )}
                 {a.callouts.length > 0 && (
-                  <ul className="teardown__callouts">
+                  <ul className="teardown__callouts teardown__callouts--anchored">
                     {a.callouts.map((c, ci) => (
                       <li key={c.text} className="teardown__callout" data-anchor={`c:${ai}:${ci}`}>
                         <span className="teardown__slashes" aria-hidden="true">//</span> {c.text}

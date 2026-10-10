@@ -54,8 +54,8 @@ export const EXPLODE_DIRECTION = { normal: 0.6, right: 0.8 } as const
  * keep it, since the first day card is Home and the phone must not show the
  * card it deals or fold the row into a matching screen. Home swaps in over the
  * glass act's first SWAP_SPAN, while the phone is still edge-on. The proof act
- * hides its screen from half the act and, once the hidden screen has dipped to
- * glyphs, gives it the coach capture, so the phone boots into Motion coach as
+ * hides its screen by a tenth of the act and, once the hidden screen has dipped
+ * to glyphs, gives it the coach capture, so the phone boots into Motion coach as
  * the stack closes and the coach act opens on it without a second dip. The
  * close act shows the routine summary that follows a coach session. The DOM
  * stage and the
@@ -176,6 +176,17 @@ const CARD_END = CARD_START + 3 * CARD_STEP + CARD_WINDOW
  * reaches and leaves the spotlight.
  */
 const SPOT = { x: 0.72, height: 0.66, in: 0.3, out: 0.6 } as const
+/**
+ * The wide quiet act's fold. Card i slides from its slot toward the phone over `span` of the act from `step * i`,
+ * nearest first, so Home leads and Community lands at 0.6. The phone slides right through the row's left slots as
+ * it turns edge-on, so each card must have left its slot by the time the phone reaches it. Over the first half of
+ * its fold a card moves `back` world units away from the camera, behind the phone, whose right half swings up to
+ * 0.35 back as it turns, and it fades over `fade` of its fold. A card in front of the phone or of another card is
+ * then opaque or under 5% opaque, and no card's plane cuts through the phone's. Folding from the right left Home in
+ * its slot when the phone arrived, and the turning phone cut through it at full opacity. At a depth of 0.4 a fading
+ * card still crossed in front of the receding phone.
+ */
+const FOLD = { step: 0.1, span: 0.3, back: 0.5, fade: [0.45, 0.8] } as const
 /** Camera depth of a held card, world units: the depth at which the screen's full height spans SPOT.height of the frame. */
 const SPOT_DEPTH = (FOCAL * PHONE.sy) / SPOT.height
 /**
@@ -206,10 +217,11 @@ const BACKDROP_GAIN = 0.9
 const HELD_GAIN = 0.3
 /**
  * Chapter progress over which a room change eases in from the start of the
- * act that makes it, capped at 70% of that act. At 0.035, about 0.6
- * viewport-heights of 17.3, the swap ends at 0.144 of the day act (card 0's
- * hold), 0.30 of the close, 0.47 of the hand and coach acts, and 0.55 of the
- * quiet act, so each act holds its whole room for most of its span.
+ * act that makes it, capped at 70% of that act. At 0.035, about 0.62
+ * viewport-heights of 17.6, the swap ends at 0.147 of the day act (card 0's
+ * hold starts at 0.144), 0.31 of the close, 0.47 of the hand and coach acts,
+ * and 0.44 of the quiet act, so each act holds its whole room for most of its
+ * span.
  */
 const ROOM_SWAP = 0.035
 /**
@@ -228,9 +240,9 @@ const ROOM_SWAP = 0.035
 const ROOM_REVEAL = { inEnd: 0.63, out: [0.74, 0.93] } as const
 /**
  * Bounds, in chapter progress, on the span over which a room pans its full
- * distance. A room that is on screen for less than the minimum (about 4.3
+ * distance. A room that is on screen for less than the minimum (about 4.4
  * viewport-heights) pans only part of the way, so a short act never races,
- * and a room held for longer than the maximum (about 6.9 viewport-heights)
+ * and a room held for longer than the maximum (about 7.0 viewport-heights)
  * finishes its pan and rests, since by then it is a dim field behind the
  * exploded stack.
  */
@@ -389,14 +401,18 @@ export function poseAt(input: RigInput): Pose {
   // coach act opens on a whole phone. Its copy is fully opaque from 0.085 of the act, and no layer offset may
   // remain by then. The code layer fades out over the first 8% of that close (codeOut) and only then do the
   // screen and the glass light return (relit), so a screen and the code never print over each other. The screen
-  // returns opaque, as glyphs on its dark base, and resolves into the coach capture while the stack seats (boot).
+  // returns opaque, as glyphs on its dark base, and resolves into the coach capture by 0.95 while the glass is
+  // still seating (boot), so the closed phone shows the sharp capture for the act's last 0.09 viewport-heights.
   const dayOut = rise(day, DAY_FORM) * (1 - rise(quiet, REVEAL_END))
   const seated = ramp(proof, 0.8, 1)
   const codeOut = ramp(proof, 0.8, 0.88)
   const relit = ramp(proof, 0.88, 0.9)
-  const boot = ramp(proof, 0.9, 1)
+  const boot = ramp(proof, 0.9, 0.95)
   const explode = rise(glass, EXPLODE_END) * (1 - seated)
-  const proofDim = rise(proof) * (1 - relit)
+  // Proof hides the screen and the glass light by 0.1 of the act, so the code layer and the readout read clean
+  // from there to the stack's close at 0.8, about 1.26 viewport-heights. Over 0.2, Home's cards and chart line
+  // printed through the code at about 20%.
+  const proofDim = ramp(proof, 0, 0.1) * (1 - relit)
   const spread = narrow ? 0.75 : 1
   const surge = interaction.surge ?? 0
 
@@ -472,7 +488,7 @@ export function poseAt(input: RigInput): Pose {
   const entered = prevKey === 'proof' ? ACT_SCREEN.coach : ACT_SCREEN[prevKey]
   const swapping = ACT_SCREEN[actKey] !== entered
   const swapDip = swapping ? ramp(actLocal, 0, SWAP_SPAN / 2) * (1 - ramp(actLocal, SWAP_SPAN / 2, SWAP_SPAN)) : 0
-  // The proof screen is hidden from 0.5 (proofDim). Its develop dips to SWAP_FLOOR from 0.5 to 0.6, where it takes
+  // The proof screen is hidden from 0.1 (proofDim). Its develop dips to SWAP_FLOOR from 0.5 to 0.6, where it takes
   // the coach capture, and it stays glyphs until it is opaque again at 0.9, then resolves as the stack seats.
   const bootsCoach = actKey === 'proof' && actLocal >= 0.6
   const screenKey = bootsCoach ? ACT_SCREEN.coach : swapping && actLocal < SWAP_SPAN / 2 ? entered : ACT_SCREEN[actKey]
@@ -481,9 +497,11 @@ export function poseAt(input: RigInput): Pose {
   // Proof hides the screen in front of the code layer, since the composite blends in linear light and even 5% of
   // the Home capture's white text prints legibly over the code. The narrow day phone's screen goes dark behind
   // the deck for the same reason: it fades out while card 0 crosses onto it and is gone by card 0's hold, so the
-  // phone is a dark body wherever the gap between two moving cards shows it, and it lights up again as the phone
-  // returns through the quiet act.
-  const deckDark = narrow ? ramp(day, DECK.start, DECK.start + DECK.hold[0] * DECK.window) * (1 - rise(quiet, REVEAL_END)) : 0
+  // phone is a dark body wherever the gap between two moving cards shows it. It lights up again as Community, the
+  // last card, leaves the centre, since no card follows it, so the deck ends on a lit phone. Released over the
+  // quiet act, it left a black display with a bright rim for about 200 px of scroll.
+  const deckLast = DECK.start + 3 * DECK.step + DECK.hold[1] * DECK.window
+  const deckDark = narrow ? ramp(day, DECK.start, DECK.start + DECK.hold[0] * DECK.window) * (1 - ramp(day, deckLast, 1)) : 0
   const screenOpacity = ramp(arrival, 0.15, 0.45) * (1 - proofDim) * (1 - deckDark)
   const screen = plane(screenCenter, right, up, PHONE.sx, PHONE.sy, PHONE.sRadius, screenDevelop, screenOpacity, screenKey)
   const code = plane(codeCenter, right, up, CODE.hx, CODE.hy, CODE.radius, 1, ramp(glass, 0.1, EXPLODE_END) * (1 - codeOut), 'code')
@@ -527,9 +545,13 @@ export function poseAt(input: RigInput): Pose {
   // the stack near its callouts, then shifts right as proof focuses until the code layer's centre sits at 0.685
   // of the width, a little left of the middle of the space right of the copy rail, which keeps the fanned glass
   // inside the right edge. Narrow centres the stack so every layer stays in frame, and its vertical shift eases
-  // down by 0.1 as proof focuses, so the stack settles lower and its glass top clears the menu pill.
+  // down by 0.1 as proof focuses, so the stack settles lower and its glass top clears the menu pill. The quiet act
+  // has no copy, so the wide shift halves as the phone turns edge-on (quietHold) and the silent phone holds near
+  // x 0.56 of the frame instead of beside an empty rail. It returns as the glass act turns the phone and its
+  // callouts arrive.
   const stackOut = rise(glass) * (1 - rise(proof))
-  const wideShift = (0.27 - 0.07 * stackOut + 0.10 * proofFocus) * aspect * (1 - dayOut)
+  const quietHold = rise(quiet, REVEAL_END) * (1 - rise(glass))
+  const wideShift = (0.27 - 0.07 * stackOut + 0.10 * proofFocus) * aspect * (1 - dayOut) * (1 - 0.5 * quietHold)
   const shift: [number, number] = narrow ? [-0.22 * stackOut, 0.26 - 0.1 * proofFocus] : [wideShift, 0]
   const cameraY = target[1] + DRIFT.cameraY * Math.sin(p * TAU * DRIFT.cameraCycles)
 
@@ -559,14 +581,14 @@ export function poseAt(input: RigInput): Pose {
     // until its peel has lifted it about 10% of the way off the phone (0.06 of its window) and fades in by 0.2
     // while it develops, so its glyph phase never prints as a dotted rectangle on the phone's face and is never
     // an opaque glyph fill that reads as the screen tearing. After the hold it settles into its slot of the row
-    // at DAY_ROW.scale. The quiet act folds the row: every card slides home over the first 60% of the act while
-    // the phone returns to the centre, and fades from 10% to 50%, so it is gone before it reaches the screen,
-    // with develop held so it never re-encodes.
+    // at DAY_ROW.scale. The quiet act folds the row into the phone one card at a time (FOLD) while the phone returns
+    // to the centre, with develop held so a card never re-encodes. All four sliding home at once at half opacity
+    // crossed the phone and one another as translucent sheets.
     const s = CARD_START + i * CARD_STEP
     const wnd = clamp01((day - s) / CARD_WINDOW)
     const peel = ramp(wnd, 0, SPOT.in)
     const settle = ramp(wnd, SPOT.out, 1)
-    const home = ramp(quiet, 0, 0.6)
+    const home = ramp(quiet, FOLD.step * i, FOLD.step * i + FOLD.span)
     const step = i - 1.5
     const y = sinkY + wave(0.7 * (i + 1))
     const slot: Vec3 = [(DAY_ROW.cardX + i * DAY_ROW.pitch) * reach, y, DAY_ROW.arcZ * Math.abs(step)]
@@ -576,17 +598,18 @@ export function poseAt(input: RigInput): Pose {
     const cardPitch = lerp(lerp(pitch, 0, peel), pitch, home)
     const b = basis(cardYaw, cardPitch)
     const scale = lerp(lerp(1, DAY_ROW.scale, settle), 1, home)
-    const center = lerp3(lerp3(lerp3(front, spot, peel), slot, settle), front, home)
+    const center = add(lerp3(lerp3(lerp3(front, spot, peel), slot, settle), phonePos, home), [0, 0, FOLD.back * ramp(home, 0, 0.5)])
     const develop = ramp(wnd, 0, SPOT.in)
-    const opacity = ramp(wnd, 0.06, 0.2) * (1 - ramp(quiet, 0.1, 0.5))
+    const opacity = ramp(wnd, 0.06, 0.2) * (1 - ramp(home, FOLD.fade[0], FOLD.fade[1]))
     return plane(center, mul(b.right, scale), mul(b.up, scale), PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
   })
 
   const bd = backdropAt(windows, input.backdrops, p)
-  // The coach figure draws from 0.15 of its act, on the whole phone the proof act closed, while the phone moves
-  // aside, and is gone a quarter into the close, before the close copy is in place.
-  const coachDraw = ramp(coach, 0.15, 0.6)
-  const coachAmount = coachDraw * (1 - ramp(close, 0, 0.25))
+  // The coach figure draws from 0.12 of its act, on the whole phone the proof act closed, while the phone moves
+  // aside, and is gone a tenth into the close, so its head ring and limbs never ghost over the evening room as it
+  // swaps in.
+  const coachDraw = ramp(coach, 0.12, 0.45)
+  const coachAmount = coachDraw * (1 - ramp(close, 0, 0.1))
   // The product forms by 0.62 of the arrival and holds. The reassembled phone then turns to its close pose by half
   // the close and rests there, with the copy settled from 0.4 (CLOSE_SETTLE in timeline.ts) and the evening room
   // whole from 0.3 (ROOM_SWAP) until 0.74 (ROOM_REVEAL), so the finished close holds for about 0.48
@@ -622,7 +645,7 @@ export function poseAt(input: RigInput): Pose {
       driftB: roomDrift(windows, input.backdrops, bd.b, p),
     },
     // The figure slides in from the right as it draws, starting 0.25 (wide) or 0.3 (narrow) right of its station
-    // at 0.15 of the act and landing at 0.6, when it is fully drawn. The wide station at x 0.66 keeps the arms
+    // at 0.12 of the act and landing at 0.45, when it is fully drawn. The wide station at x 0.66 keeps the arms
     // clear of the receding phone. At 390 by 844 the narrow figure at scale 0.53 and x 0.3 keeps both wrists at
     // least 12 CSS px outside the receded phone and the far wrist's ring inside the frame's right edge when the
     // arms are level. At 0.7 the near wrist sat inside the phone's top right corner and the far one off the frame.

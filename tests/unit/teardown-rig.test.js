@@ -89,9 +89,12 @@ test('the skeleton draws only once every layer is home', () => {
       if (pose.explode > 0.01) assert.equal(pose.coach.amount, 0, `skeleton at ${i / 400} with explode ${pose.explode}`)
     }
   }
-  assert.equal(at(inAct('coach', 0.15)).coach.amount, 0)
-  assert.ok(at(inAct('coach', 0.375)).coach.amount > 0.4 && at(inAct('coach', 0.375)).coach.amount < 0.6, 'the figure is half drawn at 0.375')
-  assert.equal(at(inAct('coach', 0.6)).coach.amount, 1)
+  assert.ok(at(inAct('coach', 0.12)).coach.amount < 1e-12)
+  assert.ok(at(inAct('coach', 0.285)).coach.amount > 0.4 && at(inAct('coach', 0.285)).coach.amount < 0.6, 'the figure is half drawn at 0.285')
+  assert.equal(at(inAct('coach', 0.45)).coach.amount, 1)
+  // The figure is gone a tenth into the close, before the evening room has swapped in under it.
+  assert.ok(at(inAct('close', 0.05)).coach.amount > 0, 'the figure fades over the close act\'s first tenth')
+  assert.equal(at(inAct('close', 0.1)).coach.amount, 0)
 })
 
 test('each act reaches its station by half the act and holds it, with only the drifts moving', () => {
@@ -168,9 +171,9 @@ test('backdrops crossfade between room acts and hold the last room as a dim fiel
 
 test('each room change takes about 0.6 viewport-heights, so every act holds its whole room', () => {
   // A change eases over 0.035 of chapter progress from the start of its act, or 70% of a shorter act. With the
-  // spans in parkiwell.ts it ends at 0.144 of the day act (card 0's hold), 0.30 of the close, 0.47 of the hand
-  // and coach acts, and 0.55 of the quiet act.
-  for (const [key, done] of [['hand', 0.47], ['day', 0.145], ['quiet', 0.555], ['coach', 0.47], ['close', 0.31]]) {
+  // spans in parkiwell.ts it ends at 0.147 of the day act (card 0's hold starts at 0.144), 0.31 of the close, 0.474
+  // of the hand and coach acts, and 0.44 of the quiet act.
+  for (const [key, done] of [['hand', 0.475], ['day', 0.147], ['quiet', 0.445], ['coach', 0.475], ['close', 0.31]]) {
     const span = w(key).end - w(key).start
     assert.ok(near(Math.min(0.7, 0.035 / span), done, 0.01), `${key} swap ends at ${0.035 / span}`)
     const mid = backdropAt(windows, backdrops, inAct(key, done / 2))
@@ -254,13 +257,13 @@ test('each room pans over its own time on screen, at a bounded rate, and the pos
   assert.equal(roomDrift(windows, backdrops, 0, 0), 0)
   assert.ok(near(roomDrift(windows, backdrops, 0, 0.2), 0.5, 1e-9))
   assert.equal(roomDrift(windows, backdrops, 0, 0.5), 1)
-  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.318 of progress, so it pans over
+  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.313 of progress, so it pans over
   // that span and is done by the end of the day act.
   const hand = w('hand')
   assert.equal(roomDrift(windows, backdrops, 1, hand.start - 1e-6), 0)
   assert.ok(roomDrift(windows, backdrops, 1, hand.end) > 0.2)
   assert.equal(roomDrift(windows, backdrops, 1, w('day').end), 1)
-  // The evening room (3) is on screen for only the close act, 0.116 of progress, under the 0.25 floor, so it pans
+  // The evening room (3) is on screen for only the close act, 0.114 of progress, under the 0.25 floor, so it pans
   // about half way.
   const evening = roomDrift(windows, backdrops, 3, 1)
   assert.ok(evening > 0.45 && evening < 0.55, `evening drift at the end: ${evening}`)
@@ -312,8 +315,10 @@ test('the drifts keep the phone and the camera moving late in an act', () => {
   const b = at(inAct('glass', 0.99))
   assert.ok(Math.abs(a.phone.normal[0] - b.phone.normal[0]) > 1e-4, 'yaw drifts')
   // The sink, the station step, and the wave can balance for a moment, where the phone turns from rising to
-  // sinking, so the vertical drift is measured over the act's last 6%.
-  assert.ok(Math.abs(at(inAct('glass', 0.93)).phone.pos[1] - b.phone.pos[1]) > 1e-4, 'the phone drifts vertically')
+  // sinking, so the vertical drift is the path the phone travels over the act's last 6%, not its net change.
+  const ys = [0.93, 0.95, 0.97, 0.99].map((local) => at(inAct('glass', local)).phone.pos[1])
+  const path = ys.slice(1).reduce((sum, y, i) => sum + Math.abs(y - ys[i]), 0)
+  assert.ok(path > 1e-4, `the phone drifts vertically: ${path}`)
   assert.ok(Math.abs(a.camera.pos[1] - b.camera.pos[1]) > 1e-5, 'the camera drifts vertically')
   // The sink runs the whole chapter and the station steps lift the phone back by most of it, so the phone ends
   // between 0.08 and 0.2 lower than it starts, against the 0.6 the sink alone would drop it.
@@ -343,7 +348,7 @@ test('the coach act opens on a whole, unghosted phone that already shows Motion 
   // The stack closes, the glass seats on the screen, and the proof dimming and the code layer fade over the last
   // 20% of the proof act, after the readout has rested from about 0.49. The coach copy is opaque from 0.085, so
   // the phone must be whole from the act's first frame. The proof act has already booted the screen into the
-  // coach capture, so the coach act never dips, and the figure starts at 0.15.
+  // coach capture, so the coach act never dips, and the figure starts at 0.12.
   for (const narrow of [false, true]) {
     const resting = at(inAct('proof', 0.78), narrow)
     assert.ok(resting.explode > 0.99, `explode while the readout rests: ${resting.explode}`)
@@ -359,14 +364,15 @@ test('the coach act opens on a whole, unghosted phone that already shows Motion 
     assert.equal(screen.texture, 'coach', `screen at coach ${local}`)
     assert.ok(screen.develop > 0.999, `develop at coach ${local}: ${screen.develop}`)
   }
-  assert.equal(at(inAct('coach', 0.15)).coach.amount, 0, 'the figure has not started to draw at 0.15')
+  assert.ok(at(inAct('coach', 0.12)).coach.amount < 1e-12, 'the figure has not started to draw at 0.12')
   assert.ok(at(inAct('coach', 0.2)).coach.amount > 0, 'the figure is drawing by 0.2')
 })
 
 test('proof hides the screen and the glass in front of the code layer, and relights them only after the code is gone', () => {
   // The composite blends in linear light, so even 5% of the Home capture prints legibly over the code, and the
-  // fanned sheet's rim outlines a rectangle clipped by the frame. Only the code layer and the chassis stay.
-  for (const local of [0.5, 0.6, 0.8]) {
+  // fanned sheet's rim outlines a rectangle clipped by the frame. Only the code layer and the chassis stay, from
+  // 0.1 of the act to the stack's close at 0.8.
+  for (const local of [0.1, 0.2, 0.3, 0.5, 0.6, 0.8]) {
     const pose = at(inAct('proof', local))
     assert.equal(pose.screen.opacity, 0, `screen opacity at proof ${local}`)
     assert.equal(pose.glass.light, 0, `glass light at proof ${local}`)
@@ -379,7 +385,8 @@ test('proof hides the screen and the glass in front of the code layer, and relig
     assert.ok(pose.code.opacity === 0 || pose.screen.opacity === 0, `code ${pose.code.opacity} and screen ${pose.screen.opacity} at proof ${0.8 + 0.2 * (i / 40)}`)
   }
   // While hidden, the screen dips to glyphs (0.5 to 0.6) and takes the coach capture at the dip's bottom. It returns
-  // opaque as glyphs by 0.9, never translucent over a resolved capture, and resolves while the stack seats.
+  // opaque as glyphs by 0.9, never translucent over a resolved capture, and resolves by 0.95 while the glass is
+  // still seating, so the closed phone shows the sharp capture for the act's last twentieth.
   assert.equal(at(inAct('proof', 0.55)).screen.texture, 'home')
   for (const local of [0.6, 0.7, 0.88, 0.9]) {
     const screen = at(inAct('proof', local)).screen
@@ -392,8 +399,10 @@ test('proof hides the screen and the glass in front of the code layer, and relig
     if (screen.opacity > 0 && screen.opacity < 1) assert.ok(screen.develop < 0.051, `a translucent screen (${screen.opacity}) shows a resolved capture at proof ${local}`)
   }
   assert.equal(at(inAct('proof', 0.9)).screen.opacity, 1)
-  const booting = at(inAct('proof', 0.95)).screen.develop
-  assert.ok(booting > 0.1 && booting < 0.9, `the screen resolves while the stack seats: ${booting}`)
+  const booting = at(inAct('proof', 0.925))
+  assert.ok(booting.screen.develop > 0.1 && booting.screen.develop < 0.9, `the screen resolves while the stack seats: ${booting.screen.develop}`)
+  assert.ok(booting.explode > 0, 'the glass is still seating while the screen resolves')
+  for (const local of [0.95, 0.97, 1]) assert.ok(at(inAct('proof', local)).screen.develop > 0.999, `the screen is sharp at proof ${local}`)
 })
 
 test('each narrow deck card is whole in frame through the middle of its window and never with two neighbours', () => {
@@ -445,13 +454,15 @@ test('each narrow deck card is whole in frame through the middle of its window a
       assert.ok(span[1] < phone[0] || span[0] > phone[1], `a translucent deck card (${card.opacity}) crosses the phone at day ${k / 400}`)
     }
   }
-  // The receded phone behind the deck is a dark body from card 0's hold on, so the gap between two moving cards
-  // never shows its form.
+  // The receded phone behind the deck is a dark body from card 0's hold until the last card, Community, leaves the
+  // centre at 0.91, so the gap between two moving cards never shows its form. No card follows Community, so the
+  // phone lights as it leaves and the deck ends on a lit phone.
   for (let k = 0; k <= 100; k++) {
-    const local = 0.13 + 0.87 * (k / 100)
+    const local = 0.13 + 0.78 * (k / 100)
     assert.equal(at(inAct('day', local), true, aspect).screen.opacity, 0, `the phone's screen behind the deck at day ${local}`)
   }
-  assert.ok(at(inAct('quiet', 0.95), true, aspect).screen.opacity > 0.99, 'the phone returns lit through the quiet act')
+  assert.ok(at(inAct('day', 1), true, aspect).screen.opacity > 0.99, 'the phone is lit as the last card leaves')
+  assert.ok(at(inAct('quiet', 0.95), true, aspect).screen.opacity > 0.99, 'the phone stays lit through the quiet act')
 })
 
 test('the narrow hand phone keeps its top bezel clear of the frame\'s top edge', () => {
@@ -467,11 +478,11 @@ test('the narrow hand phone keeps its top bezel clear of the frame\'s top edge',
 test('the narrow coach figure keeps its wrists clear of the receded phone and inside the frame', () => {
   // At 390 by 844 the arms reach level at the top of the raise, where the near wrist sat inside the phone's top
   // right corner and the far one off the frame. Each wrist must stay 12 CSS px outside the phone's projected rect
-  // and the far wrist's 4 px ring inside the frame's right edge.
+  // and the far wrist's 4 px ring inside the frame's right edge from 0.45, where the figure is fully drawn.
   const width = 390, height = 844, aspect = width / height
   const wrists = [COACH_JOINTS.indexOf(15), COACH_JOINTS.indexOf(16)]
   for (let k = 0; k <= 80; k++) {
-    const local = 0.6 + 0.4 * (k / 80)
+    const local = 0.45 + 0.55 * (k / 80)
     const pose = at(inAct('coach', local), true, aspect)
     const phone = projectRect(pose, { center: pose.phone.pos, right: pose.phone.right, up: pose.phone.up, halfW: PHONE.hx, halfH: PHONE.hy }, aspect)
     const box = { left: phone.left * width, right: phone.right * width, top: phone.top * height, bottom: phone.bottom * height }
@@ -645,26 +656,80 @@ test('each narrow deck card holds at the centre, developed and opaque, for the m
   }
 })
 
-test('in the quiet act the cards slide home, fade before they arrive, and never re-encode', () => {
-  let lastGap = Infinity
-  for (let i = 0; i <= 10; i++) {
-    const pose = at(inAct('quiet', 0.6 * (i / 10)))
-    const card = pose.cards[1]
-    assert.equal(card.develop, 1, `develop held at quiet ${0.6 * (i / 10)}`)
-    const gap = Math.hypot(...card.center.map((v, k) => v - pose.screen.center[k]))
-    assert.ok(gap <= lastGap + 1e-9, 'the card only ever approaches the screen')
-    lastGap = gap
+test('in the quiet act the cards fold into the phone one at a time from the nearest, and never re-encode', () => {
+  // Card i slides toward the phone over 0.3 of the act from 0.1 i, so Home leads and Community lands at 0.6. It is
+  // opaque until 0.45 of its own fold and gone by 0.8, before it reaches the phone.
+  for (let i = 0; i < 4; i++) {
+    let lastGap = Infinity
+    for (let k = 0; k <= 12; k++) {
+      const pose = at(inAct('quiet', 0.6 * (k / 12)))
+      assert.equal(pose.cards[i].develop, 1, `card ${i} develop held at quiet ${0.6 * (k / 12)}`)
+      const gap = Math.abs(pose.cards[i].center[0] - pose.phone.pos[0])
+      assert.ok(gap <= lastGap + 1e-9, `card ${i} only ever closes on the phone across the frame`)
+      lastGap = gap
+    }
+    const fold = (f) => at(inAct('quiet', 0.1 * i + 0.3 * f))
+    if (i > 0) assert.equal(fold(0).cards[i].opacity, 1, `card ${i} waits in its slot while card ${i - 1} folds`)
+    assert.equal(fold(0.4).cards[i].opacity, 1, `card ${i} is opaque at 0.4 of its fold`)
+    const mid = fold(0.6).cards[i].opacity
+    assert.ok(mid > 0.3 && mid < 0.7, `card ${i} is fading at 0.6 of its fold: ${mid}`)
+    const gone = fold(0.75)
+    assert.equal(gone.cards[i].opacity, 0, `card ${i} is gone at 0.75 of its fold`)
+    assert.ok(Math.abs(gone.cards[i].center[0] - gone.phone.pos[0]) > 0.05, `card ${i} is gone before it reaches the phone`)
   }
-  // The row folds: the cards hold full for the first 10% of the act, fade from 10% to 50% while they slide home
-  // over the first 60%, and are gone before they reach the screen.
-  assert.equal(at(inAct('quiet', 0.1)).cards[1].opacity, 1)
-  const mid = at(inAct('quiet', 0.3)).cards[1].opacity
-  assert.ok(mid > 0.4 && mid < 0.6, `the cards are half gone by the middle of the fade: ${mid}`)
-  const faded = at(inAct('quiet', 0.5))
-  assert.equal(faded.cards[1].opacity, 0)
-  const fadedGap = Math.hypot(...faded.cards[1].center.map((v, k) => v - faded.screen.center[k]))
-  assert.ok(fadedGap > 0.01, `the card is gone before it reaches the screen: ${fadedGap}`)
   assert.equal(at(inAct('glass', 0.5)).cards[1].opacity, 0)
+})
+
+test('a folding card never lies translucent in front of the phone or another card and never cuts through the phone', () => {
+  // The phone slides right through the row's left slots while it turns edge-on, its right half swinging back. Each
+  // card is sampled on a 9 by 9 grid, and wherever the ray to a sample meets the phone's face or another card the
+  // nearer surface must be opaque or nearly gone, and a card over the phone must be wholly in front of it or wholly
+  // behind it. All four cards sliding home at once at half opacity crossed one another and the phone as
+  // translucent sheets.
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+  const dotv = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const crossv = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+  /** Camera depth at which the ray through world point p meets a plane inside its rect, or null. */
+  const meet = (pose, plane, p) => {
+    const c = pose.camera.pos
+    const dir = sub(p, c)
+    const n = crossv(plane.right, plane.up)
+    const denom = dotv(dir, n)
+    if (Math.abs(denom) < 1e-9) return null
+    const t = dotv(sub(plane.center, c), n) / denom
+    const hit = dir.map((v, k) => c[k] + v * t)
+    const d = sub(hit, plane.center)
+    const s2 = dotv(plane.right, plane.right)
+    if (Math.abs(dotv(d, plane.right) / s2) > plane.halfW || Math.abs(dotv(d, plane.up) / s2) > plane.halfH) return null
+    return dotv(sub(hit, c), pose.camera.forward)
+  }
+  for (const aspect of [0.75, 1.33, 1.6, 2.0, 2.4]) {
+    for (let k = 0; k <= 140; k++) {
+      const local = 0.7 * (k / 140)
+      const pose = at(inAct('quiet', local), false, aspect)
+      const phone = { center: pose.screen.center, right: pose.phone.right, up: pose.phone.up, halfW: PHONE.hx, halfH: PHONE.hy, opacity: 1 }
+      pose.cards.forEach((card, i) => {
+        if (card.opacity < 0.03) return
+        let front = 0, behind = 0
+        for (let a = -1; a <= 1; a += 0.25) {
+          for (let b = -1; b <= 1; b += 0.25) {
+            const p = planePoint(card, a, b)
+            const depth = dotv(sub(p, pose.camera.pos), pose.camera.forward)
+            for (const [name, other] of [...pose.cards.map((c, j) => [`card ${j}`, c]), ['the phone', phone]]) {
+              if (other === card || other.opacity < 0.03) continue
+              const otherDepth = meet(pose, other, p)
+              if (otherDepth === null) continue
+              const near = depth < otherDepth ? card : other
+              assert.ok(near.opacity >= 0.97 || near.opacity < 0.05, `${aspect} quiet ${local}: card ${i} and ${name} overlap with the nearer at ${near.opacity}`)
+              if (other === phone && depth < otherDepth) front++
+              else if (other === phone) behind++
+            }
+          }
+        }
+        assert.ok(!(front && behind), `${aspect} quiet ${local}: card ${i} cuts through the phone`)
+      })
+    }
+  }
 })
 
 test('the main screen shows each act\'s screen and re-encodes briefly at every swap', () => {

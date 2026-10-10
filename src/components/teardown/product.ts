@@ -50,16 +50,21 @@ const GLASS_HALF = { x: PHONE.sx + 0.012, y: PHONE.sy + 0.012, radius: PHONE.sRa
 /**
  * Glass tuning. The sheet is a clear physical material drawn with
  * premultiplied alpha, so its reflection scales by `env` times `opacity`,
- * and that product must stay near 0.035 on every stage. At 0.05 the narrow
+ * and that product must stay near 0.025 on every stage. At 0.05 the narrow
  * sheet laid a white wedge across the Home capture's chart. RoomEnvironment's
  * ceiling panel reflects across the tilted sheet's upper half, and a larger
  * product fills the exploded sheet with a flat grey that reads as frost
  * instead of a sheen. The rim ring and the sweeping band in the shader carry
  * the sheet's outline, so the body itself stays nearly clear. While the stack
- * is assembled the sheet runs at `assembled` of its opacity, so the screen
- * beneath keeps its colours.
+ * is assembled the sheet runs at `assembled` of its opacity and `clearcoat`
+ * of its clearcoat, both rising to 1 with the explode, so the screen beneath
+ * keeps its colours. At an env of 0.35, 0.4 of the opacity, and a full
+ * clearcoat, the assembled sheet mirrored a panel across the top third of the
+ * Log screen as the quiet act turned the phone, RGB 61, 62, 65 against the
+ * capture's 7, 12, 22 at 1440 by 900, and hid the Dynamic Island. The
+ * clearcoat stays above 0, since crossing 0 recompiles the material.
  */
-const GLASS = { opacity: { wide: 0.1, narrow: 0.1 }, env: 0.35, roughness: 0.02, assembled: 0.4 } as const
+const GLASS = { opacity: { wide: 0.1, narrow: 0.1 }, env: 0.25, roughness: 0.02, assembled: 0.2, clearcoat: 0.3 } as const
 /** Glass light while assembled, from rig.ts. Below it the glass fades out with the arrival. */
 const ASSEMBLED_LIGHT = 0.35
 /** Lens centres on the camera bump, bump-local. The camera barrels inside the tray sit behind them. */
@@ -131,6 +136,9 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   const elementMat = own(new THREE.MeshPhysicalMaterial({ color: '#0c1a30', roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.02, ...lit(ENV.frame) }))
   const flashMat = own(new THREE.MeshStandardMaterial({ color: '#f1e3c4', emissive: '#6b5230', emissiveIntensity: 0.4, roughness: 0.35, ...lit(ENV.interior) }))
   const darkMat = own(new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.55, ...lit(ENV.interior) }))
+  // The display-off face and the Dynamic Island are unlit. Lit at ENV.interior, darkMat mirrors RoomEnvironment's
+  // emissive panels across a head-on face, which measured RGB 50 to 105 against the captures' 8, 12, 22 base.
+  const faceMat = own(new THREE.MeshBasicMaterial({ color: '#030405' }))
   const boardMat = own(new THREE.MeshStandardMaterial({ color: '#0d1a15', roughness: 0.6, ...lit(ENV.interior) }))
   // The internal camera lenses face the camera in the exploded stack, and RoomEnvironment's area lights behind it
   // are emissive at 17 to 100, so any glossy head-on reflection at ENV.interior with a clearcoat on top clips to
@@ -204,12 +212,13 @@ export function createProduct(story: TeardownStory, opts: { narrow: boolean; env
   // the screen plane is transparent on an assembled phone (the narrow deck and the arrival's fade-in), so the front
   // reads as a dark display and never as the empty tray. update() hides it while the internals show, so the
   // exploded stack is unchanged.
-  const face = mesh(new THREE.ShapeGeometry(roundedRect(new THREE.Shape(), PHONE.sx, PHONE.sy, PHONE.sRadius), 16), darkMat, body, 0, 0, 0.036)
+  const face = mesh(new THREE.ShapeGeometry(roundedRect(new THREE.Shape(), PHONE.sx, PHONE.sy, PHONE.sRadius), 16), faceMat, body, 0, 0, 0.036)
 
   // Dynamic Island: a pill just in front of the screen plane (local z 0.038), with its camera dot, over the
   // captures' empty top strip. Top speaker slot on the front lip above it, between the screen and the glass.
-  mesh(slab(0.105, 0.0315, 0.0315, 0.004, 0.0005, 16), darkMat, body, 0, PHONE.sy - 0.0505, 0.0405)
-  mesh(cylinderZ(0.009, 0.002, 20), lensMat, body, 0.068, PHONE.sy - 0.0505, 0.0431)
+  // The dot takes the internal lens glass, since the clearcoated lensMat clipped to a white point head-on.
+  mesh(slab(0.105, 0.0315, 0.0315, 0.004, 0.0005, 16), faceMat, body, 0, PHONE.sy - 0.0505, 0.0405)
+  mesh(cylinderZ(0.009, 0.002, 20), innerLensMat, body, 0.068, PHONE.sy - 0.0505, 0.0431)
   mesh(slab(0.05, 0.002, 0.002, 0.002, 0, 6), darkMat, body, 0, PHONE.hy - LIP + 0.005, 0.0455)
 
   // Bottom edge: the charging port and six speaker holes each side, all sunk into the frame and 0.0015 proud of it.
@@ -366,6 +375,7 @@ ${shader.fragmentShader.replace('#include <premultiplied_alpha_fragment>', `#inc
       const shown = Math.min(1, pose.glass.light / ASSEMBLED_LIGHT)
       glass.visible = shown > 0.005
       glassMat.opacity = opacity * shown * (GLASS.assembled + (1 - GLASS.assembled) * pose.explode)
+      glassMat.clearcoat = GLASS.clearcoat + (1 - GLASS.clearcoat) * pose.explode
       glassUniforms.uGlassLight.value = pose.glass.light
       glassUniforms.uSweep.value = pose.glass.sweep
       glassUniforms.uBand.value = pose.glass.band

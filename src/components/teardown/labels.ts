@@ -47,12 +47,22 @@ const LABEL_GAP = 8
 const LABEL_DROP = 1.08
 /**
  * A card covers another card's label once it is at least COVER_OPACITY opaque
- * and COVER_DEPTH world units nearer the camera. The row's arc sets settled
+ * and COVER_DEPTH world units nearer the camera, and either its rect holds the
+ * other card's centre or the label's box reaches more than LABEL_COVER_SLACK
+ * inside its side edges. The centre test hides the label of a card hidden
+ * behind it even where the label clears its bottom edge by a pixel, as card
+ * 2's does under held card 3 at 1920 by 1080. The row's arc sets settled
  * neighbours 0.05 apart in depth, so a settled card never covers another's
  * label, and a held card is at least 0.2 nearer than the row at every aspect.
  */
 const COVER_OPACITY = 0.5
 const COVER_DEPTH = 0.1
+/**
+ * CSS px a label must reach past a nearer card's edge before that card covers it. At 1440 by 900 the Manage label
+ * under its slot ends 1 to 3 px inside the held Recovery card's left edge, and a corner that small read as covered
+ * and hid the label for Recovery's whole hold.
+ */
+const LABEL_COVER_SLACK = 8
 
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value))
 
@@ -88,8 +98,13 @@ export function layoutCardLabels(cards: readonly CardShot[], sizes: readonly { w
     const rect = card.rect
     const inFrame = anchor.x >= 0 && anchor.x <= stage.width && anchor.y >= 0 && anchor.y <= stage.height
       && !!rect && rect.left >= LABEL_EDGE && rect.right <= stage.width - LABEL_EDGE && rect.top >= LABEL_EDGE && rect.bottom <= stage.height - LABEL_EDGE
-    const covered = cards.some((other, j) => j !== k && !!other.rect && other.opacity >= COVER_OPACITY && other.depth < card.depth - COVER_DEPTH
-      && left < other.rect.right && left + size.w > other.rect.left && top < other.rect.bottom && top + size.h > other.rect.top)
+    const covered = cards.some((other, j) => {
+      const r = other.rect
+      if (j === k || !r || other.opacity < COVER_OPACITY || other.depth >= card.depth - COVER_DEPTH) return false
+      const behind = !!rect && (rect.left + rect.right) / 2 > r.left && (rect.left + rect.right) / 2 < r.right
+        && (rect.top + rect.bottom) / 2 > r.top && (rect.top + rect.bottom) / 2 < r.bottom
+      return behind || (left < r.right - LABEL_COVER_SLACK && left + size.w > r.left + LABEL_COVER_SLACK && top < r.bottom && top + size.h > r.top)
+    })
     return { left, top, on: inFrame && card.develop >= LABEL_DEVELOP && card.opacity >= LABEL_OPACITY && !covered }
   })
   const row = places.flatMap((place, k) => (place?.on ? [{ place, w: sizes[k].w, depth: cards[k].depth }] : [])).sort((a, b) => a.place.left - b.place.left)

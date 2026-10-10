@@ -13,8 +13,9 @@
  * nothing and writes that colour and alpha, which is what a context created
  * with premultipliedAlpha expects, so glyph edges carry no dark fringe. Every
  * layer keeps colour at or below alpha, so no pixel adds light to the page.
- * The room prints in cell by cell from the product's place at the chapter's
- * start and dissolves back into it at the end (`uReveal`), its glyph rim is
+ * The room's glyphs print in cell by cell, and its photograph on the same
+ * ring per pixel, from the product's place at the chapter's start, and both
+ * dissolve back into it at the end (`uReveal`). Its glyph rim is
  * dithered into the page, and the room, the shadow pool, and the copy
  * darkening fade out over the top and bottom SEAM of the stage, so the
  * sticky stage's edges never print on the page while it scrolls in or out.
@@ -225,22 +226,23 @@ vec3 ink(vec3 tone) {
   return c * min(min(1.3 * pow(v, -.4), 1.8), 1.0 / v);
 }
 
-// How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the copy column's right
-// edge x from the left, the copy block's top and bottom y from the top, and the strength, all in device px.
+// How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the right edge x of the
+// copy block's ink from the left, the block's top and bottom y from the top, and the strength, all in device px.
 // Wide stages shade only the copy block's own band, feathered over 80 CSS px above and below it, so the rest of
-// the column keeps its room. Across, the ramp runs from 100 CSS px inside the column to 100 px past it, so the
-// room's subject in the gap between the copy and the phone keeps its photograph and its glyphs. The wide floor of
-// .3 holds the evening table's lit band under the close act's chips, which have no scrim of their own. Narrow
-// stages (uCopyNarrow 1) shade from 90 CSS px above the rail's top to 12 px below it, to a floor of .25, so no
-// bright row of the room runs through the eyebrow or the first line, and teardown.css draws a bottom gradient
-// under the rest of the phone layout's copy.
+// the column keeps its room. Across, the ramp runs from 100 CSS px inside the ink's edge to 100 px past it, so the
+// room's subject in the gap between the copy and the phone (the hands, at 1440 by 900) keeps its glyphs. The wide
+// floor of .3 holds the evening table's lit band under the close act's chips, which have no scrim of their own. Narrow
+// stages (uCopyNarrow 1) shade from 130 CSS px above the rail's top to 12 px below it, to a floor of .12, so no
+// bright row of the room runs through the eyebrow or the first line. The coach copy rises about 108 px over its
+// act, and at a 90 px lead and a .25 floor its amber eyebrow sat on the chair seat's amber glyphs. teardown.css
+// draws a bottom gradient under the rest of the phone layout's copy.
 float copyShade() {
   if (uCopyMask.w <= 0.0) return 1.0;
   float px = uPixelRatio;
   float y = uRes.y - gl_FragCoord.y;
   float lit;
   if (uCopyNarrow > .5) {
-    lit = mix(1.0, .25, smoothstep(uCopyMask.y - 90.0 * px, uCopyMask.y + 12.0 * px, y));
+    lit = mix(1.0, .12, smoothstep(uCopyMask.y - 130.0 * px, uCopyMask.y + 12.0 * px, y));
   } else {
     float band = smoothstep(uCopyMask.y - 80.0 * px, uCopyMask.y, y) * (1.0 - smoothstep(uCopyMask.z, uCopyMask.z + 80.0 * px, y));
     lit = mix(1.0, mix(.3, 1.0, smoothstep(uCopyMask.x - 100.0 * px, uCopyMask.x + 100.0 * px, gl_FragCoord.x)), band);
@@ -287,21 +289,27 @@ void main() {
     // across the frame instead of breaking into lit patches on black. A flat surface never passes ROOM_FLAT_TOP,
     // so a window or a lamp is a field of rings and not a solid bar. An object edge (tone.a from roomCell) adds up
     // to .45 and may reach ROOM_EDGE_TOP, so the outlines of the mug, the pill box, the glasses, and the chair read
-    // as the picture's lines. The edge's share halves toward the top of the levels and the coverage thins by up to
-    // 35% there, since the grain inside a bright window scores as an edge too and otherwise prints as a wall of O
-    // and # glyphs. Density then sits on the contours (the chair back, the mug rim, the mullions), and a window
-    // reads as a lighter field. Cells near the bottom of the levels stay empty, so the deepest shadows read as the
-    // stage itself, except on an object edge, which prints whatever its lightness, so a dark subject (the mug's
-    // body, the forearms, the back of the armchair) keeps its whole outline and not only its lit side. A held room
-    // (uGlyphOnly 1) caps its edges at the flat ceiling, so an outline is a dotted contour of o and never a solid
-    // bar of # behind the exploded stack.
+    // as the picture's lines. Glare is the photograph's absolute lightness from .5 to .78, never the level-relative
+    // l, so it marks the lit windows, panes, and table (.64 to .75) in every room and leaves the hands' knuckle
+    // highlights (.28 to .40, l up to .94 in their dim levels) their whole edge share and coverage. Glare cuts the
+    // edge's share by up to 90%, since the grain inside a bright window scores as an edge too, and steps the cell
+    // down the ramp toward the colon, which a fully glared cell prints. Every lit cell keeps a glyph, so a window
+    // or the evening table reads as one even, fine stipple over the photograph that carries its light. Dropping
+    // glared cells on a per-cell hash printed them as random static. The contours are dark cells with no glare
+    // (the chair back, the mug rim, the mullions), so they keep their o and # glyphs and cross the stipple. Cells
+    // near the bottom of the levels stay empty, so the deepest shadows read as the stage itself, except on an
+    // object edge, which prints whatever its lightness, so a dark subject (the mug's body, the forearms, the back
+    // of the armchair) keeps its whole outline and not only its lit side. A held room (uGlyphOnly 1) caps its edges at the flat ceiling, so an outline is a dotted
+    // contour of o and never a solid bar of # behind the exploded stack.
     vec2 levels = mix(uLevels.xy, uLevels.zw, swap);
     float l = smoothstep(levels.x, levels.y, lightness(tone.rgb));
+    float glare = smoothstep(.5, .78, lightness(tone.rgb));
     float edge = smoothstep(.025, .1, tone.a);
     float flatTop = ${glslFloat(ROOM_FLAT_TOP)} / (uGlyphs - 1.0);
     float fill = min(.08 + .45 * pow(l, .85), flatTop);
-    float level = min(fill + .45 * edge * (1.0 - .5 * l), ${glslFloat(ROOM_EDGE_TOP)} / (uGlyphs - 1.0));
+    float level = min(fill + .45 * edge * (1.0 - .9 * glare), ${glslFloat(ROOM_EDGE_TOP)} / (uGlyphs - 1.0));
     level = mix(level, min(level, flatTop), uGlyphOnly);
+    level = mix(level, ${glslFloat(RAMP.indexOf(':'))} / (uGlyphs - 1.0), glare);
     float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local);
     float body = max(smoothstep(.03, .14, l), edge);
     float shimmer = 1.0 + .4 * swap * (1.0 - swap);
@@ -319,12 +327,15 @@ void main() {
     // A held room (uGlyphOnly 1) keeps only the glyphs on object edges, so the field behind the exploded stack is
     // the previous room's outlines and never a scatter of dense clusters from its flat surfaces.
     roomCover = alpha * body * uBackGain * mix(1.0, smoothstep(.02, .1, tone.a), uGlyphOnly);
-    roomCover *= 1.0 - .35 * smoothstep(.8, 1.0, l);
     // The photograph takes the shadow lift and then the glyphs' lift, so the two share one hue and the strokes
     // read as texture on the picture, and its own deep shadows stay clear, as the glyphs' do, so the stage shows
-    // through both.
+    // through both. The two lifts carry a lit patch (the rim-lit finger tops, a window, the table) to the glyph
+    // ink's own tan, so the lifted photograph's lightness from .55 to .9 cuts its coverage by up to half. The
+    // glyph contours then lead on the lit patches, and the dark forearms and the shadows keep their whole
+    // photograph.
     photoCover = ${glslFloat(PHOTO_GAIN)} * smoothstep(.03, .14, lightness(photo)) * uBackGain * (1.0 - uGlyphOnly);
     photo = ink(pow(photo, vec3(${glslFloat(PHOTO_GAMMA)})));
+    photoCover *= 1.0 - .5 * smoothstep(.55, .9, lightness(photo));
   }
   float seam = smoothstep(0.0, ${glslFloat(SEAM)}, s.y) * smoothstep(0.0, ${glslFloat(SEAM)}, 1.0 - s.y);
   float shade = copyShade();
@@ -338,15 +349,19 @@ void main() {
   float taper = 1.0 - .55 * smoothstep(.3, 1.0, r);
   float rim = smoothstep(0.0, .5, fall - hash12(cell + 17.9) * .5);
   // The room prints in from the product's place at the chapter's start and dissolves back into it at the end,
-  // each cell over half of the reveal in order of its distance from the product, loosened by a fifth of hash,
-  // so the front is a wide soft ring growing out of the page's grid around the forming phone.
+  // each glyph cell over half of the reveal in order of its distance from the product, loosened by a fifth of
+  // hash, so the front is a wide soft ring growing out of the page's grid around the forming phone. The
+  // photograph follows the same ring per fragment without the hash, offset by the hash term's mean of .1 so its
+  // front stays centred in the glyphs' front. Taking the hashed order printed it as cell-sized blocks.
   float printed = uReveal;
+  float photoPrinted = uReveal;
   if (uReveal < 1.0) {
-    float order = clamp(distance(gl_FragCoord.xy, uRevealAt) / (.8 * length(uRes)), 0.0, 1.0) * .8 + hash12(cell * 1.91 + 5.3) * .2;
-    printed = staggered(order, .5, uReveal);
+    float reach = clamp(distance(gl_FragCoord.xy, uRevealAt) / (.8 * length(uRes)), 0.0, 1.0) * .8;
+    printed = staggered(reach + hash12(cell * 1.91 + 5.3) * .2, .5, uReveal);
+    photoPrinted = staggered(reach + .1, .5, uReveal);
   }
   roomCover *= rim * shade * printed;
-  photoCover *= fall * taper * shade * printed;
+  photoCover *= fall * taper * shade * photoPrinted;
 
   vec4 product = texelFetch(uProduct, ivec2(gl_FragCoord.xy), 0);
   if (uDecode < 1.0) {
@@ -464,11 +479,11 @@ export interface Composite {
  * room B's pan progress, each 0 to 1, from the rig's `roomDrift`. `uSurge`
  * is the scroll's eased speed, -1 to 1, and drags the room ahead of the
  * scroll while the visitor moves.
- * `uCopyMask` is the copy column's right edge x from the left, the copy
+ * `uCopyMask` is the right edge x of the copy block's ink from the left, the
  * block's top and bottom y from the top, and a strength from 0 to 1. At
  * strength 0 the room is untouched. `uCopyNarrow` is 1 on phone stages, which
  * read only the top. Wide darkens the room left of the edge within the
- * block's band, narrow darkens it from 90 CSS px above the top downward. `uLimb` is
+ * block's band, narrow darkens it from 130 CSS px above the top downward. `uLimb` is
  * kept for callers and not read, since the coach draws at fixed CSS sizes.
  * `uPixelRatio` is set from the renderer before every draw.
  */

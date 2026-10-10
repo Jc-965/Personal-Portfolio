@@ -37,9 +37,12 @@ const VIEWPORTS = [[1024, 768], [1280, 800], [1440, 900], [1920, 1080]]
 const inCard = (i, wnd) => 0.06 + i * 0.14 + wnd * 0.28
 const offset = ({ shots, sizes, places }, k) => places[k].left + sizes[k].w / 2 - shots[k].anchor.x
 const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+/** CSS px of a nearer card's side edges a shown label may graze, LABEL_COVER_SLACK in labels.ts. */
+const COVER_SLACK = 8
+const inset = (rect) => ({ ...rect, left: rect.left + COVER_SLACK, right: rect.right - COVER_SLACK })
 const boxOf = ({ sizes, places }, k) => ({ left: places[k].left, top: places[k].top, right: places[k].left + sizes[k].w, bottom: places[k].top + sizes[k].h })
 
-/** Every shown label sits under its own card, overlaps no other shown label, and draws over no nearer card. */
+/** Every shown label sits under its own card, overlaps no other shown label, and draws over no nearer card past a graze of its side edges. */
 const assertCoherent = (f, where) => {
   const shown = f.places.flatMap((place, k) => (place?.on ? [k] : []))
   for (const k of shown) {
@@ -49,7 +52,7 @@ const assertCoherent = (f, where) => {
     for (const j of shown) if (j > k) assert.ok(!overlaps(boxOf(f, k), boxOf(f, j)), `${where}: labels ${k} and ${j} overlap`)
     f.shots.forEach((other, j) => {
       if (j === k || other.opacity < 0.5 || other.depth >= f.shots[k].depth - 0.1) return
-      assert.ok(!overlaps(boxOf(f, k), other.rect), `${where}: label ${k} draws over card ${j}, which is in front of its own`)
+      assert.ok(!overlaps(boxOf(f, k), inset(other.rect)), `${where}: label ${k} draws over card ${j}, which is in front of its own`)
     })
   }
 }
@@ -76,6 +79,14 @@ test('card 3 held in front of card 2 hides card 2\'s label and leaves the labels
       assert.deepEqual(places.map((place) => place.on), [true, true, false, true], `${width}x${height} at ${wnd} of card 3's window`)
     }
   }
+})
+
+test('a settled card keeps its label while a held card only grazes it', () => {
+  // At 1440 by 900 the Manage label under its slot ends 1 to 3 px inside the held Recovery card's left edge at day
+  // 0.45, which is not a cover.
+  const f = frame(0.45, 1440, 900)
+  assert.equal(f.places[1].on, true, 'the Manage label is hidden by a corner of the held Recovery card')
+  assertCoherent(f, '1440x900 at day 0.45')
 })
 
 test('the finished row shows all four labels, each centred under its card', () => {

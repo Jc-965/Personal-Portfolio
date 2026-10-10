@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { actWindows, actAt, copyRide, dwell, localOf, ramp, totalSpan } from '../../src/components/teardown/timeline.ts'
+import { actCopyRide, actWindows, actAt, copyRide, dwell, localOf, ramp, totalSpan } from '../../src/components/teardown/timeline.ts'
 
 const ACTS = [
   { key: 'arrival', span: 1 }, { key: 'hand', span: 0.9 }, { key: 'day', span: 1.4 }, { key: 'quiet', span: 0.4 },
@@ -88,4 +88,21 @@ test('copyRide carries the copy from below centre to above it, readable through 
   assert.equal(copyRide(0.1).opacity, 1)
   assert.equal(copyRide(0.9).opacity, 1)
   assert.ok(copyRide(0.05).opacity < 1 && copyRide(0.95).opacity < 1)
+})
+
+test('the glass copy rides in late, fully opaque from about 0.195 of the act, as the first leader draws', () => {
+  // The glass leaders wait for the stack's explode to pass 0.5, at 0.2 of the act. The callouts ride in after the
+  // act's first 12%, so they never stand opaque beside an unparted phone, and still leave by the act's end.
+  const windows = actWindows(ACTS)
+  const index = windows.findIndex((w) => w.key === 'glass')
+  const at = (local) => actCopyRide(windows, index, windows[index].start + (windows[index].end - windows[index].start) * local)
+  assert.equal(at(0).opacity, 0)
+  assert.equal(at(0.12).opacity, 0)
+  assert.ok(at(0.18).opacity < 1, `the glass copy is still fading in at 0.18: ${at(0.18).opacity}`)
+  for (const local of [0.2, 0.5, 0.9]) assert.equal(at(local).opacity, 1, `the glass copy is fully shown at ${local}`)
+  assert.ok(at(0.95).opacity < 1)
+  assert.ok(at(1).opacity < 1e-9)
+  // The other middle acts keep the plain ride, fully shown from about 0.085.
+  const hand = windows.findIndex((w) => w.key === 'hand')
+  assert.equal(actCopyRide(windows, hand, windows[hand].start + (windows[hand].end - windows[hand].start) * 0.1).opacity, 1)
 })

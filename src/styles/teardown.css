@@ -7,7 +7,7 @@
    stage's edges print on the page while it scrolls in and out. */
 
 .teardown {
-  --teardown-travel: 17.3;
+  --teardown-travel: 17.6;
   --td-amber: #eab76a;
   /* Warm white for copy over the glyph rooms. */
   --td-ink: #f3efe8;
@@ -440,7 +440,15 @@
     background: linear-gradient(to top, rgba(9, 7, 5, .85), rgba(9, 7, 5, .6) 45%, rgba(9, 7, 5, 0));
   }
   .teardown__act { align-self: end; }
-  .teardown__leaders { display: none; }
+  /* Every anchor is above every callout here, so the anchored callouts read bottom to top while the leaders
+     show: the bottom callout's leader takes the top anchor and the outermost gutter lane, and each route then
+     encloses the routes of the callouts above it, so none crosses another (leaders.ts). The DOM keeps screen
+     order for assistive technology, and the DOM stage, which draws no leaders, shows it. */
+  .teardown.is-gl .teardown__callouts--anchored {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
   .teardown__title { margin-bottom: 10px; font-size: clamp(2rem, 8.5vw, 2.5rem); }
   .teardown__line { margin-bottom: 6px; font-size: .92rem; line-height: 1.5; }
   .teardown__lede { margin-bottom: 8px; font-size: 1.02rem; line-height: 1.4; }

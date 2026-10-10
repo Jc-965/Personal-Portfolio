@@ -51,10 +51,10 @@ export const PARKIWELL: TeardownStory = {
     // deck card holds at the centre for about 0.5, and the finished row rests for about 1.0 before the quiet act
     // folds it.
     { key: 'day', span: 4.2, backdrop: 0, lines: [], callouts: [] },
-    // The quiet act is the chapter's one authored pause. At 1.1 viewport-heights the row folds over its first half
-    // and the edge-on phone still holds for more than two wheel notches under Lenis, so it reads as a pause
-    // instead of a cut between the day and the glass.
-    { key: 'quiet', span: 1.1, backdrop: null, lines: [], callouts: [] },
+    // The quiet act is the chapter's one authored pause. At 1.4 viewport-heights the row folds over the act's first
+    // 60% (about 0.84 viewport-heights) and the edge-on phone then holds for about 0.5, so the seam after the day
+    // act's long build reads as a pause instead of a cut between the day and the glass.
+    { key: 'quiet', span: 1.4, backdrop: null, lines: [], callouts: [] },
     {
       key: 'glass',
       // The peak keeps the chapter's largest span, so it stays longer than the day act.
