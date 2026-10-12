@@ -12,7 +12,7 @@ import { GLIDE_TIME, glideStep, type Glide } from './glide'
 import { CHAPTER_RAMP } from './materials'
 import { cardShots, type CardShot } from './labels'
 import { createProduct, type PlaneMesh } from './product'
-import { FOCAL, LAUNCH_MS, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, projectRect, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
+import { ACT_SCREEN, FOCAL, LAUNCH_MS, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, projectRect, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
 import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
 import { actAt, actCopyRide, actWindows, previewProgress } from './timeline'
 
@@ -48,8 +48,11 @@ export interface TeardownCanvasProps {
   /** The chapter track. Progress is measured against it. */
   track: HTMLElement
   onFrame: (frame: TeardownFrame) => void
-  /** First frame drawn with every screen texture uploaded. */
-  onReady: () => void
+  /**
+   * First frame drawn with the textures its pose shows uploaded. `formMs` is how long the phone and the room take to form
+   * from glyphs as the canvas appears, 0 when the scroll has not reached the formation yet.
+   */
+  onReady: (formMs: number) => void
   /** WebGL2 missing, a shader or framebuffer failed, or the context was lost. */
   onFallback: () => void
   /** Read on every scroll, so a view change maps progress anew without remounting the renderer. */
@@ -90,6 +93,8 @@ const EASE_REST = 1e-3
  */
 const END_REACH = 0.12
 const END_GLIDE_TIME = 0.06
+/** Milliseconds a canvas that appears mid-formation takes to form the phone and the room from glyphs. */
+const FORM_MS = 1400
 /** Frames the mount waits for parallel program links before it draws regardless, about 2 s at 60 Hz. */
 const LINK_POLLS = 120
 
@@ -313,6 +318,8 @@ function mount(
   let verifyTarget = false
   /** performance.now() of the launch click, -1 when no launch bump is playing. */
   let pulseStart = -1
+  /** performance.now() the canvas first appeared mid-formation, -1 once the load-in has finished or never ran. */
+  let formStart = -1
   let ready = false
   let raf = 0
   let lastPaint = 0
@@ -342,9 +349,10 @@ function mount(
     uploads.shift()?.()
     if (uploads.length) uploadFrame = requestAnimationFrame(pumpUploads)
   }
-  const queueUpload = (job: () => void) => {
+  const queueUpload = (job: () => void, urgent: boolean) => {
     if (disposed || failed) return
-    uploads.push(job)
+    if (urgent) uploads.unshift(job)
+    else uploads.push(job)
     if (compiled && !uploadFrame) uploadFrame = requestAnimationFrame(pumpUploads)
   }
   const start = () => { if (!raf && (visible || flush) && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
@@ -356,7 +364,7 @@ function mount(
    * is closed once uploaded, since three uploads a texture again only when its version changes, and nothing here
    * bumps it after the first upload. A failed load leaves the texture unready.
    */
-  const load = (src: string): Loaded => {
+  const load = (src: string, urgent = false): Loaded => {
     const texture = new THREE.Texture()
     texture.colorSpace = THREE.SRGBColorSpace
     texture.anisotropy = anisotropy
@@ -372,7 +380,7 @@ function mount(
       if ('close' in image) image.close()
       entry.ready = true
       start()
-    })
+    }, urgent)
     bitmapsFlip().then((flips) => {
       if (disposed || failed) return
       if (!flips) {
@@ -390,11 +398,12 @@ function mount(
     })
     return entry
   }
-  const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src)]))
+  // The arrival's screen and room upload first, since the canvas appears as soon as the pose it shows is ready.
+  const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src, screen.key === ACT_SCREEN.arrival)]))
   const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
   const requestRoom = (index: number | null) => {
     if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
-    rooms[index] = load(story.backdrops[index].src)
+    rooms[index] = load(story.backdrops[index].src, index === actBackdrops[0])
   }
   // Every room is queued at mount, in the order the acts reach them, so their uploads run before the chapter is on
   // screen. Requested on first use, the arrival's rooms uploaded in the frames the chapter scrolled in.
@@ -582,7 +591,12 @@ function mount(
     camera.updateProjectionMatrix()
     camera.projectionMatrix.fromArray(applyLensShift(camera.projectionMatrix.toArray(), pose.camera.shift, aspect))
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
-    applyComposite(pose, aspect)
+    // A canvas that first appears after the scroll has passed the start of the formation forms the phone and the
+    // room from glyphs over FORM_MS anyway, so they load in as characters instead of cutting in finished.
+    const form = formStart < 0 ? 1 : Math.min(1, (now - formStart) / FORM_MS)
+    if (form >= 1) formStart = -1
+    const formed = form * form * form * (form * (form * 6 - 15) + 10)
+    applyComposite(form < 1 ? { ...pose, decode: Math.min(pose.decode, formed), gather: Math.min(pose.gather, formed), backdrop: { ...pose.backdrop, reveal: Math.min(pose.backdrop.reveal, formed) } } : pose, aspect)
     applyCopyMask(glide.value)
 
     renderer.setRenderTarget(target)
@@ -617,14 +631,21 @@ function mount(
       : null
     callbacks.current.onFrame({ progress: glide.value, anchors, cards: cardShots(pose, aspect, width, height), explode: pose.explode, phone })
 
-    if (!ready && [...screens.values()].every((screen) => screen.ready)) {
+    // The canvas appears once the textures this pose shows are uploaded. The rest keep uploading one per frame,
+    // and a plane or a room whose texture has not arrived stays hidden until it does.
+    const roomShown = (index: number) => index < 0 || !!rooms[index]?.ready
+    const screenShown = pose.screen.texture === 'code' || !!screens.get(pose.screen.texture)?.ready
+    if (!ready && screenShown && roomShown(pose.backdrop.a) && roomShown(pose.backdrop.b)) {
       ready = true
-      callbacks.current.onReady()
+      // This frame drew under the canvas's zero opacity, so the load-in starts from nothing on the next one.
+      const forming = pose.decode > 0.01
+      if (forming) formStart = now
+      callbacks.current.onReady(forming ? FORM_MS : 0)
     }
     // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the track is visible and
     // the glide or an interaction is still moving, or an act change has left the copy mask to measure.
     flush = false
-    if (visible && (easing || glide.value !== progress || copyDirty || push > 0)) raf = requestAnimationFrame(draw)
+    if (visible && (easing || glide.value !== progress || copyDirty || push > 0 || formStart >= 0)) raf = requestAnimationFrame(draw)
     else lastPaint = 0
   }
 

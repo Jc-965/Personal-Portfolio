@@ -524,11 +524,20 @@ html.journey-open .projects__scenes > :not(.teardown),
 html.journey-open .footer { display: none; }
 html.journey-open #projects { padding-top: 0; padding-bottom: 0; }
 
-/* Closing the journey from past the preview's last frame fades the stage out
-   for the swap and back in on the preview, instead of gliding through every
-   act in between. */
-.teardown__stage { transition: opacity .25s ease; }
-.teardown__stage.is-swapping { opacity: 0; }
+/* Closing the journey from past the preview's last frame drifts the stage up
+   and fades it out (SWAP_MS in Teardown.tsx), swaps to the preview, and
+   settles the home scene in from below (SETTLE_MS), instead of gliding through
+   every act in between. is-entering places the stage below without a
+   transition, and removing it plays the settle. */
+.teardown__stage {
+  transition: opacity .45s cubic-bezier(.4, 0, .2, 1), translate .45s cubic-bezier(.4, 0, .2, 1), scale .45s cubic-bezier(.4, 0, .2, 1);
+}
+.teardown__stage.is-swapping { opacity: 0; translate: 0 -3svh; scale: .985; }
+.teardown__stage.is-entering { opacity: 0; translate: 0 3svh; scale: .985; transition: none; }
+.teardown__stage:not(.is-swapping) {
+  transition-duration: .7s;
+  transition-timing-function: var(--td-ease);
+}
 
 /* The phone's click target. Teardown writes its box from the phone's
    projected screen every frame, so the custom cursor brackets the phone. */
@@ -594,3 +603,41 @@ html.journey-open #projects { padding-top: 0; padding-bottom: 0; }
   .teardown__open,
   .teardown__back { transition: none; }
 }
+
+/* The journey's end. Teardown fills the bar (--return, 0 to 1) while the
+   reader keeps scrolling past the bottom, and returns home when it is full. */
+.teardown__return {
+  margin: 22px 0 0;
+  font: 600 .72rem/1.4 var(--font-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--td-amber);
+}
+
+.teardown__return-bar {
+  position: relative;
+  display: block;
+  width: min(220px, 60%);
+  height: 1px;
+  margin-top: 10px;
+  background: var(--td-hairline);
+}
+
+/* The fill scales from the left with the eased push, and glows once full. */
+.teardown__return-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--td-amber);
+  transform: scaleX(var(--return, 0));
+  transform-origin: left;
+  box-shadow: 0 0 0 rgba(234, 183, 106, 0);
+  transition: box-shadow .4s ease;
+}
+
+.teardown__return.is-full .teardown__return-bar::after { box-shadow: 0 0 10px rgba(234, 183, 106, .7); }
+
+/* While the renderer loads, the copy waits with the empty stage and fades in
+   as the canvas does, before the title prints. */
+.teardown__rail { transition: opacity .6s var(--td-ease); }
+.teardown.is-loading .teardown__rail { opacity: 0; }

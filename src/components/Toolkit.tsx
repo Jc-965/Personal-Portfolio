@@ -30,7 +30,7 @@ const skill = (name: string) => {
   const id = name.toLowerCase().replace(/[^a-z0-9]/g, '')
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Focus is how keyboard and touch users reveal the name tooltip.
-    <li key={name} className="toolkit__item" tabIndex={0} data-cursor style={{ '--brand': `#${brand[name]}` } as CSSProperties}>
+    <li key={name} className="toolkit__item" tabIndex={0} style={{ '--brand': `#${brand[name]}` } as CSSProperties}>
       <svg className={id === 'htmlcss' ? 'toolkit__icon toolkit__icon--pair' : 'toolkit__icon'} aria-hidden="true"><use href={`/skills/icons.svg#${id}`} /></svg>
       <span className="toolkit__name">{name}</span>
     </li>
@@ -191,8 +191,9 @@ export default function Toolkit() {
         <h2>Technologies and tools I work with</h2>
       </m.header>
 
-      {/* A press anywhere on the glass puts the caret in the prompt, like a real terminal window. */}
-      <div ref={terminalRef} className="toolkit__terminal" data-cursor onPointerDown={focusInput} onPointerOver={placeName} onFocus={placeName}>
+      {/* A press anywhere on the glass puts the caret in the prompt, like a real terminal window. The custom
+          cursor's target box stays off the whole terminal, skill icons included. */}
+      <div ref={terminalRef} className="toolkit__terminal" data-target-cursor="off" onPointerDown={focusInput} onPointerOver={placeName} onFocus={placeName}>
         <div className="toolkit__bar">
           <span className="toolkit__bar-title">~/skills</span>
           <span className="toolkit__bar-hint">{ready ? 'type help' : 'zsh'}</span>

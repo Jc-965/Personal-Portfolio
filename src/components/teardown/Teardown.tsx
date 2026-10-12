@@ -74,8 +74,22 @@ const READOUT_CLEAR = 20
  */
 const DETENT_DEPTH = 0.4
 const DETENT_WIDTH = 0.35
-/** Milliseconds the stage fades out and back in when the journey closes from past the preview's last frame. */
-const SWAP_MS = 250
+/**
+ * Milliseconds the stage drifts up and fades out when the journey closes from past the preview's last frame, and
+ * the milliseconds the home scene then takes to settle in from below. teardown.css times both transitions.
+ */
+const SWAP_MS = 450
+const SETTLE_MS = 700
+/**
+ * Scrolling on past the journey's end returns to the home page. The push counts only after the page has rested
+ * at the bottom for RETURN_ARM ms, fills after RETURN_PUSH viewport-heights of input, and drains after
+ * RETURN_DRAIN ms without input, so a flick's momentum that reaches the end does not carry the reader out. The bar
+ * follows the push on a RETURN_EASE second ease, so it fills and drains smoothly between wheel events.
+ */
+const RETURN_ARM = 250
+const RETURN_PUSH = 0.6
+const RETURN_DRAIN = 500
+const RETURN_EASE = 0.12
 
 /** Where the window scrolls in the layout effect after a view swap. */
 type PendingScroll = { kind: 'journey'; progress: number } | { kind: 'home'; y: number } | { kind: 'preview-end' }
@@ -134,6 +148,9 @@ function Teardown({ story }: { story: TeardownStory }) {
   const [act, setAct] = useState(0)
   const actRef = useRef(0)
   const [printed, setPrinted] = useState(false)
+  /** The title prints once the stage has come on screen (printWanted) and the phone has loaded in (printAllowed). */
+  const printWantedRef = useRef(false)
+  const printAllowedRef = useRef(false)
   const [view, setView] = useState<TeardownView>(() => (journeyAt(window.location.pathname, [story.id]) ? 'journey' : 'preview'))
   /** The view the scroll handlers and the canvas map with. It changes in the same task as setView. */
   const viewRef = useRef<TeardownView>(view)
@@ -147,6 +164,11 @@ function Teardown({ story }: { story: TeardownStory }) {
   const pendingScrollRef = useRef<PendingScroll | null>(null)
   const titleRef = useRef('')
   const phoneHitRef = useRef<HTMLButtonElement>(null)
+  const returnRef = useRef<HTMLParagraphElement>(null)
+  /** True from the moment a close starts until the home scene has settled, so a close never runs twice. */
+  const closingRef = useRef(false)
+  /** True between history.back() and its popstate, so a second request cannot step the history back twice. */
+  const backPendingRef = useRef(false)
   /** Remeasures the pinned effect's track geometry. A view swap calls it in the swap's frame. */
   const pinMeasureRef = useRef<() => void>(() => {})
   const isStatic = mode === 'static'
@@ -230,11 +252,20 @@ function Teardown({ story }: { story: TeardownStory }) {
   // Sets the act, the arrival print, the copy ride, and the proof readout from one progress value. The
   // scroll listener calls it in dom mode and onFrame calls it with the canvas's glided progress in gl mode,
   // so the copy moves in step with the stage the reader sees.
+  const requestPrint = useCallback(() => {
+    printWantedRef.current = true
+    if (printAllowedRef.current) setPrinted(true)
+  }, [])
+  const allowPrint = useCallback(() => {
+    printAllowedRef.current = true
+    if (printWantedRef.current) setPrinted(true)
+  }, [])
+
   const follow = useCallback((progress: number) => {
     progressRef.current = progress
     const current = actAt(windows, progress)
     setAct(current.index)
-    if (progress > 0) setPrinted(true)
+    if (progress > 0) requestPrint()
     rideCopy(progress)
     if (current.index === proofIndex) {
       // Typing starts 3% into the act, so the first line is about half typed by the time the panel's ride brings
@@ -244,7 +275,7 @@ function Teardown({ story }: { story: TeardownStory }) {
         setStyle(li, '--typed', clamp((current.local - 0.03) * all.length * 2.2 - i, 0, 1).toFixed(3))
       })
     }
-  }, [windows, proofIndex, rideCopy])
+  }, [windows, proofIndex, rideCopy, requestPrint])
 
   // Scroll drives the copy only in dom mode, before the renderer is ready and after a fallback.
   useEffect(() => {
@@ -286,7 +317,7 @@ function Teardown({ story }: { story: TeardownStory }) {
       raf = 0
       const top = trackTop - pageScrollY()
       const bottom = top + trackHeight
-      if (top < window.innerHeight * 0.65 && bottom > 0) setPrinted(true)
+      if (top < window.innerHeight * 0.65 && bottom > 0) requestPrint()
       const next = top <= 0.5 && bottom + 0.5 >= window.innerHeight
       if (next === pinned) return
       pinned = next
@@ -315,7 +346,7 @@ function Teardown({ story }: { story: TeardownStory }) {
       root.classList.remove('teardown-pinned')
       setCovering('teardown', false)
     }
-  }, [track, isStatic])
+  }, [track, isStatic, requestPrint])
 
   // Focus inside a hidden act (the close act's links, which stay focusable) scrolls the window to the
   // middle of that act's window, so the act and the focused link are on screen. In gl mode the act then
@@ -501,7 +532,15 @@ function Teardown({ story }: { story: TeardownStory }) {
   }, [story])
 
   const leaveJourney = useCallback(() => {
-    if (viewRef.current !== 'journey') return
+    if (viewRef.current !== 'journey' || closingRef.current) return
+    closingRef.current = true
+    const lenis = lenisRef.current
+    // The page holds still through the close, so a wheel's momentum does not carry on into the home page.
+    lenis?.stop()
+    const settled = () => {
+      closingRef.current = false
+      lenis?.start()
+    }
     const swap = () => {
       viewRef.current = 'preview'
       if (titleRef.current) document.title = titleRef.current
@@ -511,14 +550,26 @@ function Teardown({ story }: { story: TeardownStory }) {
       pendingScrollRef.current = homeY === null ? { kind: 'preview-end' } : { kind: 'home', y: homeY }
       setView('preview')
     }
-    // Past the preview's last frame the poses differ, so the stage fades out, swaps, and fades back in instead
-    // of gliding back through every act in between.
+    // Past the preview's last frame the poses differ, so the stage drifts up and fades out, swaps, and the home
+    // scene settles in from below, instead of gliding back through every act in between.
     const stage = stageRef.current
-    if (!stage || prefersReduced() || progressRef.current <= previewEnd(story.acts) + 1e-4) { swap(); return }
+    if (!stage || prefersReduced() || progressRef.current <= previewEnd(story.acts) + 1e-4) {
+      swap()
+      settled()
+      return
+    }
     stage.classList.add('is-swapping')
     window.setTimeout(() => {
       swap()
-      window.setTimeout(() => stage.classList.remove('is-swapping'), 60)
+      // The swap commits synchronously, so the next frame starts the settle from below with the new pose drawn.
+      requestAnimationFrame(() => {
+        stage.classList.add('is-entering')
+        stage.classList.remove('is-swapping')
+        requestAnimationFrame(() => {
+          stage.classList.remove('is-entering')
+          window.setTimeout(settled, SETTLE_MS)
+        })
+      })
     }, SWAP_MS)
   }, [story])
 
@@ -541,9 +592,10 @@ function Teardown({ story }: { story: TeardownStory }) {
   }, [story, enterJourney])
 
   const back = useCallback(() => {
-    if (viewRef.current !== 'journey') return
+    if (viewRef.current !== 'journey' || closingRef.current || backPendingRef.current) return
     if (pushedRef.current) {
       // popstate closes the journey, so Back in the browser and this control take one path.
+      backPendingRef.current = true
       window.history.back()
       return
     }
@@ -560,6 +612,7 @@ function Teardown({ story }: { story: TeardownStory }) {
         enterJourney(progressRef.current)
       } else if (!id && viewRef.current === 'journey') {
         pushedRef.current = false
+        backPendingRef.current = false
         leaveJourney()
       }
     }
@@ -571,6 +624,78 @@ function Teardown({ story }: { story: TeardownStory }) {
       window.removeEventListener('keydown', onKey)
     }
   }, [story, enterJourney, leaveJourney, back])
+
+  // At the journey's end, input that keeps pushing down fills the return hint's bar (--return, eased) and then
+  // closes the journey the way the back control does, once: closingRef holds every later push until the home
+  // scene has settled.
+  useEffect(() => {
+    if (view !== 'journey') return
+    let target = 0
+    let shown = 0
+    let armedAt = 0
+    let lastInput = 0
+    let raf = 0
+    let last = 0
+    let touchY = 0
+    const hint = returnRef.current
+    const atBottom = () => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+    const tick = (now: number) => {
+      raf = 0
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
+      last = now
+      if (!closingRef.current && target < 1 && now - lastInput > RETURN_DRAIN) target = 0
+      shown += (target - shown) * (1 - Math.exp(-dt / RETURN_EASE))
+      if (Math.abs(target - shown) < 1e-3) shown = target
+      hint?.style.setProperty('--return', shown.toFixed(3))
+      if (shown !== target || (target > 0 && target < 1)) raf = requestAnimationFrame(tick)
+      else last = 0
+    }
+    const wake = () => { if (!raf) raf = requestAnimationFrame(tick) }
+    let fired = false
+    const add = (delta: number) => {
+      if (fired || closingRef.current || backPendingRef.current) return
+      if (!atBottom()) {
+        armedAt = 0
+        target = 0
+        wake()
+        return
+      }
+      const now = performance.now()
+      if (!armedAt) armedAt = now
+      if (now - armedAt < RETURN_ARM) return
+      lastInput = now
+      target = Math.min(1, target + delta / (RETURN_PUSH * window.innerHeight))
+      wake()
+      if (target >= 1) {
+        fired = true
+        hint?.classList.add('is-full')
+        back()
+      }
+    }
+    const onWheel = (event: WheelEvent) => { if (event.deltaY > 0) add(event.deltaY * (event.deltaMode === 1 ? 16 : 1)) }
+    const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0 }
+    const onTouchMove = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY ?? touchY
+      if (touchY > y) add(touchY - y)
+      touchY = y
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (['ArrowDown', 'PageDown', ' ', 'End'].includes(event.key)) add(window.innerHeight * 0.3)
+    }
+    window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('keydown', onKey)
+    return () => {
+      cancelAnimationFrame(raf)
+      hint?.classList.remove('is-full')
+      hint?.style.setProperty('--return', '0')
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [view, back])
 
   // A direct load of the journey path opens the journey before the first paint, from the start of the story.
   useLayoutEffect(() => {
@@ -611,11 +736,18 @@ function Teardown({ story }: { story: TeardownStory }) {
     })
     return () => cancelAnimationFrame(resync)
   }, [view, track, story])
-  const onReady = useCallback(() => setMode((m) => (m === 'static' ? m : 'gl')), [])
+  // The title waits for the real phone. A canvas that appears mid-formation forms the phone over formMs, and the
+  // print starts as that formation settles. One that appears before the formation lets the title print as the
+  // stage arrives, after the canvas has begun to fade in.
+  const onReady = useCallback((formMs: number) => {
+    setMode((m) => (m === 'static' ? m : 'gl'))
+    window.setTimeout(allowPrint, formMs ? formMs * 0.7 : 300)
+  }, [allowPrint])
   const onFallback = useCallback(() => {
+    allowPrint()
     setFailed(true)
     setMode((m) => (m === 'static' ? m : 'dom'))
-  }, [])
+  }, [allowPrint])
 
   const isActive = (index: number) => isStatic || index === act
   const actKey = story.acts[act]?.key ?? 'arrival'
@@ -629,14 +761,16 @@ function Teardown({ story }: { story: TeardownStory }) {
     <section
       ref={setTrack}
       id={`project-${story.id}`}
-      className={`teardown teardown--${view} ${isStatic ? 'teardown--static' : `is-${mode}`}`}
+      className={`teardown teardown--${view} ${isStatic ? 'teardown--static' : `is-${mode}`}${!isStatic && mode === 'dom' && !failed ? ' is-loading' : ''}`}
       style={{ '--teardown-travel': travel } as React.CSSProperties}
       data-act={isStatic ? undefined : actKey}
       aria-labelledby={titleId}
     >
       <div ref={stageRef} className="teardown__stage">
-        {!isStatic && (
-          <div className="teardown__dom-stage" aria-hidden={mode === 'gl'}>
+        {/* The DOM stage is the fallback where WebGL fails. While the renderer loads the stage stays empty, so the
+            real phone forms from glyphs when it arrives instead of replacing a stand-in. */}
+        {!isStatic && failed && (
+          <div className="teardown__dom-stage">
             <div className="teardown__dom-phones">
               {domScreens.map((s) => (
                 <PhoneFrame key={s.key} src={s.src} alt={s.alt} aspect={`${s.width} / ${s.height}`} accent={AMBER} className={s === domScreen ? 'is-active' : undefined} />
@@ -748,6 +882,13 @@ function Teardown({ story }: { story: TeardownStory }) {
                       ))}
                     </p>
                   </>
+                )}
+                {a.key === 'close' && view === 'journey' && !isStatic && (
+                  // Scrolling on past the end returns home. The bar fills with the push (--return).
+                  <p ref={returnRef} className="teardown__return" aria-hidden="true">
+                    <span>// keep scrolling to return home</span>
+                    <span className="teardown__return-bar" />
+                  </p>
                 )}
               </div>
             )

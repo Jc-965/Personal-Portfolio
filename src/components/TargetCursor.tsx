@@ -283,9 +283,12 @@ export default function TargetCursor({
       })
     }
 
-    const resolveTargetAtPoint = (x: number, y: number) => (
-      document.elementFromPoint(x, y)?.closest(targetSelector) ?? null
-    )
+    // A region marked data-target-cursor="off" opts every element inside it out of the target box.
+    const resolveTargetAtPoint = (x: number, y: number) => {
+      const element = document.elementFromPoint(x, y)
+      if (!element || element.closest('[data-target-cursor="off"]')) return null
+      return element.closest(targetSelector) ?? null
+    }
 
     const isSketchbookActive = () => root.classList.contains('sketchbook-mode')
 
