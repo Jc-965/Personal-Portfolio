@@ -13,7 +13,7 @@ export const SCOTTYLABS_AI: RoleStory = {
       lines: [
         'ScottyLabs AI',
         'Head of Agent',
-        'Bark is Carnegie Mellon’s campus AI assistant, built inside ScottyLabs, a 70-person student org. Leads the 25 engineers who build it, as Bark’s architect and principal author.',
+        'Bark is Carnegie Mellon’s campus AI assistant, built by the ScottyLabs AI team. Leads 25 engineers as Bark’s architect and principal author.',
       ],
       callouts: [],
     },

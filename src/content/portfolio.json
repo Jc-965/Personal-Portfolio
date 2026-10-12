@@ -21,7 +21,7 @@
       "period": "Apr 2026 – Present",
       "location": "Pittsburgh, PA",
       "status": "Active",
-      "summary": "Architect and principal author of Bark, Carnegie Mellon’s campus AI assistant, leading 25 engineers in the 70-person org. Bark grounds every answer in live university data.",
+      "summary": "Architect and principal author of Bark, Carnegie Mellon’s campus AI assistant, leading 25 engineers. Bark grounds every answer in live university data.",
       "stack": [
         "LangGraph",
         "FastAPI",
