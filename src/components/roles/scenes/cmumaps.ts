@@ -1,7 +1,8 @@
 /**
  * The CMUMaps world: a cartographer's map slab with Carnegie Mellon's campus on it, built from the CMUMaps
- * pipeline's own output (public/roles/cmumaps/campus.json, derived from OpenStreetMap): 74 buildings on their real
- * footprints, extruded by their floor counts, and their 75 entrances. Above the slab float the pipeline's three
+ * pipeline's own output (public/roles/cmumaps/campus.json, derived from OpenStreetMap): 73 buildings on their real
+ * footprints, extruded by their storeys, and their 75 entrances, printed over the real streets and green spaces.
+ * campus.json's source field records where each storey count comes from. Above the slab float the pipeline's three
  * layers as glass sheets: the OpenStreetMap points, the footprint outlines, and the entrances. A brass compass, push
  * pins, a rolled map, and a storage bucket stand on and beside the slab.
  *
@@ -21,6 +22,8 @@ import { GLOW, ease, frame, materials, mulberry32, ramp, smoother, sunlight } fr
 import type { IslandFactory, IslandFrame, IslandOutput, IslandPanel } from '../types'
 
 interface Building { code: string; name: string; floors: number; rings: [number, number][][]; entrances: [number, number][] }
+/** campus.json: positions are metres east and north of the campus centre. Street ranks run 1 (local) to 3 (arterial). */
+interface Campus { buildings: Building[]; streets: { rank: number; line: [number, number][] }[]; green: [number, number][][] }
 
 /** World units per metre: the campus's 1,190 by 870 m fits inside the slab's printed frame. */
 const METRE = 0.0026
@@ -48,10 +51,11 @@ const PAPER = '#e4d4b0'
 const toWorld = (x: number, y: number) => ({ x: (x - CENTRE.x) * METRE, z: -(y - CENTRE.y) * METRE })
 
 /**
- * The printed map: paper, a grid, contour lines, a river, a double frame, a north arrow, a scale bar, and, once the
- * data arrives, every footprint in faint ink.
+ * The printed map: paper, a grid, a double frame, a north arrow, and a scale bar of six 50 m segments, and, once the
+ * data arrives, the campus's green spaces, its streets, and every footprint, clipped to the inner frame. North is the
+ * canvas's top, which the slab's top face maps to -z.
  */
-function paperTexture(buildings: Building[] | null, canvas: HTMLCanvasElement) {
+function paperTexture(campus: Campus | null, canvas: HTMLCanvasElement) {
   const w = canvas.width
   const h = canvas.height
   const g = canvas.getContext('2d')
@@ -67,50 +71,54 @@ function paperTexture(buildings: Building[] | null, canvas: HTMLCanvasElement) {
   g.lineWidth = 1.5
   for (let x = 0; x <= w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke() }
   for (let y = 0; y <= h; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke() }
-  // Contour lines around two hills, wobbling, every fifth one heavier.
-  for (const [cx, cy, n] of [[w * 0.22, h * 0.72, 13], [w * 0.82, h * 0.25, 10]] as const) {
-    for (let k = 1; k <= n; k++) {
-      g.strokeStyle = `rgba(160, 110, 60, ${k % 5 === 0 ? 0.55 : 0.3})`
-      g.lineWidth = k % 5 === 0 ? 3 : 1.6
+  if (campus) {
+    const trace = (points: [number, number][]) => {
       g.beginPath()
-      for (let a = 0; a <= 64; a++) {
-        const t = (a / 64) * Math.PI * 2
-        const r = k * 34 * (1 + 0.16 * Math.sin(t * 3 + k * 0.7) + 0.08 * Math.cos(t * 5 - k))
-        const x = cx + Math.cos(t) * r * 1.3
-        const y = cy + Math.sin(t) * r
-        if (a) g.lineTo(x, y)
-        else g.moveTo(x, y)
-      }
+      points.forEach(([x, y], i) => {
+        const p = toWorld(x, y)
+        const px = (p.x / SLAB.w + 0.5) * w
+        const py = (p.z / SLAB.d + 0.5) * h
+        if (i) g.lineTo(px, py)
+        else g.moveTo(px, py)
+      })
+    }
+    g.save()
+    g.beginPath()
+    g.rect(44, 44, w - 88, h - 88)
+    g.clip()
+    g.fillStyle = 'rgba(122, 158, 92, 0.3)'
+    g.strokeStyle = 'rgba(90, 125, 70, 0.45)'
+    g.lineWidth = 1.5
+    for (const area of campus.green) {
+      trace(area)
+      g.closePath()
+      g.fill()
       g.stroke()
     }
-  }
-  // A river along the bottom edge.
-  g.strokeStyle = 'rgba(110, 160, 200, 0.75)'
-  g.lineWidth = 26
-  g.lineCap = 'round'
-  g.beginPath()
-  g.moveTo(-20, h * 0.93)
-  g.bezierCurveTo(w * 0.3, h * 0.82, w * 0.55, h * 1.02, w + 20, h * 0.86)
-  g.stroke()
-  if (buildings) {
+    // Streets: an ink casing, then the road in pale paper, widest for the arterials. One px is about 1.2 m.
+    g.lineCap = 'round'
+    g.lineJoin = 'round'
+    const widths = [0, 6, 9, 13]
+    for (const pass of ['casing', 'road'] as const) {
+      g.strokeStyle = pass === 'casing' ? 'rgba(47, 61, 82, 0.5)' : '#f4ead3'
+      for (const street of campus.streets) {
+        g.lineWidth = widths[street.rank] + (pass === 'casing' ? 3 : 0)
+        trace(street.line)
+        g.stroke()
+      }
+    }
     g.fillStyle = 'rgba(47, 61, 82, 0.28)'
     g.strokeStyle = 'rgba(47, 61, 82, 0.8)'
     g.lineWidth = 2
-    for (const b of buildings) {
+    for (const b of campus.buildings) {
       for (const ring of b.rings) {
-        g.beginPath()
-        ring.forEach(([x, y], i) => {
-          const p = toWorld(x, y)
-          const px = (p.x / SLAB.w + 0.5) * w
-          const py = (p.z / SLAB.d + 0.5) * h
-          if (i) g.lineTo(px, py)
-          else g.moveTo(px, py)
-        })
+        trace(ring)
         g.closePath()
         g.fill()
         g.stroke()
       }
     }
+    g.restore()
   }
   // The frame, the north arrow, and the scale bar.
   g.strokeStyle = INK
@@ -131,12 +139,13 @@ function paperTexture(buildings: Building[] | null, canvas: HTMLCanvasElement) {
   g.font = '600 40px Georgia, serif'
   g.textAlign = 'center'
   g.fillText('N', nx, ny + 66)
+  const segment = ((50 * METRE) / SLAB.w) * w
   for (let i = 0; i < 6; i++) {
     g.fillStyle = i % 2 ? PAPER : INK
-    g.fillRect(90 + i * 46, h - 110, 46, 16)
+    g.fillRect(90 + i * segment, h - 110, segment, 16)
   }
   g.strokeStyle = INK
-  g.strokeRect(90, h - 110, 276, 16)
+  g.strokeRect(90, h - 110, 6 * segment, 16)
 }
 
 const createScene: IslandFactory = (ctx) => {
@@ -374,7 +383,7 @@ void main() {
 
   fetch('/roles/cmumaps/campus.json')
     .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
-    .then((data: { buildings: Building[] }) => {
+    .then((data: Campus) => {
       if (disposed) return
       buildings = data.buildings
       const parts: THREE.BufferGeometry[] = []
@@ -443,7 +452,7 @@ void main() {
         layers[1].group.add(outlineLines)
         layers[2].group.add(doorMesh)
         pinned = buildings.findIndex((b) => b.code === START_PIN)
-        paperTexture(buildings, paperCanvas)
+        paperTexture(data, paperCanvas)
         paper.needsUpdate = true
         ctx.invalidate()
       })
