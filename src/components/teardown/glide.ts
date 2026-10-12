@@ -9,10 +9,11 @@ export interface Glide {
 }
 
 /**
- * Seconds. Lenis already smooths the scroll, so this only takes the edge off a jerky wheel or a fling. A longer
- * follow kept the product moving after the visitor stopped, which read as drift and made visitors queasy.
+ * Seconds. Long enough that every move eases in and out instead of snapping to the wheel, short enough that the
+ * product settles within about a second of the scroll stopping. At 0.16 the motion read as snappy, and at 0.5 the
+ * product kept moving long after the visitor stopped, which read as drift.
  */
-export const GLIDE_TIME = 0.16
+export const GLIDE_TIME = 0.3
 
 /**
  * Advances the follow by `dt` seconds toward `target`. The decay factor is a

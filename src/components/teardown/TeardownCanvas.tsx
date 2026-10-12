@@ -53,10 +53,10 @@ const RAIL_GUTTER = 32
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
 /**
- * Time constants of the pointer easing, seconds. The tilt follows the pointer closely enough to feel like a
- * response, not a drift, and a drag keeps up with the hand.
+ * Time constants of the pointer easing, seconds. The tilt follows the pointer with a soft ease so it answers
+ * the hand without snapping, and a drag keeps close to it.
  */
-const EASE = { dragYaw: 0.15, tiltX: 0.18, tiltY: 0.18 } as const
+const EASE = { dragYaw: 0.2, tiltX: 0.32, tiltY: 0.32 } as const
 /** The key light's resting position in three.js space, and how far it swings with the pointer at the stage's edges. */
 const KEY_REST: [number, number, number] = [-2.2, 2.6, 3]
 const KEY_SWING: [number, number] = [4, 2.8]

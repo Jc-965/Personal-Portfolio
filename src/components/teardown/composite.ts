@@ -1,8 +1,7 @@
 /**
  * The chapter's final pass, one full-screen draw to the canvas. It owns the
- * room (a softened photograph under a layer of colored glyphs, held still and
- * framed on its subject, whose glyphs cross cell by cell between rooms while
- * the photograph crossfades smoothly), the darkening behind
+ * room (drawn entirely in colored glyphs, with no photograph under them,
+ * framed on its subject, crossing cell by cell between rooms), the darkening behind
  * the copy, the product layer's glyph decode and shadow pool, and the
  * coach skeleton. Everything is computed in linear light and written to the
  * canvas as sRGB exactly once, here, so the renderer's own output conversion
@@ -13,8 +12,7 @@
  * nothing and writes that colour and alpha, which is what a context created
  * with premultipliedAlpha expects, so glyph edges carry no dark fringe. Every
  * layer keeps colour at or below alpha, so no pixel adds light to the page.
- * The room's glyphs print in cell by cell, and its photograph on the same
- * ring per pixel, from the product's place at the chapter's start, and both
+ * The room's glyphs print in cell by cell from the product's place at the chapter's start, and both
  * dissolve back into it at the end (`uReveal`). Its glyph rim is
  * dithered into the page, and the room, the shadow pool, and the copy
  * darkening fade out over the top and bottom SEAM of the stage, so the
@@ -53,27 +51,6 @@ const SEAM = 0.1
  * a black panel. teardown.css lays its own scrim over the same column.
  */
 const COPY_DARK = 0.6
-/**
- * Coverage of the softened photograph under the room's glyphs at full room
- * gain. The glyphs sit on top at their own coverage, so the room reads as a
- * picture at a glance and as characters up close. The photographs are dim
- * and their subjects sit in shadow (the hands and the mug are linear 0.03 to
- * 0.1), and a coverage layer over the near-black page multiplies them down,
- * so the photograph takes a shadow lift of PHOTO_GAMMA before the glyphs'
- * lift. The glyphs carry the picture and the photograph is the ground under
- * them: at 0.8 the photograph led and the room read as a picture with glyph
- * texture on its lit planes, so the gain is 0.6. Raise it and the characters
- * fall behind the photograph and the room competes with the product.
- */
-const PHOTO_GAIN = 0.6
-const PHOTO_GAMMA = 0.55
-/**
- * Mip levels relative to the glyph cell at which the photograph is sampled.
- * At -0.8 there are about two texels per cell, so the photograph's
- * interpolation grid falls below the glyph grid and never shows as a mosaic
- * of cell-sized blocks, which it did at 0.6, one texel per cell plus 0.6.
- */
-const PHOTO_SOFTEN = -0.8
 
 const VERTEX = /* glsl */ `
 void main() {
@@ -196,21 +173,15 @@ vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float mirror, vec2 q) {
   return vec4(tone, abs(lightness(tone) - lightness(around)));
 }
 
-// The softened photograph at canvas point q. It is sampled at the fragment itself, not at the cell's centre, so
-// it is smooth across the glyph grid instead of a mosaic of cells.
-vec3 roomPhoto(sampler2D tex, float aspect, vec2 focus, float mirror, vec2 q) {
-  vec3 w = roomWindow(tex, aspect, focus, mirror, q);
-  return textureLod(tex, w.xy, w.z + (${glslFloat(PHOTO_SOFTEN)})).rgb;
-}
-
 // Glyph ink for a cell colour: saturation up by half, then a brightness lift that is largest for the darkest
-// cells, up to 1.8x, since a glyph's strokes cover only part of its cell and the photographs are dim. The lift
+// cells, up to 2.2x, since a glyph's strokes cover only part of its cell, the photographs are dim, and the glyphs
+// alone carry the room. The lift
 // scales every channel as one and stops where the largest reaches 1.0, so the hue holds: sky stays blue and wood
 // stays warm, only more vivid than the photograph.
 vec3 ink(vec3 tone) {
   vec3 c = max(mix(vec3(dot(tone, LUMA)), tone, 1.5), 0.0);
   float v = max(max(c.r, max(c.g, c.b)), 1e-3);
-  return c * min(min(1.3 * pow(v, -.4), 1.8), 1.0 / v);
+  return c * min(min(1.45 * pow(v, -.4), 2.2), 1.0 / v);
 }
 
 // How much of the room survives behind the copy, 1 where the copy is absent. uCopyMask is the right edge x of the
@@ -246,30 +217,21 @@ void main() {
   // Blur levels are tuned for an 1800 px tall target, and this keeps them the same fraction of the frame at any size.
   float lodScale = log2(uRes.y / 1800.0);
 
-  // The room: a softened photograph and, over it, its glyph. Each has a straight colour and a coverage, which
-  // carries the gain, the vignette, the copy mask, and the seam fade. Both are laid over the page by coverage,
-  // so a dim room is a transparent one and the page's grid shows through it, instead of a dark one that hides
-  // the page. The photograph fades out with uGlyphOnly, so an act without a room holds a glyph-only field.
+  // The room is its glyphs alone, with a straight colour and a coverage that carries the gain, the vignette, the
+  // copy mask, and the seam fade. It is laid over the page by coverage, so a dim room is a transparent one and the
+  // page's grid shows through between the characters. No photograph sits under the glyphs: a softened copy of
+  // the picture there read as a filter over the page instead of a room made of characters.
   vec3 roomInk = vec3(0.0);
   float roomCover = 0.0;
-  vec3 photo = vec3(0.0);
-  float photoCover = 0.0;
   if (uBackGain > .002 && uReveal > .002) {
     // Glyph cells cross from room A to room B in a diagonal order from the top left, loosened by a sixth of hash,
     // each over 60% of the dissolve. The band is wide so the front is a soft slope across the frame, never a hard
-    // wipe, and the small hash share keeps the front from sparkling. The photograph crosses on the same diagonal
-    // per fragment, without the hash, so mid-swap it is one soft blend and never a mosaic of cells from two rooms.
+    // wipe, and the small hash share keeps the front from sparkling.
     float swap = uBackMix;
-    float photoSwap = uBackMix;
-    if (uBackMix > 0.0 && uBackMix < 1.0) {
-      swap = staggered(sweep(sc, .55) * .84 + hash12(cell * 1.37) * .16, .6, uBackMix);
-      photoSwap = staggered(sweep(s, .55), .6, uBackMix);
-    }
+    if (uBackMix > 0.0 && uBackMix < 1.0) swap = staggered(sweep(sc, .55) * .84 + hash12(cell * 1.37) * .16, .6, uBackMix);
     vec4 tone = vec4(0.0);
     if (swap < 1.0) tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uMirror.x, sc) * (1.0 - swap);
     if (swap > 0.0) tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uMirror.y, sc) * swap;
-    if (photoSwap < 1.0) photo += roomPhoto(uBackA, uBackAspect.x, uFocus.xy, uMirror.x, s) * (1.0 - photoSwap);
-    if (photoSwap > 0.0) photo += roomPhoto(uBackB, uBackAspect.y, uFocus.zw, uMirror.y, s) * photoSwap;
 
     // Density follows the cell's lightness within the room's own levels (uLevels), from a bare dot in the shadows
     // to the open o on its brightest lit surface, so each dim photograph spans the whole ramp and its tones carry
@@ -281,7 +243,7 @@ void main() {
     // highlights (.28 to .40, l up to .94 in their dim levels) their whole edge share and coverage. Glare cuts the
     // edge's share by up to 90%, since the grain inside a bright window scores as an edge too, and steps the cell
     // down the ramp toward the colon, which a fully glared cell prints. Every lit cell keeps a glyph, so a window
-    // or the evening table reads as one even, fine stipple over the photograph that carries its light. Dropping
+    // or the evening table reads as one even, fine stipple that carries its light. Dropping
     // glared cells on a per-cell hash printed them as random static. The contours are dark cells with no glare
     // (the chair back, the mug rim, the mullions), so they keep their o and # glyphs and cross the stipple. Cells
     // near the bottom of the levels stay empty, so the deepest shadows read as the stage itself, except on an
@@ -314,41 +276,25 @@ void main() {
     // A held room (uGlyphOnly 1) keeps only the glyphs on object edges, so the field behind the exploded stack is
     // the previous room's outlines and never a scatter of dense clusters from its flat surfaces.
     roomCover = alpha * body * uBackGain * mix(1.0, smoothstep(.02, .1, tone.a), uGlyphOnly);
-    // The photograph takes the shadow lift and then the glyphs' lift, so the two share one hue and the strokes
-    // read as texture on the picture, and its own deep shadows stay clear, as the glyphs' do, so the stage shows
-    // through both. The two lifts carry a lit patch (the rim-lit finger tops, a window, the table) to the glyph
-    // ink's own tan, so the lifted photograph's lightness from .55 to .9 cuts its coverage by up to half. The
-    // glyph contours then lead on the lit patches, and the dark forearms and the shadows keep their whole
-    // photograph.
-    photoCover = ${glslFloat(PHOTO_GAIN)} * smoothstep(.03, .14, lightness(photo)) * uBackGain * (1.0 - uGlyphOnly);
-    photo = ink(pow(photo, vec3(${glslFloat(PHOTO_GAMMA)})));
-    photoCover *= 1.0 - .5 * smoothstep(.55, .9, lightness(photo));
   }
   float seam = smoothstep(0.0, ${glslFloat(SEAM)}, s.y) * smoothstep(0.0, ${glslFloat(SEAM)}, 1.0 - s.y);
   float shade = copyShade();
   float r = length((s - .5) * 2.0) * .7071;
-  // The room's rim. The glyphs thin toward the frame's edges and over the seams, and the photograph thins faster,
-  // to about half at the middle of each side, so the page's grid returns through the room's periphery and the
-  // picture holds around its subject, which the focus point keeps near the middle. The glyph rim is dithered cell
-  // by cell: each cell drops out at its own point along the fall, so the rim is a scatter of characters over the
+  // The room's rim. The glyphs thin toward the frame's edges and over the seams, so the page's grid returns
+  // through the room's periphery and the picture holds around its subject, which the focus point keeps near the
+  // middle. The rim is dithered cell by cell: each cell drops out at its own point along the fall, so the rim is a scatter of characters over the
   // page, the way the room's own deep shadows already end, and never a soft gradient edge.
   float fall = (1.0 - .4 * smoothstep(.3, 1.0, r)) * seam;
-  float taper = 1.0 - .55 * smoothstep(.3, 1.0, r);
   float rim = smoothstep(0.0, .5, fall - hash12(cell + 17.9) * .5);
   // The room prints in from the product's place at the chapter's start and dissolves back into it at the end,
   // each glyph cell over half of the reveal in order of its distance from the product, loosened by a fifth of
-  // hash, so the front is a wide soft ring growing out of the page's grid around the forming phone. The
-  // photograph follows the same ring per fragment without the hash, offset by the hash term's mean of .1 so its
-  // front stays centred in the glyphs' front. Taking the hashed order printed it as cell-sized blocks.
+  // hash, so the front is a wide soft ring growing out of the page's grid around the forming phone.
   float printed = uReveal;
-  float photoPrinted = uReveal;
   if (uReveal < 1.0) {
     float reach = clamp(distance(gl_FragCoord.xy, uRevealAt) / (.8 * length(uRes)), 0.0, 1.0) * .8;
     printed = staggered(reach + hash12(cell * 1.91 + 5.3) * .2, .5, uReveal);
-    photoPrinted = staggered(reach + .1, .5, uReveal);
   }
   roomCover *= rim * shade * printed;
-  photoCover *= fall * taper * shade * photoPrinted;
 
   vec4 product = texelFetch(uProduct, ivec2(gl_FragCoord.xy), 0);
   if (uDecode < 1.0) {
@@ -385,11 +331,10 @@ void main() {
   // loose characters of the arrival and the close cast no shadow and the dissolved phone leaves no dark print on
   // the room. There is no glow: a blurred copy of the product laid over the page read as a soft-focus filter.
   float shadow = textureLod(uProduct, s + vec2(0.0, .012), 5.5 + lodScale).a * uDecode;
-  // Back to front: the shadow pool darkens the page, the room's photograph and then its glyphs sit on it, the
-  // copy mask shades them, and the product covers all of it, pixel for pixel. The copy darkening arrives and
-  // leaves with the room, so the pinned stage draws nothing at all until the room starts to print.
+  // Back to front: the shadow pool darkens the page, the room's glyphs sit on it, the copy mask shades them, and
+  // the product covers all of it, pixel for pixel. The copy darkening arrives and leaves with the room, so the
+  // pinned stage draws nothing at all until the room starts to print.
   vec4 color = vec4(0.0, 0.0, 0.0, .6 * shadow * seam);
-  color = over(color, vec4(photo * photoCover, photoCover));
   color = over(color, vec4(roomInk * roomCover, roomCover));
   color = over(color, vec4(0.0, 0.0, 0.0, (1.0 - shade) * ${glslFloat(COPY_DARK)} * seam * uReveal));
   color = over(color, product);
@@ -454,8 +399,8 @@ export interface Composite {
  * `uLevels` holds room A's lightness levels (low, high) then room B's, and
  * `uMirror` is 1 for each room drawn flipped left to right, else 0.
  * `uBackGain` scales the room's coverage, 1 for fully opaque glyphs.
- * `uGlyphOnly` fades the photograph under the glyphs, 0 for the full room
- * and 1 for a glyph-only field. `uReveal` is the room's print-in, 0 for no
+ * `uGlyphOnly` thins the room to its object outlines, 0 for the full room
+ * and 1 for the outline-only field an act without a room holds. `uReveal` is the room's print-in, 0 for no
  * room and 1 for the whole room, from the rig's `backdrop.reveal`, and
  * `uRevealAt` is the device pixel the print grows out from and dissolves
  * back into, the product's projected centre.

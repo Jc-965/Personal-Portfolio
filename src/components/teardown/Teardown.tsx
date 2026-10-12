@@ -46,14 +46,14 @@ const GLASS_APART: readonly [number, number] = [0.5, 0.8]
 const READOUT_CLEAR = 20
 
 /**
- * Scroll locks. After the scroll has been still for SNAP_IDLE ms inside the chapter, the page eases over
- * SNAP_TIME seconds to the nearest rest point, if it lies within SNAP_REACH viewport heights. Pauses within
- * SNAP_EDGE of the chapter's ends are left alone, so the page scrolls in and out of the chapter freely.
+ * Scroll detents. At each rest point the wheel moves the page by 1 - DETENT_DEPTH of its usual distance, easing
+ * back to full over about DETENT_WIDTH viewport heights either side, so leaving a finished state for the next
+ * section takes a little more scrolling. Nothing ever moves the page on its own: an earlier lock that eased the
+ * page to the nearest rest after a pause read as snappy. Lenis applies the detent, so touch scrolling, which Lenis
+ * leaves native, has none.
  */
-const SNAP_IDLE = 140
-const SNAP_TIME = 0.85
-const SNAP_REACH = 0.75
-const SNAP_EDGE = 0.02
+const DETENT_DEPTH = 0.5
+const DETENT_WIDTH = 0.35
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value))
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -272,50 +272,38 @@ function Teardown({ story }: { story: TeardownStory }) {
     return () => track.removeEventListener('focusin', onFocusIn)
   }, [track, windows, mode])
 
-  // When the visitor pauses between two finished states, the page eases to the nearer one, so each section locks
-  // into place instead of stopping halfway through a transition. Any new input from the visitor cancels a lock.
+  // The wheel meets a soft detent at each finished state. The hook runs on every wheel event before Lenis applies
+  // it and scales the delta by how close the page is heading to a rest point. Lenis can mount after the chapter,
+  // so the hook attaches once it exists.
   useEffect(() => {
     if (!track || mode === 'static') return
-    let timer = 0
-    let release = 0
-    let snapping = false
-    const stopSnapping = () => {
-      snapping = false
-      window.clearTimeout(release)
-    }
-    const lock = () => {
-      timer = 0
-      const top = track.getBoundingClientRect().top + window.scrollY
-      const travel = Math.max(1, track.offsetHeight - (stageRef.current?.clientHeight || window.innerHeight))
-      const progress = (window.scrollY - top) / travel
-      if (progress <= SNAP_EDGE || progress >= 1 - SNAP_EDGE) return
-      const rests = restPoints(windows, window.innerWidth < NARROW_MAX)
-      const nearest = rests.reduce((best, r) => (Math.abs(r - progress) < Math.abs(best - progress) ? r : best), rests[0])
-      const y = top + nearest * travel
-      const distance = Math.abs(y - window.scrollY)
-      if (distance < 2 || distance > SNAP_REACH * window.innerHeight) return
-      snapping = true
-      release = window.setTimeout(stopSnapping, SNAP_TIME * 1000 + 200)
+    let attached: { lenis: NonNullable<typeof lenisRef.current>; previous: ((data: { deltaX: number; deltaY: number; event: WheelEvent | TouchEvent }) => boolean) | undefined } | null = null
+    let retry = 0
+    const attach = () => {
       const lenis = lenisRef.current
-      if (lenis) lenis.scrollTo(y, { duration: SNAP_TIME, easing: (t) => 1 - Math.pow(1 - t, 3), onComplete: stopSnapping })
-      else window.scrollTo({ top: y, behavior: 'smooth' })
+      if (!lenis) {
+        retry = window.setTimeout(attach, 500)
+        return
+      }
+      const previous = lenis.options.virtualScroll
+      attached = { lenis, previous }
+      lenis.options.virtualScroll = (data) => {
+        if (previous && previous(data) === false) return false
+        const top = track.getBoundingClientRect().top + window.scrollY
+        const travel = Math.max(1, track.offsetHeight - (stageRef.current?.clientHeight || window.innerHeight))
+        const progress = (lenis.targetScroll - top) / travel
+        if (progress <= 0 || progress >= 1) return true
+        const rests = restPoints(windows, window.innerWidth < NARROW_MAX)
+        const nearest = rests.reduce((best, r) => Math.min(best, Math.abs(r - progress)), Infinity) * travel
+        const d = nearest / (DETENT_WIDTH * window.innerHeight)
+        data.deltaY *= 1 - DETENT_DEPTH * Math.exp(-d * d)
+        return true
+      }
     }
-    const onScroll = () => {
-      if (snapping) return
-      window.clearTimeout(timer)
-      timer = window.setTimeout(lock, SNAP_IDLE)
-    }
-    const onInput = () => {
-      stopSnapping()
-      window.clearTimeout(timer)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.addEventListener(type, onInput, { passive: true })
+    attach()
     return () => {
-      window.clearTimeout(timer)
-      window.clearTimeout(release)
-      window.removeEventListener('scroll', onScroll)
-      for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) window.removeEventListener(type, onInput)
+      window.clearTimeout(retry)
+      if (attached) attached.lenis.options.virtualScroll = attached.previous
     }
   }, [track, windows, mode])
 
