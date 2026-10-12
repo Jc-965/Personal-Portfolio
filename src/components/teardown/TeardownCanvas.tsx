@@ -9,13 +9,14 @@ import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
 import { COACH_BONES, jointsAt } from './coach'
 import { createComposite } from './composite'
+import { entryReveal, isChapter, stageEdges, stageTopAt } from './edges'
 import { GLIDE_TIME, glideStep, type Glide } from './glide'
 import { CHAPTER_RAMP } from './materials'
 import { cardShots, type CardShot } from './labels'
 import { createProduct, type PlaneMesh } from './product'
 import { ACT_SCREEN, FOCAL, LAUNCH_MS, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, projectRect, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
 import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
-import { actAt, actCopyRide, actWindows, previewProgress } from './timeline'
+import { actAt, actCopyRide, actWindows, localOf, previewProgress } from './timeline'
 
 export interface TeardownFrame {
   /** Glided chapter progress, the value every visual and the act state follow. */
@@ -293,6 +294,10 @@ function mount(
   let height = 1
   let trackTop = 0
   let trackHeight = 1
+  let scrollY = 0
+  /** Whether the stage meets another chapter's stage above and below, measured with the track. */
+  let joinTop = false
+  let joinBottom = false
   let progress = 0
   let glide: Glide = { value: 0, velocity: 0 }
   let visible = false
@@ -559,7 +564,13 @@ function mount(
     const launch = pulseStart < 0 ? 1 : Math.min(1, (now - pulseStart) / LAUNCH_MS)
     if (launch >= 1) pulseStart = -1
     const push = launch < 1 ? Math.sin(Math.PI * launch) : 0
-    const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames, push })
+    const posed = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames, push })
+    // The base meets the page or the next chapter by the stage's place (edges.ts), and an entering stage prints its
+    // room before the pin.
+    const edges = stageEdges(stageTopAt(scrollY, trackTop, trackHeight, height), height, joinTop, joinBottom)
+    cu.uEdge.value.set(edges.top, edges.bottom, edges.base)
+    const entry = entryReveal(edges.approach, localOf(windows, 'arrival', glide.value))
+    const pose = entry > posed.backdrop.reveal ? { ...posed, backdrop: { ...posed.backdrop, reveal: entry } } : posed
     requestRoom(pose.backdrop.a)
     requestRoom(pose.backdrop.b)
     const nextAct = windows.findIndex((w) => glide.value < w.start)
@@ -641,6 +652,7 @@ function mount(
   const onScroll = () => {
     if (!sized) return
     const y = pageScrollY()
+    scrollY = y
     const fraction = sceneProgress(y - trackTop, trackHeight, height)
     progress = view.current === 'preview' ? previewProgress(fraction, story.acts) : fraction
     const wasVisible = visible
@@ -700,6 +712,8 @@ function mount(
 
     trackTop = track.getBoundingClientRect().top + window.scrollY
     trackHeight = track.offsetHeight
+    joinTop = isChapter(track.previousElementSibling)
+    joinBottom = isChapter(track.nextElementSibling)
     lastPaint = 0
     onScroll()
   }

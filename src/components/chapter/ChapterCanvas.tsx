@@ -11,6 +11,7 @@ import { pageScrollY } from '../../scroll/scrollSignal'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { sceneProgress } from '../hero/world'
 import { createComposite } from '../teardown/composite'
+import { entryReveal, isChapter, stageEdges, stageTopAt } from '../teardown/edges'
 import { GLIDE_TIME, glideStep, type Glide } from '../teardown/glide'
 import type { CardShot } from '../teardown/labels'
 import { CHAPTER_RAMP } from '../teardown/materials'
@@ -285,6 +286,10 @@ function mount(
   let height = 1
   let trackTop = 0
   let trackHeight = 1
+  let scrollY = 0
+  /** Whether the stage meets another chapter's stage above and below, measured with the track. */
+  let joinTop = false
+  let joinBottom = false
   let progress = 0
   let glide: Glide = { value: 0, velocity: 0 }
   let sized = ''
@@ -418,7 +423,10 @@ function mount(
     cu.uPointer.value.set(interaction.tiltX, -interaction.tiltY)
     const at = toStage(out.revealAt)
     const px = renderer.getPixelRatio()
-    cu.uReveal.value = Math.min(out.backdrop.reveal, form)
+    const edges = stageEdges(stageTopAt(scrollY, trackTop, trackHeight, height), height, joinTop, joinBottom)
+    cu.uEdge.value.set(edges.top, edges.bottom, edges.base)
+    const reveal = Math.max(out.backdrop.reveal, entryReveal(edges.approach, localOf(windows, firstKey, glide.value)))
+    cu.uReveal.value = Math.min(reveal, form)
     cu.uRevealAt.value.set(at ? at.x * px : drawingBuffer.x / 2, at ? (height - at.y) * px : drawingBuffer.y / 2)
     cu.uDecode.value = Math.min(out.decode, form)
     cu.uGather.value = Math.min(out.gather, form)
@@ -526,6 +534,7 @@ function mount(
   const onScroll = () => {
     if (!sized) return
     const y = pageScrollY()
+    scrollY = y
     const fraction = sceneProgress(y - trackTop, trackHeight, height)
     progress = view.current === 'preview' ? previewProgress(fraction, story.acts) : fraction
     const wasVisible = visible
@@ -575,6 +584,8 @@ function mount(
     }
     trackTop = track.getBoundingClientRect().top + window.scrollY
     trackHeight = track.offsetHeight
+    joinTop = isChapter(track.previousElementSibling)
+    joinBottom = isChapter(track.nextElementSibling)
     lastPaint = 0
     onScroll()
   }

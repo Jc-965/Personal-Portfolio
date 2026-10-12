@@ -7,15 +7,18 @@
  * stays off.
  *
  * The stage paints an opaque black base, the page's own background colour,
- * so the page's grid and graph never show through the chapter. The base
- * fades only over the stage's top and bottom SEAM, so the sticky stage's
- * edges blend into the page while it scrolls in and out. The pass composites
+ * so the page's grid and graph never show through the chapter. `uEdge` sets
+ * the base's fade at the stage's top and bottom and its opacity (stageEdges
+ * in edges.ts): a stage entering from the page or leaving into it fades over
+ * a wide edge and gains or loses its base with the scroll, and a stage that
+ * meets another chapter keeps a hard, opaque edge so no page shows between
+ * them. The pass composites
  * its layers back to front as premultiplied colour and writes that colour
  * and alpha, which is what a context created with premultipliedAlpha
  * expects, so glyph edges carry no dark fringe.
  * The room's glyphs print in cell by cell from the product's place at the chapter's start, and both
  * dissolve back into it at the end (`uReveal`). Its glyph rim is dithered
- * into the base, and the room fades with the base over the SEAM. The product
+ * into the base, and the room fades over its own SEAM. The product
  * and the coach do not fade there, since the rig keeps them inside the
  * chapter.
  *
@@ -29,6 +32,7 @@ import * as THREE from 'three'
 import { COACH_BONES } from './coach'
 import { GLSL_COMMON, glslFloat, CHAPTER_RAMP } from './materials'
 import { SCATTER_CELLS } from './rig'
+import { SEAM } from './edges'
 
 const BONES = COACH_BONES.length
 const RAMP = Array.from(CHAPTER_RAMP)
@@ -40,8 +44,6 @@ const ROOM_FLAT_TOP = RAMP.indexOf('o')
 const ROOM_EDGE_TOP = RAMP.indexOf('#')
 /** The centred dot, drawn faintly along the coach's bones. */
 const DOT = RAMP.indexOf('·')
-/** Fraction of the stage height, at the top and at the bottom, over which the base and the room fade to transparent. */
-const SEAM = 0.1
 /** --td-amber #eab76a in linear light, the default uTint. A chapter theme passes its own. */
 export const TINT: readonly [number, number, number] = [0.8228, 0.4735, 0.1441]
 
@@ -66,6 +68,7 @@ uniform vec3 uGrade;
 uniform float uReveal;
 uniform vec2 uRevealAt;
 uniform vec4 uCopyMask;
+uniform vec3 uEdge;
 uniform float uCopyNarrow;
 uniform float uPixelRatio;
 uniform sampler2D uProduct;
@@ -323,7 +326,9 @@ void main() {
   // Back to front: the opaque black base, the room's glyphs on it with the copy mask's shade already in their
   // coverage, and the product over all of it, pixel for pixel. There is no glow: a blurred copy of the product
   // laid over the page read as a soft-focus filter.
-  vec4 color = vec4(0.0, 0.0, 0.0, seam);
+  // The base's own edges: uEdge.x of the stage height at the top and uEdge.y at the bottom, at opacity uEdge.z.
+  float baseSeam = smoothstep(0.0, max(uEdge.y, 1e-4), s.y) * smoothstep(0.0, max(uEdge.x, 1e-4), 1.0 - s.y);
+  vec4 color = vec4(0.0, 0.0, 0.0, baseSeam * uEdge.z);
   color = over(color, vec4(roomInk * roomCover, roomCover));
   color = over(color, product);
 
@@ -401,7 +406,10 @@ export interface Composite {
  * `uPixelRatio` is set from the renderer before every draw. `uTint` is the
  * linear colour of the decode's untinted glyphs and the room's edge floor,
  * TINT by default, and `uGrade` scales the room's ink per channel, 1 by
- * default, so a chapter can grade its rooms toward its palette.
+ * default, so a chapter can grade its rooms toward its palette. `uEdge`
+ * is the base's top fade and bottom fade, as fractions of the stage height,
+ * and its opacity. The default (SEAM, SEAM, 1) is an opaque base fading over
+ * the room's own seam.
  */
 export function createComposite(): Composite {
   const material = new THREE.ShaderMaterial({
@@ -425,6 +433,7 @@ export function createComposite(): Composite {
       uRevealAt: { value: new THREE.Vector2() },
       uCopyMask: { value: new THREE.Vector4(0, 0, 0, 0) },
       uCopyNarrow: { value: 0 },
+      uEdge: { value: new THREE.Vector3(SEAM, SEAM, 1) },
       uPixelRatio: { value: 1 },
       uProduct: { value: null },
       uPointer: { value: new THREE.Vector2() },

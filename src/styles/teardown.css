@@ -523,6 +523,17 @@ html.journey-open #projects > :not(.projects__scenes),
 html.journey-open .projects__scenes > :not(.is-journey),
 html.journey-open .footer { display: none; }
 html.journey-open #projects { padding-top: 0; padding-bottom: 0; }
+html.journey-open .projects__scenes > .teardown:not(.teardown--static) { margin-top: 0; }
+
+/* Adjacent pinned chapters meet with no page between them: each cancels the
+   scenes' gap (projects.css), so one stage scrolls out as the next rises
+   against it, and their opaque bases meet at a hard edge (edges.ts). The
+   static stacks under reduced motion keep the gap. */
+.teardown:not(.teardown--static) + .teardown:not(.teardown--static) { margin-top: calc(-1 * clamp(48px, 9vh, 128px)); }
+
+@media (max-width: 640px) {
+  .teardown:not(.teardown--static) + .teardown:not(.teardown--static) { margin-top: -36px; }
+}
 
 /* Closing the journey from past the preview's last frame drifts the stage up
    and fades it out (SWAP_MS in Teardown.tsx), swaps to the preview, and
