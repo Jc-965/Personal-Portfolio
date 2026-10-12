@@ -58,24 +58,24 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <th align="left" width="52%">What I Did</th>
   </tr>
   <tr>
-    <td valign="middle"><strong>ScottyLabs AI Team</strong><br/><sub>AI Platform Engineer · Apr 2026 to Present</sub></td>
+    <td valign="middle"><strong>ScottyLabs AI</strong><br/><sub>Head of Agent Engineering · Apr 2026 to Present</sub></td>
     <td align="center" valign="middle"><img title="Python · FastAPI · React · TypeScript · PostgreSQL" alt="Python, FastAPI, React, TypeScript, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=py,fastapi,react,ts,postgresql" />&nbsp;<img title="LangGraph" alt="LangGraph" height="28" width="28" src="https://cdn.simpleicons.org/langchain/00A67E" /></td>
-    <td valign="middle">Launched a campus AI platform that grounds every answer in live university data and streams first tokens at 1.5s p95, with injection-hardened cross-chat memory and MCP tool binding that cut prompt tokens 62%.</td>
+    <td valign="middle">Lead 25 engineers as architect and principal author of Bark, CMU's campus AI assistant: a LangGraph agent that must call live MCP tools for maps, courses, dining, and transit, behind a 300 ms model-free injection guard, with prompt costs cut 44% and per-user pgvector memory.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Software Engineer Intern, Android · Summer 2026</sub></td>
     <td align="center" valign="middle"><img title="Android · Kotlin · Security" alt="Android, Kotlin, Security" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin" /></td>
-    <td valign="middle">Built a differential security audit for 220+ endpoints and shipped navigation and billing redesigns for a 500K+ user Android app.</td>
+    <td valign="middle">Shipped rebuilt billing and payment flows that lifted usability-test task success from 28% to 63%, and built a replay engine for 220+ endpoints that uncovered auth flaws in a 500K+ user Android app.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>Sorcea Labs</strong><br/><sub>Software Engineer Intern · Jan 2026 to May 2026</sub></td>
+    <td valign="middle"><strong>Sorcea</strong><br/><sub>Software Engineer Intern, Mobile · Jan 2026 to May 2026</sub></td>
     <td align="center" valign="middle"><img title="Flutter · Dart" alt="Flutter, Dart" height="28" src="https://skillicons.dev/icons?i=flutter,dart" /></td>
     <td valign="middle">Overhauled the core flows of a 10K+ user Flutter app, built a perceptual color engine for skin-tone shade matching, and cut homepage load time about 75%.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>CMUMaps</strong><br/><sub>Data &amp; Software Engineer · Sep 2025 to Apr 2026</sub></td>
     <td align="center" valign="middle"><img title="Python · AWS" alt="Python, AWS" height="28" src="https://skillicons.dev/icons?i=py,aws" />&nbsp;<img title="OpenStreetMap" alt="OpenStreetMap" height="28" width="28" src="https://cdn.simpleicons.org/openstreetmap/7EBC6F" />&nbsp;<img title="ArcGIS" alt="ArcGIS" height="28" width="28" src="https://cdn.simpleicons.org/arcgis/2C7AC3" /></td>
-    <td valign="middle">Built the geospatial ETL pipeline behind CMU's campus navigation site, parsing 15K+ OpenStreetMap nodes and ArcGIS records into footprints, floors, and entrances for 74 buildings.</td>
+    <td valign="middle">Built the geospatial ETL pipeline powering CMUMaps for 12K+ users, parsing 15K+ OpenStreetMap nodes and ArcGIS records into footprints, floor counts, and entrances for 74 buildings.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>Game Creation Society</strong><br/><sub>Core Developer · Fall 2025</sub></td>
@@ -88,7 +88,7 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <td valign="middle">Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving.</td>
   </tr>
   <tr>
-    <td valign="middle"><strong>SoftCom Lab</strong><br/><sub>Machine Learning Research Intern · Jun 2023 to Aug 2024</sub></td>
+    <td valign="middle"><strong>SoftCom Lab, Cal Poly Pomona</strong><br/><sub>Machine Learning Research Intern · Jun 2023 to Aug 2024</sub></td>
     <td align="center" valign="middle"><img title="Python · OpenCV · NumPy" alt="Python, OpenCV, NumPy" height="28" src="https://skillicons.dev/icons?i=py,opencv,numpy" /></td>
     <td valign="middle">Developed a computer-vision model for Parkinson's exercise-form assessment (95.4% mean accuracy in video trials) and first-authored the peer-reviewed paper at CS &amp; IT-CSCP 2024.</td>
   </tr>

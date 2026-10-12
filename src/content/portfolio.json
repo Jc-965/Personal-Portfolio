@@ -15,19 +15,20 @@
     {
       "id": "scottylabs-ai",
       "icon": "brain",
-      "company": "ScottyLabs AI Team",
-      "role": "AI Platform Engineer",
-      "track": "AI Platform",
+      "company": "ScottyLabs AI",
+      "role": "Head of Agent Engineering",
+      "track": "AI Agents",
       "period": "Apr 2026 – Present",
       "location": "Pittsburgh, PA",
       "status": "Active",
-      "summary": "Launched an AI platform that grounds every answer in live university data, blocks hallucinated claims, and streams first tokens at 1.5s p95 across a LangGraph/FastAPI agent and React client. Built injection-hardened cross-chat memory with LLM fact extraction, pgvector dedup, and per-user isolation, and cut prompt tokens 62% and helper-model latency 10x with query-matched MCP tool binding and context compression.",
+      "summary": "Lead 25 engineers in the 70-person org as architect and principal author of Bark, CMU's campus AI assistant. Its LangGraph agent must call live MCP tools for campus maps, courses, dining, and transit, behind a red-teamed, model-free injection guard that runs in 300 ms. Query-matched tool binding and context compression cut prompt costs 44%, and pgvector memory recalls across chats with per-user isolation, which fixed a cross-tenant data leak.",
       "stack": [
-        "FastAPI",
         "LangGraph",
+        "FastAPI",
         "MCP",
-        "React 19",
         "pgvector",
+        "Express",
+        "React",
         "SSE"
       ],
       "accent": "#a06bff"
@@ -41,10 +42,11 @@
       "period": "Jun 2026 – Aug 2026",
       "location": "Long Beach, CA",
       "status": "Complete",
-      "summary": "Shipped Android features for 500K+ members, improved billing and payments flows, fixed production defects, and built a security-audit pipeline validating authentication across 220+ API endpoints.",
+      "summary": "Shipped rebuilt billing and payment flows that more than doubled task success in usability tests, from 28% to 63%, and fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen. Built a replay engine for 220+ API endpoints that uncovered auth flaws in the 500K+ user Android app, proved with paired replays that the APIs ignored service JWTs, and moved bundled credentials and authentication server-side.",
       "stack": [
         "Android",
         "Kotlin",
+        "JWT",
         "Agile",
         "Jira"
       ],
@@ -53,13 +55,13 @@
     {
       "id": "sorcea",
       "icon": "terminal",
-      "company": "Sorcea Labs",
-      "role": "Software Engineer Intern",
+      "company": "Sorcea",
+      "role": "Software Engineer Intern, Mobile",
       "track": "Industry",
       "period": "Jan 2026 – May 2026",
       "location": "Remote",
       "status": "Shipped",
-      "summary": "Overhauled a 10K+ user Flutter app's home, product, search, and onboarding flows from founder spec to release. Shipped skin-tone shade matching, building a from-scratch perceptual color engine (sRGB to CIELAB, Delta-E) and the live gauge it powers, pinpointing the user's tone and confidence band on a shade spectrum. Cut homepage load time ~75% via API fan-out, feed prefetching, token pagination, and TTL-cached revisits.",
+      "summary": "Rebuilt home, product, search, and onboarding for a 10K+ user Flutter app, from founder spec through release, and cut homepage load time about 75% with parallel API calls, feed prefetching, token pagination, and TTL caching. Built shade matching on a from-scratch perceptual color engine (CIELAB and Delta-E) and the interactive gauge that shows the closest matches, skin-tone fit, and confidence bands.",
       "stack": [
         "Flutter",
         "Dart",
@@ -107,12 +109,12 @@
       "period": "Sep 2025 – Apr 2026",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built the geospatial ETL pipeline powering CMU's campus navigation site for 700+ monthly users, parsing 15K+ OpenStreetMap nodes and ArcGIS facility records into footprints, floors, and entrances for 74 buildings.",
+      "summary": "Built the Python geospatial ETL pipeline powering CMUMaps for 12K+ users, parsing 15K+ OpenStreetMap nodes and ArcGIS facility records into footprints, floor counts, and entrances for 74 campus buildings.",
       "stack": [
         "Python",
         "OpenStreetMap",
         "ArcGIS",
-        "polylabel",
+        "Mapbox",
         "GeoJSON",
         "AWS S3"
       ],
@@ -174,13 +176,13 @@
     {
       "id": "softcom",
       "icon": "flask",
-      "company": "SoftCom Lab",
+      "company": "SoftCom Lab, Cal Poly Pomona",
       "role": "Machine Learning Research Intern",
       "track": "Research",
       "period": "Jun 2023 – Aug 2024",
       "location": "Pomona, CA",
       "status": "Published",
-      "summary": "Developed and evaluated a computer-vision model for Parkinson's exercise-form assessment, reaching 95.4% mean accuracy in controlled video trials, and first-authored the resulting peer-reviewed paper at CS & IT-CSCP 2024.",
+      "summary": "First-authored a peer-reviewed paper (CS & IT-CSCP 2024) on a mobile platform for Parkinson's care, and reached 95.4% mean accuracy in controlled video trials with a computer-vision exercise assessment model.",
       "stack": [
         "Python",
         "ML/CV",
