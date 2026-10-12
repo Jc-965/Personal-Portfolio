@@ -282,6 +282,8 @@ function mount(
 
   const drawingBuffer = new THREE.Vector2(1, 1)
   let atlas: THREE.CanvasTexture | null = null
+  let atlasKey = ''
+  const glyphContext = document.createElement('canvas').getContext('2d')
   let width = 1
   let height = 1
   let trackTop = 0
@@ -302,6 +304,7 @@ function mount(
   let copyDirty = true
   let copyRail: { left: number; right: number; top: number } | null = null
   let copyBlocks: HTMLElement[] = []
+  const inkWidths = new Map<HTMLElement, number>()
   let born = 0
   const inkRange = document.createRange()
   const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
@@ -311,6 +314,7 @@ function mount(
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
   const camera = chapter.camera
   const project = new THREE.Vector3()
+  const panelAnchor = new THREE.Vector3()
 
   const settle = (dt: number) => {
     let moving = false
@@ -350,6 +354,7 @@ function mount(
   /** The copy rail's edges and its act blocks, measured on resize and on the frame after each act change. */
   const measureCopy = () => {
     copyDirty = false
+    inkWidths.clear()
     const railEl = stage.querySelector<HTMLElement>('.teardown__rail')
     const rail = railEl?.getBoundingClientRect()
     copyBlocks = railEl ? (Array.from(railEl.children) as HTMLElement[]) : []
@@ -358,6 +363,8 @@ function mount(
     copyRail = { left: rail.left - rect.left, right: rail.right - rect.left, top: rail.top - rect.top }
   }
   const inkRight = (block: HTMLElement) => {
+    const cached = inkWidths.get(block)
+    if (cached !== undefined) return cached
     const left = block.getBoundingClientRect().left
     let right = 0
     for (const child of Array.from(block.children) as HTMLElement[]) {
@@ -365,6 +372,7 @@ function mount(
       inkRange.selectNodeContents(child)
       right = Math.max(right, inkRange.getBoundingClientRect().right - left)
     }
+    inkWidths.set(block, right)
     return right
   }
   /** The composite's copy shade for the active act's block, as TeardownCanvas.applyCopyMask. */
@@ -500,7 +508,7 @@ function mount(
     })
     const panels: CardShot[] = out.panels.map((panel) => {
       const drop = panel.halfH * LABEL_DROP
-      const anchor = toStage(new THREE.Vector3().copy(panel.center).addScaledVector(panel.up, -drop))
+      const anchor = toStage(panelAnchor.copy(panel.center).addScaledVector(panel.up, -drop))
       const rect = boundsOf(panel.corners)
       return {
         anchor: anchor && { x: anchor.x, y: anchor.y },
@@ -567,20 +575,25 @@ function mount(
     }
     measureCopy()
     const cell = narrow ? CELL.narrow : CELL.wide
-    const ctx = document.createElement('canvas').getContext('2d')
-    if (ctx) ctx.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
-    const advance = ctx?.measureText('M').width || cell.fontPx * 0.6
+    if (glyphContext) glyphContext.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
+    const advance = glyphContext?.measureText('M').width || cell.fontPx * 0.6
     const cellW = Math.max(2, Math.round(advance * pixelRatio))
     const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
     cu.uCell.value.set(cellW, cellH)
-    const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
-    if (glyphs) {
-      atlas?.dispose()
-      atlas = new THREE.CanvasTexture(glyphs)
-      atlas.flipY = false
-      atlas.generateMipmaps = false
-      atlas.minFilter = THREE.LinearFilter
-      cu.uAtlas.value = atlas
+    // The track can resize without changing the glyphs (for example, when opening a journey).
+    // Keep the atlas and its GPU upload until the cell metrics, resolution, or font change.
+    const nextAtlasKey = `${cellW}:${cellH}:${pixelRatio}:${cell.fontPx}`
+    if (nextAtlasKey !== atlasKey) {
+      const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
+      if (glyphs) {
+        atlas?.dispose()
+        atlas = new THREE.CanvasTexture(glyphs)
+        atlas.flipY = false
+        atlas.generateMipmaps = false
+        atlas.minFilter = THREE.LinearFilter
+        cu.uAtlas.value = atlas
+        atlasKey = nextAtlasKey
+      }
     }
     trackTop = track.getBoundingClientRect().top + window.scrollY
     trackHeight = track.offsetHeight
@@ -670,11 +683,28 @@ function mount(
   warming = requestAnimationFrame(awaitLinks)
 
   const resizeObserver = new ResizeObserver(measure)
+  // Copy moves vertically every frame, but its ink width only changes with content or layout.
+  // Ignore the act's scroll styles; watch the descendants for printing and readout updates.
+  const invalidateInk = () => {
+    inkWidths.clear()
+    if (!narrow) start()
+  }
+  const copyResizeObserver = new ResizeObserver(invalidateInk)
+  const copyElement = stage.querySelector<HTMLElement>('.teardown__rail')
+  const copyObserver = new MutationObserver((records) => {
+    if (records.some((record) => !(record.type === 'attributes' && record.attributeName === 'style' && record.target.parentNode === copyElement))) invalidateInk()
+  })
+  if (copyElement) {
+    copyObserver.observe(copyElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style'] })
+    for (const block of copyElement.children) copyResizeObserver.observe(block)
+  }
+  document.fonts?.addEventListener('loadingdone', invalidateInk)
   const fontsReady = document.fonts ? document.fonts.load('500 12px "JetBrains Mono"') : Promise.resolve([])
   const sizing = requestAnimationFrame(() => {
     resizeObserver.observe(stage)
     resizeObserver.observe(track)
-    fontsReady.then(() => measure(), () => undefined)
+    // Equal advances can still belong to different fonts, so refresh after the real face arrives.
+    fontsReady.then(() => { atlasKey = ''; measure() }, () => undefined)
   })
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
@@ -694,6 +724,9 @@ function mount(
     cancelAnimationFrame(sizing)
     cancelAnimationFrame(uploadFrame)
     resizeObserver.disconnect()
+    copyResizeObserver.disconnect()
+    copyObserver.disconnect()
+    document.fonts?.removeEventListener('loadingdone', invalidateInk)
     window.removeEventListener('scroll', onScroll)
     window.removeEventListener('resize', onScroll)
     stage.removeEventListener('pointerdown', onPointerDown)
