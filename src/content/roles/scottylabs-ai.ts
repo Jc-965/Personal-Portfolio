@@ -10,7 +10,7 @@ export const SCOTTYLABS_AI: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['ScottyLabs AI', 'Head of Agent Engineering'],
+      lines: ['ScottyLabs AI', 'Head of Agent'],
       callouts: [],
     },
     {

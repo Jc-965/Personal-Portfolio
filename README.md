@@ -58,7 +58,7 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
     <th align="left" width="52%">What I Did</th>
   </tr>
   <tr>
-    <td valign="middle"><strong>ScottyLabs AI</strong><br/><sub>Head of Agent Engineering · Apr 2026 to Present</sub></td>
+    <td valign="middle"><strong>ScottyLabs AI</strong><br/><sub>Head of Agent · Apr 2026 to Present</sub></td>
     <td align="center" valign="middle"><img title="Python · FastAPI · React · TypeScript · PostgreSQL" alt="Python, FastAPI, React, TypeScript, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=py,fastapi,react,ts,postgresql" />&nbsp;<img title="LangGraph" alt="LangGraph" height="28" width="28" src="https://cdn.simpleicons.org/langchain/00A67E" /></td>
     <td valign="middle">Lead 25 engineers as architect and principal author of Bark, CMU's campus AI assistant: a LangGraph agent that must call live MCP tools for maps, courses, dining, and transit, behind a 300 ms model-free injection guard, with prompt costs cut 44% and per-user pgvector memory.</td>
   </tr>
