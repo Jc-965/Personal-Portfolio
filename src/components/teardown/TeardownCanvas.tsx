@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
 import { pageScrollY } from '../../scroll/scrollSignal'
+import type { ChapterView, StageControl } from '../chapter/stageHooks'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
@@ -29,19 +30,7 @@ export interface TeardownFrame {
   phone: { left: number; top: number; width: number; height: number } | null
 }
 
-/** Which track the chapter scrolls through: the home page's arrival preview or the full journey. */
-export type TeardownView = 'preview' | 'journey'
-
-/** What Teardown can ask of a running canvas. */
-export interface TeardownControl {
-  /** Plays the launch bump: the camera eases closer and back and the lit body flares, over LAUNCH_MS. */
-  pulse(): void
-  /**
-   * Remeasures the track and lands the glide on the scroll's progress. Teardown calls it in the same frame as a
-   * view swap, after setting the scroll, so no frame draws with the old track or glides between the views.
-   */
-  sync(): void
-}
+export type { ChapterView as TeardownView, StageControl as TeardownControl } from '../chapter/stageHooks'
 
 export interface TeardownCanvasProps {
   story: TeardownStory
@@ -56,9 +45,9 @@ export interface TeardownCanvasProps {
   /** WebGL2 missing, a shader or framebuffer failed, or the context was lost. */
   onFallback: () => void
   /** Read on every scroll, so a view change maps progress anew without remounting the renderer. */
-  view: { current: TeardownView }
+  view: { current: ChapterView }
   /** Set while the renderer runs and cleared on unmount. */
-  control: { current: TeardownControl | null }
+  control: { current: StageControl | null }
 }
 
 type Callbacks = Pick<TeardownCanvasProps, 'onFrame' | 'onReady' | 'onFallback'>

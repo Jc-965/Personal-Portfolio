@@ -520,7 +520,7 @@
 html.journey-open .nav,
 html.journey-open main > :not(#projects),
 html.journey-open #projects > :not(.projects__scenes),
-html.journey-open .projects__scenes > :not(.teardown),
+html.journey-open .projects__scenes > :not(.is-journey),
 html.journey-open .footer { display: none; }
 html.journey-open #projects { padding-top: 0; padding-bottom: 0; }
 
