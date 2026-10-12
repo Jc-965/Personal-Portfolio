@@ -159,7 +159,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       // keeps fractional heights under browser zoom, where innerHeight rounds.
       // Reading it forces a style and layout pass, so it is read last, only
       // while the sheet is otherwise covering.
-      const covers = fixedTerminal && !lost && !reduced && arrival === 0
+      const covers = trackHeight > 0 && fixedTerminal && !lost && !reduced && arrival === 0
         && viewportHeight + 0.01 >= (window.visualViewport?.height ?? window.innerHeight)
       if (covers !== covering) {
         covering = covers
@@ -250,7 +250,13 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     const measure = () => {
       if (disposed || lost) return
       const { width, height } = wrap.getBoundingClientRect()
-      if (!width || !height) return
+      if (!width || !height) {
+        // A journey page hides the hero (display: none). Its last measured track would still read as on screen
+        // over the chapter's first viewports, so a zero size marks it unseen until it returns at full size.
+        trackHeight = 0
+        updatePresentation()
+        return
+      }
       viewportHeight = height
       fixedTerminal = getComputedStyle(wrap).position === 'fixed'
       narrow = width < 768
