@@ -1,7 +1,7 @@
 /**
  * The contract between the Journey section's engine (RolesSection, RolesStage) and one role: its story (copy, acts,
- * sky, poster) and its scene module (a floating-island diorama posed for a frame). The engine owns the rows, the
- * journey view, the renderer, the sky composite, and the copy. A scene owns its island.
+ * room, poster) and its scene module (the role's 3D world posed for a frame). The engine owns the rows, the journey
+ * view, the renderer, the glyph room composite, and the copy. A scene owns its world.
  */
 import type * as THREE from 'three'
 
@@ -32,12 +32,20 @@ export interface RoleStory {
   acts: RoleAct[]
   /** Per act, the local at which its finished state rests, for the wheel detents. */
   restLocal: number[]
-  /** The painted sky behind the island on the journey page, and its focus x, 0 to 1, kept in frame. */
-  sky: { src: string; focusX: number }
+  /**
+   * The photograph printed as the journey's glyph room behind the island, its focus x (0 to 1) kept in frame, and
+   * the lightness range that maps to the glyph ramp, [0.06, 0.6] when unset.
+   */
+  room: { src: string; focusX: number; levels?: readonly [number, number] }
   /** Labels the scene's panels carry, in panel order. */
   panels: string[]
   links: { label: string; href: string }[]
   credit?: string
+  /**
+   * The journey room's colour: `tint` is the linear colour of the glyph decode and the room's edge floor (the role's
+   * accent when unset), and `grade` scales the room's glyph ink per channel (1, 1, 1 when unset).
+   */
+  look?: { tint?: readonly [number, number, number]; grade?: readonly [number, number, number] }
   /** A still of the island for reduced motion and the WebGL fallback. */
   poster: { src: string; alt: string }
   scene: () => Promise<{ default: IslandFactory }>
@@ -92,13 +100,17 @@ export interface IslandPanel {
   opacity: number
 }
 
+/**
+ * A scene may return the same IslandOutput object, with its Map and vectors, every frame: the stage reads it within
+ * the frame that produced it and keeps no reference.
+ */
 export interface IslandOutput {
   /** World points for callout leaders, by anchor key. */
   anchors: Map<string, THREE.Vector3 | null>
   panels: IslandPanel[]
   /** World points spanning what the island shows, for the phone layout's copy floor under the lowest of them. */
   bounds: THREE.Vector3[]
-  /** Screen height, 0 at the bottom to 1 at the top, of the tilt-shift's sharp band on the journey page. */
+  /** Unused since the journey's composite became the chapters'. Kept so scenes need not change. */
   focusY: number
   /** True while motion the pointer, a click, or a choice started is still settling, so the loop keeps drawing. */
   busy: boolean

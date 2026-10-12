@@ -1,11 +1,14 @@
 /**
- * The Journey section's one renderer. Its canvas is fixed to the viewport behind the section's content.
+ * The Journey section's one renderer. It creates its own canvas in `host`, fixed to the viewport behind the
+ * section's content, and removes it on dispose. A canvas whose context was forced lost cannot give a new renderer
+ * a context, so a stage that boots again after a release, or after a hot reload, needs a fresh element.
  *
  * On the home page it draws each visible row's island into that row's slot with the viewport and scissor, clear
  * around it, so the page background shows between islands. Slot offsets are measured on resize and the drawn
  * rectangles derive from the scroll, so no frame reads layout. On a journey page it draws the open role's island
- * full screen through the sky and tilt-shift composite, after growing it out of its row's slot over EXPAND_MS, and
- * it shrinks it back into the slot when the journey closes.
+ * through the chapters' composite (teardown/composite.ts), so the role's room prints as coloured glyphs on the
+ * site's near-black base like a project's room. The view grows out of the row's slot over EXPAND_MS while the room
+ * prints in, and shrinks back into the slot while it dissolves when the journey closes.
  *
  * It draws only while something moves: the scroll, the pointer, a press, an easing, or a scene that reports busy.
  * Scenes load when their slot nears the viewport and stay loaded until the section unmounts the stage.
@@ -17,7 +20,9 @@ import type { CardShot } from '../teardown/labels'
 import { MAX_DRAG } from '../teardown/rig'
 import { actWindows, localOf } from '../teardown/timeline'
 import { BITMAP_OPTIONS, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks } from '../chapter/gpu'
-import { createRoleComposite } from './composite'
+import { createComposite } from '../teardown/composite'
+import { buildGlyphAtlas } from '../hero/glyphAtlas'
+import { CHAPTER_RAMP } from '../teardown/materials'
 import type { IslandFrame, IslandOutput, IslandScene, RoleFacts, RoleStory } from './types'
 
 /** Milliseconds a journey takes to grow out of its slot, and to shrink back. */
@@ -28,8 +33,19 @@ const EASE = { tilt: 0.3, hover: 0.2, drag: 0.2 }
 const LOAD_MARGIN = 1
 /** A label hangs this many half heights below its panel's centre, as LABEL_DROP in labels.ts. */
 const LABEL_DROP = 1.08
-/** Mip levels the tilt-shift blurs to at the frame's top and bottom. */
-const BLUR = 3.2
+/** Glyph cells, as the chapters': about 5.7 by 7.5 CSS px on wide screens and 4.2 by 5.5 on phones. */
+const CELL = { wide: { fontPx: 9.6, height: 7.5 }, narrow: { fontPx: 7, height: 5.5 } }
+const FONT_FAMILY = '"JetBrains Mono", "IBM Plex Mono", monospace'
+/** The room's glyph coverage, as the chapters' BACKDROP_GAIN, and its lightness range when a story sets none. */
+const ROOM_GAIN = 0.9
+const ROOM_LEVELS: readonly [number, number] = [0.06, 0.6]
+/** An sRGB hex colour in linear light, for a role's accent as the glyph tint. */
+const linearOf = (hex: string): [number, number, number] => {
+  const c = new THREE.Color(hex)
+  return [c.r, c.g, c.b]
+}
+/** A hidden panel's shot: no anchor, so its label keeps its place and stays off. */
+const HIDDEN_SHOT: CardShot = { anchor: null, rect: null, depth: Infinity, develop: 0, opacity: 0 }
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
 
@@ -89,43 +105,74 @@ interface Island {
   hover: number
   goalX: number
   goalY: number
+  /** True while the island's pointer state eased this frame, so its scene may have moved. */
+  stirred: boolean
+  /** True once the island's shadow map has been drawn for its current scene. */
+  shadowed: boolean
   /** Listeners on the slot, removed when the slot changes. */
   detach: (() => void) | null
 }
 
-export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[], onFallback: () => void): RolesStage | null {
+export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFallback: () => void, onIslandFailed: (id: string) => void = () => undefined): RolesStage | null {
+  const canvas = document.createElement('canvas')
+  canvas.className = 'roles__canvas'
+  canvas.setAttribute('aria-hidden', 'true')
+  host.appendChild(canvas)
   let renderer: THREE.WebGLRenderer
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' })
-  } catch {
+  } catch (error) {
+    console.warn('[roles] the Journey falls back to posters: no WebGL context', error)
+    canvas.remove()
     return null
   }
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFShadowMap
+  // Shadow maps redraw only for a frame that asks (shadowMap.needsUpdate): every journey frame, whose scroll moves
+  // the scene, and a home frame whose island moved. A home frame that only scrolled moved the camera, which leaves
+  // the light's shadow map as it was.
+  renderer.shadowMap.autoUpdate = false
   renderer.setClearColor(0x000000, 0)
   renderer.autoClear = false
 
   let failed = false
   let disposed = false
   let lost = false
-  const fail = () => {
+  const fail = (reason: string) => {
     if (failed) return
+    console.warn(`[roles] the Journey falls back to posters: ${reason}`)
     failed = true
     cancelAnimationFrame(raf)
     onFallback()
   }
+  /** The island whose programs are compiling or drawing, so a shader error fails that island alone. */
+  let current: { status: string; entry: RoleEntry } | null = null
   renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
     console.warn('[roles]', [gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertex), gl.getShaderInfoLog(fragment)].filter(Boolean).join('\n'))
-    fail()
+    if (current) {
+      console.warn(`[roles] ${current.entry.story.id} falls back to its poster`)
+      current.status = 'failed'
+      onIslandFailed(current.entry.story.id)
+    } else fail('a shared shader failed to compile')
   }
 
   const environment = createEnvironment(renderer)
   const target = createProductTarget(renderer)
-  const composite = createRoleComposite()
-  composite.uniforms.uScene.value = target.texture
-  const cu = composite.uniforms
+  const composite = createComposite()
+  const cu = composite.material.uniforms
+  cu.uProduct.value = target.texture
+  cu.uCoach.value = 0
+  cu.uCopyMask.value.set(0, 0, 0, 0)
+  cu.uBackMix.value = 0
+  cu.uDecode.value = 1
+  // The journey hides every other section, so the base is opaque to the stage's edges.
+  cu.uEdge.value.set(0, 0, 1)
+  cu.uGather.value = 1
+  let atlas: THREE.CanvasTexture | null = null
+  let atlasKey = ''
+  const glyphContext = document.createElement('canvas').getContext('2d')
 
   // Textures, memoized by source, decoded off the main thread where bitmaps flip at decode.
   const textures = new Map<string, { texture: THREE.Texture; ready: boolean; aspect: number }>()
@@ -173,7 +220,7 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
       entry, status: 'idle', scene: null, slot: null,
       page: { left: 0, top: 0, width: 0, height: 0 },
       pointer: { x: 0, y: 0, inside: false },
-      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, detach: null,
+      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, stirred: false, shadowed: false, detach: null,
     })
   }
 
@@ -187,21 +234,26 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
           renderer,
           environment: environment.texture,
           load,
-          invalidate: () => start(),
+          // A scene that changed outside update (an async load, a click) has a stale shadow map.
+          invalidate: () => { island.shadowed = false; start() },
           now: () => (born ? (performance.now() - born) / 1000 : 0),
           story: island.entry.story,
           facts: island.entry.facts,
         })
-        renderer.compile(island.scene.scene, island.scene.camera)
         island.status = 'ready'
+        current = island
+        renderer.compile(island.scene.scene, island.scene.camera)
+        current = null
       } catch (error) {
         console.warn(`[roles] ${island.entry.story.id} failed to build`, error)
         island.status = 'failed'
+        onIslandFailed(island.entry.story.id)
       }
       start()
     }, (error) => {
       console.warn(`[roles] ${island.entry.story.id} failed to load`, error)
       island.status = 'failed'
+      onIslandFailed(island.entry.story.id)
     })
   }
 
@@ -228,7 +280,30 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
     renderer.setSize(width, height, false)
     renderer.getDrawingBufferSize(buffer)
     target.setSize(buffer.x, buffer.y)
-    cu.uTexel.value.set(1 / buffer.x, 1 / buffer.y)
+    cu.uRes.value.copy(buffer)
+    cu.uPixelRatio.value = pixelRatio
+    cu.uCopyNarrow.value = narrow ? 1 : 0
+    // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp. The atlas is
+    // rebuilt only when the cell metrics change.
+    const cell = narrow ? CELL.narrow : CELL.wide
+    if (glyphContext) glyphContext.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
+    const advance = glyphContext?.measureText('M').width || cell.fontPx * 0.6
+    const cellW = Math.max(2, Math.round(advance * pixelRatio))
+    const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
+    cu.uCell.value.set(cellW, cellH)
+    const key = `${cellW}:${cellH}:${pixelRatio}:${cell.fontPx}`
+    if (key !== atlasKey) {
+      const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
+      if (glyphs) {
+        atlas?.dispose()
+        atlas = new THREE.CanvasTexture(glyphs)
+        atlas.flipY = false
+        atlas.generateMipmaps = false
+        atlas.minFilter = THREE.LinearFilter
+        cu.uAtlas.value = atlas
+        atlasKey = key
+      }
+    }
     for (const island of islands.values()) measureSlot(island)
     if (journey) {
       journey.trackTop = journey.track.getBoundingClientRect().top + window.scrollY
@@ -246,6 +321,8 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
   let expand: { start: number; from: { left: number; top: number; width: number; height: number }; closing: boolean; to: { left: number; top: number; width: number; height: number } | null } | null = null
   const start = () => { if (!raf && compiled && !disposed && !failed && !lost && !document.hidden) raf = requestAnimationFrame(draw) }
   const project = new THREE.Vector3()
+  const labelAt = new THREE.Vector3()
+  const origin = new THREE.Vector3()
 
   const viewRect = (island: Island) => ({ left: island.page.left, top: island.page.top - window.scrollY, width: island.page.width, height: island.page.height })
   const onScreen = (rect: { top: number; height: number }, margin = 0) => rect.top < height * (1 + margin) && rect.top + rect.height > -height * margin
@@ -295,7 +372,8 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
       anchors.set(key, at && { x: at.x, y: at.y })
     })
     const panels: CardShot[] = out.panels.map((panel) => {
-      const anchor = toView(camera, new THREE.Vector3().copy(panel.center).addScaledVector(panel.up, -panel.halfH * LABEL_DROP), rect)
+      if (panel.opacity <= 0) return HIDDEN_SHOT
+      const anchor = toView(camera, labelAt.copy(panel.center).addScaledVector(panel.up, -panel.halfH * LABEL_DROP), rect)
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, depth = Infinity
       let whole = true
       for (const corner of panel.corners) {
@@ -323,6 +401,8 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
     journey.onFrame({ progress, anchors, panels, floor })
   }
 
+  /** Whether the last frame drew anything, so a frame with nothing to draw knows the canvas is already clear. */
+  let drewLast = true
   let dragYaw = 0
   let dragGoal = 0
   let drag: { id: number; x: number; start: number } | null = null
@@ -338,7 +418,9 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
     renderer.setScissorTest(false)
     renderer.setRenderTarget(null)
     renderer.setViewport(0, 0, width, height)
-    renderer.clear(true, true, true)
+    // A home frame with nothing on screen leaves an already clear canvas alone.
+    if (journey || drewLast) renderer.clear(true, true, true)
+    let drew = !!journey
     const launch = pushStart < 0 ? 1 : Math.min(1, (now - pushStart) / 900)
     if (launch >= 1) pushStart = -1
     const push = launch < 1 ? Math.sin(Math.PI * launch) : 0
@@ -348,7 +430,8 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
       const nextX = approach(island.tiltX, island.goalX, dt, EASE.tilt)
       const nextY = approach(island.tiltY, island.goalY, dt, EASE.tilt)
       const nextHover = approach(island.hover, island.pointer.inside ? 1 : 0, dt, EASE.hover)
-      if (nextX !== island.tiltX || nextY !== island.tiltY || nextHover !== island.hover) moving = true
+      island.stirred = nextX !== island.tiltX || nextY !== island.tiltY || nextHover !== island.hover
+      if (island.stirred) moving = true
       island.tiltX = nextX
       island.tiltY = nextY
       island.hover = nextHover
@@ -378,7 +461,7 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
       // The rectangle grows from the slot to the viewport, or shrinks back into the slot.
       const full = { left: 0, top: 0, width, height }
       let rect = full
-      let skyAlpha = 1
+      let reveal = 1
       if (expand) {
         const t = smoother((now - expand.start) / EXPAND_MS)
         const from = expand.closing ? full : expand.from
@@ -389,7 +472,7 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
           width: from.width + (to.width - from.width) * t,
           height: from.height + (to.height - from.height) * t,
         }
-        skyAlpha = expand.closing ? 1 - t : t
+        reveal = expand.closing ? 1 - t : t
         moving = true
         if (t >= 1 && !expand.closing) expand = null
       }
@@ -400,29 +483,52 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
         const out = scene.update(frameFor(open, 'journey', aspect, local, dt, now, push, dragYaw))
         if (out.busy) moving = true
         const story = open.entry.story
-        const sky = load(story.sky.src)
-        cu.uSky.value = sky.texture
-        cu.uSkyReady.value = sky.ready ? 1 : 0
-        cu.uSkyAspect.value = sky.aspect
-        cu.uSkyFocus.value = story.sky.focusX
-        cu.uSkyAlpha.value = skyAlpha
-        cu.uAspect.value = aspect
-        cu.uParallax.value.set(open.tiltX * 0.5, -open.tiltY * 0.5 + (p - 0.5) * 0.4)
-        cu.uFocusY.value = out.focusY
-        cu.uBlur.value = BLUR * (narrow ? 0.7 : 1)
-        // The island renders into the whole target with the rectangle's aspect, and the composite fits it back.
+        const room = load(story.room.src)
+        const levels = story.room.levels ?? ROOM_LEVELS
+        cu.uBackA.value = room.ready ? room.texture : null
+        cu.uBackB.value = cu.uBackA.value
+        cu.uBackAspect.value.set(room.aspect, room.aspect)
+        cu.uFocus.value.set(story.room.focusX, 0.5, story.room.focusX, 0.5)
+        cu.uLevels.value.set(levels[0], levels[1], levels[0], levels[1])
+        cu.uMirror.value.set(0, 0)
+        cu.uBackGain.value = room.ready ? ROOM_GAIN : 0
+        cu.uGlyphOnly.value = 0
+        cu.uTint.value.set(...(story.look?.tint ?? linearOf(open.entry.facts.accent)))
+        cu.uGrade.value.set(...(story.look?.grade ?? [1, 1, 1]))
+        cu.uPointer.value.set(open.tiltX, -open.tiltY)
+        // The room prints in out of the island as the view grows, and dissolves back into it as the view shrinks.
+        cu.uReveal.value = reveal
+        const centre = toView(scene.camera, origin, rect)
+        const px = renderer.getPixelRatio()
+        cu.uRevealAt.value.set(centre ? centre.x * px : buffer.x / 2, centre ? (height - centre.y) * px : buffer.y / 2)
+        // The island renders into the rectangle's place in the full-size target, since the composite reads the
+        // target pixel for pixel.
         renderer.setRenderTarget(target)
         renderer.setScissorTest(false)
         renderer.setClearColor(0x000000, 0)
         renderer.clear(true, true, false)
+        const x = Math.round(rect.left * px)
+        const y = Math.round((height - rect.top - rect.height) * px)
+        const w = Math.max(1, Math.round(rect.width * px))
+        const h = Math.max(1, Math.round(rect.height * px))
+        target.viewport.set(x, y, w, h)
+        target.scissor.set(x, y, w, h)
+        target.scissorTest = true
+        renderer.setRenderTarget(target)
+        current = open
+        renderer.shadowMap.needsUpdate = true
+        open.shadowed = false
         renderer.render(scene.scene, scene.camera)
+        current = null
+        target.viewport.set(0, 0, buffer.x, buffer.y)
+        target.scissorTest = false
         renderer.setRenderTarget(null)
         setRect(rect)
         renderer.setScissorTest(true)
         renderer.render(composite.scene, composite.camera)
         renderer.setScissorTest(false)
         reportFrame(open, out, rect, p)
-        if (!journey.ready && out.ready && sky.ready) {
+        if (!journey.ready && out.ready && room.ready) {
           journey.ready = true
           journey.onReady()
         }
@@ -437,13 +543,20 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
         if (island.status !== 'ready' || !island.scene || !onScreen(rect)) continue
         const out = island.scene.update(frameFor(island, 'home', rect.width / Math.max(1, rect.height), () => 0, dt, now, 0, 0))
         if (out.busy) moving = true
+        if (!drew) renderer.clear(true, true, true)
+        drew = true
         setRect(rect)
         renderer.setScissorTest(true)
         renderer.clear(false, true, false)
+        current = island
+        renderer.shadowMap.needsUpdate = !island.shadowed || island.stirred || out.busy
+        island.shadowed = true
         renderer.render(island.scene.scene, island.scene.camera)
+        current = null
         renderer.setScissorTest(false)
       }
     }
+    drewLast = drew
     if (moving) raf = requestAnimationFrame(draw)
     else lastPaint = 0
   }
@@ -548,9 +661,10 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
   const onResize = () => measure()
   const onVisibility = () => { lastPaint = 0; if (!document.hidden) start() }
   const onLost = (event: Event) => {
+    if (disposed) return
     event.preventDefault()
     lost = true
-    fail()
+    fail('the WebGL context was lost')
   }
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onResize, { passive: true })
@@ -617,10 +731,12 @@ export function createRolesStage(canvas: HTMLCanvasElement, entries: RoleEntry[]
       for (const { texture } of textures.values()) texture.dispose()
       if (!lost) settleLinks(renderer)
       composite.dispose()
+      atlas?.dispose()
       target.dispose()
       environment.dispose()
       renderer.dispose()
       if (!lost) renderer.forceContextLoss()
+      canvas.remove()
     },
   }
 }

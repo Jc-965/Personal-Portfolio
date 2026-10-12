@@ -394,6 +394,26 @@ img {
   }
 }
 
+/* Journey expands into seven role rows after its lazy chunk resolves, so the
+   placeholder reserves their height and the page does not grow under the
+   reader. From 768px each row is min(76vh, 660px) tall with six gaps of
+   clamp(24px, 5vh, 64px), plus about 176px of header, inside the section's
+   own padding. Narrower, each row stacks a square world over its copy and the list
+   grows with the width. Measured 2026-10-12 at 1440, 1200, 1024, 900, 768,
+   640, 480, and 390px wide, within 1.5% from 768px and 2.5% below. Under
+   reduced motion the rows keep the same height with posters in place of the
+   worlds. */
+#journey > .section__placeholder {
+  min-height: calc(7 * min(76vh, 660px) + 6 * clamp(24px, 5vh, 64px) + 176px);
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  #journey > .section__placeholder {
+    min-height: calc(463.6vw + 4094px);
+  }
+}
+
 /* Constellation mounts lazily. Its placeholder matches the mounted section's
    content height (section height minus --section-pad on both sides) so the
    document does not grow, and the scrollbar does not jump, when the chunk

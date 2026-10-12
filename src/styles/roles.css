@@ -1,22 +1,17 @@
 /* ============================================================================
    ROLES - the Journey section (RolesSection.tsx): every role as a stop on one
-   path, copy on the left and a live floating island on the right, and the
-   open role's journey (RoleJourney.tsx) on teardown.css's pinned layout with
-   a warm card on the right instead of the chapters' dark column on the left.
-   One fixed canvas (.roles__canvas) behind the content draws every island.
+   path, copy on the left and its live 3D world on the right, and the open
+   role's journey (RoleJourney.tsx) on teardown.css's pinned layout with the
+   copy on a dark panel at the right. The section keeps the site's terminal
+   form language: mono labels, "//" eyebrows, bracketed chips and buttons,
+   square frames with "+" corners, and the site's fonts. One fixed canvas
+   (.roles__canvas) behind the content draws every world.
    ============================================================================ */
 
-.roles {
-  --roles-title: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
-  --roles-body: "Figtree", "IBM Plex Sans", sans-serif;
-  --roles-label: "Geist Mono", "JetBrains Mono", monospace;
-  --roles-ink: #f4efe6;
-  --roles-muted: color-mix(in srgb, var(--roles-ink) 66%, transparent);
-  position: relative;
-}
+.roles { position: relative; }
 
 /* The shared canvas covers the viewport behind the rows and the journey. It
-   takes no input: each row's island slot and the journey's stage do. */
+   takes no input: each row's slot and the journey's stage do. */
 .roles__canvas {
   position: fixed;
   inset: 0;
@@ -26,7 +21,7 @@
   pointer-events: none;
 }
 
-/* The path: a dashed line down the left of the rows, a dot at each stop. */
+/* The path: a hairline down the left of the rows, a "+" at each stop. */
 .roles__list {
   position: relative;
   z-index: 1;
@@ -44,8 +39,8 @@
   left: 13px;
   top: 12px;
   bottom: 12px;
-  width: 2px;
-  background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--roles-ink) 30%, transparent) 0 8px, transparent 8px 16px);
+  width: 1px;
+  background: var(--border-card);
 }
 
 .roles__stop {
@@ -62,113 +57,121 @@
 .roles__when {
   position: relative;
   margin: 0 0 10px;
-  font: 500 .78rem/1.4 var(--roles-label);
-  letter-spacing: .06em;
+  font: 500 .78rem/1.4 var(--font-mono);
+  letter-spacing: .04em;
   color: var(--role-accent);
 }
 
 .roles__dot {
   position: absolute;
-  left: -37px;
+  left: -38px;
   top: 50%;
-  width: 12px;
-  height: 12px;
-  margin-top: -6px;
-  border-radius: 50%;
-  background: var(--role-accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--role-accent) 22%, transparent), 0 0 18px var(--role-accent);
+  width: 14px;
+  margin-top: -.7em;
+  font: 700 .95rem/1 var(--font-mono);
+  text-align: center;
+  color: var(--role-accent);
+  background: var(--bg-primary);
 }
 
+.roles__dot::before { content: '+'; }
+
 .roles__track {
-  margin: 0 0 6px;
-  font: 500 .72rem/1.4 var(--roles-label);
-  letter-spacing: .14em;
+  margin: 0 0 8px;
+  font: 500 .72rem/1.4 var(--font-mono);
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--roles-muted);
+  color: var(--text-muted);
 }
+
+.roles__track::before { content: '// '; color: var(--role-accent); }
 
 .roles__company {
   margin: 0;
-  font: 700 clamp(1.8rem, 3.2vw, 2.6rem)/1.05 var(--roles-title);
-  letter-spacing: -.02em;
-  color: var(--roles-ink);
+  font: 700 clamp(1.6rem, 2.8vw, 2.3rem)/1.1 var(--font-display);
+  letter-spacing: -.01em;
+  color: var(--text-primary);
 }
 
 .roles__role {
   margin: 6px 0 4px;
-  font: 600 1.05rem/1.4 var(--roles-body);
-  color: var(--roles-ink);
+  font: 500 1.02rem/1.4 var(--font-sans);
+  color: var(--text-primary);
 }
 
 .roles__where {
   margin: 0 0 16px;
-  font: 400 .9rem/1.4 var(--roles-body);
-  color: var(--roles-muted);
+  font: 400 .78rem/1.4 var(--font-mono);
+  color: var(--text-muted);
 }
 
 .roles__summary {
   margin: 0 0 18px;
-  max-width: 56ch;
-  font: 400 1rem/1.65 var(--roles-body);
-  color: color-mix(in srgb, var(--roles-ink) 84%, transparent);
+  max-width: 58ch;
+  font: 400 .98rem/1.65 var(--font-sans);
+  color: var(--text-secondary);
 }
 
 .roles__stack {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px 12px;
   margin: 0 0 22px;
   padding: 0;
   list-style: none;
+  font: 500 .76rem/1.5 var(--font-mono);
+  color: var(--text-secondary);
 }
 
-.roles__stack li {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--role-accent) 40%, transparent);
-  background: color-mix(in srgb, var(--role-accent) 10%, transparent);
-  font: 500 .74rem/1.4 var(--roles-label);
-  color: var(--roles-ink);
-}
+.roles__stack li::before { content: '['; opacity: .55; }
+.roles__stack li::after { content: ']'; opacity: .55; }
 
 .roles__open {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--role-accent);
-  font: 600 .92rem/1 var(--roles-body);
-  color: #120e0a;
+  display: inline-block;
+  padding: 7px 14px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  font: 600 .86rem/1.4 var(--font-mono);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: transform .25s ease, box-shadow .25s ease;
+  transition: color .25s ease, border-color .25s ease;
 }
+
+.roles__open::before { content: '[ '; opacity: .7; }
+.roles__open::after { content: ' ]'; opacity: .7; }
 
 .roles__open:hover,
-.roles__open:focus-visible {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--role-accent) 40%, transparent);
-}
+.roles__open:focus-visible { color: var(--role-accent); border-color: var(--role-accent); }
 
-/* The island's slot: the stage draws the island into it. A soft glow in the
-   role's colour sits under the island so it floats in its own light. */
+/* The world's slot: the stage draws the world into it. A faint glow in the
+   role's colour sits under it, and "+" glyphs mark two corners, as the site's
+   other framed things. */
 .roles__island {
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
   padding: 0;
   border: 0;
-  border-radius: 28px;
-  background: radial-gradient(closest-side at 50% 58%, color-mix(in srgb, var(--role-accent) 22%, transparent), transparent 75%);
+  background: radial-gradient(closest-side at 50% 58%, color-mix(in srgb, var(--role-accent) 12%, transparent), transparent 80%);
   cursor: pointer;
 }
+
+.roles__island::before,
+.roles__island::after {
+  content: '+';
+  position: absolute;
+  font: 700 .85rem/1 var(--font-mono);
+  color: color-mix(in srgb, var(--role-accent) 70%, transparent);
+  pointer-events: none;
+}
+
+.roles__island::before { top: 0; left: 0; }
+.roles__island::after { bottom: 0; right: 0; }
 
 .roles__island img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 28px;
 }
 
 @media (max-width: 767px) {
@@ -191,17 +194,13 @@ html.roles-open .roles__list,
 html.roles-open .footer { display: none; }
 html.roles-open #journey { max-width: none; padding: 0; }
 
-/* The journey: the chapters' pinned layout with the copy as a warm card on the
-   right, the island left of it, and a rail of every role along the bottom. */
+/* The journey: the chapters' pinned layout and panels, the copy on a dark
+   frosted panel at the right, and a rail of every role along the bottom. The
+   role's accent replaces the chapters' amber. */
 .role-journey {
-  --td-ink: #2a2119;
   --td-amber: var(--role-accent);
-  --td-panel: rgba(255, 250, 242, .86);
-  --td-hairline: color-mix(in srgb, #2a2119 18%, transparent);
-  --td-shadow: none;
+  --td-hairline: color-mix(in srgb, var(--role-accent) 35%, transparent);
   --td-rail: min(34vw, 460px);
-  --font-mono: var(--roles-label);
-  --font-sans: var(--roles-body);
   position: relative;
   z-index: 1;
 }
@@ -213,79 +212,43 @@ html.roles-open #journey { max-width: none; padding: 0; }
   right: var(--td-gutter);
 }
 
-/* The card fades as a whole, unlike the chapters' items, since it is one
-   light panel over a bright sky. */
+/* The panel fades as a whole with its act. */
 .role-journey .teardown__act {
-  padding: 26px 28px;
-  border-radius: 22px;
-  background: rgba(255, 250, 242, .88);
-  -webkit-backdrop-filter: blur(14px) saturate(130%);
-  backdrop-filter: blur(14px) saturate(130%);
-  box-shadow: 0 18px 60px rgba(40, 30, 20, .18);
+  padding: 22px 24px;
+  border: 1px solid var(--td-hairline);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
   opacity: var(--copy-o);
 }
 
 .role-journey .teardown__act > :not(.teardown__callouts),
 .role-journey .teardown__callout { opacity: 1; }
 
-.role-journey .teardown__title {
-  font: 700 clamp(2rem, 3.6vw, 3rem)/1.02 var(--roles-title);
-  letter-spacing: -.02em;
-  color: var(--td-ink);
-  text-shadow: none;
-}
-
-.role-journey .teardown__line,
-.role-journey .teardown__lede { color: color-mix(in srgb, var(--td-ink) 86%, transparent); text-shadow: none; }
-.role-journey .teardown__lede { font-weight: 600; color: var(--td-ink); }
-.role-journey .teardown__eyebrow { color: color-mix(in srgb, var(--role-accent) 70%, #2a2119); text-shadow: none; }
-
-.role-journey .teardown__tag {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--role-accent) 16%, white);
-  color: var(--td-ink);
-}
-
-.role-journey .teardown__callout,
-.role-journey .teardown__readout,
-.role-journey .teardown__card-label {
-  border: 1px solid var(--td-hairline);
-  border-radius: 12px;
-  background: rgba(255, 250, 242, .92);
-  color: var(--td-ink);
-  text-shadow: none;
-}
-
-.role-journey .teardown__card-label::before,
-.role-journey .teardown__callout .teardown__slashes { content: none; }
-
 .role-journey__tip { fill: var(--role-accent); }
-.role-journey .teardown__leaders path { stroke: color-mix(in srgb, var(--role-accent) 70%, #2a2119); }
 
-.role-journey__choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+.role-journey__choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0; }
 
 .role-journey__choice {
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--role-accent) 50%, transparent);
-  background: white;
-  font: 600 .84rem/1.2 var(--roles-body);
-  color: var(--td-ink);
+  padding: 6px 12px;
+  border: 1px solid var(--td-hairline);
+  background: var(--td-panel);
+  font: 600 .82rem/1.4 var(--font-mono);
+  color: color-mix(in srgb, var(--td-ink) 72%, transparent);
   cursor: pointer;
+  transition: color .25s ease, border-color .25s ease, background-color .25s ease;
 }
 
-.role-journey__choice.is-on { background: var(--role-accent); border-color: var(--role-accent); color: #120e0a; }
+.role-journey__choice::before { content: '[ '; opacity: .7; }
+.role-journey__choice::after { content: ' ]'; opacity: .7; }
+.role-journey__choice:hover,
+.role-journey__choice:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
+.role-journey__choice.is-on { color: var(--td-ink); border-color: var(--td-amber); background: color-mix(in srgb, var(--td-amber) 18%, var(--td-panel)); }
 
-.role-journey__credit { margin: 12px 0 0; font: 400 .78rem/1.4 var(--roles-body); color: color-mix(in srgb, var(--td-ink) 60%, transparent); }
-
-.role-journey .teardown__return { color: color-mix(in srgb, var(--td-ink) 60%, transparent); }
-
-.role-journey__back {
-  border-radius: 999px;
-  background: rgba(255, 250, 242, .9);
-  color: #2a2119;
-  font-family: var(--roles-body);
+.role-journey__credit {
+  margin: 12px 0 0;
+  font: 500 .72rem/1.5 var(--font-mono);
+  color: color-mix(in srgb, var(--td-ink) 60%, transparent);
 }
 
 /* The stops: every role along the stage's bottom edge, the open one lit. */
@@ -295,57 +258,44 @@ html.roles-open #journey { max-width: none; padding: 0; }
   bottom: 18px;
   z-index: 4;
   display: flex;
-  gap: 4px;
+  gap: 2px;
   max-width: calc(100vw - 32px);
-  padding: 6px;
+  padding: 4px;
   overflow-x: auto;
-  border-radius: 999px;
-  background: rgba(255, 250, 242, .78);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 10px 40px rgba(40, 30, 20, .16);
+  border: 1px solid var(--td-hairline);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
   transform: translateX(-50%);
   scrollbar-width: none;
 }
 
 .role-journey__stop {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   flex: none;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border: 0;
-  border-radius: 999px;
   background: transparent;
-  font: 500 .78rem/1 var(--roles-body);
-  color: #4a3d30;
+  font: 500 .74rem/1.3 var(--font-mono);
+  color: color-mix(in srgb, var(--td-ink) 62%, transparent);
   white-space: nowrap;
   cursor: pointer;
+  transition: color .2s ease;
 }
 
+.role-journey__stop::before { content: '+ '; color: var(--stop-accent); }
 .role-journey__stop:hover,
-.role-journey__stop:focus-visible { background: color-mix(in srgb, var(--stop-accent) 16%, white); }
-.role-journey__stop.is-on { background: var(--stop-accent); color: #120e0a; font-weight: 600; }
-
-.role-journey__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--stop-accent);
-}
-
-.role-journey__stop.is-on .role-journey__dot { background: #120e0a; }
+.role-journey__stop:focus-visible { color: var(--td-ink); }
+.role-journey__stop.is-on { color: var(--stop-accent); }
 
 .role-journey__poster {
   display: block;
   width: min(100%, 520px);
   margin: 0 0 20px;
-  border-radius: 18px;
+  border: 1px solid var(--td-hairline);
 }
 
 @media (max-width: 767px) {
   .role-journey .teardown__rail { right: 0; }
-  .role-journey .teardown__act { padding: 16px 18px; border-radius: 18px; }
-  .role-journey .teardown__title { font-size: clamp(1.7rem, 7.5vw, 2.2rem); }
+  .role-journey .teardown__act { padding: 14px 16px; }
   .role-journey__stops { top: 64px; bottom: auto; }
 }

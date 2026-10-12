@@ -55,6 +55,8 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
   const railRef = useRef<HTMLDivElement>(null)
   const linesRef = useRef<SVGSVGElement>(null)
   const ridesRef = useRef<ReturnType<typeof actCopyRide>[]>([])
+  /** The panel labels and their measured sizes, cleared whenever the stage resizes or the fonts load. */
+  const labelsRef = useRef<{ els: HTMLElement[]; sizes: { w: number; h: number }[] } | null>(null)
   const floorRef = useRef(-1)
   const frameFloorRef = useRef(0)
   const [act, setAct] = useState(0)
@@ -139,8 +141,13 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
     if (!stage || !svg) return
     const stageRect = stage.getBoundingClientRect()
     const writes: (() => void)[] = []
-    const labels = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__card-label'))
-    const sizes = labels.map((label) => ({ w: label.offsetWidth, h: label.offsetHeight }))
+    // The labels' sizes are measured once per layout (labelsRef), not every frame, since reading 74 sizes after
+    // the last frame's writes forced a layout pass per frame.
+    if (!labelsRef.current) {
+      const els = Array.from(stage.querySelectorAll<HTMLElement>('.teardown__card-label'))
+      labelsRef.current = { els, sizes: els.map((label) => ({ w: label.offsetWidth, h: label.offsetHeight })) }
+    }
+    const { els: labels, sizes } = labelsRef.current
     const panels = frame.panels.map((panel) => ({
       ...panel,
       anchor: panel.anchor && { x: panel.anchor.x - stageRect.left, y: panel.anchor.y - stageRect.top },
@@ -212,6 +219,16 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
 
   useEffect(() => { if (isStatic) allowPrint() }, [isStatic, allowPrint])
 
+  useEffect(() => {
+    const stage = localStage.current
+    if (!stage) return
+    const reset = () => { labelsRef.current = null }
+    const observer = new ResizeObserver(reset)
+    observer.observe(stage)
+    document.fonts?.ready.then(reset, () => undefined)
+    return () => observer.disconnect()
+  }, [])
+
   const choose = (command: string, value: string) => {
     setChosen((current) => ({ ...current, [command]: value }))
     onChoose(command, value)
@@ -264,7 +281,7 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
                 </>
               ) : (
                 <>
-                  {a.eyebrow && <p className="teardown__eyebrow">{a.eyebrow}</p>}
+                  {a.eyebrow && <p className="teardown__eyebrow"><span aria-hidden="true">// </span>{a.eyebrow}</p>}
                   {a.lines.map((line) => <p key={line} className="teardown__line">{line}</p>)}
                 </>
               )}
@@ -282,28 +299,30 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
               )}
               {a.readout && a.readout.length > 0 && (
                 <ul className="teardown__readout">
-                  {a.readout.map((line) => <li key={line}><span className="teardown__prompt" aria-hidden="true">›</span> {line}</li>)}
+                  {a.readout.map((line) => <li key={line}><span className="teardown__prompt" aria-hidden="true">$</span> {line}</li>)}
                 </ul>
               )}
               {a.callouts.length > 0 && (
                 <ul className="teardown__callouts teardown__callouts--anchored">
                   {a.callouts.map((c, ci) => (
-                    <li key={c.text} className="teardown__callout" data-anchor={`${ai}:${c.anchor}`} data-point={c.anchor} data-act={ai} data-index={ci}>{c.text}</li>
+                    <li key={c.text} className="teardown__callout" data-anchor={`${ai}:${c.anchor}`} data-point={c.anchor} data-act={ai} data-index={ci}>
+                      <span className="teardown__slashes" aria-hidden="true">//</span> {c.text}
+                    </li>
                   ))}
                 </ul>
               )}
               {ai === lastIndex && (
                 <>
-                  <p className="teardown__tags">{facts.stack.map((t) => <span key={t} className="teardown__tag">{t}</span>)}</p>
+                  <p className="teardown__tags">{facts.stack.map((t) => <span key={t} className="teardown__tag">[{t}]</span>)}</p>
                   {story.links.length > 0 && (
                     <p className="teardown__links">
-                      {story.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="teardown__link">{l.label} ↗</a>)}
+                      {story.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="teardown__link">[ {l.label} ↗ ]</a>)}
                     </p>
                   )}
                   {story.credit && <p className="role-journey__credit">{story.credit}</p>}
                   {!isStatic && (
                     <p ref={returnRef} className="teardown__return" aria-hidden="true">
-                      <span>keep scrolling to return home</span>
+                      <span>// keep scrolling to return home</span>
                       <span className="teardown__return-bar" />
                     </p>
                   )}
@@ -329,14 +348,13 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
               aria-current={r.id === story.id ? 'page' : undefined}
               onClick={() => onSwitch(r.id)}
             >
-              <span className="role-journey__dot" aria-hidden="true" />
               {r.company}
             </button>
           ))}
         </nav>
       </div>
-      <button type="button" className="teardown__back is-shown role-journey__back" onClick={onBack}>
-        <span aria-hidden="true">←</span> back
+      <button type="button" className="teardown__back is-shown" onClick={onBack}>
+        [ <span aria-hidden="true">←</span> back ]
       </button>
     </section>
   )

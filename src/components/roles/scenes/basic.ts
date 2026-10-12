@@ -22,7 +22,7 @@ export function islandView(f: IslandFrame) {
   }
   const dive = smoother(ramp(a, 0, 0.8))
   const close = smoother(ramp(w, 0, 0.3)) * (1 - smoother(ramp(c, 0.1, 0.6)))
-  const distance = (f.narrow ? 19 : 17) - (f.narrow ? 4.5 : 5.5) * dive - 2 * close + 1.6 * smoother(ramp(c, 0.2, 0.8)) + 0.6 * f.push
+  const distance = (f.narrow ? 30 : 17) - (f.narrow ? 6 : 5.5) * dive - 2 * close + 1.6 * smoother(ramp(c, 0.2, 0.8)) + 0.6 * f.push
   const yaw = 0.55 + 0.9 * dive + 0.6 * w + 0.35 * c + f.tiltX * 0.18 + f.dragYaw
   const pitch = 0.62 - 0.22 * dive + 0.06 * close - f.tiltY * 0.08
   return { distance, yaw, pitch, focusX: f.narrow ? 0.5 : 0.36, focusY: f.narrow ? 0.7 : 0.52 }

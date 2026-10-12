@@ -1,6 +1,6 @@
 /**
- * The ScottyLabs AI Team role's journey. Its copy restates the role's entry in portfolio.json and adds nothing the
- * entry does not say. A separate copy pass revises it.
+ * The ScottyLabs AI role's journey. Its copy restates the role's resume entry, the source of truth for this role,
+ * and adds nothing the entry does not say.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,28 +10,33 @@ export const SCOTTYLABS_AI: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['ScottyLabs AI Team', 'AI Platform Engineer', 'Apr 2026 – Present · Pittsburgh, PA'],
+      lines: ['ScottyLabs AI', 'Head of Agent Engineering'],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'ai platform',
-      lines: ['Launched an AI platform that grounds every answer in live university data, blocks hallucinated claims, and streams first tokens at 1.5s p95 across a LangGraph/FastAPI agent and React client.', 'Built injection-hardened cross-chat memory with LLM fact extraction, pgvector dedup, and per-user isolation, and cut prompt tokens 62% and helper-model latency 10x with query-matched MCP tool binding and context compression.'],
-      callouts: [],
+      eyebrow: 'bark',
+      readout: ['leads 25 engineers', 'live MCP lookups: maps, courses, dining, transit', '300 ms injection guard', '16 live attack tests'],
+      lines: ['Architect and principal author of Bark, CMU\'s campus AI assistant.'],
+      callouts: [
+        { text: 'Click a tool to ask Bark', anchor: 'tool' },
+      ],
     },
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'built with',
-      lines: ['FastAPI, LangGraph, MCP, React 19, pgvector, SSE.'],
+      eyebrow: 'memory and cost',
+      lines: ['Per-user pgvector memory, and prompt costs cut 44%.'],
       callouts: [],
     },
   ],
   restLocal: [0.6, 0.6, 0.5],
-  sky: { src: '/roles/skies/scottylabs-ai.webp', focusX: 0.5 },
-  panels: [],
+  room: { src: '/roles/rooms/scottylabs-ai.webp', focusX: 0.35 },
+  // Hover names for the scene's pick targets, in its panel order: the four MCP tools, the core, the guard, the
+  // memory, the SSE pipeline's three server stages, and the chat window.
+  panels: ['Maps MCP', 'Courses MCP', 'Dining MCP', 'Transit MCP', 'Bark', 'Injection guard', 'pgvector memory', 'LangGraph', 'FastAPI', 'Express', 'React client'],
   links: [],
-  poster: { src: '/roles/skies/scottylabs-ai.webp', alt: 'A floating island diorama for ScottyLabs AI Team' },
+  poster: { src: '/roles/scottylabs-ai/poster.webp', alt: 'Bark as a glowing violet core above a Scottie dog, fed by campus map, course, dining, and transit tools, answering into a chat window through an injection guard' },
   scene: () => import('../../components/roles/scenes/scottylabs-ai.ts'),
 }

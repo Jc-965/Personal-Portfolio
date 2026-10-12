@@ -63,8 +63,8 @@ export type Materials = ReturnType<typeof materials>
 
 /**
  * Blending for light a scene adds on top (sparks, glows, rays): the shader writes premultiplied colour, which is
- * added to the target, and the target's coverage is left alone. Additive blending that also wrote alpha would
- * reduce the sky the journey's composite lays under the island, so glows over the sky would read as dark dots.
+ * added to the target, and the target's coverage is left alone. Additive blending that also wrote alpha would mark
+ * those pixels as covered, so the journey's composite would hide its glyph room behind a glow's faint fringe.
  */
 export const GLOW = {
   transparent: true,

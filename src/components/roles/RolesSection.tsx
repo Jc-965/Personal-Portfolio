@@ -8,8 +8,6 @@ import type { RoleFacts } from './types'
 import { useRolesView } from './useRolesView'
 import '../../styles/roles.css'
 
-/** The section's type, loaded as the section nears: a warm grotesque title, a friendly sans, and a mono label. */
-const FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap'
 /** The stage boots within BOOT_MARGIN of the viewport and is released beyond RELEASE_MARGIN, unless a journey is open. */
 const BOOT_MARGIN = '150% 0px'
 const RELEASE_MARGIN = '350% 0px'
@@ -33,7 +31,7 @@ type Mode = 'gl' | 'static'
  */
 function RolesSection() {
   const rootRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<RolesStage | null>(null)
   const slotsRef = useRef(new Map<string, HTMLElement>())
   const fromRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
@@ -43,6 +41,8 @@ function RolesSection() {
   const [mode, setMode] = useState<Mode>(() => (prefersReduced() ? 'static' : 'gl'))
   const [near, setNear] = useState(false)
   const [booted, setBooted] = useState(false)
+  /** Roles whose island failed to load, build, or compile, which show their poster in the slot instead. */
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set())
 
   const attach = useCallback((id: string, from: { left: number; top: number; width: number; height: number } | null) => {
     const stage = stageRef.current
@@ -110,19 +110,12 @@ function RolesSection() {
 
   useEffect(() => {
     if (!near || mode !== 'gl') return
-    const link = document.querySelector(`link[href="${FONTS_HREF}"]`)
-    if (!link) {
-      const added = document.createElement('link')
-      added.rel = 'stylesheet'
-      added.href = FONTS_HREF
-      document.head.appendChild(added)
-    }
     let cancelled = false
     let stage: RolesStage | null = null
     import('./RolesStage').then(({ createRolesStage }) => {
-      const canvas = canvasRef.current
-      if (cancelled || !canvas) return
-      stage = createRolesStage(canvas, ROLES, () => setMode('static'))
+      const host = hostRef.current
+      if (cancelled || !host) return
+      stage = createRolesStage(host, ROLES, () => setMode('static'), (id) => setBroken((current) => new Set(current).add(id)))
       if (!stage) {
         setMode('static')
         return
@@ -131,7 +124,10 @@ function RolesSection() {
       slotsRef.current.forEach((el, id) => stage?.setSlot(id, el))
       setBooted(true)
       if (openIdRef.current) attach(openIdRef.current, null)
-    }, () => setMode('static'))
+    }, (error) => {
+      console.warn('[roles] the Journey falls back to posters: its renderer failed to load', error)
+      setMode('static')
+    })
     return () => {
       cancelled = true
       stage?.dispose()
@@ -172,7 +168,8 @@ function RolesSection() {
 
   return (
     <div ref={rootRef} className={`roles${isStatic ? ' roles--static' : ''}`}>
-      {!isStatic && <canvas ref={canvasRef} className="roles__canvas" aria-hidden="true" />}
+      {/* The stage creates its canvas here on every boot (RolesStage). */}
+      <div ref={hostRef} className="roles__host" />
       <ol className="roles__list">
         {ROLES.map(({ story, facts }) => (
           <li key={story.id} id={`role-${story.id}`} className="roles__stop" style={{ '--role-accent': facts.accent } as CSSProperties}>
@@ -190,7 +187,7 @@ function RolesSection() {
                 {facts.stack.map((item) => <li key={item}>{item}</li>)}
               </ul>
               <button type="button" className="roles__open" onClick={() => openFrom(story.id)}>
-                Explore the journey <span aria-hidden="true">→</span>
+                explore the journey <span aria-hidden="true">→</span>
               </button>
             </div>
             <button
@@ -201,7 +198,7 @@ function RolesSection() {
               tabIndex={-1}
               onClick={() => openFrom(story.id)}
             >
-              {isStatic && <img src={story.poster.src} alt="" loading="lazy" decoding="async" />}
+              {(isStatic || broken.has(story.id)) && <img src={story.poster.src} alt="" loading="lazy" decoding="async" />}
             </button>
           </li>
         ))}

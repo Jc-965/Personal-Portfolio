@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { applyNativeCursorSuppression, clearNativeCursorSuppression, shouldUseCustomCursor } from '../utils/nativeCursor'
 
+/** The reticle's dark underlay, drawn 1 px wider each side under its cross, ring, and dot. */
+const UNDERLAY = 'rgba(0, 0, 0, 0.55)'
+
 export default function Cursor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pos = useRef({ x: -100, y: -100 })
@@ -109,8 +112,7 @@ export default function Cursor() {
       const crossLen = (isHover ? 16 : 14) + clickVisual * 5
       const crossGap = (isHover ? 10 : 8) + clickVisual * 2
       const crossAlpha = (isHover ? 0.4 : 0.2) + clickVisual * 0.15
-      ctx.strokeStyle = `rgba(0, 255, 255, ${crossAlpha})`
-      ctx.lineWidth = 0.8 + clickVisual * 0.6
+      const crossWidth = 0.8 + clickVisual * 0.6
 
       ctx.beginPath()
       ctx.moveTo(px - crossLen - crossGap, py)
@@ -121,6 +123,13 @@ export default function Cursor() {
       ctx.lineTo(px, py - crossGap)
       ctx.moveTo(px, py + crossGap)
       ctx.lineTo(px, py + crossLen + crossGap)
+      // A dark underlay keeps the reticle readable over light surfaces, such as the bright parts of a journey's 3D
+      // world. On the site's near-black pages it does not show.
+      ctx.strokeStyle = UNDERLAY
+      ctx.lineWidth = crossWidth + 2
+      ctx.stroke()
+      ctx.strokeStyle = `rgba(0, 255, 255, ${crossAlpha})`
+      ctx.lineWidth = crossWidth
       ctx.stroke()
 
       const bracketSize = 3
@@ -145,8 +154,7 @@ export default function Cursor() {
       const segments = 8
       const segmentAngle = (Math.PI * 2) / segments
       const gapRatio = 0.35
-      ctx.strokeStyle = `rgba(0, 255, 255, ${(isHover ? 0.6 : 0.35) + clickVisual * 0.25})`
-      ctx.lineWidth = (isHover ? 1.8 : 1.2) + clickVisual * 0.8
+      const ringWidth = (isHover ? 1.8 : 1.2) + clickVisual * 0.8
 
       ctx.beginPath()
       for (let i = 0; i < segments; i++) {
@@ -155,6 +163,11 @@ export default function Cursor() {
         ctx.arc(rx, ry, ringRadius, startAngle, endAngle)
         ctx.moveTo(rx + Math.cos(endAngle) * ringRadius, ry + Math.sin(endAngle) * ringRadius)
       }
+      ctx.strokeStyle = UNDERLAY
+      ctx.lineWidth = ringWidth + 2
+      ctx.stroke()
+      ctx.strokeStyle = `rgba(0, 255, 255, ${(isHover ? 0.6 : 0.35) + clickVisual * 0.25})`
+      ctx.lineWidth = ringWidth
       ctx.stroke()
 
       if (!clicking.current) {
@@ -200,6 +213,10 @@ export default function Cursor() {
       ctx.arc(px, py, dotSize * 4, 0, Math.PI * 2)
       ctx.fill()
 
+      ctx.fillStyle = UNDERLAY
+      ctx.beginPath()
+      ctx.arc(px, py, dotSize + 1.2, 0, Math.PI * 2)
+      ctx.fill()
       ctx.fillStyle = isHover ? '#ffffff' : 'rgba(0, 255, 255, 0.9)'
       ctx.beginPath()
       ctx.arc(px, py, dotSize, 0, Math.PI * 2)
