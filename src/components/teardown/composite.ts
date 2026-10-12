@@ -1,7 +1,7 @@
 /**
  * The chapter's final pass, one full-screen draw to the canvas. It owns the
- * room (a softened photograph under a layer of colored glyphs, which drifts
- * with chapter progress and whose glyphs cross cell by cell between rooms while
+ * room (a softened photograph under a layer of colored glyphs, held still and
+ * framed on its subject, whose glyphs cross cell by cell between rooms while
  * the photograph crossfades smoothly), the darkening behind
  * the copy, the product layer's glyph decode, shadow pool, and glow, and the
  * coach skeleton. Everything is computed in linear light and written to the
@@ -93,9 +93,6 @@ uniform float uBackGain;
 uniform float uGlyphOnly;
 uniform float uReveal;
 uniform vec2 uRevealAt;
-uniform vec2 uDrift;
-uniform float uSurge;
-uniform vec2 uPointer;
 uniform vec4 uCopyMask;
 uniform float uCopyNarrow;
 uniform float uPixelRatio;
@@ -151,35 +148,22 @@ vec4 tint(vec4 under, vec3 color, float t) {
   return over(under, vec4(color, 1.0) * t);
 }
 
-// The pan across a photograph over its room's drift, 3% across and 5% down in texture units so the room travels
-// upward with the scroll, the pointer parallax at full tilt, and the surge drag: at full surge the window leads
-// the scroll by 3% of the photograph, so the room moves with the wheel and settles when it stops.
-const vec2 PAN = vec2(.03, -.05);
-const vec2 PARALLAX = vec2(.025, .016);
-const float SURGE_DRAG = .03;
-
-// The window onto a room photograph at drift 0, in texture units: cover-fitted with 20% overscan, so most of each
-// photograph is in frame and its subject reads at a glance. The overscan is sized for the pan, the parallax, and
-// the surge drag in roomUv. On the fitted axis they reach at most .075 past the window on each side (the .004 edge
-// pad, half of PAN, PARALLAX, and SURGE_DRAG) against the .1 the overscan leaves, so roomUv's margin is at most
-// .475 there and the focus point can still move the window by .025 either way. Grow their sum past .1 and the clamp
-// bounds in roomUv cross on the fitted axis, which GLSL leaves undefined.
+// The window onto a room photograph in texture units: cover-fitted with 20% overscan, so most of each photograph
+// is in frame and the focus point can move the window by up to .1 either way on the fitted axis to centre its
+// subject.
 vec2 roomSize(float aspect) {
   float screenAspect = uRes.x / uRes.y;
   vec2 size = screenAspect > aspect ? vec2(1.0, aspect / screenAspect) : vec2(screenAspect / aspect, 1.0);
   return size * .8;
 }
 
-// The window's centre: the focus point, held inside the photograph by the drift-0 half window plus the edge pad, half
-// the pan, the parallax, and the surge drag, then panned by the room's drift, offset by the pointer, and led by the
-// surge. The clamp bounds do not move and the window only shrinks with drift, so the window stays inside the
-// photograph at every drift and the centre is monotonic in drift: every room pans its full distance in one
-// direction and never reverses while the visitor scrolls one way. size0 is the drift-0 window from roomSize and
-// size the pushed-in window for this frame.
-vec2 roomUv(vec2 size0, vec2 size, vec2 focus, float drift, vec2 q) {
-  vec2 margin = size0 * .5 + .004 + abs(PAN) * .5 + PARALLAX + vec2(0.0, SURGE_DRAG);
-  vec2 centre = clamp(focus, margin, 1.0 - margin) + PAN * (drift - .5) + uPointer * PARALLAX - vec2(0.0, SURGE_DRAG * uSurge);
-  return centre + (q - .5) * size;
+// The window's texture coordinate at canvas point q. The room never moves: the window is centred on the focus
+// point, held inside the photograph by half the window plus a .004 edge pad. Motion in the background that is
+// independent of the scroll and the product reads as the floor moving, which is the motion that makes visitors
+// queasy.
+vec2 roomUv(vec2 size, vec2 focus, vec2 q) {
+  vec2 margin = size * .5 + .004;
+  return clamp(focus, margin, 1.0 - margin) + (q - .5) * size;
 }
 
 // log2 of photo texels per device pixel. Negative when the photo is smaller than the frame.
@@ -190,11 +174,9 @@ float roomLod(sampler2D tex, vec2 size) {
 // The window onto a room at canvas point q: the texture coordinate in xy and, in z, the lod at which one texel
 // covers one glyph cell. A mirrored room (mirror 1) samples the photograph flipped left to right, and its focus
 // counts on the flipped image.
-vec3 roomWindow(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
-  vec2 size0 = roomSize(aspect);
-  // The window is pushed in by 8% over the room's drift, a slow zoom that rides the pan.
-  vec2 size = size0 * (1.0 - .08 * drift);
-  vec2 uv = roomUv(size0, size, focus, drift, q);
+vec3 roomWindow(sampler2D tex, float aspect, vec2 focus, float mirror, vec2 q) {
+  vec2 size = roomSize(aspect);
+  vec2 uv = roomUv(size, focus, q);
   uv.x = mix(uv.x, 1.0 - uv.x, mirror);
   return vec3(uv, max(roomLod(tex, size) + log2(sqrt(uCell.x * uCell.y)), 0.0));
 }
@@ -202,8 +184,8 @@ vec3 roomWindow(sampler2D tex, float aspect, vec2 focus, float drift, float mirr
 // The photograph's mean colour over the glyph cell at canvas point q, and in w its local contrast: how far the cell's
 // lightness sits from the mean of a patch about six cells across around it. That patch is wide enough that the
 // term scores the edges of objects (a mug's rim, a pill box, the back of a chair) and not the grain of a surface.
-vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
-  vec3 w = roomWindow(tex, aspect, focus, drift, mirror, q);
+vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float mirror, vec2 q) {
+  vec3 w = roomWindow(tex, aspect, focus, mirror, q);
   vec3 tone = textureLod(tex, w.xy, w.z).rgb;
   vec3 around = textureLod(tex, w.xy, w.z + 2.5).rgb;
   return vec4(tone, abs(lightness(tone) - lightness(around)));
@@ -211,8 +193,8 @@ vec4 roomCell(sampler2D tex, float aspect, vec2 focus, float drift, float mirror
 
 // The softened photograph at canvas point q. It is sampled at the fragment itself, not at the cell's centre, so
 // it is smooth across the glyph grid instead of a mosaic of cells.
-vec3 roomPhoto(sampler2D tex, float aspect, vec2 focus, float drift, float mirror, vec2 q) {
-  vec3 w = roomWindow(tex, aspect, focus, drift, mirror, q);
+vec3 roomPhoto(sampler2D tex, float aspect, vec2 focus, float mirror, vec2 q) {
+  vec3 w = roomWindow(tex, aspect, focus, mirror, q);
   return textureLod(tex, w.xy, w.z + (${glslFloat(PHOTO_SOFTEN)})).rgb;
 }
 
@@ -279,10 +261,10 @@ void main() {
       photoSwap = staggered(sweep(s, .55), .6, uBackMix);
     }
     vec4 tone = vec4(0.0);
-    if (swap < 1.0) tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, uMirror.x, sc) * (1.0 - swap);
-    if (swap > 0.0) tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, uMirror.y, sc) * swap;
-    if (photoSwap < 1.0) photo += roomPhoto(uBackA, uBackAspect.x, uFocus.xy, uDrift.x, uMirror.x, s) * (1.0 - photoSwap);
-    if (photoSwap > 0.0) photo += roomPhoto(uBackB, uBackAspect.y, uFocus.zw, uDrift.y, uMirror.y, s) * photoSwap;
+    if (swap < 1.0) tone += roomCell(uBackA, uBackAspect.x, uFocus.xy, uMirror.x, sc) * (1.0 - swap);
+    if (swap > 0.0) tone += roomCell(uBackB, uBackAspect.y, uFocus.zw, uMirror.y, sc) * swap;
+    if (photoSwap < 1.0) photo += roomPhoto(uBackA, uBackAspect.x, uFocus.xy, uMirror.x, s) * (1.0 - photoSwap);
+    if (photoSwap > 0.0) photo += roomPhoto(uBackB, uBackAspect.y, uFocus.zw, uMirror.y, s) * photoSwap;
 
     // Density follows the cell's lightness within the room's own levels (uLevels), from a bare dot in the shadows
     // to the open o on its brightest lit surface, so each dim photograph spans the whole ramp and its tones carry
@@ -475,10 +457,7 @@ export interface Composite {
  * and 1 for a glyph-only field. `uReveal` is the room's print-in, 0 for no
  * room and 1 for the whole room, from the rig's `backdrop.reveal`, and
  * `uRevealAt` is the device pixel the print grows out from and dissolves
- * back into, the product's projected centre. `uDrift` holds room A's and
- * room B's pan progress, each 0 to 1, from the rig's `roomDrift`. `uSurge`
- * is the scroll's eased speed, -1 to 1, and drags the room ahead of the
- * scroll while the visitor moves.
+ * back into, the product's projected centre.
  * `uCopyMask` is the right edge x of the copy block's ink from the left, the
  * block's top and bottom y from the top, and a strength from 0 to 1. At
  * strength 0 the room is untouched. `uCopyNarrow` is 1 on phone stages, which
@@ -505,9 +484,6 @@ export function createComposite(): Composite {
       uGlyphOnly: { value: 0 },
       uReveal: { value: 0 },
       uRevealAt: { value: new THREE.Vector2() },
-      uDrift: { value: new THREE.Vector2() },
-      uSurge: { value: 0 },
-      uPointer: { value: new THREE.Vector2() },
       uCopyMask: { value: new THREE.Vector4(0, 0, 0, 0) },
       uCopyNarrow: { value: 0 },
       uPixelRatio: { value: 1 },

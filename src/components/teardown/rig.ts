@@ -1,18 +1,20 @@
 /**
  * Pure choreography for the teardown chapter. Maps chapter progress and the
- * visitor's drag and tilt to every transform the renderer and the DOM
+ * visitor's pointer and drag to every transform the renderer and the DOM
  * callouts use. The renderer and the callouts read the same constants and
  * pose, so the GPU scene and the projected callouts always agree.
  *
- * Motion is continuous and every act rests on its finished state. An act's
- * incoming transition ramps across its first half (RAMP_END) and its reveal
- * is complete by about 65% of the act (REVEAL_END). The glass act's stack is
- * apart by 40% (EXPLODE_END), so it holds while its callouts read, and the
- * day act's row lands at 76%, since its four cards each take a spotlight in
- * turn (CARD_END). After that only
- * the drifts, the station step, and the surge move the pose until the next
- * act's transition takes over at the boundary. Nothing reads the clock: one
- * progress always yields one pose, which the glide in glide.ts relies on.
+ * Motion is deliberate and every act rests, perfectly still, on its finished
+ * state. An act's incoming transition ramps across its first half (RAMP_END)
+ * and its reveal is complete by about 65% of the act (REVEAL_END). The glass
+ * act's stack is apart by 40% (EXPLODE_END), so it holds while its callouts
+ * read, and the day act's row lands at 76%, since its four cards each take a
+ * spotlight in turn. Nothing moves the pose between a reveal and
+ * the next act's transition: no drift, no wave, and no scroll-speed surge,
+ * since passive motion of the product and the camera made visitors motion
+ * sick. Only the visitor turns the phone outside a transition: it leans
+ * toward the pointer (TILT) and a drag turns it further. Nothing reads the clock: one progress always
+ * yields one pose, which the glide in glide.ts relies on.
  *
  * World units: the phone is 1.51 tall. The camera never rotates: it looks
  * along +z from `camera.pos`, and `camera.shift` moves the principal point so
@@ -20,7 +22,7 @@
  * is the back of the phone, so the screen faces -normal, toward the camera.
  */
 import type { ActKey, Anchor, ScreenKey } from '../../content/teardown/types.ts'
-import { actAt, dwell, localOf, ramp, type ActWindow } from './timeline.ts'
+import { actAt, localOf, ramp, type ActWindow } from './timeline.ts'
 
 export type Vec3 = [number, number, number]
 
@@ -98,29 +100,6 @@ const REVEAL_END = 0.65
  * still stacked together.
  */
 const EXPLODE_END = 0.4
-/**
- * Chapter-long drifts, world units and radians. The phone sinks from +travelY
- * to -travelY over the chapter, and three sines of unrelated frequency keep
- * the yaw, the phone, and the camera moving through every held pose. Each
- * cycles value is the count of full waves over the chapter.
- */
-const DRIFT = { travelY: 0.4, yaw: 0.05, yawCycles: 2.3, phoneY: 0.025, phoneCycles: 3.1, cameraY: 0.02, cameraCycles: 1.7 } as const
-/**
- * The phone's station step per act, world units. Each act lifts the phone by
- * one step on the copy's dwell curve, so the phone glides to its next station
- * while the copy rides out, and the eight steps are centred on zero over the
- * chapter. With DRIFT.travelY the net drop over the chapter is
- * 2 * travelY - 8 * STATION_STEP, which must stay between 0.08 and 0.2.
- */
-const STATION_STEP = 0.08
-/**
- * How far a full surge (the scroll's eased speed at its soft limit) moves
- * the product: the top of the phone tips away by `pitch` radians, the phone
- * sinks by `y` world units, and the camera backs off by `dist`. The surge is
- * 0 at rest, so none of it survives once the scroll settles.
- */
-const SURGE = { pitch: 0.06, y: 0.05, dist: 0.1 } as const
-const TAU = 2 * Math.PI
 
 /**
  * The wide day act's row: the phone, then the four cards at `scale`, with
@@ -145,10 +124,10 @@ const DAY_ROW = (() => {
  * Half-width the day camera keeps visible at the phone's depth, world units.
  * It is the row's half-width over 0.84, so the row keeps an 8% margin each
  * side at the aspect where the distance floor stops holding, and about 5%
- * once the camera has pushed in to DAY_PUSH of that distance.
+ * at DAY_PUSH of that distance, where the day camera holds.
  */
 const DAY_VIEW = DAY_ROW.half / 0.84
-/** The day camera's distance once the row is complete, as a fraction of the distance that frames DAY_VIEW. */
+/** The day camera's distance from the start of card 0's spotlight on, as a fraction of the distance that frames DAY_VIEW. */
 const DAY_PUSH = 0.93
 /**
  * Card i of the wide day act has its moment over a window of CARD_WINDOW of
@@ -156,15 +135,14 @@ const DAY_PUSH = 0.93
  * card peels off the phone to the spotlight by SPOT.in, holds there until
  * SPOT.out, and settles into its row slot by 1. The windows overlap by half,
  * so card i + 1 peels off the phone while card i is still held and reaches
- * the spotlight after card i has left it. The last card lands at CARD_END,
- * 0.76 of the act, and the finished row then rests for the act's last 0.24,
+ * the spotlight after card i has left it. The last card lands at
+ * CARD_START + 3 * CARD_STEP + CARD_WINDOW, 0.76 of the act, and the finished row then rests for the act's last 0.24,
  * about 1.0 viewport-heights of the day act's 4.2. A hold lasts 0.3 of a
  * window, about 0.35 viewport-heights.
  */
 const CARD_START = 0.06
 const CARD_STEP = 0.14
 const CARD_WINDOW = 0.28
-const CARD_END = CARD_START + 3 * CARD_STEP + CARD_WINDOW
 /**
  * The spotlight: a held card faces the camera at full scale with its centre at
  * `x` of the frame width and its height spanning `height` of the frame's, at
@@ -191,9 +169,9 @@ const FOLD = { step: 0.1, span: 0.3, back: 0.5, fade: [0.45, 0.8] } as const
 const SPOT_DEPTH = (FOCAL * PHONE.sy) / SPOT.height
 /**
  * Day act local by which the phone has reached its station facing the camera
- * and the camera has dollied out. It is the moment card 0 reaches the
- * spotlight, so through every hold the phone moves only with the drifts and
- * the camera only with the slow push-in to DAY_PUSH, which runs to CARD_END.
+ * and the camera has settled. It is the moment card 0 reaches the spotlight,
+ * so through every spotlight the phone and the camera are still and only the
+ * cards move.
  */
 const DAY_FORM = CARD_START + SPOT.in * CARD_WINDOW
 /**
@@ -238,25 +216,22 @@ const ROOM_SWAP = 0.035
  * move them off the product's phases.
  */
 const ROOM_REVEAL = { inEnd: 0.63, out: [0.74, 0.93] } as const
-/**
- * Bounds, in chapter progress, on the span over which a room pans its full
- * distance. A room that is on screen for less than the minimum (about 4.4
- * viewport-heights) pans only part of the way, so a short act never races,
- * and a room held for longer than the maximum (about 7.0 viewport-heights)
- * finishes its pan and rests, since by then it is a dim field behind the
- * exploded stack.
- */
-const ROOM_PAN_SPAN: [number, number] = [0.25, 0.4]
 
 export interface Interaction {
   /** Radians added to the phone's yaw by a drag. */
   dragYaw: number
-  /** Pointer position over the stage, -1 to 1 on each axis, eased. */
+  /** Pointer position over the stage, -1 to 1 on each axis, eased. 0 when the pointer is away or coarse. */
   tiltX: number
   tiltY: number
-  /** The scroll's eased speed, -1 to 1, positive scrolling down. Absent or 0 at rest. */
-  surge?: number
 }
+
+/**
+ * How far the phone leans toward the pointer at the stage's edges, radians.
+ * Enough that the frame and the glass catch the light as the pointer moves,
+ * so the phone reads as a solid object, and small enough to stay calm. The
+ * room behind never follows the pointer.
+ */
+const TILT = { yaw: 0.08, pitch: 0.05 } as const
 
 /**
  * A textured plane. `right` and `up` are orthogonal and share one length,
@@ -295,9 +270,9 @@ export interface Pose {
   /**
    * `gain` is 1 at full room brightness. `glyphOnly` is 1 where the room is held as a glyph-only field, with the
    * photograph under the glyphs faded out. `reveal` is 0 while no room is drawn at the chapter's edges and 1 once
-   * the room has printed in. `driftA` and `driftB` are each room's own pan progress from `roomDrift`.
+   * the room has printed in.
    */
-  backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; reveal: number; driftA: number; driftB: number }
+  backdrop: { a: number; b: number; mix: number; gain: number; glyphOnly: number; reveal: number }
   coach: { amount: number; frame: number; pos: Vec3; scale: number }
 }
 
@@ -361,32 +336,6 @@ export function backdropAt(windows: readonly ActWindow[], backdrops: readonly (n
   return { a: held, b: held, mix: 1, gain: HELD_GAIN, glyphOnly: 1 }
 }
 
-/**
- * A room's pan progress at `progress`: 0 when the first act that shows it
- * begins and 1 once the room has been on screen for a span within
- * ROOM_PAN_SPAN. The room is on screen from that first act until the end of
- * the act after the last one that shows or holds it, which is when its
- * dissolve out completes. Linear in progress, so the pan rate is steady, and
- * a function of progress alone, so it is continuous whichever slot (a or b)
- * the room sits in. Rooms that never appear return 0.
- */
-export function roomDrift(windows: readonly ActWindow[], backdrops: readonly (number | null)[], room: number, progress: number): number {
-  let first = -1
-  let last = -1
-  let held: number | null = null
-  backdrops.forEach((room0, i) => {
-    held = room0 ?? held
-    if (held !== room) return
-    if (first < 0) first = i
-    last = i
-  })
-  if (first < 0 || !windows[first]) return 0
-  const start = windows[first].start
-  const end = windows[Math.min(last + 1, windows.length - 1)].end
-  const span = Math.min(ROOM_PAN_SPAN[1], Math.max(ROOM_PAN_SPAN[0], end - start))
-  return clamp01((progress - start) / span)
-}
-
 export function poseAt(input: RigInput): Pose {
   const { progress: p, windows, narrow, aspect, interaction } = input
   const L = (key: ActKey) => localOf(windows, key, p)
@@ -414,7 +363,6 @@ export function poseAt(input: RigInput): Pose {
   // printed through the code at about 20%.
   const proofDim = ramp(proof, 0, 0.1) * (1 - relit)
   const spread = narrow ? 0.75 : 1
-  const surge = interaction.surge ?? 0
 
   // The arrival's turn runs with the product's formation (REVEAL_END). The day's turn runs with the phone's move
   // to its station and ends at DAY_FORM, so card 0 peels off a phone that is still turning and the phone faces
@@ -427,8 +375,7 @@ export function poseAt(input: RigInput): Pose {
   yaw += 0.4 * rise(proof)
   yaw += (narrow ? 0.05 : 0.1) * rise(coach)
   yaw += (narrow ? 0.05 : 0.2) * rise(close)
-  yaw += DRIFT.yaw * Math.sin(p * TAU * DRIFT.yawCycles)
-  yaw += interaction.dragYaw + interaction.tiltX * 0.07
+  yaw += interaction.dragYaw + interaction.tiltX * TILT.yaw
 
   let pitch = 0.95 - 0.95 * rise(arrival, REVEAL_END)
   pitch -= 0.08 * rise(hand)
@@ -439,9 +386,7 @@ export function poseAt(input: RigInput): Pose {
   // projects far larger than the far top edge, which puts the chassis low in the close-up frame.
   pitch -= 0.2 * rise(proof)
   pitch -= 0.1 * rise(close)
-  pitch += interaction.tiltY * 0.07
-  // Scrolling down tips the top of the phone away, as if the page's motion pushed it, and it eases back at rest.
-  pitch += SURGE.pitch * surge
+  pitch += interaction.tiltY * TILT.pitch
 
   const { right, up, normal } = basis(yaw, pitch)
 
@@ -451,17 +396,15 @@ export function poseAt(input: RigInput): Pose {
   const dayDist = narrow ? 2.5 : Math.max(2.2, (DAY_VIEW * FOCAL) / aspect)
   const reach = (dayDist * aspect) / FOCAL / DAY_VIEW
 
-  // The phone sinks through the chapter against the scroll and steps up one station per act on the copy's dwell
-  // curve, with a wave on top. The station term is cumulative over the acts, so it is continuous at every
-  // boundary. The row's y keeps the sink and the station and gives each card its own phase of the wave.
+  // The phone holds one height for the whole chapter. Its moves are the acts' deliberate ones (the day row, the
+  // coach aside, the narrow recede), so nothing drifts while a reveal holds.
   const { index: actIndex, local: actLocal } = actAt(windows, p)
-  // The surge sink is halved on phones, where the copy sits under the product at a fixed gap that the still pose sets.
-  const sinkY = DRIFT.travelY * (1 - 2 * p) + STATION_STEP * (actIndex + dwell(actLocal) - windows.length / 2) - SURGE.y * surge * (narrow ? 0.5 : 1)
-  const wave = (phase: number) => DRIFT.phoneY * Math.sin(p * TAU * DRIFT.phoneCycles + phase)
-  let phonePos: Vec3 = [0, sinkY + wave(0), 0]
+  let phonePos: Vec3 = [0, 0, 0]
   if (narrow) {
     // The narrow day phone recedes behind the deck and returns through the quiet act.
-    phonePos = add(phonePos, [0, 0, 1.4 * rise(day, 0.6) * (1 - rise(quiet, REVEAL_END))])
+    // It finishes receding as card 0 settles at the centre (DECK.start plus the first 0.3 of its window), so the
+    // phone is still while the deck's cards hold in front of it.
+    phonePos = add(phonePos, [0, 0, 1.4 * rise(day, DECK.start + DECK.hold[0] * DECK.window) * (1 - rise(quiet, REVEAL_END))])
     // The coach phone recedes down and to the left, so the figure stands to its right clear of the screen.
     const aside = rise(coach) * (1 - rise(close))
     phonePos = add(phonePos, [-0.55 * aside, -0.1 * aside, 1.6 * aside])
@@ -507,15 +450,13 @@ export function poseAt(input: RigInput): Pose {
   const code = plane(codeCenter, right, up, CODE.hx, CODE.hy, CODE.radius, 1, ramp(glass, 0.1, EXPLODE_END) * (1 - codeOut), 'code')
 
   // The dolly is a chain of wide lerps, each act's easing out of the one before, so the distance never steps. The
-  // day act dollies out 5% past its distance while the phone moves to its station and pushes in to DAY_PUSH of it
-  // while the cards have their moments, then holds with the finished row. The row keeps about a 6% margin each
-  // side at 1.33 and 1.6.
+  // day camera settles at DAY_PUSH of its framing distance while the phone moves to its station and then holds, so
+  // only the cards move while each screen has its moment. The row keeps about a 6% margin each side at 1.33 and 1.6.
   let dist = narrow ? 2.6 : 2.05
   dist = lerp(dist, narrow ? 2.25 : 1.82, rise(arrival, REVEAL_END))
   // At 2.3 the narrow hand phone's top bezel clears the frame's top edge.
   dist = lerp(dist, narrow ? 2.3 : 1.68, rise(hand))
-  dist = lerp(dist, dayDist * 1.05, rise(day, DAY_FORM))
-  dist = lerp(dist, dayDist * DAY_PUSH, ramp(day, DAY_FORM, CARD_END))
+  dist = lerp(dist, dayDist * DAY_PUSH, rise(day, DAY_FORM))
   // The quiet phone turns edge-on, which brings its near edge 0.35 closer than its centre, so it needs more room.
   dist = lerp(dist, narrow ? 2.3 : 1.85, rise(quiet, REVEAL_END))
   // At 2.25 the fanned stack crosses the right edge below an aspect of about 1.33, which includes tablets in portrait.
@@ -530,15 +471,9 @@ export function poseAt(input: RigInput): Pose {
   dist = lerp(dist, narrow ? 2.6 : 2.2, rise(coach))
   // The narrow close backs off to 2.45, which raises the phone's floor and lifts the link row clear of the bottom edge.
   dist = lerp(dist, narrow ? 2.45 : 1.7, rise(close))
-  // The spotlight is placed against the camera at rest, so a held card backs off with the rest of the product.
-  const restDist = dist
-  // A moving scroll backs the camera off a little, so the product breathes with the wheel and settles closer.
-  dist += SURGE.dist * Math.abs(surge)
 
-  // The proof camera eases onto the code layer over the first half of the act and follows it through the chapter
-  // sink and back into the phone as the stack closes over the act's last 20%, so the code stays framed while the
-  // readout types and rests. A target that left out the sink would carry the stack 0.08 lower by the end of the
-  // act, past the bottom edge.
+  // The proof camera eases onto the code layer over the first half of the act and follows it back into the phone
+  // as the stack closes over the act's last 20%, so the code stays framed while the readout types and rests.
   const proofFocus = rise(proof) * (1 - rise(coach))
   const target = lerp3([0, 0, 0], codeCenter, proofFocus)
   // The exploded stack fans toward the phone's right, so both shifts ease left during the glass act. Wide keeps
@@ -553,12 +488,12 @@ export function poseAt(input: RigInput): Pose {
   const quietHold = rise(quiet, REVEAL_END) * (1 - rise(glass))
   const wideShift = (0.27 - 0.07 * stackOut + 0.10 * proofFocus) * aspect * (1 - dayOut) * (1 - 0.5 * quietHold)
   const shift: [number, number] = narrow ? [-0.22 * stackOut, 0.26 - 0.1 * proofFocus] : [wideShift, 0]
-  const cameraY = target[1] + DRIFT.cameraY * Math.sin(p * TAU * DRIFT.cameraCycles)
+  const cameraY = target[1]
 
   // The spotlight is SPOT_DEPTH in front of the camera at rest, at the world x that projects to SPOT.x of the frame
   // width through this frame's lens shift.
   const spotX = target[0] + ((aspect * (2 * SPOT.x - 1) - shift[0]) * SPOT_DEPTH) / FOCAL
-  const spotZ = target[2] - restDist + SPOT_DEPTH
+  const spotZ = target[2] - dist + SPOT_DEPTH
 
   const cardKeys: ScreenKey[] = ['home', 'manage', 'recovery', 'community']
   const cards = cardKeys.map((key, i) => {
@@ -574,7 +509,7 @@ export function poseAt(input: RigInput): Pose {
       const x = 0.85 - 1.7 * across
       const develop = ramp(wnd, 0.02, DECK.hold[0])
       const opacity = ramp(wnd, 0, DECK.fade) * (1 - ramp(wnd, 1 - DECK.fade, 1)) * (1 - rise(quiet, 0.5))
-      return plane([x, sinkY + wave(0.7 * (i + 1)) - DECK.drop, DECK.z], [1, 0, 0], [0, 1, 0], PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
+      return plane([x, -DECK.drop, DECK.z], [1, 0, 0], [0, 1, 0], PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
     }
     // Each card peels off the front of the screen, matching the phone's turn and size there, and travels to the
     // spotlight, where it faces the camera at full scale, developed, with its label under it. It stays hidden
@@ -590,7 +525,7 @@ export function poseAt(input: RigInput): Pose {
     const settle = ramp(wnd, SPOT.out, 1)
     const home = ramp(quiet, FOLD.step * i, FOLD.step * i + FOLD.span)
     const step = i - 1.5
-    const y = sinkY + wave(0.7 * (i + 1))
+    const y = 0
     const slot: Vec3 = [(DAY_ROW.cardX + i * DAY_ROW.pitch) * reach, y, DAY_ROW.arcZ * Math.abs(step)]
     const spot: Vec3 = [spotX, y, spotZ]
     const front = add(screenCenter, mul(normal, -DAY_ROW.lead))
@@ -641,8 +576,6 @@ export function poseAt(input: RigInput): Pose {
     backdrop: {
       ...bd,
       reveal: ramp(arrival, 0, ROOM_REVEAL.inEnd) * (1 - ramp(close, ROOM_REVEAL.out[0], ROOM_REVEAL.out[1])),
-      driftA: roomDrift(windows, input.backdrops, bd.a, p),
-      driftB: roomDrift(windows, input.backdrops, bd.b, p),
     },
     // The figure slides in from the right as it draws, starting 0.25 (wide) or 0.3 (narrow) right of its station
     // at 0.12 of the act and landing at 0.45, when it is fully drawn. The wide station at x 0.66 keeps the arms

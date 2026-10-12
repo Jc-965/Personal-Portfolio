@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { GLIDE_TIME, glideStep } from '../../src/components/teardown/glide.ts'
 
-test('the glide time constant is about a third of a second', () => {
-  assert.equal(GLIDE_TIME, 0.32)
+test('the glide only takes the edge off the wheel: a sixth of a second, so motion stops soon after the scroll does', () => {
+  assert.equal(GLIDE_TIME, 0.16)
 })
 
 test('glide approaches the target without overshoot', () => {

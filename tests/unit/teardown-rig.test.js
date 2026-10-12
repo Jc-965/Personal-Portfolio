@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { actWindows } from '../../src/components/teardown/timeline.ts'
-import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, coachWorld, planePoint, poseAt, projectPoint, projectRect, roomDrift } from '../../src/components/teardown/rig.ts'
+import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, coachWorld, planePoint, poseAt, projectPoint, projectRect } from '../../src/components/teardown/rig.ts'
 import { COACH_JOINTS, jointsAt } from '../../src/components/teardown/coach.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
 
@@ -252,39 +252,11 @@ test('the room prints in from the page over the first 63% of the arrival and dis
   assert.ok(near(at(0).backdrop.gain, 0.9, 1e-6), `gain at the pin: ${at(0).backdrop.gain}`)
 })
 
-test('each room pans over its own time on screen, at a bounded rate, and the pose carries both slots', () => {
-  // The morning room (0) opens the chapter and is held through proof, so its pan caps at 0.4 of progress and rests.
-  assert.equal(roomDrift(windows, backdrops, 0, 0), 0)
-  assert.ok(near(roomDrift(windows, backdrops, 0, 0.2), 0.5, 1e-9))
-  assert.equal(roomDrift(windows, backdrops, 0, 0.5), 1)
-  // The hands room (1) shows in the hand act and dissolves out in the day act, 0.313 of progress, so it pans over
-  // that span and is done by the end of the day act.
-  const hand = w('hand')
-  assert.equal(roomDrift(windows, backdrops, 1, hand.start - 1e-6), 0)
-  assert.ok(roomDrift(windows, backdrops, 1, hand.end) > 0.2)
-  assert.equal(roomDrift(windows, backdrops, 1, w('day').end), 1)
-  // The evening room (3) is on screen for only the close act, 0.114 of progress, under the 0.25 floor, so it pans
-  // about half way.
-  const evening = roomDrift(windows, backdrops, 3, 1)
-  assert.ok(evening > 0.45 && evening < 0.55, `evening drift at the end: ${evening}`)
-  assert.equal(roomDrift(windows, backdrops, 9, 0.5), 0, 'a room no act uses never pans')
-  // Each slot carries its own room's drift, and both are continuous across every act boundary.
-  for (const win of windows.slice(1)) {
-    const before = at(win.start - 1e-6).backdrop
-    const after = at(win.start + 1e-6).backdrop
-    for (const [room, drift] of [[before.a, before.driftA], [before.b, before.driftB]]) {
-      const now = after.a === room ? after.driftA : after.b === room ? after.driftB : null
-      if (now !== null) assert.ok(Math.abs(drift - now) < 1e-3, `room ${room} drift jumps entering ${win.key}`)
-    }
-  }
+test('rooms carry no pan, so the backdrop pose is only which rooms show and how they blend', () => {
   for (let i = 0; i <= 100; i++) {
-    const { driftA, driftB } = at(i / 100).backdrop
-    assert.ok(driftA >= 0 && driftA <= 1 && driftB >= 0 && driftB <= 1, `drifts at ${i / 100}: ${driftA} ${driftB}`)
+    const keys = Object.keys(at(i / 100).backdrop).sort()
+    assert.deepEqual(keys, ['a', 'b', 'gain', 'glyphOnly', 'mix', 'reveal'])
   }
-  // At the end the close act holds the evening room in slot b, with the chair room it replaced in slot a.
-  const end = at(1).backdrop
-  assert.equal(end.b, 3)
-  assert.ok(near(end.driftB, evening, 1e-9))
 })
 
 test('the pose is continuous across every act boundary', () => {
@@ -308,22 +280,38 @@ test('the pose is continuous across every act boundary', () => {
   }
 })
 
-test('the drifts keep the phone and the camera moving late in an act', () => {
-  // Every ramp eases to a stop at the end of its act, so without the drifts and the station step the last few
-  // percent of the glass act would be nearly still.
-  const a = at(inAct('glass', 0.96))
-  const b = at(inAct('glass', 0.99))
-  assert.ok(Math.abs(a.phone.normal[0] - b.phone.normal[0]) > 1e-4, 'yaw drifts')
-  // The sink, the station step, and the wave can balance for a moment, where the phone turns from rising to
-  // sinking, so the vertical drift is the path the phone travels over the act's last 6%, not its net change.
-  const ys = [0.93, 0.95, 0.97, 0.99].map((local) => at(inAct('glass', local)).phone.pos[1])
-  const path = ys.slice(1).reduce((sum, y, i) => sum + Math.abs(y - ys[i]), 0)
-  assert.ok(path > 1e-4, `the phone drifts vertically: ${path}`)
-  assert.ok(Math.abs(a.camera.pos[1] - b.camera.pos[1]) > 1e-5, 'the camera drifts vertically')
-  // The sink runs the whole chapter and the station steps lift the phone back by most of it, so the phone ends
-  // between 0.08 and 0.2 lower than it starts, against the 0.6 the sink alone would drop it.
-  const drop = at(0).phone.pos[1] - at(1).phone.pos[1]
-  assert.ok(drop > 0.08 && drop < 0.2, `net drop over the chapter: ${drop}`)
+test('every hold is perfectly still: the phone and the camera move only during transitions', () => {
+  // Passive motion while a reveal holds (drifts, waves, a scroll-speed surge) made visitors motion sick, so once an
+  // act's transition has finished the pose must not change until the next act begins. These windows start after
+  // each act's last ramp ends.
+  const holds = { arrival: [0.7, 0.99], hand: [0.55, 0.99], day: [0.2, 0.99], glass: [0.55, 0.99], proof: [0.55, 0.79], coach: [0.55, 0.99], close: [0.75, 0.99] }
+  for (const narrow of [false, true]) {
+    for (const [key, [from, to]] of Object.entries(holds)) {
+      const a = at(inAct(key, from), narrow)
+      const b = at(inAct(key, to), narrow)
+      for (let i = 0; i < 3; i++) {
+        const where = `${key} (${narrow ? 'narrow' : 'wide'})`
+        assert.ok(near(a.phone.pos[i], b.phone.pos[i], 1e-9), `${where} phone.pos[${i}] moves while holding`)
+        assert.ok(near(a.phone.normal[i], b.phone.normal[i], 1e-9), `${where} phone turns while holding`)
+        assert.ok(near(a.camera.pos[i], b.camera.pos[i], 1e-9), `${where} camera moves while holding`)
+      }
+    }
+  }
+})
+
+test('the pointer turns the phone toward it but never moves the camera or the room', () => {
+  const local = inAct('hand', 0.8)
+  const rest = poseAt({ progress: local, windows, backdrops, narrow: false, aspect: 1.6, interaction: still, poseFrames: PARKIWELL.pose.frames })
+  const leaning = poseAt({ progress: local, windows, backdrops, narrow: false, aspect: 1.6, interaction: { dragYaw: 0, tiltX: 1, tiltY: -1 }, poseFrames: PARKIWELL.pose.frames })
+  const turn = Math.acos(Math.min(1, rest.phone.normal.reduce((sum, v, i) => sum + v * leaning.phone.normal[i], 0)))
+  assert.ok(turn > 0.05 && turn < 0.12, `the phone leans about 5 degrees at the stage's corner: ${turn} rad`)
+  for (let i = 0; i < 3; i++) assert.ok(near(rest.camera.pos[i], leaning.camera.pos[i], 1e-12), 'the camera ignores the pointer')
+  assert.deepEqual(rest.backdrop, leaning.backdrop, 'the room ignores the pointer')
+})
+
+test('the phone keeps one height through the chapter', () => {
+  assert.equal(at(0).phone.pos[1], 0)
+  assert.equal(at(1).phone.pos[1], 0)
 })
 
 test('the product forms from glyphs in act 1 and dissolves back before the end of act 8', () => {
@@ -793,7 +781,7 @@ test('the proof act keeps the product right of 0.44 of the width on wide screens
 
 test('the proof close-up and the start of the coach act keep the chassis and the screen inside the frame', () => {
   // 1024x768, 1280x800, and 1440x900 are 1.33 and 1.6. The glass stays fanned past the right edge, dimmed, so it is
-  // left out. The sink has carried the phone 0.08 below its start by the end of proof, and the camera must follow.
+  // left out.
   for (const aspect of [0.75, 1.0, 1.33, 1.6, 2.0]) {
     for (const [key, local] of [['proof', 0.85], ['proof', 1], ['coach', 0.1], ['coach', 0.25]]) {
       const pose = at(inAct(key, local), false, aspect)

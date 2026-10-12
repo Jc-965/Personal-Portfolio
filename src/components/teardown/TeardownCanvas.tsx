@@ -53,12 +53,10 @@ const RAIL_GUTTER = 32
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
 /**
- * rig.ts turns the phone by 0.07 rad per unit of tilt, so this reach puts the stage's edges at ±0.035 rad.
- * The composite's room parallax reads the pointer at its full -1 to 1 reach.
+ * Time constants of the pointer easing, seconds. The tilt follows the pointer closely enough to feel like a
+ * response, not a drift, and a drag keeps up with the hand.
  */
-const TILT_REACH = 0.5
-/** Time constants of the pointer easing, seconds. The tilt drifts after the pointer, and a drag keeps up with the hand. */
-const EASE = { dragYaw: 0.15, tiltX: 0.6, tiltY: 0.6 } as const
+const EASE = { dragYaw: 0.15, tiltX: 0.3, tiltY: 0.3 } as const
 /** An interaction this close to its goal, in its own units, lands on it and stops the loop. */
 const EASE_REST = 1e-3
 /**
@@ -68,11 +66,6 @@ const EASE_REST = 1e-3
  */
 const END_REACH = 0.12
 const END_GLIDE_TIME = 0.06
-/**
- * Glide speed, in chapter progress per second, that counts as a full surge. A steady wheel scroll runs at about
- * 0.05 and a flick at 0.1 to 0.2, so the surge sits around half for reading-pace scrolling and saturates on a fling.
- */
-const SURGE_FULL = 0.12
 
 type Loaded = { texture: THREE.Texture; ready: boolean; width: number; height: number; aspect: number }
 
@@ -223,7 +216,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
   const loader = new THREE.TextureLoader()
   const owned: THREE.Texture[] = []
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
   const drawingBuffer = new THREE.Vector2(1, 1)
   let atlas: THREE.CanvasTexture | null = null
   let code: THREE.CanvasTexture | null = null
@@ -249,9 +241,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   let copyRail: { left: number; right: number; top: number } | null = null
   let copyBlocks: HTMLElement[] = []
   const inkRange = document.createRange()
-  const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0, surge: 0 }
+  const interaction: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
   const goal: Interaction = { dragYaw: 0, tiltX: 0, tiltY: 0 }
   let drag: { id: number; x: number; start: number } | null = null
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
 
   stop = () => { cancelAnimationFrame(raf); raf = 0; lastPaint = 0 }
   const start = () => { if (!raf && (visible || flush) && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
@@ -376,7 +369,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   }
 
   const applyComposite = (pose: Pose, aspect: number) => {
-    const { a, b, mix, gain, glyphOnly, driftA, driftB } = pose.backdrop
+    const { a, b, mix, gain, glyphOnly } = pose.backdrop
     const roomA = a >= 0 && rooms[a]?.ready ? a : -1
     const roomB = b >= 0 && rooms[b]?.ready ? b : -1
     // Until both rooms of a dissolve have loaded, the one that has stands in for both.
@@ -400,10 +393,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
     cu.uBackGain.value = first ? gain : 0
     cu.uGlyphOnly.value = glyphOnly
-    // Each slot carries its own room's drift. While one room stands in for both, both slots get that room's drift.
-    cu.uDrift.value.set(roomA >= 0 ? driftA : driftB, roomB >= 0 ? driftB : driftA)
-    cu.uSurge.value = interaction.surge ?? 0
-    cu.uPointer.value.set(interaction.tiltX / TILT_REACH, -interaction.tiltY / TILT_REACH)
     // The room prints in from, and dissolves back into, the product's place, in device px from the bottom left.
     const at = projectPoint(pose, pose.phone.pos, aspect)
     cu.uReveal.value = pose.backdrop.reveal
@@ -439,9 +428,6 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     // The follow decays toward the target without reaching it, so it lands on the target once it is within
     // 1e-4 progress and moving slower than 1e-3 progress per second.
     if (Math.abs(glide.value - progress) < 1e-4 && Math.abs(glide.velocity) < 1e-3) glide = { value: progress, velocity: 0 }
-    // The surge is the glide's own velocity, so it is as smooth as the glide, and the landing above zeroes it only
-    // once it is already under 1% of full.
-    interaction.surge = Math.max(-1, Math.min(1, glide.velocity / SURGE_FULL))
     const aspect = width / height
     const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames })
     requestRoom(pose.backdrop.a)
@@ -565,8 +551,8 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
       start()
     }
     if (finePointer.matches) {
-      goal.tiltX = (event.clientX / window.innerWidth - 0.5) * 2 * TILT_REACH
-      goal.tiltY = (event.clientY / window.innerHeight - 0.5) * 2 * TILT_REACH
+      goal.tiltX = (event.clientX / window.innerWidth - 0.5) * 2
+      goal.tiltY = (event.clientY / window.innerHeight - 0.5) * 2
       start()
     }
   }
@@ -602,10 +588,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
   stage.addEventListener('pointerdown', onPointerDown)
+  stage.addEventListener('pointerleave', onLeave)
   stage.addEventListener('pointermove', onPointerMove, { passive: true })
   stage.addEventListener('pointerup', release)
   stage.addEventListener('pointercancel', release)
-  stage.addEventListener('pointerleave', onLeave)
   document.addEventListener('visibilitychange', onVisibility)
   canvas.addEventListener('webglcontextlost', onLost)
   measure()
@@ -618,10 +604,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     window.removeEventListener('scroll', onScroll)
     window.removeEventListener('resize', onScroll)
     stage.removeEventListener('pointerdown', onPointerDown)
+    stage.removeEventListener('pointerleave', onLeave)
     stage.removeEventListener('pointermove', onPointerMove)
     stage.removeEventListener('pointerup', release)
     stage.removeEventListener('pointercancel', release)
-    stage.removeEventListener('pointerleave', onLeave)
     document.removeEventListener('visibilitychange', onVisibility)
     canvas.removeEventListener('webglcontextlost', onLost)
     owned.forEach((texture) => texture.dispose())
