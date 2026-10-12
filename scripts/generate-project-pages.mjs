@@ -254,7 +254,7 @@ const renderIndex = () => {
     <header class="project-hero project-hero--index">
       <p class="eyebrow">Selected engineering work</p>
       <h1>Case studies</h1>
-      <p class="lede">The constraints, technical decisions, and measurable outcomes behind four shipped products.</p>
+      <p class="lede">What each project does, why it exists, and how it was built.</p>
     </header>
     <section class="project-grid" aria-label="Project case studies">${cards}</section>
     ${renderFooter()}

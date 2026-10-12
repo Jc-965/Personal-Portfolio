@@ -278,14 +278,15 @@
     {
       "id": "agoriai",
       "name": "Agoriai",
-      "tag": "Full-stack · Social platform · TartanHacks 2026",
+      "tag": "Student career network · TartanHacks 2026",
       "accent": "#4c8bff",
       "accentRgb": "76, 139, 255",
       "kind": "media",
-      "lead": "An anonymous student career network built in 36 hours at TartanHacks 2026: a React 19 client, a 36-endpoint Bun/Elysia REST API over a 13-table PostgreSQL schema, and privacy controls enforced at the server boundary.",
+      "lead": "A student career network for sharing interview experiences, comparing internships, and making connections under an alias.",
       "bullets": [
-        "Designed a server-enforced four-tier identity privacy system with DM-based mutual reveal, applied to every serialized API response.",
-        "Built a D3 force-directed relationship graph plus an evasion-resistant moderation engine with leetspeak normalization and fuzzy matching."
+        "Students can ask questions, browse company discussions, and message peers before deciding whether to share their name. Four visibility settings control the details attached to posts and comments, and name sharing in messages requires agreement from both people.",
+        "The Nexus uses D3 to map relationships between students and companies. Connections and company posts give each link its weight, helping people explore who has experience with a company.",
+        "Built in 36 hours at TartanHacks 2026 with React, a Bun/Elysia backend, and PostgreSQL. A custom moderation filter checks for abusive text, including attempts to disguise it with misspellings or hidden characters."
       ],
       "tech": [
         "React 19",
@@ -297,57 +298,57 @@
       ],
       "stats": [
         {
-          "label": "BUILD",
+          "label": "BUILD TIME",
           "value": "36 HOURS"
         },
         {
-          "label": "API",
-          "value": "36 ENDPOINTS"
+          "label": "VISIBILITY SETTINGS",
+          "value": "4"
         },
         {
-          "label": "PRIVACY",
-          "value": "4-TIER"
+          "label": "NAME SHARING",
+          "value": "MUTUAL CONSENT"
         }
       ],
       "imageVariant": "browser",
       "images": [
         {
           "src": "/Agoriai/nexus.webp",
-          "label": "agoriai.app / nexus",
-          "alt": "Agoriai Nexus relationship graph",
+          "label": "agoriai.app / explore connections",
+          "alt": "Agoriai Nexus map showing connections between students and companies",
           "aspect": "1600 / 904"
         },
         {
           "src": "/Agoriai/dashboard.webp",
-          "label": "agoriai.app / dashboard",
-          "alt": "Agoriai dashboard overview",
+          "label": "agoriai.app / career activity",
+          "alt": "Agoriai dashboard with career discussions and network activity",
           "aspect": "1600 / 904"
         },
         {
           "src": "/Agoriai/feed.webp",
-          "label": "agoriai.app / feed",
+          "label": "agoriai.app / student discussions",
           "alt": "Agoriai anonymous Q&A feed",
           "aspect": "1600 / 904"
         },
         {
           "src": "/Agoriai/connection.webp",
-          "label": "agoriai.app / profile",
+          "label": "agoriai.app / people and connections",
           "alt": "Agoriai profile and connections",
           "aspect": "1600 / 904"
         }
       ],
       "caseStudy": {
         "role": "Full-stack engineer and product designer",
-        "challenge": "Career networks are useful only when students can discover relevant peers without exposing private identity or academic context. The system needed to preserve anonymity while still supporting search, discussion, and relationship exploration.",
+        "challenge": "Students need ways to ask career questions and learn from peers before attaching their real name to a conversation. Agoriai brings those discussions together with company information and ways to discover relevant people.",
         "approach": [
-          "Enforced four identity-visibility tiers on the server rather than trusting the client.",
-          "Modeled student-company relationships as weighted edges and rendered them through a D3 force-directed graph.",
-          "Normalized leetspeak and applied fuzzy matching before moderation decisions."
+          "Applied four visibility settings to post and comment authors on the server. Direct messages use a separate request-and-accept flow before either person’s real name is revealed.",
+          "Used D3 to arrange students and companies in an interactive network, with links weighted by connections and company posts. Hovering highlights related people and companies.",
+          "Connected the React interface to 36 API endpoints through Bun and Elysia, with Drizzle managing PostgreSQL data. Moderation checks normalize disguised text, and session tokens are stored as hashes."
         ],
         "outcomes": [
-          "~10K relationship signals",
-          "~2K weighted edges",
-          "Evasion-resistant moderation"
+          "Four visibility settings for posts and comments",
+          "Name sharing by mutual agreement in messages",
+          "Interactive discovery through student and company connections"
         ],
         "image": "/Agoriai/nexus.webp"
       }
@@ -355,74 +356,77 @@
     {
       "id": "tarocchi",
       "name": "Tarocchi",
-      "tag": "Interactive web · Creative systems",
+      "tag": "Interactive tarot game · HackCMU 2025",
       "accent": "#9c7fae",
       "accentRgb": "156, 127, 174",
       "kind": "media",
-      "lead": "An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio.",
+      "lead": "A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way.",
       "bullets": [
-        "Modeled route and scene state explicitly so branching flows remain coherent as narrative complexity grows.",
-        "Built a reusable presentation pipeline for animated transitions, layered parallax, and synchronized sound."
+        "Players choose a spread, enter a question, and move through a shuffled selection of five illustrated settings. Each scene offers three choices that become part of the final reading.",
+        "A React reducer keeps track of the spread, scene order, and answers. An Express backend sends that context and the randomly drawn cards to Claude, which writes the reading in the guide’s voice.",
+        "CSS animations add drifting backgrounds, particles, and tilting cards, with optional background music. Built by a team of four in two days at HackCMU 2025."
       ],
       "tech": [
         "React & Vite",
         "TypeScript",
         "Tailwind CSS",
-        "Framer Motion"
+        "CSS animation",
+        "Claude API",
+        "Express"
       ],
       "stats": [
         {
-          "label": "SCENES",
-          "value": "5 BRANCHES"
+          "label": "ILLUSTRATED SETTINGS",
+          "value": "5"
         },
         {
-          "label": "EFFECTS",
-          "value": "PARALLAX"
+          "label": "READING SPREADS",
+          "value": "3"
         },
         {
-          "label": "AUDIO",
-          "value": "SYNCHRONIZED"
+          "label": "TAROT CARDS",
+          "value": "78"
         }
       ],
       "imageVariant": "browser",
       "images": [
         {
           "src": "/Tarocchi/tarocchi-1.webp",
-          "label": "tarocchi / oracle",
+          "label": "tarocchi / meet the guide",
           "alt": "Tarocchi pixel-art oracle prompt",
           "aspect": "1600 / 1039"
         },
         {
           "src": "/Tarocchi/tarocchi-2.webp",
-          "label": "tarocchi / countryside",
+          "label": "tarocchi / choose a path",
           "alt": "Tarocchi countryside branch scene",
           "aspect": "1600 / 1039"
         },
         {
           "src": "/Tarocchi/tarocchi-8.webp",
-          "label": "tarocchi / spread",
+          "label": "tarocchi / reveal the cards",
           "alt": "Tarocchi three-card reading spread",
           "aspect": "1600 / 1039"
         },
         {
           "src": "/Tarocchi/tarocchi-6.webp",
-          "label": "tarocchi / city",
+          "label": "tarocchi / explore the city",
           "alt": "Tarocchi night-city branch scene",
           "aspect": "1600 / 1039"
         }
       ],
       "caseStudy": {
         "role": "Front-end engineer and interaction designer",
-        "challenge": "Branching story scenes had to feel cinematic without allowing animation, audio, and route state to drift apart, and card readings needed to respond to the player's actual choices.",
+        "challenge": "The idea was to make a tarot reading feel like a short game, with room to explore before seeing the cards. The final interpretation needed to connect the player’s question and choices to the drawn spread.",
         "approach": [
-          "Represented narrative progress as explicit state instead of coupling it to visual components.",
-          "Synchronized scene transitions and audio cues from the same route events.",
-          "Fed the chosen spread, cards, and scene into a Claude-backed generator for personalized readings."
+          "Used a React reducer to manage the spread, shuffled scene order, and player choices from the opening prompt through the result.",
+          "Combined Sarah Seekins’s 78-card PixelTarot deck with five illustrated settings, CSS parallax, particle effects, and optional looping music.",
+          "Passed the question, choices, and drawn cards through an Express backend to Claude. The cards are random, while the player’s answers give the interpretation its context."
         ],
         "outcomes": [
-          "5 replayable scene branches",
-          "AI-personalized card readings",
-          "Synchronized motion and audio"
+          "Three spreads with three, four, or five cards",
+          "Five illustrated settings with choices along the way",
+          "Claude readings grounded in the question, choices, and cards"
         ],
         "image": "/Tarocchi/tarocchi-1.webp"
       }
@@ -430,14 +434,15 @@
     {
       "id": "mycommunity",
       "name": "MyCommunity",
-      "tag": "Android · Civic tech",
+      "tag": "Scout troops and service · Android prototype",
       "accent": "#b38e5d",
       "accentRgb": "179, 142, 93",
       "kind": "code",
-      "lead": "A native Java Android platform for Boy Scouts troop discovery with live Firebase data, Google Maps, runtime location permissions, and Google Sign-In.",
+      "lead": "An Android prototype designed to help families find Scout troops and give leaders a starting point for their next community service project.",
       "bullets": [
-        "Bound Firebase realtime listeners to live map markers with auto-zoom bounds and runtime location permissions.",
-        "Integrated four external APIs (Google Maps, Firebase, Google Sign-In, NYT Top Stories) with async OkHttp, Gson parsing, and Glide caching."
+        "Brings a troop map, service organizations, current news, and troop profiles into four sections. Guest browsing keeps the app open to families who are still exploring.",
+        "The Google Maps integration is designed to turn Firebase troop records into pins, with automatic framing and a different color for the leader’s own troop. Location access is optional.",
+        "Built in Java with Google Sign-In for the troop profile flow. The news feed loads New York Times stories through OkHttp and Gson, while Glide caches article images."
       ],
       "tech": [
         "Java",
@@ -448,37 +453,37 @@
       ],
       "stats": [
         {
-          "label": "PLATFORM",
-          "value": "ANDROID"
+          "label": "APP SECTIONS",
+          "value": "4"
         },
         {
-          "label": "DATA",
-          "value": "REALTIME"
+          "label": "SERVICE ORGANIZATIONS",
+          "value": "5"
         },
         {
-          "label": "MAP",
-          "value": "GEOSPATIAL"
+          "label": "BROWSING",
+          "value": "GUEST ACCESS"
         }
       ],
       "terminal": [
-        "gradle assembleRelease",
-        "firebase ▸ realtime listeners live",
-        "maps ▸ markers bound to location",
-        "nyt api ▸ feed cached via glide",
-        "mycommunity ▸ discover nearby"
+        "Android prototype for troops and service",
+        "Google Maps ▸ troop locations",
+        "Firebase ▸ troop profiles and listeners",
+        "NYT Top Stories ▸ current news",
+        "Glide ▸ cached article images"
       ],
       "caseStudy": {
         "role": "Android engineer",
-        "challenge": "Troop discovery data had to stay current on a location-aware map while respecting Android’s authentication and runtime permission model.",
+        "challenge": "Families need a starting point for finding a troop, and leaders need ideas for service projects. MyCommunity explores bringing a troop map, organization listings, and current news together in one Android app. It remains a prototype; live troop profiles still need Firebase authentication connected to the database access rules.",
         "approach": [
-          "Bound Firebase listeners to map marker lifecycle and profile state.",
-          "Handled location permission and Google Sign-In as explicit application states.",
-          "Fetched community news asynchronously and cached images for responsive browsing."
+          "Built mapping logic that turns Firebase troop records into named Google Maps pins, highlights the leader’s own troop, and adjusts the view to fit the available locations.",
+          "Added guest browsing, optional location permissions, and Google Sign-In for the troop profile form. Names, contact emails, and coordinates are checked before a profile is submitted.",
+          "Paired five service-organization listings with a New York Times news feed. OkHttp and Gson load the stories asynchronously, and Glide caches their images for smoother browsing."
         ],
         "outcomes": [
-          "Realtime map updates",
-          "Authenticated profile CRUD",
-          "Cached asynchronous news feed"
+          "Four sections for troop discovery and service planning",
+          "Five service organizations to explore",
+          "News browsing with cached article images"
         ]
       }
     }

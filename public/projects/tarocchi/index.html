@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable…" />
+  <meta name="description" content="A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way." />
   <meta name="robots" content="max-image-preview:large" />
   <meta name="theme-color" content="#03070d" />
   <title>Tarocchi case study | Jesse Chen</title>
@@ -13,7 +13,7 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Jesse Chen" />
   <meta property="og:title" content="Tarocchi case study | Jesse Chen" />
-  <meta property="og:description" content="An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio." />
+  <meta property="og:description" content="A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way." />
   <meta property="og:url" content="https://www.jc-965.com/projects/tarocchi/" />
   <meta property="og:image" content="https://www.jc-965.com/projects/tarocchi/og.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -21,10 +21,10 @@
   <meta property="og:image:alt" content="Tarocchi pixel-art oracle prompt" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Tarocchi case study | Jesse Chen" />
-  <meta name="twitter:description" content="An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio." />
+  <meta name="twitter:description" content="A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way." />
   <meta name="twitter:image" content="https://www.jc-965.com/projects/tarocchi/og.jpg" />
   <meta name="twitter:image:alt" content="Tarocchi pixel-art oracle prompt" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.jc-965.com/"},{"@type":"ListItem","position":2,"name":"Case studies","item":"https://www.jc-965.com/projects/"},{"@type":"ListItem","position":3,"name":"Tarocchi","item":"https://www.jc-965.com/projects/tarocchi/"}]},{"@type":"Article","@id":"https://www.jc-965.com/projects/tarocchi/#article","headline":"Tarocchi case study","description":"An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio.","image":"https://www.jc-965.com/projects/tarocchi/og.jpg","url":"https://www.jc-965.com/projects/tarocchi/","mainEntityOfPage":"https://www.jc-965.com/projects/tarocchi/","author":{"@type":"Person","@id":"https://www.jc-965.com/#person","name":"Jesse Chen","url":"https://www.jc-965.com/"},"keywords":"React & Vite, TypeScript, Tailwind CSS, Framer Motion"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.jc-965.com/"},{"@type":"ListItem","position":2,"name":"Case studies","item":"https://www.jc-965.com/projects/"},{"@type":"ListItem","position":3,"name":"Tarocchi","item":"https://www.jc-965.com/projects/tarocchi/"}]},{"@type":"Article","@id":"https://www.jc-965.com/projects/tarocchi/#article","headline":"Tarocchi case study","description":"A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way.","image":"https://www.jc-965.com/projects/tarocchi/og.jpg","url":"https://www.jc-965.com/projects/tarocchi/","mainEntityOfPage":"https://www.jc-965.com/projects/tarocchi/","author":{"@type":"Person","@id":"https://www.jc-965.com/#person","name":"Jesse Chen","url":"https://www.jc-965.com/"},"keywords":"React & Vite, TypeScript, Tailwind CSS, CSS animation, Claude API, Express"}]}</script>
 </head>
 <body style="--accent: #9c7fae">
   <a class="skip-link" href="#content">Skip to case study</a>
@@ -35,14 +35,14 @@
   <a href="mailto:jcchen54@gmail.com">Contact</a>
 </nav>
     <header class="project-hero">
-      <p class="eyebrow">Interactive web · Creative systems</p>
+      <p class="eyebrow">Interactive tarot game · HackCMU 2025</p>
       <h1>Tarocchi</h1>
-      <p class="lede">An interactive tarot narrative web experience with five illustrated scene branches, spread-based card readings interpreted by Claude, replayable state-driven progression, parallax, and synchronized audio.</p>
+      <p class="lede">A tarot game that turns a personal question into an illustrated adventure, with a reading shaped by the cards and choices along the way.</p>
     </header>
     <figure class="project-image"><img src="/Tarocchi/tarocchi-1.webp" alt="Tarocchi pixel-art oracle prompt" width="1600" height="904" /><figcaption>Tarocchi in production</figcaption></figure>
-    <section class="meta" aria-label="Project results"><div><span>SCENES</span><strong>5 BRANCHES</strong></div>
-<div><span>EFFECTS</span><strong>PARALLAX</strong></div>
-<div><span>AUDIO</span><strong>SYNCHRONIZED</strong></div></section>
+    <section class="meta" aria-label="Project results"><div><span>ILLUSTRATED SETTINGS</span><strong>5</strong></div>
+<div><span>READING SPREADS</span><strong>3</strong></div>
+<div><span>TAROT CARDS</span><strong>78</strong></div></section>
     <section class="panel">
       <p class="eyebrow">Role</p>
       <h2>Front-end engineer and interaction designer</h2>
@@ -50,25 +50,27 @@
     <section class="panel">
       <p class="eyebrow">Challenge</p>
       <h2>What had to be solved</h2>
-      <p>Branching story scenes had to feel cinematic without allowing animation, audio, and route state to drift apart, and card readings needed to respond to the player&#039;s actual choices.</p>
+      <p>The idea was to make a tarot reading feel like a short game, with room to explore before seeing the cards. The final interpretation needed to connect the player’s question and choices to the drawn spread.</p>
     </section>
     <section class="panel">
       <p class="eyebrow">Approach</p>
       <h2>How I built it</h2>
-      <ol><li>Represented narrative progress as explicit state instead of coupling it to visual components.</li>
-<li>Synchronized scene transitions and audio cues from the same route events.</li>
-<li>Fed the chosen spread, cards, and scene into a Claude-backed generator for personalized readings.</li></ol>
+      <ol><li>Used a React reducer to manage the spread, shuffled scene order, and player choices from the opening prompt through the result.</li>
+<li>Combined Sarah Seekins’s 78-card PixelTarot deck with five illustrated settings, CSS parallax, particle effects, and optional looping music.</li>
+<li>Passed the question, choices, and drawn cards through an Express backend to Claude. The cards are random, while the player’s answers give the interpretation its context.</li></ol>
     </section>
     <section class="panel">
       <p class="eyebrow">Outcomes</p>
       <h2>What changed</h2>
-      <ul class="outcomes"><li>5 replayable scene branches</li>
-<li>AI-personalized card readings</li>
-<li>Synchronized motion and audio</li></ul>
+      <ul class="outcomes"><li>Three spreads with three, four, or five cards</li>
+<li>Five illustrated settings with choices along the way</li>
+<li>Claude readings grounded in the question, choices, and cards</li></ul>
       <div class="tags" aria-label="Technology used"><span>React &amp; Vite</span>
 <span>TypeScript</span>
 <span>Tailwind CSS</span>
-<span>Framer Motion</span></div>
+<span>CSS animation</span>
+<span>Claude API</span>
+<span>Express</span></div>
     </section>
     <footer class="footer">
   <span>© 2026 Jesse Chen</span>

@@ -112,17 +112,17 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
   <tr>
     <td valign="middle"><strong>Agoriai</strong></td>
     <td align="center" valign="middle"><img title="React · TypeScript · D3 · PostgreSQL" alt="React, TypeScript, D3, PostgreSQL" height="28" src="https://skillicons.dev/icons?i=react,ts,d3,postgresql" /></td>
-    <td valign="middle">Anonymous student career network built in 36 hours at TartanHacks 2026: a 36-endpoint Bun/Elysia API, four identity tiers enforced on the server, and a D3 relationship graph.</td>
+    <td valign="middle">A student career network for sharing experiences and finding peers through company connections. A D3 graph helps people explore the network, while server-side visibility settings control post and comment details. Names in messages are shared by mutual agreement.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>Tarocchi</strong></td>
-    <td align="center" valign="middle"><img title="React · Vite · TypeScript · Tailwind CSS · Framer Motion" alt="React, Vite, TypeScript, Tailwind CSS, Framer Motion" height="28" src="https://skillicons.dev/icons?i=react,vite,ts,tailwind,framer" /></td>
-    <td valign="middle">Interactive tarot narrative with five illustrated branches, Claude-interpreted card readings, and scene transitions, parallax, and audio driven by one route state.</td>
+    <td align="center" valign="middle"><img title="React · Vite · TypeScript · Tailwind CSS · Express" alt="React, Vite, TypeScript, Tailwind CSS, Express" height="28" src="https://skillicons.dev/icons?i=react,vite,ts,tailwind,express" /></td>
+    <td valign="middle">A tarot game with three spreads and five illustrated settings. React keeps track of the journey, and an Express backend sends the question, choices, and cards to Claude for a personal reading.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>MyCommunity</strong></td>
     <td align="center" valign="middle"><img title="Java · Android · Firebase" alt="Java, Android, Firebase" height="28" src="https://skillicons.dev/icons?i=java,androidstudio,firebase" /></td>
-    <td valign="middle">Native Android app for Boy Scouts troop discovery, with live Firebase markers on a Google Map, Google Sign-In, and a cached community news feed.</td>
+    <td valign="middle">An Android prototype for finding Scout troops and exploring service projects. Built in Java with Google Maps, a Firebase troop data model, and a New York Times news feed with cached article images.</td>
   </tr>
 </table>
 
