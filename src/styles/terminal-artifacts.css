@@ -10,13 +10,11 @@
 }
 
 /* ---------- Corner glyphs on framed things (diagonal pair, set into the border) ---------- */
-.map-frame,
 .email-popup__card,
 .skill-card__terminal-bar,
 .constellation__editor {
   position: relative;
 }
-.map-frame::before, .map-frame::after,
 .email-popup__card::before, .email-popup__card::after,
 .constellation__editor::before, .constellation__editor::after {
   content: '+';
@@ -28,8 +26,8 @@
   padding: 0 2px;
   pointer-events: none;
 }
-.map-frame::before, .email-popup__card::before, .constellation__editor::before { top: -0.55em; left: -0.35em; }
-.map-frame::after, .email-popup__card::after, .constellation__editor::after { bottom: -0.55em; right: -0.35em; }
+.email-popup__card::before, .constellation__editor::before { top: -0.55em; left: -0.35em; }
+.email-popup__card::after, .constellation__editor::after { bottom: -0.55em; right: -0.35em; }
 
 /* Existing bracket corners become plus glyphs. */
 .life-card__corner,
@@ -51,53 +49,6 @@
 /* ---------- Section headers: a prompt, not a diamond ---------- */
 .section__eyebrow-icon { font-size: 0; opacity: 1; }
 .section__eyebrow-icon::before { content: '//'; font-size: 0.8rem; opacity: 0.85; }
-
-/* ---------- Journey ---------- */
-.timeline__track { width: 1px; }
-.chapter__node {
-  width: 22px;
-  height: 22px;
-  border-radius: 0;
-  box-shadow: none;
-}
-.chapter__node svg { display: none; }
-.chapter__node::before { content: '+'; font: 700 0.85rem/1 var(--font-mono); color: var(--chapter-accent, var(--accent-cyan)); }
-.chapter__chip {
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 0;
-}
-.chapter__chip::before { content: '['; opacity: 0.6; }
-.chapter__chip::after { content: ']'; opacity: 0.6; }
-.chapter__stack span,
-.chapter__stack li {
-  border: 0 !important;
-  background: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-}
-.chapter__stack span::before, .chapter__stack li::before { content: '['; opacity: 0.55; }
-.chapter__stack span::after, .chapter__stack li::after { content: ']'; opacity: 0.55; }
-.chapter__views-label::before { content: '$ '; opacity: 0.7; }
-.chapter__view {
-  padding: 6px 0;
-  border: 0;
-  background: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-.chapter__view.is-active {
-  background: none;
-  box-shadow: none;
-  transform: none;
-  text-decoration: underline;
-  text-underline-offset: 6px;
-  text-decoration-thickness: 1px;
-}
-.chapter__view-caret { display: none; }
-.chapter__view::before { content: '['; opacity: 0.55; }
-.chapter__view::after { content: ']'; opacity: 0.55; }
 
 /* ---------- Projects ---------- */
 .proj__eyebrow::before { content: '// '; opacity: 0.7; }
@@ -186,27 +137,16 @@
 .email-popup__close { border-radius: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .chapter__view, .proj__case-study, .footer__social-link { transition: none; }
+  .proj__case-study, .footer__social-link { transition: none; }
 }
 
 /* ---------- Review fixes (2026-09-07 evening) ---------- */
-/* Phone: the chapter glow spans overflowed the layout viewport and pushed the nav toggle off screen. */
-.chapter__media-glow { display: none; }
-
 /* Constellation: the button is a grid, so the brackets live inside the label span instead. */
 .constellation__msg-btn::before, .constellation__msg-btn::after { content: none; }
 .constellation__msg-btn { min-width: 0; padding: 8px 12px; }
 .constellation__msg-btn-label::before { content: '[ '; opacity: 0.7; }
 .constellation__msg-btn-label::after { content: ' ]'; opacity: 0.7; }
 
-/* Journey: the category label was still a pill. */
-.chapter__track { padding: 0; border: 0; background: none; border-radius: 0; letter-spacing: 0.08em; }
-.chapter__track::before { content: '[ '; opacity: 0.6; }
-.chapter__track::after { content: ' ]'; opacity: 0.6; }
-/* The views label already says "// screens"; no second prompt. The active view is the accent, not an underline. */
-.chapter__views-label::before { content: none; }
-.chapter__view.is-active { text-decoration: none; color: var(--chapter-accent, var(--accent-cyan)); }
-.chapter__view.is-active::before, .chapter__view.is-active::after { opacity: 1; color: var(--chapter-accent, var(--accent-cyan)); }
 
 /* Window frames: one diagonal pair of corners on the border, none on the cards stacked behind, no halo. */
 .window-frame__tilt { overflow: visible; box-shadow: none; }
@@ -218,11 +158,6 @@
 .gallery__card:not(.is-active) .window-frame__corner { display: none; }
 .window-frame__url { border-radius: 0; background: none; border: 0; padding: 4px 0; }
 .window-frame__live { text-shadow: none; }
-
-/* Map frame: a square box whose corners are the "+" pair, with the map itself still clipped. */
-.map-frame { border-radius: 0; overflow: visible; box-shadow: none; }
-.map-frame__viewport { overflow: hidden; }
-.map-frame__tick { display: none; }
 
 /* Beyond: level listings with "// 01" beside the corner, no highlight sheen. */
 .life-card::before { display: none; }

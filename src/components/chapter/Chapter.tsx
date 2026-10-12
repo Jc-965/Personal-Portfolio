@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Printed from '../hero/Printed'
 import { sceneProgress } from '../hero/world'
-import { LABEL_DEVELOP, LABEL_OPACITY, layoutCardLabels, type CardShot, type LabelPlace } from '../teardown/labels'
+import { layoutLabelRows } from '../teardown/labels'
 import { routeLeaders, type Box, type Point } from '../teardown/leaders'
 import { RIDE_FADE, actAt, actCopyRide, actWindows, previewEnd, previewProgress, previewTravel, ramp, totalSpan } from '../teardown/timeline'
 import type { ChapterFrame } from './ChapterCanvas'
@@ -34,39 +34,6 @@ const READOUT_CLEAR = 20
 /** Fonts already requested, by stylesheet URL. */
 const fontsLoaded = new Set<string>()
 
-/**
- * Places panel labels row by row. Labels that can show and whose anchors sit within a label's height of each other
- * form a row, which layoutCardLabels pushes apart, and labels in other rows keep their places. A label that cannot
- * show (undeveloped or faded) is placed alone, so a hidden anchor between two shown labels never chains them into
- * one row. ParkiWell's cards always hang in one row, but a compass of cards or a fan of scenes hangs labels at
- * several heights, and one row would push a label away from a card it does not overlap. Every card still counts as
- * cover for every label.
- */
-function layoutLabelRows(panels: readonly CardShot[], sizes: readonly { w: number; h: number }[], stage: { width: number; height: number }) {
-  const rows: number[][] = []
-  panels.forEach((panel, k) => {
-    const y = panel.anchor?.y
-    if (y === undefined) return
-    if (panel.develop < LABEL_DEVELOP || panel.opacity < LABEL_OPACITY) {
-      rows.push([k])
-      return
-    }
-    const row = rows.find((r) => {
-      const first = panels[r[0]]
-      if (first.develop < LABEL_DEVELOP || first.opacity < LABEL_OPACITY) return false
-      return r.some((j) => Math.abs((panels[j].anchor?.y ?? Infinity) - y) < Math.max(sizes[j]?.h ?? 0, sizes[k]?.h ?? 0))
-    })
-    if (row) row.push(k)
-    else rows.push([k])
-  })
-  const places: (LabelPlace | null)[] = panels.map(() => null)
-  for (const row of rows) {
-    const members = new Set(row)
-    const masked = panels.map((panel, k) => (members.has(k) ? panel : { ...panel, anchor: null }))
-    layoutCardLabels(masked, sizes, stage).forEach((place, k) => { if (members.has(k)) places[k] = place })
-  }
-  return places
-}
 
 /**
  * One project told as a pinned chapter on the generic engine, in the same two views as ParkiWell's teardown: the

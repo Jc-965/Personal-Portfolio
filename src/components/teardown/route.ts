@@ -4,6 +4,12 @@
  */
 export const JOURNEYS: readonly string[] = ['parkiwell', 'agoriai', 'tarocchi', 'mycommunity']
 
+/**
+ * Role ids with a journey page. ROLE_STORIES (src/content/roles) holds the same ids, and App reads this list
+ * instead, so the initial bundle never carries the stories.
+ */
+export const ROLE_JOURNEYS: readonly string[] = ['scottylabs-ai', 'blue-shield', 'sorcea', 'cmumaps', 'gcs', 'coding-minds', 'softcom']
+
 /** A chapter's journey page is an in-app history entry at the root, one path segment named by the chapter id. */
 export function journeyPath(id: string): string {
   return `/${id}`

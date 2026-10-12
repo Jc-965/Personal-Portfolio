@@ -11,7 +11,7 @@ import { pageScrollY } from '../../scroll/scrollSignal'
 import { LAUNCH_MS } from '../teardown/rig'
 import { journeyAt, journeyPath } from '../teardown/route'
 import { prefersReduced } from './dom'
-import type { ChapterView, StageControl } from './stageHooks'
+import { useReturnAtEnd, type ChapterView, type StageControl } from './stageHooks'
 
 /**
  * Milliseconds the stage drifts up and fades out when the journey closes from past the preview's last frame, and
@@ -19,17 +19,6 @@ import type { ChapterView, StageControl } from './stageHooks'
  */
 const SWAP_MS = 450
 const SETTLE_MS = 700
-/**
- * Scrolling on past the journey's end returns to the home page. The push counts only after the page has rested
- * at the bottom for RETURN_ARM ms, fills after RETURN_PUSH viewport-heights of input, and drains after
- * RETURN_DRAIN ms without input, so a flick's momentum that reaches the end does not carry the reader out. The bar
- * follows the push on a RETURN_EASE second ease, so it fills and drains smoothly between wheel events.
- */
-const RETURN_ARM = 250
-const RETURN_PUSH = 0.6
-const RETURN_DRAIN = 500
-const RETURN_EASE = 0.12
-
 /** Where the window scrolls in the layout effect after a view swap. */
 type PendingScroll = { kind: 'journey'; progress: number } | { kind: 'home'; y: number } | { kind: 'preview-end' }
 
@@ -169,77 +158,9 @@ export function useJourneyView(o: JourneyViewOptions) {
     }
   }, [id, progressRef, enterJourney, leaveJourney, back])
 
-  // At the journey's end, input that keeps pushing down fills the return hint's bar (--return, eased) and then
-  // closes the journey the way the back control does, once: closingRef holds every later push until the home
-  // scene has settled.
-  useEffect(() => {
-    if (view !== 'journey') return
-    let target = 0
-    let shown = 0
-    let armedAt = 0
-    let lastInput = 0
-    let raf = 0
-    let last = 0
-    let touchY = 0
-    const hint = returnRef.current
-    const atBottom = () => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
-    const tick = (now: number) => {
-      raf = 0
-      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
-      last = now
-      if (!closingRef.current && target < 1 && now - lastInput > RETURN_DRAIN) target = 0
-      shown += (target - shown) * (1 - Math.exp(-dt / RETURN_EASE))
-      if (Math.abs(target - shown) < 1e-3) shown = target
-      hint?.style.setProperty('--return', shown.toFixed(3))
-      if (shown !== target || (target > 0 && target < 1)) raf = requestAnimationFrame(tick)
-      else last = 0
-    }
-    const wake = () => { if (!raf) raf = requestAnimationFrame(tick) }
-    let fired = false
-    const add = (delta: number) => {
-      if (fired || closingRef.current || backPendingRef.current) return
-      if (!atBottom()) {
-        armedAt = 0
-        target = 0
-        wake()
-        return
-      }
-      const now = performance.now()
-      if (!armedAt) armedAt = now
-      if (now - armedAt < RETURN_ARM) return
-      lastInput = now
-      target = Math.min(1, target + delta / (RETURN_PUSH * window.innerHeight))
-      wake()
-      if (target >= 1) {
-        fired = true
-        hint?.classList.add('is-full')
-        back()
-      }
-    }
-    const onWheel = (event: WheelEvent) => { if (event.deltaY > 0) add(event.deltaY * (event.deltaMode === 1 ? 16 : 1)) }
-    const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0 }
-    const onTouchMove = (event: TouchEvent) => {
-      const y = event.touches[0]?.clientY ?? touchY
-      if (touchY > y) add(touchY - y)
-      touchY = y
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (['ArrowDown', 'PageDown', ' ', 'End'].includes(event.key)) add(window.innerHeight * 0.3)
-    }
-    window.addEventListener('wheel', onWheel, { passive: true })
-    window.addEventListener('touchstart', onTouchStart, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: true })
-    window.addEventListener('keydown', onKey)
-    return () => {
-      cancelAnimationFrame(raf)
-      hint?.classList.remove('is-full')
-      hint?.style.setProperty('--return', '0')
-      window.removeEventListener('wheel', onWheel)
-      window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchmove', onTouchMove)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [view, back])
+  // At the journey's end, input that keeps pushing down returns home, once (useReturnAtEnd).
+  const returnBlocked = useCallback(() => closingRef.current || backPendingRef.current, [])
+  useReturnAtEnd(view === 'journey', back, returnRef, returnBlocked)
 
   // A direct load of the journey path opens the journey before the first paint, from the start of the story.
   useLayoutEffect(() => {

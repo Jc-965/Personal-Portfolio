@@ -21,13 +21,13 @@
       "permanent": true
     },
     {
-      "source": "/:chapter(parkiwell|agoriai|tarocchi|mycommunity)/",
+      "source": "/:chapter(parkiwell|agoriai|tarocchi|mycommunity|scottylabs-ai|blue-shield|sorcea|cmumaps|gcs|coding-minds|softcom)/",
       "destination": "/:chapter",
       "permanent": true
     }
   ],
   "rewrites": [
-    { "source": "/:chapter(parkiwell|agoriai|tarocchi|mycommunity)", "destination": "/index.html" }
+    { "source": "/:chapter(parkiwell|agoriai|tarocchi|mycommunity|scottylabs-ai|blue-shield|sorcea|cmumaps|gcs|coding-minds|softcom)", "destination": "/index.html" }
   ],
   "headers": [
     {
