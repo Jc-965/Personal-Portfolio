@@ -1,15 +1,9 @@
 /**
- * ParkiWell's teardown chapter. Every figure comes from ParkiWell's repo
- * (ARCHITECTURE.md, .github/workflows, supabase/schema.sql,
- * test/offline_sync_engine_test.dart,
- * lib/services/encrypted_cache_store.dart, lib/motion_coach/README.md,
- * lib/motion_coach/motion_routine_results_screen.dart,
- * lib/utils/session_wakelock.dart, lib/linechart.dart, packages/motion_engine),
- * parkiwell.com's journey, assurance, and features content, or Jesse's resume.
- * Unsupported claims (camera-to-feedback latency, process kills, user,
- * download, or rating numbers) must not be added here. An act's copy never
- * restates what its phone screen (ACT_SCREEN in rig.ts) already shows, and
- * the chapter does not mention the research the motion coach grew from.
+ * ParkiWell's product story, grounded in its README, ARCHITECTURE.md,
+ * lib/Manage/editLog.dart, lib/services/, and packages/motion_engine.
+ * Explain the everyday purpose before the implementation. Figures describe
+ * supported capabilities, not adoption or clinical outcomes. The motion coach
+ * and store release retain their in-development / coming-soon status.
  */
 import type { TeardownStory } from './types.ts'
 import { PARKIWELL_POSE } from './parkiwellPose.ts'
@@ -24,14 +18,10 @@ export const PARKIWELL: TeardownStory = {
       key: 'arrival',
       span: 1.7,
       backdrop: 0,
-      // The lede's second clause is the README's own phrase ("designed for real hands and real days"). The app has
-      // no caregiver features, so it must not claim to be built for anyone but the person living with Parkinson's.
-      // The role line names the parts one engineer built: the Flutter app, the Supabase backend (supabase/), and
-      // packages/motion_engine.
       lines: [
         'ParkiWell',
-        "Built for people living with Parkinson's, for real hands and real days.",
-        'Founder and sole engineer since 2023, from the Flutter app to the backend and the motion engine.',
+        'An app for managing everyday life with Parkinson’s.',
+        'ParkiWell brings symptom logs, medication reminders, and guided speech and movement practice into one place. It helps people keep up with daily routines and look back at what’s changed, even offline.',
       ],
       callouts: [],
     },
@@ -39,7 +29,7 @@ export const PARKIWELL: TeardownStory = {
       key: 'hand',
       span: 1.3,
       backdrop: 1,
-      lines: ['Designed for hands with a tremor.'],
+      lines: ['Designed to be easier to use with a tremor.'],
       // Each callout states a fact about the control its leader lands beside, in screen order from the top so
       // the leader lines never cross, and none repeats the screen's own text (its intro already says entries
       // backfill to 2000). The anchors were measured on log.webp at 943 by 2048 and are fractions, so they hold at the
@@ -49,10 +39,10 @@ export const PARKIWELL: TeardownStory = {
       // 48) and carry the five labels, the date card's picker runs from firstDate 2000 to lastDate now, and the
       // Save button disables itself while a save is in flight, so a second tap records nothing.
       callouts: [
-        { text: '48 pt tap targets', anchor: { plane: 'screen', u: -0.94, v: -0.04 } },
-        { text: 'Severity in five plain levels', anchor: { plane: 'screen', u: -0.94, v: -0.15 } },
-        { text: 'Date picker stops at today', anchor: { plane: 'screen', u: -0.94, v: -0.57 } },
-        { text: 'Double taps forgiven', anchor: { plane: 'screen', u: -0.94, v: -0.85 } },
+        { text: 'Large controls with room to tap', anchor: { plane: 'screen', u: -0.94, v: -0.04 } },
+        { text: 'Clear language and simple choices', anchor: { plane: 'screen', u: -0.94, v: -0.15 } },
+        { text: 'Flexible logging that fits your day', anchor: { plane: 'screen', u: -0.94, v: -0.57 } },
+        { text: 'Protection against accidental repeat taps', anchor: { plane: 'screen', u: -0.94, v: -0.85 } },
       ],
     },
     // At 4.2 viewport-heights each wide card holds in the spotlight for about 0.35 viewport-heights, each narrow
@@ -68,11 +58,10 @@ export const PARKIWELL: TeardownStory = {
       // The peak keeps the chapter's largest span, so it stays longer than the day act.
       span: 4.3,
       backdrop: null,
-      // ARCHITECTURE.md: "The app ships no analytics or crash-reporting library."
-      lines: ['No analytics or crash-reporting libraries inside.'],
+      lines: ['Your records stay with you, even offline.'],
       // Each callout names the part its leader lands on, front to back: the Home capture's top left corner, the
       // display the wake lock keeps on, its Symptoms chart (its plot runs from v -0.08 to -0.44), the code layer's
-      // expect() lines, and the phone's chassis frame. The first anchor sat on the bare cover glass, whose top
+      // sync replay loop, and the phone's chassis frame. The first anchor sat on the bare cover glass, whose top
       // corner is fanned right of the screen, and its leader cut through the capture's greeting to reach it. The
       // charging coil shows through the translucent code layer above those lines, and an
       // anchor inside it read as a caption for the coil, so the code anchor stays at v -0.72. Each anchor sits lower
@@ -85,10 +74,10 @@ export const PARKIWELL: TeardownStory = {
       // (lib/motion_coach/motion_routine_screen.dart line 95 and motion_coach_screen.dart line 103) acquire, the
       // chart's Semantics label in lib/linechart.dart line 494, and ARCHITECTURE.md lines 47 and 48.
       callouts: [
-        { text: 'Screen stays awake through practice sessions', anchor: { plane: 'screen', u: -0.92, v: 0.86 } },
-        { text: 'The trend chart reads out to screen readers', anchor: { plane: 'screen', u: -0.92, v: -0.25 } },
-        { text: 'Every change journaled until the server acknowledges it', anchor: { plane: 'code', u: -0.92, v: -0.72 } },
-        { text: 'Authoritative copy on the phone, cloud as backup', anchor: { plane: 'chassis', u: -0.95, v: -0.8 } },
+        { text: 'Practice without the screen going to sleep', anchor: { plane: 'screen', u: -0.92, v: 0.86 } },
+        { text: 'Symptom trends that screen readers can describe', anchor: { plane: 'screen', u: -0.92, v: -0.25 } },
+        { text: 'Saved changes sync when you reconnect', anchor: { plane: 'code', u: -0.92, v: -0.72 } },
+        { text: 'Encrypted on your phone, with optional backup', anchor: { plane: 'chassis', u: -0.95, v: -0.8 } },
       ],
     },
     {
@@ -97,17 +86,13 @@ export const PARKIWELL: TeardownStory = {
       // closes over the act's last 20%, so the coach act opens on a phone that is already whole.
       span: 1.8,
       backdrop: null,
-      // The code layer prints the test's title (1M fault-injected writes), so the readout opens on its result:
-      // ARCHITECTURE.md records the July 30, 2026 run as zero lost, zero duplicates, and 1,750 retry replays
-      // deduplicated. The RLS line counts the 16 create table and 16 enable row level security statements in
-      // supabase/schema.sql. The last line is ARCHITECTURE.md's 195 test cases in test/ and the four workflows in
-      // .github/workflows.
+      // README and ARCHITECTURE.md sections 11–16: local tracking, AES-256-GCM storage,
+      // optional account backup, and per-account access enforced by PostgreSQL row-level security.
       lines: [
-        '0 lost. 0 duplicated.',
-        '1,750 retries deduplicated',
-        'AES-256-GCM, key held on the device',
-        'Row-level security on all 16 tables',
-        '195 tests, 4 CI workflows',
+        'Offline symptom and dose tracking',
+        'AES-256 encrypted local records',
+        'Cloud backup when you choose',
+        'Private records tied to your account',
       ],
       callouts: [],
     },
@@ -115,21 +100,14 @@ export const PARKIWELL: TeardownStory = {
       key: 'coach',
       span: 1.3,
       backdrop: 2,
-      // The coach screen's own cards say the camera measures on the device, nothing is uploaded, and name the
-      // two guided routines, so these lines carry only what the engine adds. The pose figures are the MediaPipe
-      // Pose Landmarker's 33 body points and the 23.23 ms 95th percentile pose inference that ARCHITECTURE.md
-      // section 39.1 records on an iPhone 17 Pro. That is inference time, not camera-to-feedback latency. The
-      // rest: the ten templates under assets/motion/templates, the per-rep ExerciseRepScore whose symmetryScore is
-      // null unless both sides move, maximumTempoRatio 8.0 times referenceTempoS in
-      // packages/motion_engine/lib/src/live_exercise_coach.dart, and the text, speech, and haptic cue channels in
-      // lib/motion_coach/README.md. The score names are the ones the close act's results screen prints for
-      // rangeScore, tempoScore, smoothnessScore, and symmetryScore (lib/motion_coach/motion_routine_results_screen.dart
-      // lines 482 to 486), so both acts use one vocabulary.
+      // MediaPipe's 33 landmarks, ten exercise templates, and per-rep range, tempo, and smoothness scores.
+      // LiveExerciseCoachConfig accepts reps up to 8x the reference tempo. Camera frames and landmarks stay
+      // on the device; optional account backup contains derived results only (ARCHITECTURE.md section 26).
       lines: [
         'Motion coach, in development',
-        'MediaPipe tracks 33 body landmarks, with pose inference at 23 ms p95 on an iPhone 17 Pro.',
-        'Ten exercises, every rep scored on size, pace, and smoothness, plus evenness when both sides move.',
-        'Reps still count at up to 8x slower than the set pace, cued by text, speech, and haptics.',
+        'The motion coach uses the phone’s camera to count reps and give live feedback for ten seated and standing exercises.',
+        'It measures range of motion, pace, and smoothness. Audio and vibration cues help people follow along, with extra time for slower movements.',
+        'MediaPipe tracks 33 body landmarks on the device, keeping camera footage on the phone.',
       ],
       callouts: [],
     },
@@ -137,7 +115,14 @@ export const PARKIWELL: TeardownStory = {
     // and rests there on the results screen, with the evening room and the copy in place, until the room starts to
     // dissolve at 0.66 (0.45 viewport-heights). The phone dissolves from 0.69 and scatters by 0.95 of the act, about
     // 0.7 viewport-heights of scroll, before the stage unpins.
-    { key: 'close', span: 2.8, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
+    {
+      key: 'close', span: 2.8, backdrop: 3,
+      lines: [
+        'Built with Flutter, a custom motion engine, and a Supabase backend.',
+        'Coming to iPhone and Android.',
+      ],
+      callouts: [],
+    },
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
@@ -149,16 +134,14 @@ export const PARKIWELL: TeardownStory = {
     { key: 'coach', src: '/ParkiWell/hd/coach.webp', alt: 'ParkiWell Motion coach home with the on-device privacy card, the weekly movement goal, and guided routines', ...SCREEN },
     { key: 'results', src: '/ParkiWell/hd/results.webp', alt: 'ParkiWell Routine summary for Seated foundation, a movement score of 81 out of 100, with what went well and step by step scores', ...SCREEN },
   ],
-  // Each label names the tab's job and the detail behind it, from ARCHITECTURE.md's tab table and privacy notes:
-  // Home's health patterns insight is computed on the device, medication reminders keep the drug name off the lock
-  // screen, Recovery is guided speech and movement practice, and Community posts under a private alias by default.
+  // Short labels explain each tab's everyday purpose: patterns, doses, practice, and peer support.
   // At 1280 px and wider the labels do not wrap, so at 1280 by 800 two neighbouring labels fit side by side only
   // within about 42 characters together, or the layout pushes one off centre (teardown-labels.test.js).
   cards: [
-    { screen: 'home', label: 'On-device insights' },
-    { screen: 'manage', label: 'Discreet dose reminders' },
-    { screen: 'recovery', label: 'Speech and movement' },
-    { screen: 'community', label: 'Support, under an alias' },
+    { screen: 'home', label: 'See symptom patterns' },
+    { screen: 'manage', label: 'Keep track of doses' },
+    { screen: 'recovery', label: 'Make time to practice' },
+    { screen: 'community', label: 'Find peer support' },
   ],
   // The composite centres its window on the focus point, so a larger x moves the photograph's content left on
   // the screen. The window's overscan pins the y centre at every aspect up to 16:9, so only x places the subject.
@@ -178,37 +161,33 @@ export const PARKIWELL: TeardownStory = {
     { src: '/ParkiWell/rooms/chair.webp', focus: [0.52, 0.5], levels: [0.1, 0.65] },
     { src: '/ParkiWell/rooms/evening.webp', focus: [0.42, 0.5], levels: [0.08, 0.6] },
   ],
-  codeSource: 'test/offline_sync_engine_test.dart',
-  code: `test(
-  'preserves final state across 1M fault-injected writes',
-  () async {
-    const mutationCount = 1000000;
-    const entityCount = 10000;
-    const checkpointSize = 10000;
-    final baseTime = DateTime.utc(2026, 1, 1);
-    final store = _MemoryMutationJournalStore();
-    var engine = OfflineSyncEngine(store);
-    await engine.initialize();
-    final expected = <String, SyncMutation>{};
+  // Excerpt from the production replay loop; omitted rejection handling is marked below.
+  codeSource: 'lib/services/offline_sync_engine.dart',
+  code: `final snapshot = pendingMutations;
+for (var offset = 0; offset < snapshot.length; offset += batchSize) {
+  final end = (offset + batchSize).clamp(0, snapshot.length);
+  final batch = snapshot.sublist(offset, end);
+  Set<String> acknowledged;
+  try {
+    acknowledged = await executor(batch);
+  } catch (_) {
+    break;
+  }
+
+  for (final mutation in batch) {
+    if (acknowledged.contains(mutation.mutationId)) {
+      _rejectionCounts.remove(mutation.mutationId);
+      final current = _pendingByEntity[mutation.entityKey];
+      if (current?.mutationId == mutation.mutationId) {
+        _pendingByEntity.remove(mutation.entityKey);
+        acknowledgedCount += 1;
+      }
+      continue;
+    }
     // [...]
-      await engine.enqueueAll(mutations);
-
-      // Simulate a process interruption after each durable checkpoint.
-      engine = OfflineSyncEngine(store);
-      await engine.initialize();
-    }
-
-    final backend = _FaultInjectingBackend();
-    var replayAttempts = 0;
-    while (engine.pendingCount > 0 && replayAttempts < 100) {
-      await engine.replay(backend.apply, batchSize: 250);
-      replayAttempts += 1;
-    }
-
-    expect(engine.pendingCount, 0);
-    expect(replayAttempts, lessThan(100));
-    expect(backend.appliedMutationCount, entityCount);
-    expect(backend.duplicateReplayCount, greaterThan(0));`,
+  }
+  await _persist();
+}`,
   pose: PARKIWELL_POSE,
   tags: ['Flutter', 'Dart', 'Python', 'MediaPipe', 'Supabase', 'PostgreSQL'],
   links: [

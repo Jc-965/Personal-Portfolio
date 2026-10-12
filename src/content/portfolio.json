@@ -194,15 +194,15 @@
     {
       "id": "parkiwell",
       "name": "ParkiWell",
-      "tag": "Mobile health · Cross-platform",
+      "tag": "Daily support for Parkinson’s",
       "accent": "#6aa5af",
       "accentRgb": "106, 165, 175",
       "kind": "media",
-      "lead": "An offline-first Flutter care app for people living with Parkinson’s: a computer-vision motion coach and fault-tested, encrypted health-data sync.",
+      "lead": "An app for managing everyday life with Parkinson’s, with symptom tracking, medication reminders, and guided speech and movement practice.",
       "bullets": [
-        "Founded and solo-built the app end to end: symptom tracking, medication reminders, guided therapy, peer support, and the Supabase backend.",
-        "Building a computer-vision motion coach that tracks 33 body landmarks with MediaPipe, at 23 ms p95 pose inference on an iPhone 17 Pro, to count, score, and cue every rep on the device.",
-        "Built offline-first sync: an encrypted write journal applied exactly once through an idempotent PostgreSQL RPC, with zero loss across 1M fault-injected writes."
+        "ParkiWell brings symptom logs, dose reminders, weekly practice plans, and peer support into one place. It helps people keep up with daily routines and look back at what’s changed.",
+        "The motion coach, currently in development, uses the phone’s camera to count reps and give live feedback for ten seated and standing exercises. Audio and vibration cues help people follow along, with extra time for slower movements.",
+        "Built with Flutter, a custom motion engine, and a Supabase backend. Health records are encrypted on the phone and stay available offline, with optional account backup. Camera footage stays on the device."
       ],
       "tech": [
         "Flutter",
@@ -214,62 +214,63 @@
       ],
       "stats": [
         {
-          "label": "FAULT TESTS",
-          "value": "1M WRITES"
+          "label": "SUPPORTED EXERCISES",
+          "value": "10"
         },
         {
-          "label": "DATA LOSS",
-          "value": "ZERO"
+          "label": "BODY POINTS TRACKED",
+          "value": "33"
         },
         {
-          "label": "POSE INFERENCE",
-          "value": "23 MS P95"
+          "label": "CAMERA UPLOADS",
+          "value": "0"
         }
       ],
       "caseStudy": {
-        "role": "Founder and sole engineer",
-        "challenge": "Care tracking cannot become unavailable when connectivity drops, and reconnecting must never duplicate or erase health records. Exercise guidance also has to react in real time, on-device, without sending video anywhere.",
+        "role": "Design and engineering",
+        "challenge": "Symptoms, medication schedules, and regular practice can be difficult to keep track of. ParkiWell brings those routines together in an app designed to stay usable when tapping is difficult, movement is slower, or the connection drops.",
         "approach": [
-          "Recorded offline mutations in an encrypted write journal, applied exactly once through an idempotent PostgreSQL RPC.",
-          "Tracked 3D pose with MediaPipe to count, score, and speak cues for every rep of guided exercises.",
-          "Protected every hosted table with row-level security and shipped signed builds through CI/CD."
+          "Designed symptom logs, dose reminders, weekly practice plans, and an optional community around everyday use, with large controls, screen-reader support, and protection against accidental repeat taps.",
+          "Built a motion coach that uses MediaPipe to follow 33 body points through the phone camera. A custom Dart engine counts reps and gives movement feedback through text, speech, and vibration, while keeping camera footage on the device.",
+          "Stored health records locally with AES-256 encryption so tracking works offline. Changes sync to Supabase when a connection returns, with database access rules that keep each account’s private records separate."
         ],
         "outcomes": [
-          "1M fault-injected writes survived",
-          "Zero data loss across 100 simulated restarts",
-          "23 ms p95 pose inference on an iPhone 17 Pro"
+          "Daily symptom and dose tracking that works offline",
+          "Motion coach in development with ten seated and standing exercises",
+          "Camera processing on the phone, with no video uploads",
+          "Coming to iPhone and Android"
         ]
       },
       "frame": "phone",
       "images": [
         {
           "src": "/ParkiWell/welcome.webp",
-          "label": "parkiwell · welcome",
+          "label": "parkiwell · get started",
           "alt": "ParkiWell welcome screen",
           "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/home.webp",
-          "label": "parkiwell · home",
+          "label": "parkiwell · symptom patterns",
           "alt": "ParkiWell home dashboard with symptom and medication summaries",
           "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/manage.webp",
-          "label": "parkiwell · manage",
-          "alt": "ParkiWell medication and therapy management screen",
+          "label": "parkiwell · symptoms and doses",
+          "alt": "ParkiWell symptom logs and medication schedule",
           "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/recovery.webp",
-          "label": "parkiwell · recovery",
-          "alt": "ParkiWell recovery plan with weekly goal tracking",
+          "label": "parkiwell · speech and movement",
+          "alt": "ParkiWell weekly plan for speech and movement practice",
           "aspect": "680 / 1477"
         },
         {
           "src": "/ParkiWell/community.webp",
-          "label": "parkiwell · community",
-          "alt": "ParkiWell peer community feed",
+          "label": "parkiwell · peer support",
+          "alt": "ParkiWell community resources",
           "aspect": "680 / 1477"
         }
       ]

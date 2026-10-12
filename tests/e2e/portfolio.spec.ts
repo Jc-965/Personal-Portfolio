@@ -125,11 +125,11 @@ test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page })
   const chapter = await showTeardownStart(page)
   await expect(chapter.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
   for (const text of [
-    "Built for people living with Parkinson's, for real hands and real days.",
-    '48 pt tap targets',
-    'Discreet dose reminders',
-    'Every change journaled until the server acknowledges it',
-    '0 lost. 0 duplicated.',
+    'An app for managing everyday life with Parkinson’s.',
+    'Large controls with room to tap',
+    'Keep track of doses',
+    'Saved changes sync when you reconnect',
+    'Offline symptom and dose tracking',
     'Motion coach, in development',
     'Coming to iPhone and Android.',
   ]) await expect(chapter).toContainText(text)
