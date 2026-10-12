@@ -10,6 +10,7 @@
  */
 import * as THREE from 'three'
 import type { ChapterScene, SceneFactory, SceneFrame, SceneOutput, ScenePanel } from '../types'
+import { WIZARD_SIZE, createWizard } from './wizard'
 
 /** Atlas layout of cards.webp: 316 by 556 px cells on a 2 px gutter, each the 79 by 139 art at 4x. */
 const ATLAS = { w: 2228, h: 1118, cellW: 316, cellH: 556 }
@@ -38,8 +39,6 @@ const FLIP_EASE = 0.28
 const HOVER_EASE = 0.16
 const LAYOUT_EASE = 0.32
 const ROOM_FADE = 0.45
-/** The wizard sprite's side in world units. */
-const WIZARD_SIZE = 1.1
 /** Seconds a burst takes to throw the voxels out and let them fall back. */
 const BURST_S = 1.6
 /** Rings and sides of each wire's tube. */
@@ -93,7 +92,8 @@ uniform float uPixel;
 uniform float uRelief;
 uniform float uCardH;
 uniform vec4 uLoop;
-uniform vec2 uPointer;
+uniform vec3 uRayOrigin;
+uniform vec3 uRayDir;
 uniform float uRepel;
 uniform float uBurst;
 varying vec3 vColor;
@@ -128,11 +128,12 @@ void main() {
   // A burst throws the lifted voxels out from the figure and lets them fall back.
   vec3 away = normalize(vec3(aHome.x, aHome.y - 0.1, 0.55) + (aSeed.yzw - 0.5) * 0.9);
   p += away * uBurst * (0.35 + aSeed.w) * 0.7 * lift;
-  // The pointer parts the standing relief around it.
-  vec2 off = p.xy - uPointer;
-  float push = uRepel * exp(-dot(off, off) / 0.02) * lift * (1.0 - flow);
-  p.xy += normalize(off + 1e-5) * push * 0.1;
-  p.z += push * 0.16;
+  // The pointer parts the standing relief around its own ray, in this mesh's space, so the opening stays under the
+  // cursor at every depth of the relief and every turn of the card.
+  vec3 toVoxel = p - uRayOrigin;
+  vec3 offRay = toVoxel - dot(toVoxel, uRayDir) * uRayDir;
+  float push = uRepel * exp(-dot(offRay, offRay) / 0.02) * lift * (1.0 - flow);
+  p += normalize(offRay + 1e-5) * push * 0.1 - uRayDir * push * 0.12;
   vec3 world = p + position * uPixel * mix(0.92, 0.7, flow);
   vNormal = normalize(normalMatrix * normal);
   vColor = aColor;
@@ -283,7 +284,8 @@ const createScene: SceneFactory = (ctx) => {
     uRelief: { value: 0.34 },
     uCardH: { value: CARD_H },
     uLoop: { value: new THREE.Vector4(LOOP.x, LOOP.y, LOOP.z, LOOP.a) },
-    uPointer: { value: new THREE.Vector2(9, 9) },
+    uRayOrigin: { value: new THREE.Vector3(0, 0, 9) },
+    uRayDir: { value: new THREE.Vector3(0, 0, -1) },
     uRepel: { value: 0 },
     uBurst: { value: 0 },
     uKey: { value: new THREE.Vector3(-0.5, 0.55, 0.67).normalize() },
@@ -373,13 +375,12 @@ const createScene: SceneFactory = (ctx) => {
     root.add(wire)
     return { art, material, plate, group, wire, wireMaterial, wireUniforms, hover: 0 }
   })
-  // Maestro Tarocchi, the app's guide, rises beside the card in the close act to deliver the reading.
-  const wizardArt = ctx.load('/Tarocchi/chapter/scenes/wizard.webp')
-  const wizardGeometry = new THREE.PlaneGeometry(WIZARD_SIZE, WIZARD_SIZE)
-  const wizardMaterial = new THREE.MeshBasicMaterial({ map: wizardArt.texture, transparent: true, depthWrite: false, toneMapped: false })
-  const wizard = new THREE.Mesh(wizardGeometry, wizardMaterial)
-  wizard.visible = false
-  root.add(wizard)
+  // Maestro Tarocchi, the app's guide (wizard.ts), conjures the deck through the spread and the scenes and delivers
+  // the reading at the close.
+  const wizard = createWizard(ctx)
+  root.add(wizard.group)
+  const guideAt = new THREE.Vector3()
+  const closeAt = new THREE.Vector3()
 
   /** The room the pointer has picked, and the fade from the room shown before it. -1 is the act's own room. */
   let roomPick = -1
@@ -395,7 +396,7 @@ const createScene: SceneFactory = (ctx) => {
   const curve = new THREE.CubicBezierCurve3(new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3())
   const deckAt = new THREE.Vector3()
   const slot = new THREE.Vector3()
-  const scratch = new THREE.Vector3()
+  const rayInverse = new THREE.Matrix4()
   const quaternion = new THREE.Quaternion()
   const spreadMeshes = spread.map((card) => card.mesh)
   const plates = branches.map((branch) => branch.plate)
@@ -428,7 +429,8 @@ const createScene: SceneFactory = (ctx) => {
     // The deck. It rises face down and turns over to the Magician as the glyphs resolve, by 0.6 of the arrival, so
     // the home page's preview (which ends at 0.65) holds the face. The magician act turns it 0.45 rad aside while
     // the relief stands, so the depth reads, and back for the loop. From the spread to the close it steps aside and
-    // shrinks so the cards and scenes have the stage, and the close brings it home with the wizard beside it.
+    // shrinks so the cards and scenes have the stage, raised on wide stages so the wizard can hold it up from below.
+    // The close brings it home with the wizard beside it.
     const turnOver = smoother(ramp(a, 0.3, 0.6))
     const sideways = 0.45 * smoother(ramp(m, 0.12, 0.3)) * (1 - smoother(ramp(m, 0.42, 0.56)))
     const aside = smoother(ramp(s, 0, 0.3)) * (1 - smoother(ramp(c, 0, 0.45)))
@@ -438,18 +440,28 @@ const createScene: SceneFactory = (ctx) => {
     deck.rotation.set(pitch, Math.PI * (1 - turnOver) + sideways + yaw, 0)
     // On phones the deck rises out of frame while the cards are dealt below it, and returns small over the scenes.
     if (narrow) deck.position.set(0, -0.15 * (1 - rise) + aside * (2.8 * (1 - wider) + 0.8 * wider), -1.0 * aside * (1 - wider))
-    else deck.position.set(-0.75 * aside + 0.15 * wider, -0.15 * (1 - rise), 0)
+    else deck.position.set(-0.75 * aside + 0.15 * wider, -0.15 * (1 - rise) + aside * (0.5 - 0.25 * wider), 0)
     deck.scale.setScalar((0.92 + 0.08 * rise) * (1 - (narrow ? 0.35 : 0.28) * aside))
     deck.updateMatrixWorld(true)
     deck.getWorldPosition(deckAt)
 
-    // The wizard rises into place beside the card as the close begins, and leaves with the dissolve.
-    wizard.visible = summon > 0.002 && wizardArt.ready
-    if (narrow) wizard.position.set(0.55, -0.55 - 0.4 * (1 - summon), 0.2)
-    else wizard.position.set(deckAt.x + 1.0, -0.15 - 0.45 * (1 - summon), -0.1)
-    wizard.rotation.set(pitch * 0.4, yaw * 0.5 - (narrow ? 0 : 0.15), 0)
-    wizard.scale.setScalar((narrow ? 0.62 : 1) * (0.85 + 0.15 * summon))
-    wizardMaterial.opacity = summon
+    // The wizard. On wide stages he assembles under the raised card as the spread begins, his fingertip just below
+    // its bottom edge, and holds it up through the scenes. Phones bring him in beside the small deck over the scenes.
+    // At the close he drifts across in front of the card to its right, dipping as he passes, and leaves with the
+    // dissolve. His stream of sparks always runs to the card.
+    const appear = narrow ? smoother(ramp(b, 0.05, 0.3)) : smoother(ramp(s, 0.08, 0.32))
+    const cardBottom = deckAt.y - (CARD_H / 2) * deck.scale.y
+    if (narrow) {
+      guideAt.set(deckAt.x - 0.72, deckAt.y - 0.14, 0.15)
+      closeAt.set(0.5, -0.6, 0.25)
+    } else {
+      guideAt.set(deckAt.x + 0.32, cardBottom - 0.56, 0.15)
+      closeAt.set(deckAt.x + 0.95, -0.2, 0.1)
+    }
+    const travel = Math.sin(Math.PI * summon)
+    wizard.group.position.lerpVectors(guideAt, closeAt, summon).add(slot.set(0, -0.2 * travel, 0.5 * travel))
+    wizard.group.scale.setScalar(narrow ? 0.42 + 0.13 * summon : 1 - 0.15 * summon)
+    wizard.group.rotation.set(pitch * 0.3, yaw * 0.5 - 0.12 - 0.18 * summon, 0)
 
     // The relief, the loop, and the burst.
     lift = smoother(ramp(m, 0.08, 0.34)) * (1 - smoother(ramp(m, 0.8, 0.96)))
@@ -471,6 +483,7 @@ const createScene: SceneFactory = (ctx) => {
     const flare = 1 + 0.25 * f.push
     for (const { light, base } of lights) light.intensity = base * flare
     voxelUniforms.uLight.value = flare
+    if (wizard.update({ appear, stream: 1 - 0.4 * summon, target: deckAt, time: f.time, light: flare }, camera)) busy = true
     key.position.set(-2.4 + f.interaction.tiltX * 3.2, 2.6 - f.interaction.tiltY * 2.2, 3.2)
 
     // The camera: closer over the arrival, closer still for the relief, wide for the spread, wider for the scenes.
@@ -485,24 +498,24 @@ const createScene: SceneFactory = (ctx) => {
     camera.updateMatrixWorld()
 
     // The pointer: it parts the relief, lifts a dealt card, and picks a scene.
-    let overCard = false
+    let parting = false
     let hoverCard = -1
     let hoverPlate = -1
     if (f.pointer.inside) {
       ndc.set(f.pointer.x, f.pointer.y)
       raycaster.setFromCamera(ndc, camera)
-      const [hit] = raycaster.intersectObject(magician, false)
-      if (hit) {
-        overCard = true
-        magician.worldToLocal(scratch.copy(hit.point))
-        voxelUniforms.uPointer.value.set(scratch.x, scratch.y)
+      if (voxels) {
+        parting = true
+        rayInverse.copy(voxels.matrixWorld).invert()
+        voxelUniforms.uRayOrigin.value.copy(raycaster.ray.origin).applyMatrix4(rayInverse)
+        voxelUniforms.uRayDir.value.copy(raycaster.ray.direction).transformDirection(rayInverse)
       }
       const [cardHit] = raycaster.intersectObjects(spreadMeshes, false)
       if (cardHit?.object.visible) hoverCard = spreadMeshes.findIndex((mesh) => mesh === cardHit.object)
       const [plateHit] = raycaster.intersectObjects(plates, false)
       if (plateHit?.object.parent?.visible) hoverPlate = plates.findIndex((plate) => plate === plateHit.object)
     }
-    const repel = ease(voxelUniforms.uRepel.value, overCard && lift > 0.05 ? 1 : 0, f.dt, 0.18)
+    const repel = ease(voxelUniforms.uRepel.value, parting && lift > 0.05 ? 1 : 0, f.dt, 0.18)
     if (repel !== voxelUniforms.uRepel.value) busy = true
     voxelUniforms.uRepel.value = repel
 
@@ -648,8 +661,8 @@ const createScene: SceneFactory = (ctx) => {
     const bounds = [...corners]
     for (const card of spread) if (card.mesh.visible) bounds.push(...cornersOf(card.mesh, CARD_W, CARD_H))
     for (const branch of branches) if (branch.group.visible) bounds.push(...cornersOf(branch.plate, SCENE_W, SCENE_H))
-    if (wizard.visible) bounds.push(...cornersOf(wizard, WIZARD_SIZE, WIZARD_SIZE))
-    anchors.set('wizard', wizard.visible ? wizard.localToWorld(new THREE.Vector3(-0.3, 0.1, 0)) : null)
+    if (wizard.group.visible) bounds.push(...cornersOf(wizard.group, WIZARD_SIZE, WIZARD_SIZE))
+    anchors.set('wizard', wizard.group.visible ? wizard.fingertip(new THREE.Vector3()) : null)
 
     return {
       decode: f.base.decode,
@@ -673,6 +686,10 @@ const createScene: SceneFactory = (ctx) => {
     const card = cardHit && spread.find((entry) => entry.mesh === cardHit.object)
     if (card) {
       card.flipGoal = card.flip > 0.5 ? 0 : 1
+      return true
+    }
+    if (wizard.hit(raycaster)) {
+      wizard.cast(ctx.now())
       return true
     }
     if (lift > 0.5 && raycaster.intersectObject(magician, false).length) {
@@ -707,8 +724,7 @@ const createScene: SceneFactory = (ctx) => {
       voxelMaterial.dispose()
       plateGeometry.dispose()
       frameGeometry.dispose()
-      wizardGeometry.dispose()
-      wizardMaterial.dispose()
+      wizard.dispose()
       for (const branch of branches) {
         branch.material.dispose()
         branch.wire.geometry.dispose()
