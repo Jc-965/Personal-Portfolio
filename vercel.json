@@ -21,13 +21,13 @@
       "permanent": true
     },
     {
-      "source": "/:chapter(parkiwell|tarocchi)/",
+      "source": "/:chapter(parkiwell|agoriai|tarocchi)/",
       "destination": "/:chapter",
       "permanent": true
     }
   ],
   "rewrites": [
-    { "source": "/:chapter(parkiwell|tarocchi)", "destination": "/index.html" }
+    { "source": "/:chapter(parkiwell|agoriai|tarocchi)", "destination": "/index.html" }
   ],
   "headers": [
     {

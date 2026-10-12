@@ -1,0 +1,251 @@
+{
+ "source": "GET /api/graph from the Agoriai backend (backend/src/index.ts) against its own seed data (backend/src/db/seed.ts), captured 2026-10-11",
+ "nodeShapes": {
+  "tech": "hex",
+  "finance": "diamond",
+  "business": "tile",
+  "community": "kite"
+ },
+ "notes": "Edges merge connections-table rows (weight 1-5) with author-to-company post links (+1 each, capped at 10). Undirected; source/target are sorted ids.",
+ "nodes": [
+  {
+   "id": "c1",
+   "type": "company",
+   "label": "Google",
+   "size": 7,
+   "group": "tech"
+  },
+  {
+   "id": "c2",
+   "type": "company",
+   "label": "Goldman Sachs",
+   "size": 9,
+   "group": "finance"
+  },
+  {
+   "id": "c3",
+   "type": "company",
+   "label": "McKinsey & Company",
+   "size": 6,
+   "group": "business"
+  },
+  {
+   "id": "c4",
+   "type": "company",
+   "label": "Meta",
+   "size": 6,
+   "group": "tech"
+  },
+  {
+   "id": "c5",
+   "type": "company",
+   "label": "JPMorgan Chase",
+   "size": 7,
+   "group": "finance"
+  },
+  {
+   "id": "c6",
+   "type": "company",
+   "label": "Apple",
+   "size": 5,
+   "group": "tech"
+  },
+  {
+   "id": "c7",
+   "type": "company",
+   "label": "Boston Consulting Group",
+   "size": 4,
+   "group": "business"
+  },
+  {
+   "id": "c8",
+   "type": "company",
+   "label": "Stripe",
+   "size": 4,
+   "group": "tech"
+  },
+  {
+   "id": "u1",
+   "type": "user",
+   "label": "StellarPenguin",
+   "size": 7,
+   "group": "tech"
+  },
+  {
+   "id": "u2",
+   "type": "user",
+   "label": "QuietMaple",
+   "size": 8,
+   "group": "finance"
+  },
+  {
+   "id": "u3",
+   "type": "user",
+   "label": "BrightLantern",
+   "size": 6,
+   "group": "tech"
+  },
+  {
+   "id": "u4",
+   "type": "user",
+   "label": "CosmicFalcon",
+   "size": 2,
+   "group": "tech"
+  },
+  {
+   "id": "u5",
+   "type": "user",
+   "label": "SwiftCedar",
+   "size": 12,
+   "group": "finance"
+  },
+  {
+   "id": "u6",
+   "type": "user",
+   "label": "GentlePrism",
+   "size": 6,
+   "group": "tech"
+  },
+  {
+   "id": "u7",
+   "type": "user",
+   "label": "BoldCompass",
+   "size": 3,
+   "group": "finance"
+  },
+  {
+   "id": "u8",
+   "type": "user",
+   "label": "VividHarbor",
+   "size": 2,
+   "group": "tech"
+  }
+ ],
+ "edges": [
+  {
+   "source": "c1",
+   "target": "u1",
+   "weight": 5
+  },
+  {
+   "source": "c4",
+   "target": "u1",
+   "weight": 2
+  },
+  {
+   "source": "c2",
+   "target": "u2",
+   "weight": 6
+  },
+  {
+   "source": "c7",
+   "target": "u2",
+   "weight": 3
+  },
+  {
+   "source": "c1",
+   "target": "u3",
+   "weight": 3
+  },
+  {
+   "source": "c8",
+   "target": "u3",
+   "weight": 2
+  },
+  {
+   "source": "c1",
+   "target": "u4",
+   "weight": 1
+  },
+  {
+   "source": "c7",
+   "target": "u5",
+   "weight": 5
+  },
+  {
+   "source": "c6",
+   "target": "u6",
+   "weight": 4
+  },
+  {
+   "source": "c5",
+   "target": "u7",
+   "weight": 4
+  },
+  {
+   "source": "c6",
+   "target": "u8",
+   "weight": 1
+  },
+  {
+   "source": "u1",
+   "target": "u3",
+   "weight": 3
+  },
+  {
+   "source": "u2",
+   "target": "u5",
+   "weight": 4
+  },
+  {
+   "source": "u3",
+   "target": "u6",
+   "weight": 2
+  },
+  {
+   "source": "u5",
+   "target": "u7",
+   "weight": 2
+  },
+  {
+   "source": "u6",
+   "target": "u8",
+   "weight": 2
+  },
+  {
+   "source": "u4",
+   "target": "u6",
+   "weight": 2
+  },
+  {
+   "source": "u2",
+   "target": "u7",
+   "weight": 3
+  },
+  {
+   "source": "c4",
+   "target": "u8",
+   "weight": 2
+  },
+  {
+   "source": "c3",
+   "target": "u5",
+   "weight": 5
+  },
+  {
+   "source": "c6",
+   "target": "u3",
+   "weight": 2
+  },
+  {
+   "source": "c2",
+   "target": "u7",
+   "weight": 1
+  },
+  {
+   "source": "c3",
+   "target": "u2",
+   "weight": 1
+  },
+  {
+   "source": "c8",
+   "target": "u1",
+   "weight": 1
+  },
+  {
+   "source": "c8",
+   "target": "u6",
+   "weight": 1
+  }
+ ]
+}
