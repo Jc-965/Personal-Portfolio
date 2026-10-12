@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { actWindows } from '../../src/components/teardown/timeline.ts'
-import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, coachWorld, planePoint, poseAt, projectPoint, projectRect } from '../../src/components/teardown/rig.ts'
+import { ACT_SCREEN, FOCAL, LAYER_Z, PHONE, anchorWorld, backdropAt, basis, coachWorld, planePoint, poseAt, projectPoint, projectRect, restPoints } from '../../src/components/teardown/rig.ts'
 import { COACH_JOINTS, jointsAt } from '../../src/components/teardown/coach.ts'
 import { PARKIWELL } from '../../src/content/teardown/parkiwell.ts'
 
@@ -97,11 +97,11 @@ test('the skeleton draws only once every layer is home', () => {
   assert.equal(at(inAct('close', 0.1)).coach.amount, 0)
 })
 
-test('each act reaches its station by half the act and holds it, with only the drifts moving', () => {
+test('each act reaches its station by half the act and holds it, with only the hold turn moving', () => {
   // The turn and the dolly end at RAMP_END, so between 0.5 and 0.99 of an act the camera's distance is unchanged
-  // and the phone's normal moves only by the yaw drift, whose amplitude is 0.05 radians. The arrival turns with
-  // the product's formation (0.65), the day row completes at 0.76, and proof's camera follows the drifting code
-  // layer, so those sample later or compare the normal alone.
+  // and the phone's normal moves only by the act's hold turn, at most 0.12 radians. The arrival turns with the
+  // product's formation (0.65), the day row completes at 0.76, and proof's camera follows the code layer, so
+  // those sample later or compare the normal alone.
   for (const [key, from] of [['arrival', 0.65], ['hand', 0.5], ['day', 0.76], ['quiet', 0.65], ['glass', 0.65], ['proof', 0.5], ['coach', 0.5], ['close', 0.5]]) {
     const a = at(inAct(key, from))
     const b = at(inAct(key, 0.99))
@@ -280,33 +280,41 @@ test('the pose is continuous across every act boundary', () => {
   }
 })
 
-test('every hold is perfectly still: the phone and the camera move only during transitions', () => {
-  // Passive motion while a reveal holds (drifts, waves, a scroll-speed surge) made visitors motion sick, so once an
-  // act's transition has finished the pose must not change until the next act begins. These windows start after
-  // each act's last ramp ends.
+test('in a hold the phone only turns, one way and within its hold turn, and the camera never moves', () => {
+  // Oscillating, unprompted motion made visitors motion sick, so once an act's transition has finished the phone
+  // may only turn, monotonically and by no more than the act's hold turn (0.12 radians at most), as the visitor
+  // scrolls. Its position and the camera stay fixed. The windows start after each act's last ramp ends.
   const holds = { arrival: [0.7, 0.99], hand: [0.55, 0.99], day: [0.2, 0.99], glass: [0.55, 0.99], proof: [0.55, 0.79], coach: [0.55, 0.99], close: [0.75, 0.99] }
+  const yawOf = (pose) => Math.atan2(pose.phone.normal[0], pose.phone.normal[2])
   for (const narrow of [false, true]) {
     for (const [key, [from, to]] of Object.entries(holds)) {
-      const a = at(inAct(key, from), narrow)
-      const b = at(inAct(key, to), narrow)
-      for (let i = 0; i < 3; i++) {
-        const where = `${key} (${narrow ? 'narrow' : 'wide'})`
-        assert.ok(near(a.phone.pos[i], b.phone.pos[i], 1e-9), `${where} phone.pos[${i}] moves while holding`)
-        assert.ok(near(a.phone.normal[i], b.phone.normal[i], 1e-9), `${where} phone turns while holding`)
-        assert.ok(near(a.camera.pos[i], b.camera.pos[i], 1e-9), `${where} camera moves while holding`)
+      const where = `${key} (${narrow ? 'narrow' : 'wide'})`
+      const samples = Array.from({ length: 12 }, (_, k) => at(inAct(key, from + ((to - from) * k) / 11), narrow))
+      for (const pose of samples) {
+        for (let i = 0; i < 3; i++) {
+          assert.ok(near(samples[0].phone.pos[i], pose.phone.pos[i], 1e-9), `${where} phone.pos[${i}] moves while holding`)
+          assert.ok(near(samples[0].camera.pos[i], pose.camera.pos[i], 1e-9), `${where} camera moves while holding`)
+        }
       }
+      const yaws = samples.map(yawOf)
+      const steps = yaws.slice(1).map((y, k) => y - yaws[k])
+      assert.ok(steps.every((d) => d >= -1e-9) || steps.every((d) => d <= 1e-9), `${where} turns back and forth while holding`)
+      assert.ok(Math.abs(yaws.at(-1) - yaws[0]) <= 0.121, `${where} turns more than its hold turn: ${yaws.at(-1) - yaws[0]}`)
     }
   }
 })
 
-test('the pointer turns the phone toward it but never moves the camera or the room', () => {
+test('the pointer turns the phone toward it but never moves the camera or changes the room', () => {
   const local = inAct('hand', 0.8)
   const rest = poseAt({ progress: local, windows, backdrops, narrow: false, aspect: 1.6, interaction: still, poseFrames: PARKIWELL.pose.frames })
   const leaning = poseAt({ progress: local, windows, backdrops, narrow: false, aspect: 1.6, interaction: { dragYaw: 0, tiltX: 1, tiltY: -1 }, poseFrames: PARKIWELL.pose.frames })
   const turn = Math.acos(Math.min(1, rest.phone.normal.reduce((sum, v, i) => sum + v * leaning.phone.normal[i], 0)))
-  assert.ok(turn > 0.05 && turn < 0.12, `the phone leans about 5 degrees at the stage's corner: ${turn} rad`)
+  assert.ok(turn > 0.28 && turn < 0.4, `the phone turns about 20 degrees toward the stage's corner: ${turn} rad`)
+  // The screen faces the pointer: with the pointer at the right and up, the screen side (-normal) turns right and up.
+  assert.ok(-leaning.phone.normal[0] > -rest.phone.normal[0] && -leaning.phone.normal[1] > -rest.phone.normal[1], 'the screen turns toward the pointer')
   for (let i = 0; i < 3; i++) assert.ok(near(rest.camera.pos[i], leaning.camera.pos[i], 1e-12), 'the camera ignores the pointer')
-  assert.deepEqual(rest.backdrop, leaning.backdrop, 'the room ignores the pointer')
+  // The composite shifts the room a little against the pointer for depth, but which rooms show and how they blend never depends on it.
+  assert.deepEqual(rest.backdrop, leaning.backdrop, 'the room choice ignores the pointer')
 })
 
 test('the phone keeps one height through the chapter', () => {
@@ -807,4 +815,21 @@ test('the proof camera follows the code layer, which sits centred in the space r
 
 test('the screen half-extents keep the 1320x2868 capture aspect', () => {
   assert.ok(Math.abs(PHONE.sx / PHONE.sy - 1320 / 2868) < 0.002)
+})
+
+test('rest points mark each finished state in order: every act, and each day card before the finished row', () => {
+  for (const narrow of [false, true]) {
+    const points = restPoints(windows, narrow)
+    assert.equal(points.length, windows.length + 4)
+    for (let i = 1; i < points.length; i++) assert.ok(points[i] > points[i - 1], `rest ${i} is out of order (${narrow ? 'narrow' : 'wide'})`)
+    assert.ok(points[0] > 0 && points.at(-1) < 1)
+    const day = w('day')
+    assert.equal(points.filter((p) => p >= day.start && p < day.end).length, 5, 'four card holds and the finished row')
+    // Each rest sits where its act has finished its transition: the pose there matches the pose a little later.
+    for (const p of points) {
+      const a = at(p, narrow)
+      const b = at(Math.min(p + 0.002, 1), narrow)
+      for (let i = 0; i < 3; i++) assert.ok(Math.abs(a.camera.pos[i] - b.camera.pos[i]) < 0.01, `the camera is mid-move at rest ${p}`)
+    }
+  }
 })

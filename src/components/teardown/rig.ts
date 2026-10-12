@@ -11,9 +11,11 @@
  * read, and the day act's row lands at 76%, since its four cards each take a
  * spotlight in turn. Nothing moves the pose between a reveal and
  * the next act's transition: no drift, no wave, and no scroll-speed surge,
- * since passive motion of the product and the camera made visitors motion
- * sick. Only the visitor turns the phone outside a transition: it leans
- * toward the pointer (TILT) and a drag turns it further. Nothing reads the clock: one progress always
+ * since oscillating, unprompted motion of the product and the camera made
+ * visitors motion sick. Outside a transition the phone moves only in ways the
+ * visitor drives: it turns slowly one way as they scroll through a hold
+ * (HOLD_TURN), turns and shifts toward the pointer (TILT, POINTER_SHIFT), and
+ * turns further under a drag. The camera never moves outside a transition. Nothing reads the clock: one progress always
  * yields one pose, which the glide in glide.ts relies on.
  *
  * World units: the phone is 1.51 tall. The camera never rotates: it looks
@@ -50,6 +52,10 @@ export const MAX_DRAG = 0.7
  * than half its projected width, so no layer hides behind the one in front.
  */
 export const EXPLODE_DIRECTION = { normal: 0.6, right: 0.8 } as const
+/** How much further the code layer moves out along the fan during the proof close-up, world units. */
+const PROOF_SLIDE = 0.16
+/** How far the proof close-up dims the lit body (the chassis, its parts, the frame), as a fraction of full light. */
+const BODY_DIM = 0.6
 /**
  * Screen the main plane shows in each act. The hand act shows the symptom
  * form, which its accessibility callouts describe, and the day and quiet acts
@@ -165,6 +171,14 @@ const SPOT = { x: 0.72, height: 0.66, in: 0.3, out: 0.6 } as const
  * card still crossed in front of the receding phone.
  */
 const FOLD = { step: 0.1, span: 0.3, back: 0.5, fade: [0.45, 0.8] } as const
+/**
+ * The shape of a card's flight, world units and radians. On the way to the spotlight the path bows `peelUp` up
+ * and `peelToward` toward the camera, so the card lifts off the screen instead of sliding across it, and tips
+ * forward by up to `peelTilt` mid-flight. On the way to its slot it bows `settleUp` up and tips by `settleTilt`.
+ * Each bow and tip is a single arc that is zero at both ends of its leg. The card's turn starts `lag` of the leg
+ * after its move, so it turns as it travels rather than pivoting in place.
+ */
+const FLIGHT = { peelUp: 0.1, peelToward: 0.14, peelTilt: 0.12, settleUp: 0.12, settleTilt: 0.08, lag: 0.15 } as const
 /** Camera depth of a held card, world units: the depth at which the screen's full height spans SPOT.height of the frame. */
 const SPOT_DEPTH = (FOCAL * PHONE.sy) / SPOT.height
 /**
@@ -226,12 +240,24 @@ export interface Interaction {
 }
 
 /**
- * How far the phone leans toward the pointer at the stage's edges, radians.
- * Enough that the frame and the glass catch the light as the pointer moves,
- * so the phone reads as a solid object, and small enough to stay calm. The
- * room behind never follows the pointer.
+ * How far the phone turns to face the pointer at the stage's edges, radians
+ * (about 17 degrees of yaw and 10 of pitch), and how far it shifts toward it,
+ * world units. Large enough that the frame, the glass, and the screen's
+ * sheen visibly turn with the hand, so the phone reads as a solid object
+ * that answers the visitor. The camera never follows the pointer.
  */
-const TILT = { yaw: 0.08, pitch: 0.05 } as const
+const TILT = { yaw: 0.3, pitch: 0.17 } as const
+const POINTER_SHIFT = { x: 0.05, y: 0.035 } as const
+/**
+ * The slow turn each act adds while its reveal holds, radians. It rises over
+ * the act's second half as the visitor scrolls, always in one direction, and
+ * eases back out during the next act's incoming transition, so every act
+ * still lands on its designed pose and nothing swings back and forth. The day
+ * and quiet acts hold still, since their cards and their silence carry the
+ * motion, and so does proof, whose camera follows the code layer and would
+ * swing with it while the visitor reads.
+ */
+const HOLD_TURN: Readonly<Record<ActKey, number>> = { arrival: 0.12, hand: -0.1, day: 0, quiet: 0, glass: -0.12, proof: 0, coach: 0.1, close: -0.1 }
 
 /**
  * A textured plane. `right` and `up` are orthogonal and share one length,
@@ -263,6 +289,8 @@ export interface Pose {
   decode: number
   /** Chassis interior brightness, 0 to 1. */
   internals: number
+  /** Scale on the scene's lights and environment, 1 normally. The proof close-up dims the lit body so the unlit code panel reads on its own. */
+  bodyLight: number
   glass: { center: Vec3; light: number; sweep: number; band: number }
   screen: PlanePose
   code: PlanePose
@@ -294,6 +322,13 @@ const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 const mul = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s]
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+/** Quintic ease: zero velocity and zero acceleration at both ends, so a card leaves and lands without a jolt. */
+const smoother = (t: number) => {
+  const x = clamp01(t)
+  return x * x * x * (x * (x * 6 - 15) + 10)
+}
+/** Quadratic Bezier from a to b bending toward c. */
+const bezier = (a: Vec3, c: Vec3, b: Vec3, t: number): Vec3 => lerp3(lerp3(a, c, t), lerp3(c, b, t), t)
 
 /** Orthonormal basis of a body turned by yaw about world y, then by pitch about its own x. Positive pitch leans the top away. */
 export function basis(yaw: number, pitch: number): { right: Vec3; up: Vec3; normal: Vec3 } {
@@ -308,6 +343,31 @@ function plane(center: Vec3, right: Vec3, up: Vec3, halfW: number, halfH: number
 /** World point on a plane at (u, v), each -1 to 1 across the plane's extents. v below -1 is past the bottom edge. */
 export function planePoint(plane: PlanePose, u: number, v: number): Vec3 {
   return add(plane.center, add(mul(plane.right, u * plane.halfW), mul(plane.up, v * plane.halfH)))
+}
+
+/** Where each act's finished state holds, as a fraction of the act, for the scroll locks. */
+const REST_LOCAL: Readonly<Record<ActKey, number>> = { arrival: 0.8, hand: 0.75, day: 0.9, quiet: 0.85, glass: 0.7, proof: 0.68, coach: 0.75, close: 0.6 }
+
+/**
+ * Chapter progress values where a finished state holds, in order: one per
+ * act, plus each day card's spotlight (wide) or centred deck hold (narrow)
+ * before the day act's finished row. When the visitor pauses, the scroll
+ * locks ease the page to the nearest one, so every section lands and holds.
+ */
+export function restPoints(windows: readonly ActWindow[], narrow: boolean): number[] {
+  const points: number[] = []
+  for (const win of windows) {
+    const at = (local: number) => win.start + (win.end - win.start) * local
+    if (win.key === 'day') {
+      for (let i = 0; i < 4; i++) {
+        points.push(narrow
+          ? at(DECK.start + i * DECK.step + ((DECK.hold[0] + DECK.hold[1]) / 2) * DECK.window)
+          : at(CARD_START + i * CARD_STEP + ((SPOT.in + SPOT.out) / 2) * CARD_WINDOW))
+      }
+    }
+    points.push(at(REST_LOCAL[win.key]))
+  }
+  return points
 }
 
 /**
@@ -375,7 +435,16 @@ export function poseAt(input: RigInput): Pose {
   yaw += 0.4 * rise(proof)
   yaw += (narrow ? 0.05 : 0.1) * rise(coach)
   yaw += (narrow ? 0.05 : 0.2) * rise(close)
-  yaw += interaction.dragYaw + interaction.tiltX * TILT.yaw
+  // Positive yaw turns the screen toward the frame's left and positive pitch toward its top, so both subtract to
+  // turn the screen toward the pointer.
+  yaw += interaction.dragYaw - interaction.tiltX * TILT.yaw
+  // A hold's turn eases out over the next act's incoming turn, which in the day act ends at DAY_FORM, so the
+  // phone faces the camera as card 0 reaches the spotlight.
+  windows.forEach((win, i) => {
+    const next = windows[i + 1]
+    const leaving = next ? rise(localOf(windows, next.key, p), next.key === 'day' ? DAY_FORM : RAMP_END) : 0
+    yaw += HOLD_TURN[win.key] * ramp(localOf(windows, win.key, p), RAMP_END, 1) * (1 - leaving)
+  })
 
   let pitch = 0.95 - 0.95 * rise(arrival, REVEAL_END)
   pitch -= 0.08 * rise(hand)
@@ -386,7 +455,7 @@ export function poseAt(input: RigInput): Pose {
   // projects far larger than the far top edge, which puts the chassis low in the close-up frame.
   pitch -= 0.2 * rise(proof)
   pitch -= 0.1 * rise(close)
-  pitch += interaction.tiltY * TILT.pitch
+  pitch -= interaction.tiltY * TILT.pitch
 
   const { right, up, normal } = basis(yaw, pitch)
 
@@ -397,9 +466,9 @@ export function poseAt(input: RigInput): Pose {
   const reach = (dayDist * aspect) / FOCAL / DAY_VIEW
 
   // The phone holds one height for the whole chapter. Its moves are the acts' deliberate ones (the day row, the
-  // coach aside, the narrow recede), so nothing drifts while a reveal holds.
+  // coach aside, the narrow recede) and a small shift toward the pointer.
   const { index: actIndex, local: actLocal } = actAt(windows, p)
-  let phonePos: Vec3 = [0, 0, 0]
+  let phonePos: Vec3 = [interaction.tiltX * POINTER_SHIFT.x, -interaction.tiltY * POINTER_SHIFT.y, 0]
   if (narrow) {
     // The narrow day phone recedes behind the deck and returns through the quiet act.
     // It finishes receding as card 0 settles at the centre (DECK.start plus the first 0.3 of its window), so the
@@ -417,7 +486,9 @@ export function poseAt(input: RigInput): Pose {
   const fan = mul(toward, 1 / Math.hypot(toward[0], toward[1], toward[2]))
   const layer = (z: number, apart: number): Vec3 => add(add(phonePos, mul(normal, z)), mul(fan, apart))
   const screenCenter = layer(LAYER_Z.screen, 0.62 * explode * spread)
-  const codeCenter = layer(LAYER_Z.code, 0.3 * explode * spread)
+  // Through the proof close-up the code layer slides PROOF_SLIDE further out of the stack, clear of the gutted
+  // chassis, so it reads as a panel of its own and not as a sheet laid over the phone's parts.
+  const codeCenter = layer(LAYER_Z.code, (0.3 * explode + PROOF_SLIDE * rise(proof) * (1 - seated)) * spread)
   const glassCenter = layer(LAYER_Z.glass, 0.95 * explode * spread)
 
   // The quiet act takes the main screen's develop down to about two thirds, at full opacity, while the phone
@@ -475,7 +546,10 @@ export function poseAt(input: RigInput): Pose {
   // The proof camera eases onto the code layer over the first half of the act and follows it back into the phone
   // as the stack closes over the act's last 20%, so the code stays framed while the readout types and rests.
   const proofFocus = rise(proof) * (1 - rise(coach))
-  const target = lerp3([0, 0, 0], codeCenter, proofFocus)
+  // The camera follows half of the proof slide, so the code layer moves right in the frame as it leaves the
+  // stack while the chassis stays clear of the readout column.
+  const slideBack = mul(fan, -0.5 * PROOF_SLIDE * rise(proof) * (1 - seated) * spread)
+  const target = lerp3([0, 0, 0], add(codeCenter, slideBack), proofFocus)
   // The exploded stack fans toward the phone's right, so both shifts ease left during the glass act. Wide keeps
   // the stack near its callouts, then shifts right as proof focuses until the code layer's centre sits at 0.685
   // of the width, a little left of the middle of the space right of the copy rail, which keeps the fanned glass
@@ -521,20 +595,29 @@ export function poseAt(input: RigInput): Pose {
     // crossed the phone and one another as translucent sheets.
     const s = CARD_START + i * CARD_STEP
     const wnd = clamp01((day - s) / CARD_WINDOW)
-    const peel = ramp(wnd, 0, SPOT.in)
-    const settle = ramp(wnd, SPOT.out, 1)
+    const peelT = wnd / SPOT.in
+    const settleT = (wnd - SPOT.out) / (1 - SPOT.out)
+    const peel = smoother(peelT)
+    const settle = smoother(settleT)
+    const peelTurn = smoother((peelT - FLIGHT.lag) / (1 - FLIGHT.lag))
+    const settleTurn = smoother((settleT - FLIGHT.lag) / (1 - FLIGHT.lag))
     const home = ramp(quiet, FOLD.step * i, FOLD.step * i + FOLD.span)
     const step = i - 1.5
-    const y = 0
-    const slot: Vec3 = [(DAY_ROW.cardX + i * DAY_ROW.pitch) * reach, y, DAY_ROW.arcZ * Math.abs(step)]
-    const spot: Vec3 = [spotX, y, spotZ]
+    const slot: Vec3 = [(DAY_ROW.cardX + i * DAY_ROW.pitch) * reach, 0, DAY_ROW.arcZ * Math.abs(step)]
+    const spot: Vec3 = [spotX, 0, spotZ]
     const front = add(screenCenter, mul(normal, -DAY_ROW.lead))
-    const cardYaw = lerp(lerp(lerp(yaw, 0, peel), -DAY_ROW.arcYaw * step, settle), yaw, home)
-    const cardPitch = lerp(lerp(pitch, 0, peel), pitch, home)
+    const toSpot = bezier(front, add(lerp3(front, spot, 0.5), [0, FLIGHT.peelUp, -FLIGHT.peelToward]), spot, peel)
+    const toSlot = bezier(spot, add(lerp3(spot, slot, 0.5), [0, FLIGHT.settleUp, 0]), slot, settle)
+    const flight = wnd < SPOT.out ? toSpot : toSlot
+    // A held card turns toward the pointer at half the phone's reach, so the spotlight answers the hand too.
+    const facing = -interaction.tiltX * TILT.yaw * 0.5
+    const cardYaw = lerp(lerp(lerp(yaw, facing, peelTurn), -DAY_ROW.arcYaw * step, settleTurn), yaw, home)
+    const tip = FLIGHT.peelTilt * Math.sin(Math.PI * peel) * (1 - settle) + FLIGHT.settleTilt * Math.sin(Math.PI * settle)
+    const cardPitch = lerp(lerp(pitch, 0, peelTurn) + tip, pitch, home)
     const b = basis(cardYaw, cardPitch)
     const scale = lerp(lerp(1, DAY_ROW.scale, settle), 1, home)
-    const center = add(lerp3(lerp3(lerp3(front, spot, peel), slot, settle), phonePos, home), [0, 0, FOLD.back * ramp(home, 0, 0.5)])
-    const develop = ramp(wnd, 0, SPOT.in)
+    const center = add(lerp3(flight, phonePos, home), [0, 0, FOLD.back * ramp(home, 0, 0.5)])
+    const develop = smoother(peelT)
     const opacity = ramp(wnd, 0.06, 0.2) * (1 - ramp(home, FOLD.fade[0], FOLD.fade[1]))
     return plane(center, mul(b.right, scale), mul(b.up, scale), PHONE.sx, PHONE.sy, PHONE.sRadius, develop, opacity, key)
   })
@@ -563,6 +646,7 @@ export function poseAt(input: RigInput): Pose {
     gather,
     decode,
     internals: explode,
+    bodyLight: 1 - BODY_DIM * proofDim,
     // The glass light drives both the sheet's rim and its opacity in product.ts, so proof hides the fanned sheet,
     // whose rim otherwise outlines a clipped rectangle at the frame's top and right edges, and leaves the code layer
     // and the chassis in focus.

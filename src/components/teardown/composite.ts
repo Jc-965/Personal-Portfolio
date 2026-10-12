@@ -3,7 +3,7 @@
  * room (a softened photograph under a layer of colored glyphs, held still and
  * framed on its subject, whose glyphs cross cell by cell between rooms while
  * the photograph crossfades smoothly), the darkening behind
- * the copy, the product layer's glyph decode, shadow pool, and glow, and the
+ * the copy, the product layer's glyph decode and shadow pool, and the
  * coach skeleton. Everything is computed in linear light and written to the
  * canvas as sRGB exactly once, here, so the renderer's own output conversion
  * stays off.
@@ -97,6 +97,7 @@ uniform vec4 uCopyMask;
 uniform float uCopyNarrow;
 uniform float uPixelRatio;
 uniform sampler2D uProduct;
+uniform vec2 uPointer;
 uniform float uDecode;
 uniform float uGather;
 uniform sampler2D uAtlas;
@@ -157,13 +158,17 @@ vec2 roomSize(float aspect) {
   return size * .8;
 }
 
-// The window's texture coordinate at canvas point q. The room never moves: the window is centred on the focus
-// point, held inside the photograph by half the window plus a .004 edge pad. Motion in the background that is
-// independent of the scroll and the product reads as the floor moving, which is the motion that makes visitors
-// queasy.
+// How far the room shifts against the pointer at the stage's edges, in texture units: about a sixth of the old
+// parallax, enough that the phone visibly floats in front of the room when the hand moves.
+const vec2 PARALLAX = vec2(.012, .008);
+
+// The window's texture coordinate at canvas point q. The window is centred on the focus point, held inside the
+// photograph by half the window, a .004 edge pad, and the parallax, and shifts only against the pointer. Scroll
+// never moves the room: background motion independent of the visitor's hand reads as the floor moving, which is
+// the motion that made visitors queasy.
 vec2 roomUv(vec2 size, vec2 focus, vec2 q) {
-  vec2 margin = size * .5 + .004;
-  return clamp(focus, margin, 1.0 - margin) + (q - .5) * size;
+  vec2 margin = size * .5 + .004 + PARALLAX;
+  return clamp(focus, margin, 1.0 - margin) - uPointer * PARALLAX + (q - .5) * size;
 }
 
 // log2 of photo texels per device pixel. Negative when the photo is smaller than the frame.
@@ -376,21 +381,17 @@ void main() {
   }
   product.rgb = shoulder(product.rgb);
 
-  // The shadow pool sits a little below the product, as if lit from above, and the glow only shows outside it.
-  // Both scale with the decode, so the loose characters of the arrival and the close cast no shadow and the
-  // dissolved phone leaves no dark print on the room.
+  // The shadow pool sits a little below the product, as if lit from above. It scales with the decode, so the
+  // loose characters of the arrival and the close cast no shadow and the dissolved phone leaves no dark print on
+  // the room. There is no glow: a blurred copy of the product laid over the page read as a soft-focus filter.
   float shadow = textureLod(uProduct, s + vec2(0.0, .012), 5.5 + lodScale).a * uDecode;
-  vec3 glow = textureLod(uProduct, s, 4.0 + lodScale).rgb * .22 * uDecode;
   // Back to front: the shadow pool darkens the page, the room's photograph and then its glyphs sit on it, the
-  // copy mask shades them, the glow lights the page around the product, and the product covers all of it. The
-  // glow's alpha is its brightest channel, which keeps the pixel a valid premultiplied colour and costs nothing
-  // over the near-black page. The copy darkening arrives and leaves with the room, so the pinned stage draws
-  // nothing at all until the room starts to print.
+  // copy mask shades them, and the product covers all of it, pixel for pixel. The copy darkening arrives and
+  // leaves with the room, so the pinned stage draws nothing at all until the room starts to print.
   vec4 color = vec4(0.0, 0.0, 0.0, .6 * shadow * seam);
   color = over(color, vec4(photo * photoCover, photoCover));
   color = over(color, vec4(roomInk * roomCover, roomCover));
   color = over(color, vec4(0.0, 0.0, 0.0, (1.0 - shade) * ${glslFloat(COPY_DARK)} * seam * uReveal));
-  color = over(color, vec4(glow, max(glow.r, max(glow.g, glow.b))));
   color = over(color, product);
 
   if (uCoach > .01) {
@@ -488,6 +489,7 @@ export function createComposite(): Composite {
       uCopyNarrow: { value: 0 },
       uPixelRatio: { value: 1 },
       uProduct: { value: null },
+      uPointer: { value: new THREE.Vector2() },
       uDecode: { value: 1 },
       uGather: { value: 1 },
       uAtlas: { value: null },

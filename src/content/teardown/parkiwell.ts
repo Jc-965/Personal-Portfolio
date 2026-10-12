@@ -13,7 +13,7 @@
 import type { TeardownStory } from './types.ts'
 import { PARKIWELL_POSE } from './parkiwellPose.ts'
 
-const SCREEN = { width: 943, height: 2048 }
+const SCREEN = { width: 1320, height: 2868 }
 
 export const PARKIWELL: TeardownStory = {
   id: 'parkiwell',
@@ -35,8 +35,9 @@ export const PARKIWELL: TeardownStory = {
       lines: ['Designed for hands with a tremor.'],
       // Each callout states a fact about the control its leader lands beside, in screen order from the top so
       // the leader lines never cross, and none repeats the screen's own text (its intro already says entries
-      // backfill to 2000). The anchors are measured on public/ParkiWell/hd/log.webp (943 by 2048): every
-      // control's left edge is at x 43, so u -0.94 puts the leader's tip at x 28, 15 px left of it, and v is
+      // backfill to 2000). The anchors were measured on log.webp at 943 by 2048 and are fractions, so they hold at the
+      // native 1320 by 2868: every control's left edge is at x 43 of 943, so u -0.94 puts the leader's tip at x 28,
+      // 15 px left of it, and v is
       // each control's vertical centre. The severity chips are 48 pt tall (lib/Manage/editLog.dart, minHeight
       // 48) and carry the five labels, the date card's picker runs from firstDate 2000 to lastDate now, and the
       // Save button disables itself while a save is in flight, so a second tap records nothing.

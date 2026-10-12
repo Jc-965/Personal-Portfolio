@@ -56,7 +56,10 @@ const FRAME_SLACK = 3
  * Time constants of the pointer easing, seconds. The tilt follows the pointer closely enough to feel like a
  * response, not a drift, and a drag keeps up with the hand.
  */
-const EASE = { dragYaw: 0.15, tiltX: 0.3, tiltY: 0.3 } as const
+const EASE = { dragYaw: 0.15, tiltX: 0.18, tiltY: 0.18 } as const
+/** The key light's resting position in three.js space, and how far it swings with the pointer at the stage's edges. */
+const KEY_REST: [number, number, number] = [-2.2, 2.6, 3]
+const KEY_SWING: [number, number] = [4, 2.8]
 /** An interaction this close to its goal, in its own units, lands on it and stops the loop. */
 const EASE_REST = 1e-3
 /**
@@ -108,7 +111,7 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
     const top = new THREE.DirectionalLight('#fff4e4', 1.5)
     top.position.set(0.4, 5, 2)
     const key = new THREE.DirectionalLight('#ffe2b8', 1)
-    key.position.set(-2.2, 2.6, 3)
+    key.position.set(...KEY_REST)
     const rim = new THREE.DirectionalLight('#ffd9a8', 0.8)
     rim.position.set(-3, 1.4, -3)
     scene.add(sky, top, key, rim)
@@ -137,7 +140,8 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
     composite.material.uniforms.uProduct.value = target.texture
 
     const camera = new THREE.PerspectiveCamera(verticalFov(FOCAL), 1, 0.05, 40)
-    return { scene, camera, product, target, composite, dispose }
+    const lights = [sky, top, key, rim].map((light) => ({ light, base: light.intensity }))
+    return { scene, camera, product, target, composite, key, lights, dispose }
   } catch (error) {
     dispose()
     throw error
@@ -204,16 +208,16 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     fail(error)
     return () => {}
   }
-  const { scene, camera, product, target, composite, dispose: disposeStage } = gpu
+  const { scene, camera, product, target, composite, key, lights, dispose: disposeStage } = gpu
   const cu = composite.material.uniforms
   const planes: PlaneMesh[] = [product.screen, ...product.cards]
 
   const windows = actWindows(story.acts)
   const actBackdrops = story.acts.map((a) => a.backdrop)
-  // Screens and the code layer turn away from the camera in the exploded fan, and 8x keeps their UI text
+  // Screens and the code layer turn away from the camera in the exploded fan, and up to 16x keeps their UI text
   // sharp there. Rooms are sampled only through textureLod, which has no derivatives, so the value does not
   // apply to them.
-  const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
+  const anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy())
   const loader = new THREE.TextureLoader()
   const owned: THREE.Texture[] = []
   const drawingBuffer = new THREE.Vector2(1, 1)
@@ -393,6 +397,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     cu.uBackMix.value = roomA >= 0 && roomB >= 0 ? mix : 0
     cu.uBackGain.value = first ? gain : 0
     cu.uGlyphOnly.value = glyphOnly
+    cu.uPointer.value.set(interaction.tiltX, -interaction.tiltY)
     // The room prints in from, and dissolves back into, the product's place, in device px from the bottom left.
     const at = projectPoint(pose, pose.phone.pos, aspect)
     cu.uReveal.value = pose.backdrop.reveal
@@ -438,6 +443,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     if (act !== lastAct) { lastAct = act; copyDirty = true }
 
     product.update(pose)
+    for (const { light, base } of lights) light.intensity = base * pose.bodyLight
+    scene.environmentIntensity = pose.bodyLight
+    // The warm key light swings with the pointer, so the frame's edges and the glass catch it as the hand moves.
+    key.position.set(KEY_REST[0] + interaction.tiltX * KEY_SWING[0], KEY_REST[1] - interaction.tiltY * KEY_SWING[1], KEY_REST[2])
     applyPlane(product.screen, pose.screen)
     applyPlane(product.code, pose.code)
     product.cards.forEach((card, i) => applyPlane(card, pose.cards[i]))

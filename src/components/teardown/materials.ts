@@ -58,6 +58,7 @@ void main() {
 
 const SCREEN_FRAGMENT = /* glsl */ `
 uniform sampler2D uMap;
+const float SHARPEN = -0.55;
 uniform sampler2D uAtlas;
 uniform float uGlyphs;
 uniform vec2 uCell;
@@ -84,7 +85,10 @@ void main() {
   vec2 dy = dFdy(vUv);
   vec2 centerUv = vUv - dx * (local.x - .5) * uCell.x - dy * (local.y - .5) * uCell.y;
   float lodCell = log2(max(1.0, max(length(dx * uTexSize), length(dy * uTexSize)) * uCell.y));
-  vec4 developed = texture(uMap, vUv);
+  // A small negative bias keeps trilinear filtering from blending in the half-resolution mip while the screen draws
+  // at one to two thirds of the capture's size, which softened the UI's text. Anisotropic filtering covers the
+  // turned views, so the bias stays small enough not to shimmer.
+  vec4 developed = texture(uMap, vUv, SHARPEN);
   if (mask <= 0.0) discard;
 
   // Cells develop in a scan from the screen's top left corner to its bottom right, with a little jitter, each over

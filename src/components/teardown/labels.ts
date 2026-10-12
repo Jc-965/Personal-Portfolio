@@ -69,7 +69,10 @@ const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(h
 /** Each day card of `pose` in stage px, in story order. */
 export function cardShots(pose: Pose, aspect: number, width: number, height: number): CardShot[] {
   return pose.cards.map((card) => {
-    const anchor = projectPoint(pose, [card.center[0], card.center[1] - card.halfH * LABEL_DROP, card.center[2]], aspect)
+    // Measured along the card's own up axis, so a card that tips or turns in flight keeps its label under it.
+    const upLength = Math.hypot(card.up[0], card.up[1], card.up[2]) || 1
+    const drop = (card.halfH * LABEL_DROP) / upLength
+    const anchor = projectPoint(pose, [card.center[0] - card.up[0] * drop, card.center[1] - card.up[1] * drop, card.center[2] - card.up[2] * drop], aspect)
     const rect = projectRect(pose, card, aspect)
     return {
       anchor: anchor && { x: anchor.x * width, y: anchor.y * height },
