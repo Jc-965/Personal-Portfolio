@@ -238,6 +238,40 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     })
   }
 
+  /** Programs whose first use (info logs and uniform table) has run, so no draw waits on it. */
+  const warmed = new WeakSet<object>()
+  /**
+   * Compiles `object`'s programs for `island`'s scene without blocking, and resolves once each new program has linked
+   * and had its first use, one per frame. Programs key on the target they draw into, so the compile runs with the
+   * product target bound (no tone mapping, linear output). Programs compiled with the canvas bound do not match the
+   * draw's and compile again, synchronously, at the world's first draw. A program that fails marks `island` failed and
+   * the promise never resolves.
+   */
+  const compileFor = (island: Island, object: THREE.Object3D): Promise<void> => {
+    const scene = island.scene
+    if (!scene) return Promise.resolve()
+    // compile() creates every program synchronously, including the second program of a material shared by a mesh
+    // and an instanced mesh, so the programs new since this call are exactly the ones to warm.
+    const before = new Set(renderer.info.programs ?? [])
+    renderer.setRenderTarget(target)
+    const compiling = renderer.compileAsync(object, scene.camera, scene.scene)
+    renderer.setRenderTarget(null)
+    const cold = (renderer.info.programs ?? []).filter((program) => !before.has(program) && !warmed.has(program))
+    cold.forEach((program) => warmed.add(program))
+    return compiling.then(() => new Promise<void>((resolve) => {
+      const warm = () => {
+        if (disposed || failed || island.status === 'failed') return
+        const program = cold.shift()
+        if (!program) { resolve(); return }
+        current = island
+        program.getUniforms()
+        current = null
+        requestAnimationFrame(warm)
+      }
+      warm()
+    }))
+  }
+
   const loadScene = (island: Island) => {
     if (island.status !== 'idle') return
     island.status = 'loading'
@@ -250,20 +284,22 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
           load,
           // A scene that changed outside update (an async load, a click) has a stale shadow map.
           invalidate: () => { island.shadowed = false; start() },
+          compile: (object) => compileFor(island, object),
           now: () => (born ? (performance.now() - born) / 1000 : 0),
           story: island.entry.story,
           facts: island.entry.facts,
         })
-        island.status = 'ready'
-        current = island
-        renderer.compile(island.scene.scene, island.scene.camera)
-        current = null
+        // The world draws once its programs are ready, so its first frame never waits on a compile.
+        compileFor(island, island.scene.scene).then(() => {
+          if (island.status !== 'loading') return
+          island.status = 'ready'
+          start()
+        })
       } catch (error) {
         console.warn(`[roles] ${island.entry.story.id} failed to build`, error)
         island.status = 'failed'
         onIslandFailed(island.entry.story.id)
       }
-      start()
     }, (error) => {
       console.warn(`[roles] ${island.entry.story.id} failed to load`, error)
       island.status = 'failed'
@@ -463,9 +499,13 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     renderer.setRenderTarget(target)
     renderer.setClearColor(0x000000, 0)
     renderer.clear(true, true, false)
+    // The composite samples the product's mipmaps only while decoding, so a resolved world skips generating them.
+    // The flag is back on outside this render, so the storage three allocates after a resize keeps its mip levels.
+    target.texture.generateMipmaps = o.decode < 1
     current = island
     renderer.render(scene.scene, scene.camera)
     current = null
+    target.texture.generateMipmaps = true
     target.viewport.set(0, 0, buffer.x, buffer.y)
     target.scissorTest = false
     renderer.setRenderTarget(null)

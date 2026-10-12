@@ -19,6 +19,13 @@ const showRow = async (page: Page, id: string) => {
   return row
 }
 
+/**
+ * Waits for a journey's world to draw its first frame (RoleJourney's data-ready). Headless runs draw with software
+ * WebGL, which compiles a world's pipelines during that frame and can hold the page for seconds, so a test leaves a
+ * journey only after it.
+ */
+const drawn = (page: Page, id: string) => expect(page.locator(`.role-journey--${id}`)).toHaveAttribute('data-ready', 'true', { timeout: 30_000 })
+
 for (const { id, company } of roles) {
   test(`the ${company} row opens its journey and Back returns to the row`, async ({ page }) => {
     await page.goto('/')
@@ -30,6 +37,7 @@ for (const { id, company } of roles) {
     await expect(page.locator(`.role-journey--${id}`)).toBeVisible()
     await expect(page.locator('.hero')).toBeHidden()
     await expect(page).toHaveTitle(new RegExp(company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    await drawn(page, id)
     await page.goBack()
     await expect(page).toHaveURL(/\/$/)
     await expect(page.locator('html')).not.toHaveClass(/roles-open/)
@@ -52,9 +60,11 @@ test('the stops rail moves between roles without adding history entries', async 
   const row = await showRow(page, first.id)
   await row.getByRole('button', { name: /explore the journey/i }).click()
   await expect(page).toHaveURL(new RegExp(`/${first.id}$`))
+  await drawn(page, first.id)
   await page.getByRole('navigation', { name: 'Other roles' }).getByRole('button', { name: second.company }).click()
   await expect(page).toHaveURL(new RegExp(`/${second.id}$`))
   await expect(page.locator(`.role-journey--${second.id}`)).toBeVisible()
+  await drawn(page, second.id)
   await page.goBack()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('html')).not.toHaveClass(/roles-open/)
@@ -75,6 +85,7 @@ test('Escape closes a role journey', async ({ page }) => {
   const row = await showRow(page, id)
   await row.getByRole('button', { name: /explore the journey/i }).click()
   await expect(page.locator('html')).toHaveClass(/roles-open/)
+  await drawn(page, id)
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('html')).not.toHaveClass(/roles-open/)
@@ -111,11 +122,12 @@ test('without WebGL2 the rows keep their posters', async ({ page }) => {
 
 test('the Journey section and a role journey pass serious accessibility checks', async ({ page }) => {
   await page.goto('/')
-  // The header fades in as it enters the viewport, and a check mid-fade measures its text at partial opacity.
+  // The header fades in as it enters the viewport, and a check mid-fade measures its text at partial opacity. The
+  // rows' worlds compiling under headless software WebGL can hold the page for seconds during the fade.
   await page.locator('#journey').scrollIntoViewIfNeeded()
   const header = page.locator('#journey > .section__header')
   await header.scrollIntoViewIfNeeded()
-  await expect(header).toHaveCSS('opacity', '1')
+  await expect(header).toHaveCSS('opacity', '1', { timeout: 20_000 })
   await showRow(page, roles[0].id)
   let results = await new AxeBuilder({ page }).include('#journey').analyze()
   let blocking = results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')

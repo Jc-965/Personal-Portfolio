@@ -93,20 +93,31 @@ function RolesSection() {
     const root = rootRef.current
     if (!root || mode !== 'gl') return
     let intersecting = false
+    // Once near, a scroll event skips the scrollY read, which forces a layout after a frame's style writes.
+    let isNear = false
     const check = () => {
-      if (intersecting && (window.scrollY > 0 || openIdRef.current)) setNear(true)
+      if (!isNear && intersecting && (window.scrollY > 0 || openIdRef.current)) {
+        isNear = true
+        setNear(true)
+      }
     }
     const boot = new IntersectionObserver(([entry]) => {
       intersecting = entry.isIntersecting
       check()
     }, { rootMargin: BOOT_MARGIN })
     const far = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting && !openIdRef.current) setNear(false)
+      if (!entry.isIntersecting && !openIdRef.current) {
+        isNear = false
+        setNear(false)
+      }
     }, { rootMargin: RELEASE_MARGIN })
     boot.observe(root)
     far.observe(root)
     window.addEventListener('scroll', check, { passive: true })
-    if (openIdRef.current) setNear(true)
+    if (openIdRef.current) {
+      isNear = true
+      setNear(true)
+    }
     return () => {
       boot.disconnect()
       far.disconnect()

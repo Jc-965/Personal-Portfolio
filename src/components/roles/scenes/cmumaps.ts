@@ -321,8 +321,6 @@ totalEmissiveRadiance += uAccent * 0.35 * max(step(abs(vBuilding - uHover), 0.1)
   const tops: number[] = []
   /** Each building's order in the rise wave, 0 to 1, by distance from the campus centre. */
   let waveOrder: number[] = []
-  let outlines: THREE.LineSegments | null = null
-  let doors: THREE.InstancedMesh | null = null
   let points: THREE.Points | null = null
   const outlineMaterial = ownMaterial(new THREE.LineBasicMaterial({ color: '#2f8a52', transparent: true, opacity: 0.9 }))
   const doorMaterial = mats.get('#fff3b0', { emissive: '#ffd34d', emissiveIntensity: 2.4 })
@@ -411,11 +409,10 @@ void main() {
       parts.forEach((g) => g.dispose())
       if (!campusGeometry) return
       campusGeometry.computeVertexNormals()
-      campus = new THREE.Mesh(campusGeometry, buildingMaterial)
-      campus.customDepthMaterial = depthMaterial
-      campus.castShadow = true
-      campus.receiveShadow = true
-      world.add(campus)
+      const campusMesh = new THREE.Mesh(campusGeometry, buildingMaterial)
+      campusMesh.customDepthMaterial = depthMaterial
+      campusMesh.castShadow = true
+      campusMesh.receiveShadow = true
       const far = Math.max(...centres.map((c) => Math.hypot(c.x, c.z)))
       waveOrder = centres.map((c) => Math.hypot(c.x, c.z) / far)
 
@@ -424,25 +421,32 @@ void main() {
       const pointGeometry = own(new THREE.BufferGeometry())
       pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(ringPoints, 3))
       pointGeometry.setAttribute('aDelay', new THREE.Float32BufferAttribute(Array.from({ length: ringPoints.length / 3 }, () => random()), 1))
-      points = new THREE.Points(pointGeometry, pointMaterial)
-      points.frustumCulled = false
-      world.add(points)
+      const pointCloud = new THREE.Points(pointGeometry, pointMaterial)
+      pointCloud.frustumCulled = false
       // Layer two: every footprint's outline, carried by its sheet.
-      outlines = new THREE.LineSegments(own(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(outline, 3))), outlineMaterial)
-      layers[1].group.add(outlines)
+      const outlineLines = new THREE.LineSegments(own(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(outline, 3))), outlineMaterial)
       // Layer three: the entrances, carried by their sheet, which land and light at the doors.
       const doorList = buildings.flatMap((b) => b.entrances)
-      doors = new THREE.InstancedMesh(doorGeometry, doorMaterial, doorList.length)
+      const doorMesh = new THREE.InstancedMesh(doorGeometry, doorMaterial, doorList.length)
       const m = new THREE.Matrix4()
       doorList.forEach(([x, y], i) => {
         const w = toWorld(x, y)
-        doors?.setMatrixAt(i, m.makeTranslation(w.x, 0.008, w.z))
+        doorMesh.setMatrixAt(i, m.makeTranslation(w.x, 0.008, w.z))
       })
-      layers[2].group.add(doors)
-      pinned = buildings.findIndex((b) => b.code === START_PIN)
-      paperTexture(buildings, paperCanvas)
-      paper.needsUpdate = true
-      ctx.invalidate()
+      // The campus, its layers' data, and the printed footprints arrive together once the campus's programs have
+      // compiled, so its first frame never waits on a compile.
+      return ctx.compile(new THREE.Group().add(campusMesh, pointCloud, outlineLines, doorMesh)).then(() => {
+        if (disposed) return
+        campus = campusMesh
+        points = pointCloud
+        world.add(campusMesh, pointCloud)
+        layers[1].group.add(outlineLines)
+        layers[2].group.add(doorMesh)
+        pinned = buildings.findIndex((b) => b.code === START_PIN)
+        paperTexture(buildings, paperCanvas)
+        paper.needsUpdate = true
+        ctx.invalidate()
+      })
     })
     .catch((error) => console.warn('[roles] the CMUMaps campus failed to load', error))
 

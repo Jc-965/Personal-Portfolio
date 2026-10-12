@@ -249,6 +249,7 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
       className={`teardown role-journey role-journey--${story.id} teardown--journey is-journey ${isStatic ? 'teardown--static' : 'is-gl'}`}
       style={{ '--teardown-travel': travel, '--role-accent': facts.accent } as CSSProperties}
       data-act={isStatic ? undefined : actKey}
+      data-ready={ready || undefined}
       aria-labelledby={titleId}
     >
       <div ref={setStageEl} className="teardown__stage">

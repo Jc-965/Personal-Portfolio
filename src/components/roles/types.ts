@@ -125,6 +125,11 @@ export interface IslandContext {
   load(src: string): { texture: THREE.Texture; ready: boolean }
   /** Asks for another frame, for a scene whose state changed outside update. */
   invalidate(): void
+  /**
+   * Compiles an object built after the factory returned (from an async load) for this scene, without blocking.
+   * Resolves once its programs are ready. An object added to the scene before then stalls its first frame.
+   */
+  compile(object: THREE.Object3D): Promise<void>
   /** Seconds on IslandFrame.time's clock at this moment, for a press or a command between frames. */
   now(): number
   story: RoleStory
