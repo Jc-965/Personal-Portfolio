@@ -127,7 +127,7 @@ test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page })
   for (const text of [
     "Built for people living with Parkinson's, for real hands and real days.",
     '48 pt tap targets',
-    'Review your symptoms',
+    'Discreet dose reminders',
     'Every change journaled until the server acknowledges it',
     '0 lost. 0 duplicated.',
     'Motion coach, in development',

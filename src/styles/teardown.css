@@ -7,7 +7,7 @@
    stage's edges print on the page while it scrolls in and out. */
 
 .teardown {
-  --teardown-travel: 17.6;
+  --teardown-travel: 18.8;
   --td-amber: #eab76a;
   /* Warm white for copy over the glyph rooms. */
   --td-ink: #f3efe8;

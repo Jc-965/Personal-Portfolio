@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type MouseEvent } from 'react'
+import { pageScrollY } from '../scroll/scrollSignal'
 
 const links = [
   { href: '#top', label: 'Home' },
@@ -87,7 +88,7 @@ export default function Navbar() {
     const onScroll = () => {
       // Auto-hide on scroll-down, reveal on scroll-up / near top (kept out of
       // the debounce so it feels immediate).
-      const y = window.scrollY
+      const y = pageScrollY()
       const shouldAutoHide = desktopNav.matches
       const nextScrolled = y > 12
       if (nextScrolled !== scrolledRef.current) {

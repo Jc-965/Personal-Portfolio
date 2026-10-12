@@ -170,12 +170,12 @@ test('backdrops crossfade between room acts and hold the last room as a dim fiel
 })
 
 test('each room change takes about 0.6 viewport-heights, so every act holds its whole room', () => {
-  // A change eases over 0.035 of chapter progress from the start of its act, or 70% of a shorter act. With the
-  // spans in parkiwell.ts it ends at 0.147 of the day act (card 0's hold starts at 0.144), 0.31 of the close, 0.474
+  // A change eases over 0.0328 of chapter progress from the start of its act, or 70% of a shorter act. With the
+  // spans in parkiwell.ts it ends at 0.147 of the day act (card 0's hold starts at 0.144), 0.22 of the close, 0.474
   // of the hand and coach acts, and 0.44 of the quiet act.
-  for (const [key, done] of [['hand', 0.475], ['day', 0.147], ['quiet', 0.445], ['coach', 0.475], ['close', 0.31]]) {
+  for (const [key, done] of [['hand', 0.475], ['day', 0.147], ['quiet', 0.445], ['coach', 0.475], ['close', 0.221]]) {
     const span = w(key).end - w(key).start
-    assert.ok(near(Math.min(0.7, 0.035 / span), done, 0.01), `${key} swap ends at ${0.035 / span}`)
+    assert.ok(near(Math.min(0.7, 0.0328 / span), done, 0.01), `${key} swap ends at ${0.0328 / span}`)
     const mid = backdropAt(windows, backdrops, inAct(key, done / 2))
     const whole = backdropAt(windows, backdrops, inAct(key, done))
     const late = backdropAt(windows, backdrops, inAct(key, 0.99))
@@ -236,19 +236,19 @@ test('the room prints in from the page over the first 63% of the arrival and dis
   assert.ok(near(at(inAct('arrival', 0.63)).backdrop.reveal, 1, 1e-6), `reveal at the end of the print: ${at(inAct('arrival', 0.63)).backdrop.reveal}`)
   assert.equal(at(inAct('arrival', 0.62)).decode, 1)
   assert.ok(at(inAct('arrival', 0.6)).backdrop.reveal > 0.99, 'the room has printed by the time the product is solid')
-  // The evening room is whole from 0.3 of the close, and the close holds it with the posed phone (from 0.5) and
-  // the settled copy (from 0.4) until 0.74.
-  for (const local of [0.31, 0.5, 0.74]) {
+  // The evening room is whole from 0.22 of the close, and the close holds it with the posed phone (from 0.5) and
+  // the settled copy (from 0.4) until 0.66.
+  for (const local of [0.23, 0.5, 0.66]) {
     const room = at(inAct('close', local)).backdrop
     assert.equal(room.b, 3, `the evening room is in slot b at close ${local}`)
     assert.equal(room.mix, 1, `the evening room is whole at close ${local}`)
   }
-  assert.ok(near(at(inAct('close', 0.74)).backdrop.reveal, 1, 1e-6), `reveal at the start of the dissolve: ${at(inAct('close', 0.74)).backdrop.reveal}`)
-  assert.ok(near(at(inAct('close', 0.835)).backdrop.reveal, 0.5, 1e-6), `reveal at the dissolve's midpoint: ${at(inAct('close', 0.835)).backdrop.reveal}`)
-  assert.equal(at(inAct('close', 0.93)).backdrop.reveal, 0)
+  assert.ok(near(at(inAct('close', 0.66)).backdrop.reveal, 1, 1e-6), `reveal at the start of the dissolve: ${at(inAct('close', 0.66)).backdrop.reveal}`)
+  assert.ok(near(at(inAct('close', 0.805)).backdrop.reveal, 0.5, 1e-6), `reveal at the dissolve's midpoint: ${at(inAct('close', 0.805)).backdrop.reveal}`)
+  assert.equal(at(inAct('close', 0.95)).backdrop.reveal, 0)
   // The dissolve ends with the phone's scatter, so no room outlives the product, and the room's gain stays the
   // act's own, so the print and the dissolve are the chapter's only edge fades.
-  assert.equal(at(inAct('close', 0.93)).gather, 0)
+  assert.equal(at(inAct('close', 0.95)).gather, 0)
   assert.ok(near(at(0).backdrop.gain, 0.9, 1e-6), `gain at the pin: ${at(0).backdrop.gain}`)
 })
 
@@ -329,14 +329,17 @@ test('the product forms from glyphs in act 1 and dissolves back before the end o
   assert.ok(at(inAct('arrival', 0.36)).decode > 0.3 && at(inAct('arrival', 0.36)).decode < 0.7, 'the arrival decode runs across the first 62% of the act')
   assert.equal(at(inAct('arrival', 0.62)).decode, 1, 'the product is formed by 62% of the arrival and holds')
   assert.ok(at(inAct('close', 0.5)).decode > 0.99, 'the close holds the real render through its first half')
-  assert.equal(at(inAct('close', 0.78)).decode, 1, 'the reassembled phone rests until 0.78 of the close')
-  // The dissolve ends at 0.9 and the scatter at 0.93 of the close, so both complete while the stage is still pinned.
-  assert.equal(at(inAct('close', 0.9)).decode, 0, 'the dissolve completes while the stage is still pinned')
+  assert.equal(at(inAct('close', 0.69)).decode, 1, 'the reassembled phone rests until 0.69 of the close')
+  // The dissolve ends at 0.91 and the scatter at 0.95 of the close, so both complete while the stage is still pinned.
+  assert.equal(at(inAct('close', 0.91)).decode, 0, 'the dissolve completes while the stage is still pinned')
   // The gather reverses behind the dissolve, so the characters drift apart instead of holding a phone-shaped block.
   assert.equal(at(0).gather, 0)
-  assert.equal(at(inAct('close', 0.82)).gather, 1)
-  assert.ok(at(inAct('close', 0.88)).gather > 0 && at(inAct('close', 0.88)).gather < 1, 'the scatter runs behind the dissolve')
-  assert.equal(at(inAct('close', 0.93)).gather, 0)
+  assert.equal(at(inAct('close', 0.72)).gather, 1)
+  assert.ok(at(inAct('close', 0.83)).gather > 0 && at(inAct('close', 0.83)).gather < 1, 'the scatter runs behind the dissolve')
+  assert.equal(at(inAct('close', 0.95)).gather, 0)
+  // Both phases ease on the quintic, so they leave and reach their ends at rest.
+  const ease = (local) => at(inAct('arrival', local)).decode
+  assert.ok(ease(0.12) < 0.01 && ease(0.6) > 0.99, 'the arrival decode starts and lands slowly')
   assert.equal(at(1).gather, 0)
 })
 

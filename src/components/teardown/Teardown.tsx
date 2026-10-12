@@ -3,6 +3,7 @@ import PhoneFrame from '../PhoneFrame'
 import Printed from '../hero/Printed'
 import { sceneProgress } from '../hero/world'
 import { lenisRef } from '../../scroll/lenisRef'
+import { pageScrollY } from '../../scroll/scrollSignal'
 import type { ActKey, ScreenKey, TeardownStory } from '../../content/teardown/types'
 import type { TeardownFrame } from './TeardownCanvas'
 import { layoutCardLabels } from './labels'
@@ -15,6 +16,23 @@ const TeardownCanvas = lazy(() => import('./TeardownCanvas'))
 
 type Mode = 'dom' | 'gl' | 'static'
 type Ride = ReturnType<typeof actCopyRide>
+
+/**
+ * The value last written to each element's inline style property or attribute by setStyle. The overlay and the
+ * copy ride rewrite every act, label, and leader each frame, and most of them have not moved, so only changed
+ * values reach the DOM. Nothing else writes these properties, which keeps the cache true.
+ */
+const written = new WeakMap<Element, Map<string, string>>()
+/** Writes a custom property (--name), the path's d attribute (d), or a camel-case style property, skipping unchanged values. */
+const setStyle = (el: HTMLElement | SVGElement, prop: string, value: string) => {
+  let last = written.get(el)
+  if (!last) written.set(el, (last = new Map()))
+  if (last.get(prop) === value) return
+  last.set(prop, value)
+  if (prop === 'd') el.setAttribute('d', value)
+  else if (prop.startsWith('--')) el.style.setProperty(prop, value)
+  else el.style[prop as 'opacity' | 'transform' | 'strokeDashoffset'] = value
+}
 
 /** Acts that show a phone in the reduced-motion layout. Each shows the rig's screen for that act, so the hand act's callouts sit beside the form they describe. */
 const STATIC_PHONE_ACTS: ReadonlySet<ActKey> = new Set<ActKey>(['arrival', 'hand', 'day', 'coach', 'close'])
@@ -52,7 +70,7 @@ const READOUT_CLEAR = 20
  * page to the nearest rest after a pause read as snappy. Lenis applies the detent, so touch scrolling, which Lenis
  * leaves native, has none.
  */
-const DETENT_DEPTH = 0.5
+const DETENT_DEPTH = 0.4
 const DETENT_WIDTH = 0.35
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value))
 
@@ -176,8 +194,8 @@ function Teardown({ story }: { story: TeardownStory }) {
       const ride = rides[i]
       if (!ride) return
       const scale = el === readout && ride.y > 0 ? Math.min(scales[i], readoutDrop / RIDE_OPAQUE) : scales[i]
-      el.style.setProperty('--copy-y', `${((ride.y * scale * 100) / stageH).toFixed(2)}svh`)
-      el.style.setProperty('--copy-o', ride.opacity.toFixed(3))
+      setStyle(el, '--copy-y', `${((ride.y * scale * 100) / stageH).toFixed(2)}svh`)
+      setStyle(el, '--copy-o', ride.opacity.toFixed(3))
     })
   }, [windows, floorAt, proofIndex])
 
@@ -194,7 +212,7 @@ function Teardown({ story }: { story: TeardownStory }) {
       // it to full opacity at about 0.1. The last line is typed by about 0.49, and the readout rests for about
       // 0.57 viewport-heights before the stack closes at 0.8.
       stageRef.current?.querySelectorAll<HTMLElement>('.teardown__readout li').forEach((li, i, all) => {
-        li.style.setProperty('--typed', clamp((current.local - 0.03) * all.length * 2.2 - i, 0, 1).toFixed(3))
+        setStyle(li, '--typed', clamp((current.local - 0.03) * all.length * 2.2 - i, 0, 1).toFixed(3))
       })
     }
   }, [windows, proofIndex, rideCopy])
@@ -225,29 +243,43 @@ function Teardown({ story }: { story: TeardownStory }) {
   // stops the page graph's pointer halos, which otherwise light up across the product. This runs in dom
   // and gl mode alike, and the class never outlives the chapter. The same measurement starts the heading's
   // print once the stage's top third is on screen, so the title is typing as the stage arrives instead of
-  // waiting for the pin.
+  // waiting for the pin. The track's page offset and height are measured only when the track or the page
+  // resizes, and each frame derives the rect from the scroll offset, because this runs after the canvas has
+  // written the frame's copy and overlay and a rect read here would force a second layout pass.
   useEffect(() => {
     if (!track || isStatic) return
     const root = document.documentElement
     let raf = 0
     let pinned = false
+    let trackTop = 0
+    let trackHeight = 0
     const update = () => {
       raf = 0
-      const rect = track.getBoundingClientRect()
-      if (rect.top < window.innerHeight * 0.65 && rect.bottom > 0) setPrinted(true)
-      const next = rect.top <= 0.5 && rect.bottom + 0.5 >= window.innerHeight
+      const top = trackTop - pageScrollY()
+      const bottom = top + trackHeight
+      if (top < window.innerHeight * 0.65 && bottom > 0) setPrinted(true)
+      const next = top <= 0.5 && bottom + 0.5 >= window.innerHeight
       if (next === pinned) return
       pinned = next
       root.classList.toggle('teardown-pinned', pinned)
     }
     const schedule = () => { if (!raf) raf = requestAnimationFrame(update) }
-    schedule()
+    const measure = () => {
+      trackTop = track.getBoundingClientRect().top + window.scrollY
+      trackHeight = track.offsetHeight
+      schedule()
+    }
+    measure()
+    const resizeObserver = new ResizeObserver(measure)
+    resizeObserver.observe(track)
+    resizeObserver.observe(document.body)
     window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule, { passive: true })
+    window.addEventListener('resize', measure, { passive: true })
     return () => {
       cancelAnimationFrame(raf)
+      resizeObserver.disconnect()
       window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
+      window.removeEventListener('resize', measure)
       root.classList.remove('teardown-pinned')
     }
   }, [track, isStatic])
@@ -336,7 +368,7 @@ function Teardown({ story }: { story: TeardownStory }) {
     const places = layoutCardLabels(frame.cards ?? [], sizes, { width: stageRect.width, height: stageRect.height })
     labels.forEach((label, k) => writes.push(() => {
       const place = places[k]
-      if (place) label.style.transform = `translate3d(${place.left.toFixed(1)}px, ${place.top.toFixed(1)}px, 0)`
+      if (place) setStyle(label, 'transform', `translate3d(${place.left.toFixed(1)}px, ${place.top.toFixed(1)}px, 0)`)
       label.classList.toggle('is-on', place?.on ?? false)
     }))
 
@@ -375,15 +407,15 @@ function Teardown({ story }: { story: TeardownStory }) {
       const drawn = ride ? (ride.y > 0 ? 1 - ramp(ride.y, start - (LINE_START - LINE_END), start) : 1) * apart : 0
       const reveal = route && ride ? drawn * ride.opacity : 0
       if (!route || reveal <= 0) {
-        writes.push(() => { path.style.opacity = '0' })
+        writes.push(() => setStyle(path, 'opacity', '0'))
         continue
       }
       // The path runs from the callout to the anchor, so its dash draws in from the callout's side.
       const d = route.map((point, k) => `${k ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join('')
       writes.push(() => {
-        path.setAttribute('d', d)
-        path.style.strokeDashoffset = (1 - drawn).toFixed(3)
-        path.style.opacity = (0.75 * reveal).toFixed(3)
+        setStyle(path, 'd', d)
+        setStyle(path, 'strokeDashoffset', (1 - drawn).toFixed(3))
+        setStyle(path, 'opacity', (0.75 * reveal).toFixed(3))
       })
     }
     writes.forEach((write) => write())

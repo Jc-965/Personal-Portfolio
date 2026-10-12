@@ -93,7 +93,7 @@ const EDGE_HOLD = 0.4
 /**
  * Share of the close act over which its copy rides in to the centre, where it then holds to the unpin. At 0.4 the
  * copy has settled before the phone reaches its close pose (0.5) and rests with it and the evening room until
- * the room starts to dissolve at 0.74 (ROOM_REVEAL in rig.ts).
+ * the room starts to dissolve at 0.66 (ROOM_REVEAL in rig.ts).
  */
 const CLOSE_SETTLE = 0.4
 /**

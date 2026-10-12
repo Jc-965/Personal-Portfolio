@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { GLYPH_RAMP } from './hero/world'
 import { lenisRef } from '../scroll/lenisRef'
+import { pageScrollY } from '../scroll/scrollSignal'
 
 /** Height of one rail cell in CSS pixels; matches the stylesheet. */
 const ROW = 11
@@ -47,17 +48,19 @@ export default function ScrollRail() {
       states = cells.map(() => '')
     }
 
-    const segment = () => {
+    const segment = (y = window.scrollY) => {
       const viewport = window.innerHeight
       const span = Math.min(cells.length, Math.max(3, Math.round(cells.length * viewport / (maxScroll + viewport))))
-      return { span, start: clamp01(window.scrollY / maxScroll) * (cells.length - span) }
+      return { span, start: clamp01(y / maxScroll) * (cells.length - span) }
     }
 
     const paint = () => {
       paintFrame = 0
       const count = cells.length
       if (!count) return
-      const { span, start } = segment()
+      // One offset for the whole paint, taken before the cell writes, so the paint forces no layout.
+      const y = pageScrollY()
+      const { span, start } = segment(y)
       const end = start + span - 1
       for (let i = 0; i < count; i++) {
         const outside = i < start ? start - i : i > end ? i - end : 0
@@ -79,7 +82,7 @@ export default function ScrollRail() {
         cells[i].style.setProperty('--i', state === 'hot' ? String(Math.round(i - start)) : '0')
       }
       // The opening keeps its own instrument; the rail appears as Journey arrives.
-      rail.classList.toggle('is-shown', window.scrollY + window.innerHeight >= gate + 120)
+      rail.classList.toggle('is-shown', y + window.innerHeight >= gate + 120)
     }
     const requestPaint = () => { if (!paintFrame) paintFrame = requestAnimationFrame(paint) }
 

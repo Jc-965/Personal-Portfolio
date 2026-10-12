@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
+import { pageScrollY } from '../../scroll/scrollSignal'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { sceneProgress } from '../hero/world'
 import { buildCodeTexture } from './codeTexture'
@@ -69,8 +70,46 @@ const EASE_REST = 1e-3
  */
 const END_REACH = 0.12
 const END_GLIDE_TIME = 0.06
+/** Frames the mount waits for parallel program links before it draws regardless, about 2 s at 60 Hz. */
+const LINK_POLLS = 120
 
 type Loaded = { texture: THREE.Texture; ready: boolean; width: number; height: number; aspect: number }
+
+/**
+ * Decode options that make an ImageBitmap upload the same bytes as an image element under three's defaults for an
+ * sRGB texture: flipY, no premultiplication, and the browser's colour conversion.
+ */
+const BITMAP_OPTIONS: ImageBitmapOptions = { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'default' }
+let flipProbe: Promise<boolean> | null = null
+
+/**
+ * Resolves true where createImageBitmap honours BITMAP_OPTIONS' flip. A browser that ignored imageOrientation
+ * would draw every screen and room upside down, so where the probe fails the chapter keeps image elements.
+ */
+function bitmapsFlip(): Promise<boolean> {
+  flipProbe ??= (async () => {
+    try {
+      const source = new OffscreenCanvas(1, 2)
+      const paint = source.getContext('2d')
+      const read = new OffscreenCanvas(1, 2).getContext('2d')
+      if (!paint || !read) return false
+      paint.fillStyle = '#f00'
+      paint.fillRect(0, 0, 1, 1)
+      paint.fillStyle = '#00f'
+      paint.fillRect(0, 1, 1, 1)
+      const bitmap = await createImageBitmap(source, BITMAP_OPTIONS)
+      read.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      return read.getImageData(0, 0, 1, 1).data[2] > 128
+    } catch {
+      return false
+    }
+  })()
+  return flipProbe
+}
+
+/** True once a program's parallel link has finished. three's WebGLProgram.isReady is missing from its typings. */
+const linked = (program: unknown) => (program as { isReady?: () => boolean }).isReady?.() ?? true
 
 /**
  * Waits for every pending program link. Chrome tracks each parallel link
@@ -133,6 +172,9 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
       depthBuffer: true,
       stencilBuffer: false,
     })
+    // Only the colour is sampled. Without this, three blits the multisampled depth into the resolved target too
+    // and leaves the multisampled attachments valid, so every frame stores and copies a depth buffer nothing reads.
+    target.resolveDepthBuffer = false
     disposers.push(() => target.dispose())
 
     const composite = createComposite()
@@ -218,7 +260,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   // sharp there. Rooms are sampled only through textureLod, which has no derivatives, so the value does not
   // apply to them.
   const anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy())
-  const loader = new THREE.TextureLoader()
+  const images = new THREE.ImageLoader()
   const owned: THREE.Texture[] = []
   const drawingBuffer = new THREE.Vector2(1, 1)
   let atlas: THREE.CanvasTexture | null = null
@@ -236,6 +278,10 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   let lost = false
   let disposed = false
   let compiled = false
+  /** The CSS size and pixel ratio the canvas and the render target were last sized for, empty before the first measure. */
+  let sized = ''
+  /** Set when the render target was resized, so the next draw checks it before drawing into it. */
+  let verifyTarget = false
   let ready = false
   let raf = 0
   let lastPaint = 0
@@ -251,23 +297,66 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
 
   stop = () => { cancelAnimationFrame(raf); raf = 0; lastPaint = 0 }
+
+  /**
+   * Texture uploads waiting to run, oldest first. They start once every program has linked and then run one per
+   * frame, so no frame carries two uploads and none waits behind the links in the GPU process. A screen's upload
+   * blocks the main thread for about 20 to 25 ms in the live page.
+   */
+  const uploads: (() => void)[] = []
+  let uploadFrame = 0
+  const pumpUploads = () => {
+    uploadFrame = 0
+    if (disposed || failed || !compiled) return
+    uploads.shift()?.()
+    if (uploads.length) uploadFrame = requestAnimationFrame(pumpUploads)
+  }
+  const queueUpload = (job: () => void) => {
+    if (disposed || failed) return
+    uploads.push(job)
+    if (compiled && !uploadFrame) uploadFrame = requestAnimationFrame(pumpUploads)
+  }
   const start = () => { if (!raf && (visible || flush) && compiled && !document.hidden && !lost && !failed && !disposed) raf = requestAnimationFrame(draw) }
 
-  /** Loads an sRGB, mipmapped image texture and uploads it as soon as it arrives, so first use never stalls a frame. */
+  /**
+   * Loads an sRGB, mipmapped image texture and queues its upload (queueUpload), so first use never stalls a frame.
+   * Where bitmaps flip at decode, the image decodes off the main thread into an ImageBitmap. An image element
+   * decodes inside texImage2D on the main thread instead, about 15 ms of a 1320x2868 screen's upload. The bitmap
+   * is closed once uploaded, since three uploads a texture again only when its version changes, and nothing here
+   * bumps it after the first upload. A failed load leaves the texture unready.
+   */
   const load = (src: string): Loaded => {
-    const texture = loader.load(src, () => {
-      if (disposed || failed) return
-      entry.width = texture.image.naturalWidth
-      entry.height = texture.image.naturalHeight
-      entry.aspect = entry.width / Math.max(1, entry.height)
-      renderer.initTexture(texture)
-      entry.ready = true
-      start()
-    }, undefined, () => undefined)
+    const texture = new THREE.Texture()
     texture.colorSpace = THREE.SRGBColorSpace
     texture.anisotropy = anisotropy
     owned.push(texture)
     const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
+    const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => queueUpload(() => {
+      entry.width = width
+      entry.height = height
+      entry.aspect = width / Math.max(1, height)
+      texture.image = image
+      texture.needsUpdate = true
+      renderer.initTexture(texture)
+      if ('close' in image) image.close()
+      entry.ready = true
+      start()
+    })
+    bitmapsFlip().then((flips) => {
+      if (disposed || failed) return
+      if (!flips) {
+        images.load(src, (image) => upload(image, image.naturalWidth, image.naturalHeight), undefined, () => undefined)
+        return
+      }
+      fetch(src)
+        .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(`${response.status} ${src}`))))
+        .then((blob) => createImageBitmap(blob, BITMAP_OPTIONS))
+        .then((bitmap) => {
+          texture.flipY = false
+          upload(bitmap, bitmap.width, bitmap.height)
+        })
+        .catch(() => undefined)
+    })
     return entry
   }
   const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src)]))
@@ -276,6 +365,9 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
     rooms[index] = load(story.backdrops[index].src)
   }
+  // Every room is queued at mount, in the order the acts reach them, so their uploads run before the chapter is on
+  // screen. Requested on first use, the arrival's rooms uploaded in the frames the chapter scrolled in.
+  actBackdrops.forEach(requestRoom)
   const uploadCode = () => {
     if (code || disposed || failed) return
     const source = buildCodeTexture(story.code, story.codeSource)
@@ -459,6 +551,20 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     applyCopyMask(glide.value)
 
     renderer.setRenderTarget(target)
+    if (verifyTarget) {
+      // three raises no error for an incomplete target (for example, multisampled RGBA16F unsupported at 4
+      // samples), and drawing into one leaves the phone invisible. setRenderTarget rebuilds the framebuffers
+      // after a resize and binds the multisampled one, so the check sees the attachments this frame draws into.
+      // The check blocks until the GPU process has run every queued command, so it runs here, after the mount's
+      // environment render and program links have finished, and not in measure.
+      verifyTarget = false
+      const gl = renderer.getContext()
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        renderer.setRenderTarget(null)
+        fail('the product render target is incomplete')
+        return
+      }
+    }
     renderer.render(scene, camera)
     renderer.setRenderTarget(null)
     renderer.render(composite.scene, composite.camera)
@@ -484,7 +590,8 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   }
 
   const onScroll = () => {
-    const y = window.scrollY
+    if (!sized) return
+    const y = pageScrollY()
     progress = sceneProgress(y - trackTop, trackHeight, height)
     const wasVisible = visible
     visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
@@ -507,19 +614,18 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     narrow = nextNarrow
     frameInterval = 1000 / (narrow ? 45 : 60)
     const pixelRatio = Math.min(width > 1800 ? 1.75 : 2, window.devicePixelRatio || 1)
-    renderer.setPixelRatio(pixelRatio)
-    renderer.setSize(width, height, false)
-    renderer.getDrawingBufferSize(drawingBuffer)
-    target.setSize(drawingBuffer.x, drawingBuffer.y)
-    // three raises no error for an incomplete target (for example, multisampled RGBA16F unsupported at 4
-    // samples), and drawing into one leaves the phone invisible. setRenderTarget rebuilds the framebuffers
-    // after a resize and binds the multisampled one, so the check sees the attachments the frame draws into.
-    renderer.setRenderTarget(target)
-    const gl = renderer.getContext()
-    const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
-    renderer.setRenderTarget(null)
-    if (!complete) { fail('the product render target is incomplete'); return }
-    cu.uRes.value.copy(drawingBuffer)
+    // Setting the canvas size reallocates its drawing buffer even when the size is unchanged, and measure runs
+    // again for every observed resize and for the font load, so the canvas and the target resize only on change.
+    const size = `${width}x${height}@${pixelRatio}`
+    if (size !== sized) {
+      sized = size
+      renderer.setPixelRatio(pixelRatio)
+      renderer.setSize(width, height, false)
+      renderer.getDrawingBufferSize(drawingBuffer)
+      target.setSize(drawingBuffer.x, drawingBuffer.y)
+      cu.uRes.value.copy(drawingBuffer)
+      verifyTarget = true
+    }
     measureCopy()
 
     // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp.
@@ -581,19 +687,53 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   // compile() prepares a program for every mesh in the scene whether or not it is visible, so the internals
   // and glass programs exist before the glass act first shows them. It only submits the programs, and the
   // driver builds them in the background where KHR_parallel_shader_compile exists. compileAsync is avoided
-  // because its polling cannot be cancelled and reads deleted programs after an unmount.
+  // because its polling cannot be cancelled and reads deleted programs after an unmount. The loop starts once
+  // every link reports complete, polled once a frame, so the first draw never blocks on a link. After
+  // LINK_POLLS frames it starts anyway, and a link that is still pending blocks that one draw. A program's
+  // first use reads its info logs and its uniform table, about 100 ms across the chapter's programs, so each
+  // program is then put through that first use (getUniforms) one per frame, before the chapter is on screen,
+  // and not all in the frame of the first draw.
   renderer.compile(scene, camera)
   renderer.compile(composite.scene, composite.camera)
-  const firstFrame = requestAnimationFrame(() => {
+  let polls = 0
+  let warming = 0
+  const warmed = new Set<unknown>()
+  const awaitLinks = () => {
+    warming = 0
+    if (disposed || failed) return
+    const programs = renderer.info.programs ?? []
+    if (++polls < LINK_POLLS && !programs.every(linked)) {
+      warming = requestAnimationFrame(awaitLinks)
+      return
+    }
+    const cold = programs.find((program) => !warmed.has(program))
+    if (cold) {
+      warmed.add(cold)
+      cold.getUniforms()
+      warming = requestAnimationFrame(awaitLinks)
+      return
+    }
     compiled = true
+    if (uploads.length && !uploadFrame) uploadFrame = requestAnimationFrame(pumpUploads)
     start()
-  })
+  }
+  warming = requestAnimationFrame(awaitLinks)
 
+  // The code layer first shows in the glass act, so its canvas build and upload wait for an idle period instead
+  // of joining the mount.
+  const whenIdle = (run: () => void) => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 2000 })
+    else setTimeout(run, 1)
+  }
   const resizeObserver = new ResizeObserver(measure)
-  resizeObserver.observe(stage)
-  resizeObserver.observe(track)
   const fontsReady = document.fonts ? document.fonts.load('500 12px "JetBrains Mono"') : Promise.resolve([])
-  fontsReady.then(() => { uploadCode(); measure() }, uploadCode)
+  // The first measure sizes the canvas and allocates the render target. It runs on the next frame, through the
+  // observer's first callback, so that allocation and the environment render above never share one long frame.
+  const sizing = requestAnimationFrame(() => {
+    resizeObserver.observe(stage)
+    resizeObserver.observe(track)
+    fontsReady.then(() => { measure(); whenIdle(uploadCode) }, () => whenIdle(uploadCode))
+  })
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
   stage.addEventListener('pointerdown', onPointerDown)
@@ -603,12 +743,13 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   stage.addEventListener('pointercancel', release)
   document.addEventListener('visibilitychange', onVisibility)
   canvas.addEventListener('webglcontextlost', onLost)
-  measure()
 
   return () => {
     disposed = true
     stop()
-    cancelAnimationFrame(firstFrame)
+    cancelAnimationFrame(warming)
+    cancelAnimationFrame(sizing)
+    cancelAnimationFrame(uploadFrame)
     resizeObserver.disconnect()
     window.removeEventListener('scroll', onScroll)
     window.removeEventListener('resize', onScroll)

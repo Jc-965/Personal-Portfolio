@@ -206,7 +206,7 @@ function App() {
             <main id="main-content">
               <Hero />
               <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} margin="1600px 0px" /></ErrorBoundary>
-              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="80px 0px" /></ErrorBoundary>
+              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="1600px 0px" /></ErrorBoundary>
               <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><section id="life" className="section beyond"><BeyondBuild /></section></ErrorBoundary>
               <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><section id="skills" className="section toolkit"><Toolkit /></section></ErrorBoundary>
               <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" crawlerEager={false} /></ErrorBoundary>

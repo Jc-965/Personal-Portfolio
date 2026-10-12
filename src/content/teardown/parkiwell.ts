@@ -1,6 +1,7 @@
 /**
  * ParkiWell's teardown chapter. Every figure comes from ParkiWell's repo
- * (ARCHITECTURE.md, supabase/schema.sql, test/offline_sync_engine_test.dart,
+ * (ARCHITECTURE.md, .github/workflows, supabase/schema.sql,
+ * test/offline_sync_engine_test.dart,
  * lib/services/encrypted_cache_store.dart, lib/motion_coach/README.md,
  * lib/motion_coach/motion_routine_results_screen.dart,
  * lib/utils/session_wakelock.dart, lib/linechart.dart, packages/motion_engine),
@@ -21,11 +22,17 @@ export const PARKIWELL: TeardownStory = {
   acts: [
     {
       key: 'arrival',
-      span: 1.3,
+      span: 1.7,
       backdrop: 0,
       // The lede's second clause is the README's own phrase ("designed for real hands and real days"). The app has
       // no caregiver features, so it must not claim to be built for anyone but the person living with Parkinson's.
-      lines: ['ParkiWell', "Built for people living with Parkinson's, for real hands and real days.", 'Founder and sole engineer, since 2023.'],
+      // The role line names the parts one engineer built: the Flutter app, the Supabase backend (supabase/), and
+      // packages/motion_engine.
+      lines: [
+        'ParkiWell',
+        "Built for people living with Parkinson's, for real hands and real days.",
+        'Founder and sole engineer since 2023, from the Flutter app to the backend and the motion engine.',
+      ],
       callouts: [],
     },
     {
@@ -61,7 +68,8 @@ export const PARKIWELL: TeardownStory = {
       // The peak keeps the chapter's largest span, so it stays longer than the day act.
       span: 4.3,
       backdrop: null,
-      lines: [],
+      // ARCHITECTURE.md: "The app ships no analytics or crash-reporting library."
+      lines: ['No analytics or crash-reporting libraries inside.'],
       // Each callout names the part its leader lands on, front to back: the Home capture's top left corner, the
       // display the wake lock keeps on, its Symptoms chart (its plot runs from v -0.08 to -0.44), the code layer's
       // expect() lines, and the phone's chassis frame. The first anchor sat on the bare cover glass, whose top
@@ -89,9 +97,18 @@ export const PARKIWELL: TeardownStory = {
       // closes over the act's last 20%, so the coach act opens on a phone that is already whole.
       span: 1.8,
       backdrop: null,
-      // The code layer prints the test's title (1M fault-injected writes), so the readout opens on its result. The
-      // last line counts the 16 create table and 16 enable row level security statements in supabase/schema.sql.
-      lines: ['0 lost. 0 duplicated.', 'AES-256-GCM, key held on the device', 'Row-level security on all 16 tables'],
+      // The code layer prints the test's title (1M fault-injected writes), so the readout opens on its result:
+      // ARCHITECTURE.md records the July 30, 2026 run as zero lost, zero duplicates, and 1,750 retry replays
+      // deduplicated. The RLS line counts the 16 create table and 16 enable row level security statements in
+      // supabase/schema.sql. The last line is ARCHITECTURE.md's 195 test cases in test/ and the four workflows in
+      // .github/workflows.
+      lines: [
+        '0 lost. 0 duplicated.',
+        '1,750 retries deduplicated',
+        'AES-256-GCM, key held on the device',
+        'Row-level security on all 16 tables',
+        '195 tests, 4 CI workflows',
+      ],
       callouts: [],
     },
     {
@@ -99,26 +116,28 @@ export const PARKIWELL: TeardownStory = {
       span: 1.3,
       backdrop: 2,
       // The coach screen's own cards say the camera measures on the device, nothing is uploaded, and name the
-      // two guided routines, so these lines carry only what the engine adds: maximumTempoRatio 8.0 times
-      // referenceTempoS, the rep time measured from the exercise template's reference series, in
-      // packages/motion_engine/lib/src/live_exercise_coach.dart, the per-rep ExerciseRepScore whose
-      // symmetryScore is null unless both sides move, the ten templates under assets/motion/templates, and the
-      // text, speech, and haptic cue channels in lib/motion_coach/README.md. The score names are the ones the
-      // close act's results screen prints for rangeScore, tempoScore, smoothnessScore, and symmetryScore
-      // (lib/motion_coach/motion_routine_results_screen.dart lines 482 to 486), so both acts use one vocabulary.
+      // two guided routines, so these lines carry only what the engine adds. The pose figures are the MediaPipe
+      // Pose Landmarker's 33 body points and the 23.23 ms 95th percentile pose inference that ARCHITECTURE.md
+      // section 39.1 records on an iPhone 17 Pro. That is inference time, not camera-to-feedback latency. The
+      // rest: the ten templates under assets/motion/templates, the per-rep ExerciseRepScore whose symmetryScore is
+      // null unless both sides move, maximumTempoRatio 8.0 times referenceTempoS in
+      // packages/motion_engine/lib/src/live_exercise_coach.dart, and the text, speech, and haptic cue channels in
+      // lib/motion_coach/README.md. The score names are the ones the close act's results screen prints for
+      // rangeScore, tempoScore, smoothnessScore, and symmetryScore (lib/motion_coach/motion_routine_results_screen.dart
+      // lines 482 to 486), so both acts use one vocabulary.
       lines: [
         'Motion coach, in development',
-        "Reps still count at up to 8x slower than the exercise's set pace.",
-        'Every rep scored on movement size, pace, and smoothness, plus evenness when both sides move.',
-        'Ten exercises, cued by text, speech, and haptic taps.',
+        'MediaPipe tracks 33 body landmarks, with pose inference at 23 ms p95 on an iPhone 17 Pro.',
+        'Ten exercises, every rep scored on size, pace, and smoothness, plus evenness when both sides move.',
+        'Reps still count at up to 8x slower than the set pace, cued by text, speech, and haptics.',
       ],
       callouts: [],
     },
-    // The evening room is whole from 0.3 of the act. The reassembled phone reaches its close pose at half the act
+    // The evening room is whole from 0.22 of the act. The reassembled phone reaches its close pose at half the act
     // and rests there on the results screen, with the evening room and the copy in place, until the room starts to
-    // dissolve at 0.74 (0.48 viewport-heights). The phone dissolves from 0.78 and scatters by 0.93 of the act,
-    // before the stage unpins.
-    { key: 'close', span: 2.0, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
+    // dissolve at 0.66 (0.45 viewport-heights). The phone dissolves from 0.69 and scatters by 0.95 of the act, about
+    // 0.7 viewport-heights of scroll, before the stage unpins.
+    { key: 'close', span: 2.8, backdrop: 3, lines: ['Coming to iPhone and Android.'], callouts: [] },
   ],
   screens: [
     { key: 'welcome', src: '/ParkiWell/hd/welcome.webp', alt: 'ParkiWell welcome screen', ...SCREEN },
@@ -130,11 +149,16 @@ export const PARKIWELL: TeardownStory = {
     { key: 'coach', src: '/ParkiWell/hd/coach.webp', alt: 'ParkiWell Motion coach home with the on-device privacy card, the weekly movement goal, and guided routines', ...SCREEN },
     { key: 'results', src: '/ParkiWell/hd/results.webp', alt: 'ParkiWell Routine summary for Seated foundation, a movement score of 81 out of 100, with what went well and step by step scores', ...SCREEN },
   ],
+  // Each label names the tab's job and the detail behind it, from ARCHITECTURE.md's tab table and privacy notes:
+  // Home's health patterns insight is computed on the device, medication reminders keep the drug name off the lock
+  // screen, Recovery is guided speech and movement practice, and Community posts under a private alias by default.
+  // At 1280 px and wider the labels do not wrap, so at 1280 by 800 two neighbouring labels fit side by side only
+  // within about 42 characters together, or the layout pushes one off centre (teardown-labels.test.js).
   cards: [
-    { screen: 'home', label: 'Review your symptoms' },
-    { screen: 'manage', label: 'Manage your medications' },
-    { screen: 'recovery', label: 'Plan your practice' },
-    { screen: 'community', label: 'Access support resources' },
+    { screen: 'home', label: 'On-device insights' },
+    { screen: 'manage', label: 'Discreet dose reminders' },
+    { screen: 'recovery', label: 'Speech and movement' },
+    { screen: 'community', label: 'Support, under an alias' },
   ],
   // The composite centres its window on the focus point, so a larger x moves the photograph's content left on
   // the screen. The window's overscan pins the y centre at every aspect up to 16:9, so only x places the subject.

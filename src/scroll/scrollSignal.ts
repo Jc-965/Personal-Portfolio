@@ -8,6 +8,8 @@
  * this is only for the non-React render loops.
  */
 
+import { lenisRef } from './lenisRef'
+
 type ScrollListener = (progress: number, velocity: number) => void
 
 let progress = 0
@@ -34,6 +36,18 @@ export function updateScrollSignal(time: number) {
   lastY = y
   lastTime = time
   if (listeners.size) listeners.forEach((l) => l(progress, velocity))
+}
+
+/**
+ * The window's scroll offset in CSS px. While Lenis animates the page, only
+ * Lenis moves it, once per frame in ScrollProvider's loop, which reads the
+ * offset into the signal right after that write. Scroll handlers and later
+ * frame callbacks then get the same value without a read of window.scrollY,
+ * which would force a style and layout pass after any earlier DOM write.
+ * Native scrolling and the non-Lenis path read window.scrollY.
+ */
+export function pageScrollY() {
+  return lenisRef.current?.isScrolling === 'smooth' ? lastY : window.scrollY
 }
 
 export function getScrollProgress() {

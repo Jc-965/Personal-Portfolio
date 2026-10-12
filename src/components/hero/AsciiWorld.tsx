@@ -7,6 +7,7 @@ import { PRESS_PUSH, PULL_DEPTH, PULL_RADIUS, createPointerFx, easePull, pressAt
 import { GLYPHS, SCENE, VERTEX } from './shaders'
 import { GLYPH_RAMP, gridFor, sceneProgress, arrivalProgress, type Grid } from './world'
 import { setHeroCovering } from './heroCover'
+import { pageScrollY } from '../../scroll/scrollSignal'
 
 /**
  * Glyph size and row height of the character grid. Phones get a finer grid:
@@ -116,6 +117,13 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     const titleLines = title.split('\n').filter(Boolean)
 
     const stop = () => { cancelAnimationFrame(raf); raf = 0 }
+    /** The custom properties last written to the track. Every scroll updates the presentation, and below the hero nothing changes. */
+    const written = new Map<string, string>()
+    const setVar = (name: string, value: string) => {
+      if (written.get(name) === value) return
+      written.set(name, value)
+      track.style.setProperty(name, value)
+    }
     // The introduction never moves. It starts fading with the first scrolled
     // pixel and is gone well before the pinned stage lets go.
     const placeCopy = () => {
@@ -123,12 +131,14 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       const opacity = 1 - fade * fade * (3 - 2 * fade)
       placed.x = look.x
       placed.y = look.y
-      track.style.setProperty('--hero-copy-opacity', String(opacity))
-      track.style.setProperty('--hero-copy-x', '0px')
-      track.style.setProperty('--hero-copy-y', '0px')
-      track.style.setProperty('--hero-copy-scale', '1')
-      // Hidden scene links must not steal focus while reading later sections.
-      if (copy) copy.inert = opacity < .05
+      setVar('--hero-copy-opacity', String(opacity))
+      setVar('--hero-copy-x', '0px')
+      setVar('--hero-copy-y', '0px')
+      setVar('--hero-copy-scale', '1')
+      // Hidden scene links must not steal focus while reading later sections. Setting inert to its current value
+      // still rewrites the attribute and restyles the copy, so it is written only when it changes.
+      const inert = opacity < .05
+      if (copy && copy.inert !== inert) copy.inert = inert
     }
     const updatePresentation = () => {
       const y = Math.max(0, scrollY - trackTop)
@@ -138,7 +148,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       // Pass through the gate as the next scene arrives, keeping a visible
       // landmark throughout the handoff instead of finishing the flight early.
       progress = travel * .58 + arrival * .42
-      track.style.setProperty('--hero-scene-opacity', String(1 - arrival * arrival * (3 - 2 * arrival)))
+      setVar('--hero-scene-opacity', String(1 - arrival * arrival * (3 - 2 * arrival)))
       placeCopy()
       visible = y < trackHeight && scrollY + viewportHeight > trackTop
       // Until the next scene arrives the terminal is an opaque sheet over the
@@ -147,8 +157,10 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       // layouts pin the sheet to the section instead, and a collapsed phone
       // toolbar leaves a strip of page showing below it. The visual viewport
       // keeps fractional heights under browser zoom, where innerHeight rounds.
-      const visibleHeight = window.visualViewport?.height ?? window.innerHeight
-      const covers = fixedTerminal && !lost && !reduced && arrival === 0 && viewportHeight + 0.01 >= visibleHeight
+      // Reading it forces a style and layout pass, so it is read last, only
+      // while the sheet is otherwise covering.
+      const covers = fixedTerminal && !lost && !reduced && arrival === 0
+        && viewportHeight + 0.01 >= (window.visualViewport?.height ?? window.innerHeight)
       if (covers !== covering) {
         covering = covers
         setHeroCovering(covering)
@@ -284,7 +296,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       start()
     }
     const onScroll = () => {
-      scrollY = window.scrollY
+      scrollY = pageScrollY()
       updatePresentation()
       if (visible) start()
       else stop()

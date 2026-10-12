@@ -198,11 +198,11 @@
       "accent": "#6aa5af",
       "accentRgb": "106, 165, 175",
       "kind": "media",
-      "lead": "An offline-first Flutter care platform for Parkinson’s patients: a real-time computer-vision exercise coach plus crash-proof, encrypted health-data sync.",
+      "lead": "An offline-first Flutter care app for people living with Parkinson’s: a computer-vision motion coach and fault-tested, encrypted health-data sync.",
       "bullets": [
-        "Founded and solo-built the platform end to end: symptom tracking, peer support, and guided exercises.",
-        "Built a live computer-vision coach that tracks 3D pose with MediaPipe to count, score, and speak cues for every rep, on-device in under 25 ms.",
-        "Built crash-proof offline sync: an encrypted write journal replayed exactly once via idempotent PostgreSQL RPC, surviving 1M fault-injected writes with zero loss."
+        "Founded and solo-built the app end to end: symptom tracking, medication reminders, guided therapy, peer support, and the Supabase backend.",
+        "Building a computer-vision motion coach that tracks 33 body landmarks with MediaPipe, at 23 ms p95 pose inference on an iPhone 17 Pro, to count, score, and cue every rep on the device.",
+        "Built offline-first sync: an encrypted write journal applied exactly once through an idempotent PostgreSQL RPC, with zero loss across 1M fault-injected writes."
       ],
       "tech": [
         "Flutter",
@@ -222,22 +222,22 @@
           "value": "ZERO"
         },
         {
-          "label": "CV FEEDBACK",
-          "value": "<25 MS"
+          "label": "POSE INFERENCE",
+          "value": "23 MS P95"
         }
       ],
       "caseStudy": {
         "role": "Founder and sole engineer",
         "challenge": "Care tracking cannot become unavailable when connectivity drops, and reconnecting must never duplicate or erase health records. Exercise guidance also has to react in real time, on-device, without sending video anywhere.",
         "approach": [
-          "Recorded offline mutations in an encrypted write journal replayed exactly once via idempotent PostgreSQL RPC.",
+          "Recorded offline mutations in an encrypted write journal, applied exactly once through an idempotent PostgreSQL RPC.",
           "Tracked 3D pose with MediaPipe to count, score, and speak cues for every rep of guided exercises.",
           "Protected every hosted table with row-level security and shipped signed builds through CI/CD."
         ],
         "outcomes": [
           "1M fault-injected writes survived",
-          "Zero data loss across 100 process kills",
-          "Under 25 ms camera-to-feedback"
+          "Zero data loss across 100 simulated restarts",
+          "23 ms p95 pose inference on an iPhone 17 Pro"
         ]
       },
       "frame": "phone",

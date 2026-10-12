@@ -209,13 +209,13 @@ const BACKDROP_GAIN = 0.9
 const HELD_GAIN = 0.3
 /**
  * Chapter progress over which a room change eases in from the start of the
- * act that makes it, capped at 70% of that act. At 0.035, about 0.62
- * viewport-heights of 17.6, the swap ends at 0.147 of the day act (card 0's
- * hold starts at 0.144), 0.31 of the close, 0.47 of the hand and coach acts,
+ * act that makes it, capped at 70% of that act. At 0.0328, about 0.62
+ * viewport-heights of 18.8, the swap ends at 0.147 of the day act (card 0's
+ * hold starts at 0.144), 0.22 of the close, 0.47 of the hand and coach acts,
  * and 0.44 of the quiet act, so each act holds its whole room for most of its
- * span.
+ * span. A change to the total span must rescale it to keep those fractions.
  */
-const ROOM_SWAP = 0.035
+const ROOM_SWAP = 0.0328
 /**
  * Act-local spans over which the room prints in from the page at the start
  * of the arrival and dissolves back into it in the close, so the stage pins
@@ -223,13 +223,13 @@ const ROOM_SWAP = 0.035
  * dissolves the room cell by cell around the product, so both bracket the
  * product's own glyph phases: the phone forms from glyphs by 0.62 of the
  * arrival and the room has printed by 0.63. In the close the room holds with
- * the posed phone and the settled copy until 0.74, starts to dissolve just
- * before the phone does (0.78), and is gone at 0.93 with the phone's scatter,
+ * the posed phone and the settled copy until 0.66, starts to dissolve just
+ * before the phone does (0.69), and is gone at 0.95 with the phone's scatter,
  * which stops short of the unpin to cover the glide's lag (END_GLIDE_TIME in
  * TeardownCanvas.tsx). They are fractions of the acts, so a span change cannot
  * move them off the product's phases.
  */
-const ROOM_REVEAL = { inEnd: 0.63, out: [0.74, 0.93] } as const
+const ROOM_REVEAL = { inEnd: 0.63, out: [0.66, 0.95] } as const
 
 export interface Interaction {
   /** Radians added to the phone's yaw by a drag. */
@@ -628,16 +628,16 @@ export function poseAt(input: RigInput): Pose {
   // swaps in.
   const coachDraw = ramp(coach, 0.12, 0.45)
   const coachAmount = coachDraw * (1 - ramp(close, 0, 0.1))
-  // The product forms by 0.62 of the arrival and holds. The reassembled phone then turns to its close pose by half
-  // the close and rests there, with the copy settled from 0.4 (CLOSE_SETTLE in timeline.ts) and the evening room
-  // whole from 0.3 (ROOM_SWAP) until 0.74 (ROOM_REVEAL), so the finished close holds for about 0.48
-  // viewport-heights. The dissolve runs
-  // from 0.78 to 0.9 of the act and the scatter ends at 0.93, about 0.14 viewport-heights before the stage
-  // unpins, which covers the glide's lag behind a fast wheel (END_GLIDE_TIME in TeardownCanvas.tsx) so no loose
-  // characters outlive the chapter. The gather reverses behind the dissolve so the characters drift apart instead
-  // of holding a phone-shaped block.
-  const decode = ramp(arrival, 0.1, 0.62) * (1 - ramp(close, 0.78, 0.9))
-  const gather = ramp(arrival, 0, 0.5) * (1 - ramp(close, 0.82, 0.93))
+  // The product forms by 0.62 of the arrival, about 0.9 viewport-heights of scroll, and holds. The reassembled phone
+  // then turns to its close pose by half the close and rests there, with the copy settled from 0.4 (CLOSE_SETTLE in
+  // timeline.ts) and the evening room whole from 0.22 (ROOM_SWAP) until 0.66 (ROOM_REVEAL), so the finished close
+  // holds for about 0.45 viewport-heights. The dissolve runs from 0.69 to 0.91 of the act and the scatter ends at
+  // 0.95, about 0.14 viewport-heights before the stage unpins, which covers the glide's lag behind a fast wheel
+  // (END_GLIDE_TIME in TeardownCanvas.tsx) so no loose characters outlive the chapter. The gather reverses behind
+  // the dissolve so the characters drift apart instead of holding a phone-shaped block. Both phases ease on the
+  // quintic, so the characters start drifting slowly and settle into place, or leave it, without a jolt.
+  const decode = smoother(ramp(arrival, 0.1, 0.62)) * (1 - smoother(ramp(close, 0.69, 0.91)))
+  const gather = smoother(ramp(arrival, 0, 0.5)) * (1 - smoother(ramp(close, 0.72, 0.95)))
 
   return {
     camera: { pos: [target[0], cameraY, target[2] - dist], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, 1], focal: FOCAL, shift },
