@@ -10,8 +10,9 @@ test('a chapter journey lives at its id', () => {
   assert.equal(journeyAt('/projects/parkiwell/', ['parkiwell']), null)
 })
 
-test('every teardown has a journey page and App knows each one', async () => {
+test('every chapter has a journey page and App knows each one', async () => {
   const { JOURNEYS } = await import('../../src/components/teardown/route.ts')
   const { TEARDOWNS } = await import('../../src/content/teardown/index.ts')
-  assert.deepEqual([...JOURNEYS].sort(), Object.keys(TEARDOWNS).sort())
+  const { CHAPTERS } = await import('../../src/content/chapters/index.ts')
+  assert.deepEqual([...JOURNEYS].sort(), [...Object.keys(TEARDOWNS), ...Object.keys(CHAPTERS)].sort())
 })

@@ -32,9 +32,9 @@ export interface LabelPlace {
  * label is on from the hold's first frame. At 0.98 a wide card's label showed while the card was up to 2.5% of its
  * window short of the spotlight and pushed the label of the card settling behind it off that card.
  */
-const LABEL_DEVELOP = 0.999
+export const LABEL_DEVELOP = 0.999
 /** A label shows only while its card is at least this opaque, so a fading card takes its label with it. */
-const LABEL_OPACITY = 0.95
+export const LABEL_OPACITY = 0.95
 /**
  * CSS px every card label keeps from the stage edges, and the inset at which a card still counts as whole in
  * frame. A deck card stays opaque until it reaches the frame's edge, so its label leaves as the card comes within
@@ -103,7 +103,8 @@ export function layoutCardLabels(cards: readonly CardShot[], sizes: readonly { w
       && !!rect && rect.left >= LABEL_EDGE && rect.right <= stage.width - LABEL_EDGE && rect.top >= LABEL_EDGE && rect.bottom <= stage.height - LABEL_EDGE
     const covered = cards.some((other, j) => {
       const r = other.rect
-      if (j === k || !r || other.opacity < COVER_OPACITY || other.depth >= card.depth - COVER_DEPTH) return false
+      // A bound with no area (a generic chapter's point-sized panel) covers nothing.
+      if (j === k || !r || r.right - r.left < 1 || r.bottom - r.top < 1 || other.opacity < COVER_OPACITY || other.depth >= card.depth - COVER_DEPTH) return false
       const behind = !!rect && (rect.left + rect.right) / 2 > r.left && (rect.left + rect.right) / 2 < r.right
         && (rect.top + rect.bottom) / 2 > r.top && (rect.top + rect.bottom) / 2 < r.bottom
       return behind || (left < r.right - LABEL_COVER_SLACK && left + size.w > r.left + LABEL_COVER_SLACK && top < r.bottom && top + size.h > r.top)

@@ -1,8 +1,8 @@
 /** Pure scroll timeline for a teardown chapter: act windows, progress within them, and the copy's ride through an act. */
 import type { ActKey } from '../../content/teardown/types.ts'
 
-export interface ActWindow {
-  key: ActKey
+export interface ActWindow<K extends string = ActKey> {
+  key: K
   /** Chapter progress where the act begins, 0 to 1. */
   start: number
   end: number
@@ -31,7 +31,7 @@ export function totalSpan(acts: readonly { span: number }[]): number {
 }
 
 /** Contiguous windows over chapter progress, sized by each act's span. The last window ends at exactly 1. */
-export function actWindows(acts: readonly { key: ActKey; span: number }[]): ActWindow[] {
+export function actWindows<K extends string>(acts: readonly { key: K; span: number }[]): ActWindow<K>[] {
   const total = totalSpan(acts)
   let at = 0
   return acts.map((act, i) => {
@@ -42,7 +42,7 @@ export function actWindows(acts: readonly { key: ActKey; span: number }[]): ActW
 }
 
 /** The act containing `progress`. A boundary belongs to the act that starts there, and progress 1 to the last act. */
-export function actAt(windows: readonly ActWindow[], progress: number): { index: number; key: ActKey; local: number } {
+export function actAt<K extends string>(windows: readonly ActWindow<K>[], progress: number): { index: number; key: K; local: number } {
   const p = clamp01(progress)
   let index = windows.findIndex((w) => p < w.end)
   if (index < 0) index = windows.length - 1
@@ -51,7 +51,7 @@ export function actAt(windows: readonly ActWindow[], progress: number): { index:
 }
 
 /** Progress within one act: 0 before it, 1 after it. Chained effects rely on that monotonic shape. */
-export function localOf(windows: readonly ActWindow[], key: ActKey, progress: number): number {
+export function localOf<K extends string>(windows: readonly ActWindow<K>[], key: K, progress: number): number {
   const w = windows.find((entry) => entry.key === key)
   if (!w) return 0
   return clamp01((progress - w.start) / Math.max(1e-9, w.end - w.start))
@@ -129,7 +129,7 @@ const GLASS_LATE = 0.12
  * copy shade follows the same block, so both must read it from here. Two acts' copy is never visible at once,
  * since each act's copy is transparent at every boundary it shares with another act.
  */
-export function actCopyRide(windows: readonly ActWindow[], index: number, progress: number): { y: number; opacity: number } {
+export function actCopyRide<K extends string>(windows: readonly ActWindow<K>[], index: number, progress: number): { y: number; opacity: number } {
   const local = localOf(windows, windows[index].key, progress)
   if (index === 0) return copyRide(0.5 + 0.5 * clamp01((local - EDGE_HOLD) / (1 - EDGE_HOLD)))
   if (index === windows.length - 1) return copyRide(0.5 * clamp01(local / CLOSE_SETTLE))

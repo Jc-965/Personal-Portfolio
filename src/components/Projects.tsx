@@ -11,6 +11,8 @@ import MediaGallery from './MediaGallery'
 import useCardTilt from '../hooks/useCardTilt'
 import portfolio from '../content/portfolio.json'
 import Teardown from './teardown/Teardown'
+import Chapter from './chapter/Chapter'
+import { CHAPTERS } from '../content/chapters'
 import { TEARDOWNS } from '../content/teardown'
 
 interface ProjectImage {
@@ -216,7 +218,9 @@ export default function Projects() {
         {projects.map((p, i) => {
           const story = TEARDOWNS[p.id]
           // Index stays the project's position so the remaining scenes keep their left and right sides.
-          return story ? <Teardown key={p.id} story={story} /> : <ProjectScene key={p.id} project={p} index={i} />
+          if (story) return <Teardown key={p.id} story={story} />
+          const chapter = CHAPTERS[p.id]
+          return chapter ? <Chapter key={p.id} story={chapter} /> : <ProjectScene key={p.id} project={p} index={i} />
         })}
       </div>
     </>

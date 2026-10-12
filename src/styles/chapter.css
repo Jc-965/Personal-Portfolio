@@ -1,0 +1,78 @@
+/* ============================================================================
+   CHAPTERS - the generic chapters (Chapter.tsx) on teardown.css's layout. The
+   block is .story, since journey.css already owns .chapter for the experience
+   timeline. A chapter's story sets --ch-* on its section: the title, body,
+   and label faces, and its ink, accent, panel, and hairline colours. Those
+   feed the custom properties teardown.css already reads, so the rail, the
+   callouts, the leaders, the labels, and the controls take the chapter's
+   style.
+   ============================================================================ */
+
+.story {
+  --td-amber: var(--ch-accent, #eab76a);
+  --td-ink: var(--ch-ink, #f3efe8);
+  --td-panel: var(--ch-panel, rgba(10, 8, 6, .7));
+  --td-hairline: var(--ch-hairline, rgba(234, 183, 106, .35));
+  --font-mono: var(--ch-label, "JetBrains Mono", monospace);
+  --font-sans: var(--ch-body, "IBM Plex Sans", sans-serif);
+}
+
+.story .teardown__title {
+  font-family: var(--ch-title, var(--font-mono));
+  font-weight: var(--ch-title-weight, 600);
+  letter-spacing: var(--ch-title-tracking, -0.01em);
+}
+
+/* The title's size scales on its spans, so teardown.css's responsive sizes on
+   the heading still apply underneath a face that sets wider or narrower. */
+.story .teardown__title > span { font-size: calc(var(--ch-title-scale, 1) * 1em); }
+
+.story .teardown__eyebrow,
+.story .teardown__return { letter-spacing: var(--ch-label-tracking, .14em); }
+
+.story__tip { fill: var(--td-amber); }
+
+.story__credit {
+  margin: 14px 0 0;
+  font: 500 .72rem/1.5 var(--font-mono);
+  color: color-mix(in srgb, var(--td-ink) 60%, transparent);
+}
+
+/* The WebGL fallback and the reduced motion layout show the story's still of
+   the centrepiece. */
+.story__poster {
+  justify-content: center;
+}
+
+.story__poster img {
+  max-width: min(46vw, 640px);
+  max-height: 72svh;
+  object-fit: contain;
+  border: 1px solid var(--td-hairline);
+}
+
+.story__static-poster {
+  display: block;
+  width: min(100%, 420px);
+  margin: 0 0 28px;
+  border: 1px solid var(--td-hairline);
+}
+
+/* Choices in an act's copy send a command to the scene (ChapterAct.choices). */
+.story__choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 0; }
+
+.story__choice {
+  padding: 6px 12px;
+  font: 600 .82rem/1.4 var(--font-mono);
+  color: color-mix(in srgb, var(--td-ink) 72%, transparent);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
+  border: 1px solid var(--td-hairline);
+  cursor: pointer;
+  transition: color .25s ease, border-color .25s ease, background-color .25s ease;
+}
+
+.story__choice:hover,
+.story__choice:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
+.story__choice.is-on { color: var(--td-ink); border-color: var(--td-amber); background: color-mix(in srgb, var(--td-amber) 18%, var(--td-panel)); }

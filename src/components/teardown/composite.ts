@@ -42,6 +42,8 @@ const ROOM_EDGE_TOP = RAMP.indexOf('#')
 const DOT = RAMP.indexOf('·')
 /** Fraction of the stage height, at the top and at the bottom, over which the base and the room fade to transparent. */
 const SEAM = 0.1
+/** --td-amber #eab76a in linear light, the default uTint. A chapter theme passes its own. */
+export const TINT: readonly [number, number, number] = [0.8228, 0.4735, 0.1441]
 
 const VERTEX = /* glsl */ `
 void main() {
@@ -59,6 +61,8 @@ uniform vec2 uMirror;
 uniform float uBackMix;
 uniform float uBackGain;
 uniform float uGlyphOnly;
+uniform vec3 uTint;
+uniform vec3 uGrade;
 uniform float uReveal;
 uniform vec2 uRevealAt;
 uniform vec4 uCopyMask;
@@ -251,7 +255,7 @@ void main() {
     float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local);
     float body = max(smoothstep(.03, .14, l), edge);
     float shimmer = 1.0 + .4 * swap * (1.0 - swap);
-    roomInk = ink(tone.rgb) * shimmer;
+    roomInk = ink(tone.rgb) * shimmer * uGrade;
     // Static grain of 2% per cell, fixed to the cell grid. It never animates.
     roomInk *= 1.0 + (hash12(cell + 41.7) - .5) * .04;
     // A gentle S-curve in perceptual space adds a little contrast without crushing the shadows or the mid-tones
@@ -261,7 +265,7 @@ void main() {
     roomInk = p * p;
     // An edge on a dark subject takes at least a quarter of the amber, so its outline stays visible over the
     // near-black page instead of printing as near-black glyphs.
-    roomInk = max(roomInk, AMBER * .25 * edge);
+    roomInk = max(roomInk, uTint * .25 * edge);
     // A held room (uGlyphOnly 1) keeps only the glyphs on object edges, so the field behind the exploded stack is
     // the previous room's outlines and never a scatter of dense clusters from its flat surfaces.
     roomCover = alpha * body * uBackGain * mix(1.0, smoothstep(.02, .1, tone.a), uGlyphOnly);
@@ -307,7 +311,7 @@ void main() {
     float alpha = glyphMask(uAtlas, uGlyphs, glyphIndex(level, uGlyphs), local) * sampled.a * uGather;
     float top = max(max(tone.r, max(tone.g, tone.b)), 1e-3);
     float chroma = (top - min(min(tone.r, tone.g), tone.b)) / top;
-    vec3 hue = mix(AMBER * 1.1, tone / top, smoothstep(.1, .4, chroma)) * mix(.5, 1.3, l);
+    vec3 hue = mix(uTint * 1.1, tone / top, smoothstep(.1, .4, chroma)) * mix(.5, 1.3, l);
     // Cells resolve in a diagonal scan with a little jitter, each over a third of the decode, brightest at the front.
     // The front's lift stays under the shoulder, so the scan reads as amber and never clips to a white cluster.
     float resolved = staggered(clamp(sweep(sc, .3) * .94 + hash12(cell + 7.31) * .06, 0.0, 1.0), .33, uDecode);
@@ -394,7 +398,10 @@ export interface Composite {
  * read only the top. Wide darkens the room left of the edge within the
  * block's band, narrow darkens it from 130 CSS px above the top downward. `uLimb` is
  * kept for callers and not read, since the coach draws at fixed CSS sizes.
- * `uPixelRatio` is set from the renderer before every draw.
+ * `uPixelRatio` is set from the renderer before every draw. `uTint` is the
+ * linear colour of the decode's untinted glyphs and the room's edge floor,
+ * TINT by default, and `uGrade` scales the room's ink per channel, 1 by
+ * default, so a chapter can grade its rooms toward its palette.
  */
 export function createComposite(): Composite {
   const material = new THREE.ShaderMaterial({
@@ -412,6 +419,8 @@ export function createComposite(): Composite {
       uBackMix: { value: 0 },
       uBackGain: { value: 0 },
       uGlyphOnly: { value: 0 },
+      uTint: { value: new THREE.Vector3(...TINT) },
+      uGrade: { value: new THREE.Vector3(1, 1, 1) },
       uReveal: { value: 0 },
       uRevealAt: { value: new THREE.Vector2() },
       uCopyMask: { value: new THREE.Vector4(0, 0, 0, 0) },

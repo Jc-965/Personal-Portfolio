@@ -21,6 +21,8 @@ export interface StageControl {
    * after setting the scroll, so no frame draws with the old track or glides between the views.
    */
   sync(): void
+  /** Forwards a choice from the copy to the scene. Only the generic chapters' canvas implements it. */
+  command?(name: string, value: string): void
 }
 
 /**
@@ -144,21 +146,28 @@ export function useWheelDetent(track: HTMLElement | null, stageRef: RefObject<HT
   }, [track, stageRef, enabled, rests])
 }
 
+/** A released renderer's track has moved this far outside the viewport, beyond the 150% boot margin. */
+const RELEASE_MARGIN = '350% 0px'
+
 /**
  * The renderer boots once the track is within 1.5 viewports and the page has been scrolled, or at once on the
  * journey page. The first load of the home page never fetches the three.js chunk or the screens, even when a short
- * initial layout puts the chapter that close.
+ * initial layout puts the chapter that close. With `release`, the home page drops the renderer again once the track
+ * is more than 3.5 viewports away and boots it on the next approach, so the stacked chapters never all hold a WebGL
+ * context and their textures at once. The journey page never releases.
  */
-export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef: RefObject<ChapterView>): boolean {
+export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef: RefObject<ChapterView>, release = false): boolean {
   const [near, setNear] = useState(false)
   useEffect(() => {
     if (!track || !enabled) return
     let intersecting = false
+    let booted = false
     const boot = () => {
-      if (!intersecting || (window.scrollY <= 0 && viewRef.current !== 'journey')) return
+      if (booted || !intersecting || (window.scrollY <= 0 && viewRef.current !== 'journey')) return
+      booted = true
       setNear(true)
-      observer.disconnect()
       window.removeEventListener('scroll', boot)
+      if (!release) observer.disconnect()
     }
     const observer = new IntersectionObserver(([entry]) => {
       intersecting = entry.isIntersecting
@@ -166,11 +175,18 @@ export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef
     }, { rootMargin: '150% 0px' })
     observer.observe(track)
     window.addEventListener('scroll', boot, { passive: true })
+    const far = release ? new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting || !booted || viewRef.current === 'journey') return
+      booted = false
+      setNear(false)
+    }, { rootMargin: RELEASE_MARGIN }) : null
+    far?.observe(track)
     return () => {
       observer.disconnect()
+      far?.disconnect()
       window.removeEventListener('scroll', boot)
     }
-  }, [track, enabled, viewRef])
+  }, [track, enabled, viewRef, release])
   return near
 }
 

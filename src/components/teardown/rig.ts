@@ -395,14 +395,14 @@ export function restPoints(windows: readonly ActWindow[], narrow: boolean): numb
  * a or b directly. Index -1 means no room, which happens only before the
  * first act that has one.
  */
-export function backdropAt(windows: readonly ActWindow[], backdrops: readonly (number | null)[], progress: number): { a: number; b: number; mix: number; gain: number; glyphOnly: number } {
+export function backdropAt<K extends string>(windows: readonly ActWindow<K>[], backdrops: readonly (number | null)[], progress: number, swap = ROOM_SWAP): { a: number; b: number; mix: number; gain: number; glyphOnly: number } {
   const { index, local } = actAt(windows, progress)
   const cur = backdrops[index] ?? null
   const prev = index > 0 ? backdrops[index - 1] ?? null : cur
   let held: number | null = null
   for (let i = index - 1; i >= 0 && held === null; i--) held = backdrops[i] ?? null
   const win = windows[index]
-  const s = ramp(local, 0, Math.min(0.7, ROOM_SWAP / Math.max(1e-9, win.end - win.start)))
+  const s = ramp(local, 0, Math.min(0.7, swap / Math.max(1e-9, win.end - win.start)))
   if (cur !== null && prev !== null) return { a: prev, b: cur, mix: prev === cur ? 1 : s, gain: BACKDROP_GAIN, glyphOnly: 0 }
   if (cur !== null && held !== null) return { a: held, b: cur, mix: held === cur ? 1 : s, gain: lerp(HELD_GAIN, BACKDROP_GAIN, s), glyphOnly: 1 - s }
   if (cur !== null) return { a: cur, b: cur, mix: 1, gain: BACKDROP_GAIN * s, glyphOnly: 0 }
