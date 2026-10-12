@@ -6,6 +6,8 @@ interface LazySectionProps {
   component: ComponentType
   fallback?: ReactNode
   margin?: string
+  /** Mount on the first render, as a direct load of a page inside this section needs. */
+  eager?: boolean
   /**
    * Mount immediately for crawler user agents. False keeps the viewport gate
    * for sections with nothing to index, such as the live constellation.
@@ -28,10 +30,11 @@ export default function LazySection({
   fallback,
   margin = '200px 0px',
   crawlerEager = true,
+  eager = false,
 }: LazySectionProps) {
   const ref = useRef<HTMLElement>(null)
   const [inView, setInView] = useState(
-    () => (crawlerEager && isCrawler) || typeof IntersectionObserver === 'undefined',
+    () => eager || (crawlerEager && isCrawler) || typeof IntersectionObserver === 'undefined',
   )
 
   useEffect(() => {

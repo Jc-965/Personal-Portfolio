@@ -12,9 +12,9 @@ import { GLIDE_TIME, glideStep, type Glide } from './glide'
 import { CHAPTER_RAMP } from './materials'
 import { cardShots, type CardShot } from './labels'
 import { createProduct, type PlaneMesh } from './product'
-import { FOCAL, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
+import { FOCAL, LAUNCH_MS, MAX_DRAG, anchorWorld, coachWorld, poseAt, projectPoint, projectRect, type Interaction, type PlanePose, type Pose, type Vec3 } from './rig'
 import { applyLensShift, toThreePosition, verticalFov } from './threeMap'
-import { actAt, actCopyRide, actWindows } from './timeline'
+import { actAt, actCopyRide, actWindows, previewProgress } from './timeline'
 
 export interface TeardownFrame {
   /** Glided chapter progress, the value every visual and the act state follow. */
@@ -25,6 +25,22 @@ export interface TeardownFrame {
   cards: CardShot[]
   /** The pose's explode, 0 assembled to 1 fully apart. Teardown holds the glass act's leaders until the stack has separated. */
   explode: number
+  /** The phone's projected screen in stage CSS px, null while the screen is hidden. Teardown places the phone's click target on it. */
+  phone: { left: number; top: number; width: number; height: number } | null
+}
+
+/** Which track the chapter scrolls through: the home page's arrival preview or the full journey. */
+export type TeardownView = 'preview' | 'journey'
+
+/** What Teardown can ask of a running canvas. */
+export interface TeardownControl {
+  /** Plays the launch bump: the camera eases closer and back and the lit body flares, over LAUNCH_MS. */
+  pulse(): void
+  /**
+   * Remeasures the track and lands the glide on the scroll's progress. Teardown calls it in the same frame as a
+   * view swap, after setting the scroll, so no frame draws with the old track or glides between the views.
+   */
+  sync(): void
 }
 
 export interface TeardownCanvasProps {
@@ -36,6 +52,10 @@ export interface TeardownCanvasProps {
   onReady: () => void
   /** WebGL2 missing, a shader or framebuffer failed, or the context was lost. */
   onFallback: () => void
+  /** Read on every scroll, so a view change maps progress anew without remounting the renderer. */
+  view: { current: TeardownView }
+  /** Set while the renderer runs and cleared on unmount. */
+  control: { current: TeardownControl | null }
 }
 
 type Callbacks = Pick<TeardownCanvasProps, 'onFrame' | 'onReady' | 'onFallback'>
@@ -191,7 +211,7 @@ function createStage(renderer: THREE.WebGLRenderer, story: TeardownStory, narrow
 }
 
 /** The chapter's 3D stage. All hot state stays outside React, as in the hero's AsciiWorld. */
-export default function TeardownCanvas({ story, track, onFrame, onReady, onFallback }: TeardownCanvasProps) {
+export default function TeardownCanvas({ story, track, onFrame, onReady, onFallback, view, control }: TeardownCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const callbacks = useRef<Callbacks>({ onFrame, onReady, onFallback })
   useEffect(() => { callbacks.current = { onFrame, onReady, onFallback } })
@@ -203,18 +223,27 @@ export default function TeardownCanvas({ story, track, onFrame, onReady, onFallb
     // React's development double mount runs this cleanup right after the first effect. Booting on the next
     // frame keeps that first mount from building a renderer, an environment, and six programs only to delete them.
     let unmount: (() => void) | null = null
-    const boot = requestAnimationFrame(() => { unmount = mount(canvas, stage, track, story, callbacks) })
+    const boot = requestAnimationFrame(() => { unmount = mount(canvas, stage, track, story, callbacks, view, control) })
     return () => {
       cancelAnimationFrame(boot)
       unmount?.()
     }
-  }, [story, track])
+    // view and control are ref objects that Teardown creates once, so they never remount the renderer.
+  }, [story, track, view, control])
 
   return <canvas ref={canvasRef} className="teardown__canvas" aria-hidden="true" />
 }
 
 /** Builds the renderer and runs the chapter until the returned function is called. */
-function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement, story: TeardownStory, callbacks: { current: Callbacks }): () => void {
+function mount(
+  canvas: HTMLCanvasElement,
+  stage: HTMLElement,
+  track: HTMLElement,
+  story: TeardownStory,
+  callbacks: { current: Callbacks },
+  view: TeardownCanvasProps['view'],
+  control: TeardownCanvasProps['control'],
+): () => void {
   let failed = false
   let stop = () => {}
   const fail = (reason: unknown) => {
@@ -282,6 +311,8 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
   let sized = ''
   /** Set when the render target was resized, so the next draw checks it before drawing into it. */
   let verifyTarget = false
+  /** performance.now() of the launch click, -1 when no launch bump is playing. */
+  let pulseStart = -1
   let ready = false
   let raf = 0
   let lastPaint = 0
@@ -526,7 +557,11 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     // 1e-4 progress and moving slower than 1e-3 progress per second.
     if (Math.abs(glide.value - progress) < 1e-4 && Math.abs(glide.velocity) < 1e-3) glide = { value: progress, velocity: 0 }
     const aspect = width / height
-    const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames })
+    // The launch bump is a sine over LAUNCH_MS from the click, so it starts and ends at rest.
+    const launch = pulseStart < 0 ? 1 : Math.min(1, (now - pulseStart) / LAUNCH_MS)
+    if (launch >= 1) pulseStart = -1
+    const push = launch < 1 ? Math.sin(Math.PI * launch) : 0
+    const pose = poseAt({ progress: glide.value, windows, backdrops: actBackdrops, narrow, aspect, interaction, poseFrames: story.pose.frames, push })
     requestRoom(pose.backdrop.a)
     requestRoom(pose.backdrop.b)
     const nextAct = windows.findIndex((w) => glide.value < w.start)
@@ -576,7 +611,11 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
       return at ? { x: at.x * width, y: at.y * height } : null
     }
     story.acts.forEach((act, a) => act.callouts.forEach((callout, c) => anchors.set(`c:${a}:${c}`, toPx(anchorWorld(pose, callout.anchor)))))
-    callbacks.current.onFrame({ progress: glide.value, anchors, cards: cardShots(pose, aspect, width, height), explode: pose.explode })
+    const screenRect = pose.screen.opacity > 0.05 ? projectRect(pose, pose.screen, aspect) : null
+    const phone = screenRect
+      ? { left: screenRect.left * width, top: screenRect.top * height, width: (screenRect.right - screenRect.left) * width, height: (screenRect.bottom - screenRect.top) * height }
+      : null
+    callbacks.current.onFrame({ progress: glide.value, anchors, cards: cardShots(pose, aspect, width, height), explode: pose.explode, phone })
 
     if (!ready && [...screens.values()].every((screen) => screen.ready)) {
       ready = true
@@ -585,14 +624,15 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     // Scroll, pointer input, and texture loads restart the loop, so it runs on only while the track is visible and
     // the glide or an interaction is still moving, or an act change has left the copy mask to measure.
     flush = false
-    if (visible && (easing || glide.value !== progress || copyDirty)) raf = requestAnimationFrame(draw)
+    if (visible && (easing || glide.value !== progress || copyDirty || push > 0)) raf = requestAnimationFrame(draw)
     else lastPaint = 0
   }
 
   const onScroll = () => {
     if (!sized) return
     const y = pageScrollY()
-    progress = sceneProgress(y - trackTop, trackHeight, height)
+    const fraction = sceneProgress(y - trackTop, trackHeight, height)
+    progress = view.current === 'preview' ? previewProgress(fraction, story.acts) : fraction
     const wasVisible = visible
     visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
     // Arriving from off screen starts at the scroll position instead of gliding through every act in between.
@@ -683,6 +723,14 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
     fail('the WebGL context was lost')
   }
   const onVisibility = () => { lastPaint = 0; if (document.hidden) stop(); else start() }
+  control.current = {
+    pulse: () => { pulseStart = performance.now(); start() },
+    sync: () => {
+      measure()
+      glide = { value: progress, velocity: 0 }
+      start()
+    },
+  }
 
   // compile() prepares a program for every mesh in the scene whether or not it is visible, so the internals
   // and glass programs exist before the glass act first shows them. It only submits the programs, and the
@@ -746,6 +794,7 @@ function mount(canvas: HTMLCanvasElement, stage: HTMLElement, track: HTMLElement
 
   return () => {
     disposed = true
+    control.current = null
     stop()
     cancelAnimationFrame(warming)
     cancelAnimationFrame(sizing)

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { actCopyRide, actWindows, actAt, copyRide, dwell, localOf, ramp, totalSpan } from '../../src/components/teardown/timeline.ts'
+import { EDGE_HOLD, PREVIEW_HOLD, actCopyRide, actWindows, actAt, copyRide, dwell, localOf, previewEnd, previewProgress, previewTravel, ramp, totalSpan } from '../../src/components/teardown/timeline.ts'
 
 const ACTS = [
   { key: 'arrival', span: 1 }, { key: 'hand', span: 0.9 }, { key: 'day', span: 1.4 }, { key: 'quiet', span: 0.4 },
@@ -105,4 +105,22 @@ test('the glass copy rides in late, fully opaque from about 0.195 of the act, as
   // The other middle acts keep the plain ride, fully shown from about 0.085.
   const hand = windows.findIndex((w) => w.key === 'hand')
   assert.equal(actCopyRide(windows, hand, windows[hand].start + (windows[hand].end - windows[hand].start) * 0.1).opacity, 1)
+})
+
+test('the preview runs the arrival to its reveal and then holds', () => {
+  const end = previewEnd(ACTS)
+  assert.ok(near(end, (EDGE_HOLD * ACTS[0].span) / totalSpan(ACTS), 1e-12))
+  assert.ok(near(previewTravel(ACTS), end * totalSpan(ACTS) + PREVIEW_HOLD, 1e-12))
+  assert.equal(previewProgress(0, ACTS), 0)
+  assert.equal(previewProgress(1, ACTS), end)
+  // The formation keeps the journey's scroll rate: a fraction f of the track is f * travel viewport-heights.
+  const f = 0.3
+  assert.ok(near(previewProgress(f, ACTS), (f * previewTravel(ACTS)) / totalSpan(ACTS), 1e-12))
+})
+
+test('the arrival copy holds the centre until the preview ends', () => {
+  const windows = actWindows(ACTS)
+  const at = (local) => actCopyRide(windows, 0, windows[0].start + local * (windows[0].end - windows[0].start))
+  assert.deepEqual(at(0.64), at(0))
+  assert.ok(at(0.8).y < 0, 'the copy rides out after the hold')
 })

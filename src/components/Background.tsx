@@ -128,9 +128,9 @@ export default function Background() {
 
     // While something opaque spans the viewport the canvas cannot be seen, so
     // the renderer keeps simulating but stops painting. heroCovering is true
-    // while the hero's terminal sheet covers, and sketchbookCovering while the
-    // Sketchbook overlay does. The teardown chapter's stage is transparent
-    // and never covers.
+    // while the hero's terminal sheet or the pinned teardown stage covers (the
+    // shared cover signal in heroCover.ts), and sketchbookCovering while the
+    // Sketchbook overlay does.
     let heroCovering = isHeroCovering()
     let sketchbookCovering = coveredBySketchbook()
     let covered = false
@@ -145,9 +145,7 @@ export default function Background() {
       syncCovered()
     })
     // While the teardown chapter is pinned (Teardown.tsx sets teardown-pinned on the root) the pointer leaves
-    // the graph alone. The grid drift and the idle edges keep running under the chapter's glyphs, which ties the
-    // chapter to the page, and only the halos and the cursor ring stop, so the tree never lights up across the
-    // product while the visitor drags it.
+    // the graph alone, so no halo is lit when the background fades back in after the chapter unpins.
     const pinnedByTeardown = () => document.documentElement.classList.contains('teardown-pinned')
     let calm = pinnedByTeardown()
     const classObserver = new MutationObserver(() => {

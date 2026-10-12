@@ -17,6 +17,7 @@ import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 import { shouldUseCustomCursor } from './utils/nativeCursor'
 import { storageGet, storageSet } from './utils/safeStorage'
+import { JOURNEYS, journeyAt } from './components/teardown/route'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
 // Only shown after the loading screen completes — lazy so its gsap dependency
@@ -49,6 +50,11 @@ const SectionFallback = ({ id, className }: { id: string; className: string }) =
     <p className="section-fallback">This section failed to load — refresh to try again.</p>
   </section>
 )
+
+// A direct load of a chapter's journey page hides every other section before the first paint. Teardown owns the
+// class from then on.
+const journeyOnLoad = journeyAt(window.location.pathname, JOURNEYS)
+if (journeyOnLoad) document.documentElement.classList.add('journey-open')
 
 function App() {
   const analyticsEnabled = !['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -206,7 +212,7 @@ function App() {
             <main id="main-content">
               <Hero />
               <ErrorBoundary label="Journey" fallback={<SectionFallback id="journey" className="section journey" />}><LazySection id="journey" className="section journey" component={Journey} margin="1600px 0px" /></ErrorBoundary>
-              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="1600px 0px" /></ErrorBoundary>
+              <ErrorBoundary label="Projects" fallback={<SectionFallback id="projects" className="section projects section--wide" />}><LazySection id="projects" className="section projects section--wide" component={Projects} margin="1600px 0px" eager={!!journeyOnLoad} /></ErrorBoundary>
               <ErrorBoundary label="BeyondBuild" fallback={<SectionFallback id="life" className="section beyond" />}><section id="life" className="section beyond"><BeyondBuild /></section></ErrorBoundary>
               <ErrorBoundary label="Toolkit" fallback={<SectionFallback id="skills" className="section toolkit" />}><section id="skills" className="section toolkit"><Toolkit /></section></ErrorBoundary>
               <ErrorBoundary label="Constellation" fallback={<SectionFallback id="constellation" className="section constellation-section" />}><LazySection id="constellation" className="section constellation-section" component={Constellation} margin="1200px 0px" crawlerEager={false} /></ErrorBoundary>

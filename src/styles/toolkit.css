@@ -59,7 +59,7 @@
   display: grid;
   grid-template-columns: auto 14ch minmax(0, 1fr);
   column-gap: 12px;
-  align-items: baseline;
+  align-items: start;
   padding: 4px 0;
 }
 .toolkit__branch {
@@ -71,17 +71,63 @@
 .toolkit__items {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 14px;
+  gap: 6px 14px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+/* An item is one text line tall, so the first row of icons centres on the directory name. */
 .toolkit__item {
-  color: var(--text-primary);
-  white-space: nowrap;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 1.75em;
+  color: var(--text-secondary);
+  cursor: default;
+  transition: color 0.15s;
 }
-.toolkit__item::before { content: '['; opacity: 0.5; }
-.toolkit__item::after { content: ']'; opacity: 0.5; }
+.toolkit__item:hover,
+.toolkit__item:focus { color: var(--brand, var(--accent-cyan)); }
+.toolkit__item:focus-visible { outline: 1px solid var(--accent-cyan); outline-offset: 3px; }
+.toolkit__icon { display: block; width: 22px; height: 22px; }
+/* The HTML/CSS symbol pairs two marks in a 50 by 24 viewBox. */
+.toolkit__icon--pair { width: 46px; }
+
+/* The name is the item's accessible text. It stays clipped until hover or focus
+   shows it as a tooltip. The brackets carry empty alt text so screen readers
+   announce the name alone. */
+.toolkit__name {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  z-index: 3;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toolkit__item:hover .toolkit__name,
+.toolkit__item:focus .toolkit__name {
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  padding: 1px 6px;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  background: var(--bg-primary);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  transform: translateX(-50%);
+}
+.toolkit__name::before { content: '['; content: '[' / ''; opacity: 0.5; }
+.toolkit__name::after { content: ']'; content: ']' / ''; opacity: 0.5; }
+.toolkit__item[data-align='start'] .toolkit__name { left: 0; transform: none; }
+.toolkit__item[data-align='end'] .toolkit__name { left: auto; right: 0; transform: none; }
+.toolkit__ls { display: flex; align-items: start; gap: 12px; }
+.toolkit__ls .toolkit__items { flex: 1; min-width: 0; }
 
 .toolkit__cursor {
   display: inline-block;
@@ -129,6 +175,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .toolkit__cursor { animation: none; }
+  .toolkit__item { transition: none; }
 }
 
 /* ---------- The shell ---------- */
@@ -154,9 +201,6 @@
 }
 .toolkit__dir--button:hover, .toolkit__dir--button:focus-visible { text-decoration-color: currentColor; }
 .toolkit__dir--button:focus-visible { outline: 1px solid var(--accent-cyan); outline-offset: 2px; }
-.toolkit__item { transition: color 0.15s; }
-.toolkit__line .toolkit__item + .toolkit__item { margin-left: 12px; }
-.toolkit__terminal:hover .toolkit__item:hover { color: var(--accent-cyan); }
 .toolkit__form { display: flex; align-items: baseline; gap: 0.6em; }
 .toolkit__input {
   flex: 1;

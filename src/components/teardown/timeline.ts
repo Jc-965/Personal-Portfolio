@@ -86,10 +86,30 @@ export function copyRide(local: number): { y: number; opacity: number } {
 }
 
 /**
- * Share of the arrival over which its copy holds the centre. The arrival copy is in place when the chapter pins
- * and rides out over the act's last 60%.
+ * Share of the arrival over which its copy holds the centre, which is also where the arrival's reveal completes
+ * (REVEAL_END in rig.ts) and where the home page's preview ends. The copy is in place when the chapter pins and
+ * rides out over the act's last 35%, so the preview's last frame and the journey's frame at the same progress
+ * are identical, copy included.
  */
-const EDGE_HOLD = 0.4
+export const EDGE_HOLD = 0.65
+
+/** Viewport-heights the home page's preview holds its last frame, with the phone clickable, before it unpins. */
+export const PREVIEW_HOLD = 0.6
+
+/** Chapter progress at the end of the preview: the arrival's reveal complete, the copy still centred. */
+export function previewEnd(acts: readonly { span: number }[]): number {
+  return (EDGE_HOLD * acts[0].span) / totalSpan(acts)
+}
+
+/** Viewport-heights of the preview track's travel: the arrival up to previewEnd at the journey's rate, then the hold. */
+export function previewTravel(acts: readonly { span: number }[]): number {
+  return previewEnd(acts) * totalSpan(acts) + PREVIEW_HOLD
+}
+
+/** Chapter progress at `fraction` of the preview track's travel. It moves at the journey's rate and stops at previewEnd. */
+export function previewProgress(fraction: number, acts: readonly { span: number }[]): number {
+  return Math.min(previewEnd(acts), (clamp01(fraction) * previewTravel(acts)) / totalSpan(acts))
+}
 /**
  * Share of the close act over which its copy rides in to the centre, where it then holds to the unpin. At 0.4 the
  * copy has settled before the phone reaches its close pose (0.5) and rests with it and the evening room until

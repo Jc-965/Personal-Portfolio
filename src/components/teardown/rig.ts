@@ -314,7 +314,19 @@ export interface RigInput {
   aspect: number
   interaction: Interaction
   poseFrames: number
+  /** The launch bump, 0 to 1, from the click that opens the journey. 0 or absent leaves the pose unchanged. */
+  push?: number
 }
+
+/**
+ * Milliseconds of the launch bump that answers the click opening the journey. TeardownCanvas plays the push as a
+ * sine over this time, and Teardown holds Lenis for as long.
+ */
+export const LAUNCH_MS = 800
+/** Fraction of its distance the camera moves toward the phone at a full launch push. */
+const LAUNCH_PUSH = 0.05
+/** Extra light on the lit body at a full launch push, as a fraction of its light. */
+const LAUNCH_FLARE = 0.25
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]
@@ -345,8 +357,11 @@ export function planePoint(plane: PlanePose, u: number, v: number): Vec3 {
   return add(plane.center, add(mul(plane.right, u * plane.halfW), mul(plane.up, v * plane.halfH)))
 }
 
-/** Where each act's finished state holds, as a fraction of the act, for the scroll locks. */
-const REST_LOCAL: Readonly<Record<ActKey, number>> = { arrival: 0.8, hand: 0.75, day: 0.9, quiet: 0.85, glass: 0.7, proof: 0.68, coach: 0.75, close: 0.6 }
+/**
+ * Where each act's finished state holds, as a fraction of the act, for the scroll locks. The arrival rests at
+ * EDGE_HOLD (timeline.ts), where the home page's preview ends, so a launch lands on a rest.
+ */
+const REST_LOCAL: Readonly<Record<ActKey, number>> = { arrival: 0.65, hand: 0.75, day: 0.9, quiet: 0.85, glass: 0.7, proof: 0.68, coach: 0.75, close: 0.6 }
 
 /**
  * Chapter progress values where a finished state holds, in order: one per
@@ -542,6 +557,7 @@ export function poseAt(input: RigInput): Pose {
   dist = lerp(dist, narrow ? 2.6 : 2.2, rise(coach))
   // The narrow close backs off to 2.45, which raises the phone's floor and lifts the link row clear of the bottom edge.
   dist = lerp(dist, narrow ? 2.45 : 1.7, rise(close))
+  dist *= 1 - LAUNCH_PUSH * (input.push ?? 0)
 
   // The proof camera eases onto the code layer over the first half of the act and follows it back into the phone
   // as the stack closes over the act's last 20%, so the code stays framed while the readout types and rests.
@@ -646,7 +662,7 @@ export function poseAt(input: RigInput): Pose {
     gather,
     decode,
     internals: explode,
-    bodyLight: 1 - BODY_DIM * proofDim,
+    bodyLight: (1 - BODY_DIM * proofDim) * (1 + LAUNCH_FLARE * (input.push ?? 0)),
     // The glass light drives both the sheet's rim and its opacity in product.ts, so proof hides the fanned sheet,
     // whose rim otherwise outlines a clipped rectangle at the frame's top and right edges, and leaves the code layer
     // and the chassis in focus.

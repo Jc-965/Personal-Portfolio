@@ -512,3 +512,85 @@
   .teardown--static .teardown__cards,
   .teardown--static .teardown__leaders { display: none; }
 }
+
+/* The journey page. journey-open on the root (Teardown.tsx) hides every
+   section but the chapter, which then starts at the top of the page. The
+   sections stay mounted, so closing the journey restores the same layout and
+   scroll offset. */
+html.journey-open .nav,
+html.journey-open main > :not(#projects),
+html.journey-open #projects > :not(.projects__scenes),
+html.journey-open .projects__scenes > :not(.teardown),
+html.journey-open .footer { display: none; }
+html.journey-open #projects { padding-top: 0; padding-bottom: 0; }
+
+/* Closing the journey from past the preview's last frame fades the stage out
+   for the swap and back in on the preview, instead of gliding through every
+   act in between. */
+.teardown__stage { transition: opacity .25s ease; }
+.teardown__stage.is-swapping { opacity: 0; }
+
+/* The phone's click target. Teardown writes its box from the phone's
+   projected screen every frame, so the custom cursor brackets the phone. */
+.teardown__phone-hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: var(--hit-w, 0px);
+  height: var(--hit-h, 0px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(var(--hit-x, 0px), var(--hit-y, 0px));
+  cursor: pointer;
+}
+
+/* The act sets each copy child's opacity from the scroll (--copy-o), so the
+   open button leaves the journey through filter instead of opacity. */
+.teardown__open {
+  display: inline-block;
+  margin: 22px 0 0;
+  padding: 7px 14px;
+  font: 600 .9rem/1.4 var(--font-mono);
+  color: var(--td-ink);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
+  border: 1px solid var(--td-hairline);
+  cursor: pointer;
+  transition: color .25s ease, border-color .25s ease, filter .5s var(--td-ease);
+}
+
+.teardown__open:hover,
+.teardown__open:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
+.teardown--journey .teardown__open { filter: opacity(0); pointer-events: none; }
+
+.teardown__back {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  left: var(--td-gutter);
+  z-index: 20;
+  padding: 6px 12px;
+  font: 600 .85rem/1.4 var(--font-mono);
+  color: var(--td-ink);
+  background: var(--td-panel);
+  -webkit-backdrop-filter: var(--td-frost);
+  backdrop-filter: var(--td-frost);
+  border: 1px solid var(--td-hairline);
+  cursor: pointer;
+  opacity: 0;
+  translate: 0 -8px;
+  pointer-events: none;
+  transition: opacity .6s var(--td-ease), translate .6s var(--td-ease), color .25s ease, border-color .25s ease;
+}
+
+.teardown__back.is-shown { opacity: 1; translate: none; pointer-events: auto; }
+.teardown__back:hover,
+.teardown__back:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
+
+@media (prefers-reduced-motion: reduce) {
+  .teardown__stage,
+  .teardown__open,
+  .teardown__back { transition: none; }
+}

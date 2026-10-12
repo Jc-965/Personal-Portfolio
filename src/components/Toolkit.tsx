@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type PointerEvent, type SyntheticEvent } from 'react'
 import { m, useInView, useReducedMotion } from 'framer-motion'
 import portfolio from '../content/portfolio.json'
 import { runCommand, type Line, type SkillGroup } from './toolkitShell'
@@ -9,6 +9,36 @@ const groups: SkillGroup[] = [
   { id: 'technologies', items: ['React', 'FastAPI', 'LangGraph', 'Android SDK', 'Flutter', 'Node.js', 'MCP', 'Supabase'] },
   { id: 'platforms', items: ['PostgreSQL', 'pgvector', 'Docker', 'AWS', 'Firebase', 'Git', 'GitHub Actions (CI/CD)'] },
 ]
+
+/**
+ * Hover and focus colour per skill, from Simple Icons where it has the mark.
+ * Java and MCP are black there, so they use a colour that reads on the dark terminal.
+ */
+const brand: Record<string, string> = {
+  Python: '3776ab', TypeScript: '3178c6', Kotlin: '7f52ff', Java: 'ed8b00', C: 'a8b9cc', SQL: 'ffcc00', Dart: '0175c2', JavaScript: 'f7df1e', 'HTML/CSS': 'e34f26',
+  React: '61dafb', FastAPI: '009688', LangGraph: '7fc8ff', 'Android SDK': '3ddc84', Flutter: '02569b', 'Node.js': '5fa04e', MCP: 'ffffff', Supabase: '3fcf8e',
+  PostgreSQL: '4169e1', pgvector: '4169e1', Docker: '2496ed', AWS: 'ff9900', Firebase: 'dd2c00', Git: 'f03c2e', 'GitHub Actions (CI/CD)': '2088ff',
+}
+
+/**
+ * One skill as its logo. The symbol id in public/skills/icons.svg is the name
+ * lowercased with everything but letters and digits removed, so Node.js is
+ * #nodejs. The name stays in the DOM as the item's only text, which screen
+ * readers announce and crawlers index, and CSS shows it as the tooltip.
+ */
+const skill = (name: string) => {
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Focus is how keyboard and touch users reveal the name tooltip.
+    <li key={name} className="toolkit__item" tabIndex={0} data-cursor style={{ '--brand': `#${brand[name]}` } as CSSProperties}>
+      <svg className={id === 'htmlcss' ? 'toolkit__icon toolkit__icon--pair' : 'toolkit__icon'} aria-hidden="true"><use href={`/skills/icons.svg#${id}`} /></svg>
+      <span className="toolkit__name">{name}</span>
+    </li>
+  )
+}
+
+/** Half the widest tooltip, [GitHub Actions (CI/CD)], in CSS px, with margin. */
+const TIP_HALF = 100
 
 const INTRO = 'tree ~/skills'
 const fileCount = groups.reduce((sum, group) => sum + group.items.length, 0)
@@ -100,15 +130,28 @@ export default function Toolkit() {
       if (match && input.includes(' ')) { event.preventDefault(); setInput(`${input.split(' ')[0]} ${match.id}`) }
     }
   }
-  const focusInput = () => { if (window.getSelection()?.toString()) return; inputRef.current?.focus({ preventScroll: true }) }
+  // A press on an icon leaves focus on the icon, so its name shows and a phone keyboard stays closed.
+  const focusInput = (event: PointerEvent) => {
+    if (window.getSelection()?.toString() || (event.target as Element).closest('.toolkit__item')) return
+    inputRef.current?.focus({ preventScroll: true })
+  }
+  // A tooltip centres on its icon unless that crosses the terminal's edge, then it aligns with the icon's near side.
+  const placeName = (event: SyntheticEvent) => {
+    const item = (event.target as Element).closest<HTMLElement>('.toolkit__item')
+    const frame = terminalRef.current?.getBoundingClientRect()
+    if (!item || !frame) return
+    const box = item.getBoundingClientRect()
+    const x = (box.left + box.right) / 2 - frame.left
+    item.dataset.align = x < TIP_HALF ? 'start' : frame.width - x < TIP_HALF ? 'end' : ''
+  }
 
   const renderLine = (line: Line, key: number) => {
     if (line.kind === 'text') return <p key={key} className={`toolkit__line ${line.tone ? `toolkit__line--${line.tone}` : ''}`}>{line.text}</p>
     if (line.kind === 'items') return (
-      <p key={key} className="toolkit__line">
-        <span className="toolkit__dir">{line.dir}/</span>{'  '}
-        {line.items.map(item => <span key={item} className="toolkit__item">{item}</span>)}
-      </p>
+      <div key={key} className="toolkit__line toolkit__ls">
+        <span className="toolkit__dir">{line.dir}/</span>
+        <ul className="toolkit__items" aria-label={line.dir}>{line.items.map(skill)}</ul>
+      </div>
     )
     return (
       <div key={key} className="toolkit__tree">
@@ -123,7 +166,7 @@ export default function Toolkit() {
             <span className="toolkit__branch" aria-hidden="true">{i === line.groups.length - 1 ? '└──' : '├──'}</span>
             <button type="button" className="toolkit__dir toolkit__dir--button" onClick={() => run(`ls ${group.id}`)} title={`ls ${group.id}`}>{group.id}/</button>
             <ul className="toolkit__items" aria-label={group.id}>
-              {group.items.map(item => <li key={item} className="toolkit__item">{item}</li>)}
+              {group.items.map(skill)}
             </ul>
           </m.div>
         ))}
@@ -149,7 +192,7 @@ export default function Toolkit() {
       </m.header>
 
       {/* A press anywhere on the glass puts the caret in the prompt, like a real terminal window. */}
-      <div ref={terminalRef} className="toolkit__terminal" data-cursor onPointerDown={focusInput}>
+      <div ref={terminalRef} className="toolkit__terminal" data-cursor onPointerDown={focusInput} onPointerOver={placeName} onFocus={placeName}>
         <div className="toolkit__bar">
           <span className="toolkit__bar-title">~/skills</span>
           <span className="toolkit__bar-hint">{ready ? 'type help' : 'zsh'}</span>

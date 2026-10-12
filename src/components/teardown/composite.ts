@@ -1,24 +1,23 @@
 /**
  * The chapter's final pass, one full-screen draw to the canvas. It owns the
  * room (drawn entirely in colored glyphs, with no photograph under them,
- * framed on its subject, crossing cell by cell between rooms), the darkening behind
- * the copy, the product layer's glyph decode and shadow pool, and the
- * coach skeleton. Everything is computed in linear light and written to the
+ * framed on its subject, crossing cell by cell between rooms), the opaque
+ * base under it, the product layer's glyph decode, and the coach skeleton. Everything is computed in linear light and written to the
  * canvas as sRGB exactly once, here, so the renderer's own output conversion
  * stays off.
  *
- * The canvas is transparent and the page background shows through it. The
- * pass composites its layers back to front as premultiplied colour over
- * nothing and writes that colour and alpha, which is what a context created
- * with premultipliedAlpha expects, so glyph edges carry no dark fringe. Every
- * layer keeps colour at or below alpha, so no pixel adds light to the page.
+ * The stage paints an opaque black base, the page's own background colour,
+ * so the page's grid and graph never show through the chapter. The base
+ * fades only over the stage's top and bottom SEAM, so the sticky stage's
+ * edges blend into the page while it scrolls in and out. The pass composites
+ * its layers back to front as premultiplied colour and writes that colour
+ * and alpha, which is what a context created with premultipliedAlpha
+ * expects, so glyph edges carry no dark fringe.
  * The room's glyphs print in cell by cell from the product's place at the chapter's start, and both
- * dissolve back into it at the end (`uReveal`). Its glyph rim is
- * dithered into the page, and the room, the shadow pool, and the copy
- * darkening fade out over the top and bottom SEAM of the stage, so the
- * sticky stage's edges never print on the page while it scrolls in or out.
- * The product and the coach do not fade there, since the rig keeps them
- * inside the chapter.
+ * dissolve back into it at the end (`uReveal`). Its glyph rim is dithered
+ * into the base, and the room fades with the base over the SEAM. The product
+ * and the coach do not fade there, since the rig keeps them inside the
+ * chapter.
  *
  * `uProduct` is the product render target: linear, premultiplied by
  * coverage, the same size as the canvas, and mipmapped. Room textures are
@@ -41,16 +40,8 @@ const ROOM_FLAT_TOP = RAMP.indexOf('o')
 const ROOM_EDGE_TOP = RAMP.indexOf('#')
 /** The centred dot, drawn faintly along the coach's bones. */
 const DOT = RAMP.indexOf('·')
-/** Fraction of the stage height, at the top and at the bottom, over which the room layer fades to transparent. */
+/** Fraction of the stage height, at the top and at the bottom, over which the base and the room fade to transparent. */
 const SEAM = 0.1
-/**
- * Alpha of the darkening the copy mask lays over the page at the mask's full
- * strength. The room's glyphs under the copy fade by the whole mask, as they
- * did against the opaque stage, and the page's grid beneath them dims by this
- * share of it, so the copy column reads as a shaded part of the page and not
- * a black panel. teardown.css lays its own scrim over the same column.
- */
-const COPY_DARK = 0.6
 
 const VERTEX = /* glsl */ `
 void main() {
@@ -214,13 +205,11 @@ void main() {
   vec2 cell = floor(grid);
   vec2 local = fract(grid);
   vec2 sc = (cell + .5) * uCell / uRes;
-  // Blur levels are tuned for an 1800 px tall target, and this keeps them the same fraction of the frame at any size.
-  float lodScale = log2(uRes.y / 1800.0);
 
   // The room is its glyphs alone, with a straight colour and a coverage that carries the gain, the vignette, the
-  // copy mask, and the seam fade. It is laid over the page by coverage, so a dim room is a transparent one and the
-  // page's grid shows through between the characters. No photograph sits under the glyphs: a softened copy of
-  // the picture there read as a filter over the page instead of a room made of characters.
+  // copy mask, and the seam fade. It is laid over the black base by coverage, so a dim room is a sparse one. No
+  // photograph sits under the glyphs: a softened copy of the picture there read as a filter instead of a room made
+  // of characters.
   vec3 roomInk = vec3(0.0);
   float roomCover = 0.0;
   if (uBackGain > .002 && uReveal > .002) {
@@ -280,15 +269,15 @@ void main() {
   float seam = smoothstep(0.0, ${glslFloat(SEAM)}, s.y) * smoothstep(0.0, ${glslFloat(SEAM)}, 1.0 - s.y);
   float shade = copyShade();
   float r = length((s - .5) * 2.0) * .7071;
-  // The room's rim. The glyphs thin toward the frame's edges and over the seams, so the page's grid returns
-  // through the room's periphery and the picture holds around its subject, which the focus point keeps near the
-  // middle. The rim is dithered cell by cell: each cell drops out at its own point along the fall, so the rim is a scatter of characters over the
-  // page, the way the room's own deep shadows already end, and never a soft gradient edge.
+  // The room's rim. The glyphs thin toward the frame's edges and over the seams, so the picture holds around its
+  // subject, which the focus point keeps near the middle. The rim is dithered cell by cell: each cell drops out at
+  // its own point along the fall, so the rim is a scatter of characters, the way the room's own deep shadows
+  // already end, and never a soft gradient edge.
   float fall = (1.0 - .4 * smoothstep(.3, 1.0, r)) * seam;
   float rim = smoothstep(0.0, .5, fall - hash12(cell + 17.9) * .5);
   // The room prints in from the product's place at the chapter's start and dissolves back into it at the end,
   // each glyph cell over half of the reveal in order of its distance from the product, loosened by a fifth of
-  // hash, so the front is a wide soft ring growing out of the page's grid around the forming phone.
+  // hash, so the front is a wide soft ring growing out of the dark around the forming phone.
   float printed = uReveal;
   if (uReveal < 1.0) {
     float reach = clamp(distance(gl_FragCoord.xy, uRevealAt) / (.8 * length(uRes)), 0.0, 1.0) * .8;
@@ -327,16 +316,11 @@ void main() {
   }
   product.rgb = shoulder(product.rgb);
 
-  // The shadow pool sits a little below the product, as if lit from above. It scales with the decode, so the
-  // loose characters of the arrival and the close cast no shadow and the dissolved phone leaves no dark print on
-  // the room. There is no glow: a blurred copy of the product laid over the page read as a soft-focus filter.
-  float shadow = textureLod(uProduct, s + vec2(0.0, .012), 5.5 + lodScale).a * uDecode;
-  // Back to front: the shadow pool darkens the page, the room's glyphs sit on it, the copy mask shades them, and
-  // the product covers all of it, pixel for pixel. The copy darkening arrives and leaves with the room, so the
-  // pinned stage draws nothing at all until the room starts to print.
-  vec4 color = vec4(0.0, 0.0, 0.0, .6 * shadow * seam);
+  // Back to front: the opaque black base, the room's glyphs on it with the copy mask's shade already in their
+  // coverage, and the product over all of it, pixel for pixel. There is no glow: a blurred copy of the product
+  // laid over the page read as a soft-focus filter.
+  vec4 color = vec4(0.0, 0.0, 0.0, seam);
   color = over(color, vec4(roomInk * roomCover, roomCover));
-  color = over(color, vec4(0.0, 0.0, 0.0, (1.0 - shade) * ${glslFloat(COPY_DARK)} * seam * uReveal));
   color = over(color, product);
 
   if (uCoach > .01) {

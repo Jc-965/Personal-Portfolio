@@ -136,9 +136,31 @@ test('the ParkiWell teardown keeps its whole story in the DOM', async ({ page })
   await expect(chapter.getByRole('link', { name: /parkiwell\.com/ })).toHaveAttribute('href', 'https://parkiwell.com')
 })
 
-test('focus on a teardown link scrolls the chapter to its close act', async ({ page }) => {
+test('the phone opens the ParkiWell journey and Back returns to the home preview', async ({ page }) => {
   await page.goto('/')
   const chapter = await showTeardownStart(page)
+  await chapter.getByRole('button', { name: /open the teardown/ }).click()
+  await expect(page).toHaveURL(/\/parkiwell$/)
+  await expect(page.locator('html')).toHaveClass(/journey-open/)
+  await expect(chapter).toHaveClass(/teardown--journey/)
+  await expect(page.locator('#journey')).toBeHidden()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator('html')).not.toHaveClass(/journey-open/)
+  await expect(chapter).toHaveClass(/teardown--preview/)
+})
+
+test('a direct load of /parkiwell opens the journey with only the chapter shown', async ({ page }) => {
+  await page.goto('/parkiwell')
+  await expect(page.locator('html')).toHaveClass(/journey-open/)
+  await expect(page.locator('#project-parkiwell')).toHaveClass(/teardown--journey/)
+  await expect(page.locator('.hero')).toBeHidden()
+  await expect(page.getByRole('button', { name: /back/ })).toBeVisible()
+})
+
+test('focus on a teardown link scrolls the journey to its close act', async ({ page }) => {
+  await page.goto('/parkiwell')
+  const chapter = page.locator('#project-parkiwell')
   const link = chapter.getByRole('link', { name: /parkiwell\.com/ })
   await link.focus()
   await expect(chapter).toHaveAttribute('data-act', 'close')
@@ -169,6 +191,9 @@ test('reduced motion stacks the teardown with every act reachable', async ({ pag
   const chapter = page.locator('#project-parkiwell')
   await expect(chapter).toHaveClass(/teardown--static/)
   expect(await chapter.locator('.teardown__stage').evaluate((el) => getComputedStyle(el).position)).not.toBe('sticky')
+  // The home preview stacks the arrival alone, and the open button leads to the stack of every act.
+  await chapter.getByRole('button', { name: /open the teardown/ }).click()
+  await expect(page).toHaveURL(/\/parkiwell$/)
   const close = chapter.getByText('Coming to iPhone and Android.')
   await close.scrollIntoViewIfNeeded()
   await expect(close).toBeInViewport()

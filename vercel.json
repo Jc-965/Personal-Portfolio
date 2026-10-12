@@ -19,7 +19,15 @@
       "source": "/projects/:id([a-z0-9-]+)",
       "destination": "/projects/:id/",
       "permanent": true
+    },
+    {
+      "source": "/parkiwell/",
+      "destination": "/parkiwell",
+      "permanent": true
     }
+  ],
+  "rewrites": [
+    { "source": "/parkiwell", "destination": "/index.html" }
   ],
   "headers": [
     {

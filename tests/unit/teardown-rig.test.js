@@ -836,3 +836,13 @@ test('rest points mark each finished state in order: every act, and each day car
     }
   }
 })
+
+test('the launch push moves the camera closer and lifts the light, and push 0 changes nothing', () => {
+  const base = { progress: inAct('arrival', 0.65), windows, backdrops, narrow: false, aspect: 1.6, interaction: still, poseFrames: PARKIWELL.pose.frames }
+  const rest = poseAt(base)
+  assert.deepEqual(poseAt({ ...base, push: 0 }), rest)
+  const pushed = poseAt({ ...base, push: 1 })
+  const gap = (pose) => Math.hypot(...pose.camera.pos.map((c, i) => c - pose.phone.pos[i]))
+  assert.ok(Math.abs(gap(pushed) / gap(rest) - 0.95) < 0.01, `camera gap ratio ${gap(pushed) / gap(rest)}`)
+  assert.ok(near(pushed.bodyLight / rest.bodyLight, 1.25, 1e-9))
+})
