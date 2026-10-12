@@ -42,7 +42,7 @@
       "period": "Jun 2026 – Aug 2026",
       "location": "Long Beach, CA",
       "status": "Complete",
-      "summary": "Shipped rebuilt billing and payment flows that more than doubled task success in usability tests, from 28% to 63%, and fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen. Built a replay engine for 220+ API endpoints that uncovered auth flaws in the 500K+ user Android app, proved with paired replays that the APIs ignored service JWTs, and moved bundled credentials and authentication server-side.",
+      "summary": "Shipped rebuilt billing and payment flows and fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen. Built a replay engine for 220+ API endpoints that uncovered auth flaws in the 500K+ user Android app, proved with paired replays that the APIs ignored service JWTs, and moved bundled credentials and authentication server-side.",
       "stack": [
         "Android",
         "Kotlin",

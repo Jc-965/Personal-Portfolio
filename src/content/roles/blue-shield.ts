@@ -28,7 +28,7 @@ export const BLUE_SHIELD: RoleStory = {
       span: 1.6,
       eyebrow: 'billing and payments',
       lines: ['Rebuilt billing and payment flows, and fixed the defects members hit.'],
-      readout: ['task success 28% → 63%', '12 crash and data risks fixed', 'blank-screen defect fixed'],
+      readout: ['12 crash and data risks fixed', 'blank-screen defect fixed'],
       callouts: [
         { text: 'Click the phone to step through the flow', anchor: 'phone' },
       ],
@@ -41,6 +41,6 @@ export const BLUE_SHIELD: RoleStory = {
   // A clear electric-blue decode, and the room's ink graded toward blue.
   look: { tint: [0.16, 0.42, 1.0], grade: [0.8, 0.95, 1.2] },
   links: [],
-  poster: { src: '/roles/blue-shield/poster.webp', alt: 'A white Android phone showing a paid screen on a dark table of member lights, beside task-success bars at 28% and 63%, a reel-to-reel replay deck, a wall of endpoint lights, and a steel vault' },
+  poster: { src: '/roles/blue-shield/poster.webp', alt: 'A white Android phone with a blank screen, ringed by red risk markers and a gold key, on a dark table of member lights beside a replay deck, a wall of endpoint lights, and a steel vault' },
   scene: () => import('../../components/roles/scenes/blue-shield.ts'),
 }

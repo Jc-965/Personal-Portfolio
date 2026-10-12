@@ -5,7 +5,7 @@
  * without the service JWT, and both come back with the same response, the flaw it proved. The app's bundled
  * credential, a gold key in front of the phone, then moves server-side into a vault. In the close the phone's blank
  * screen (the production defect) boots into the rebuilt billing and payment flow, twelve red risk markers around it
- * are fixed, a task-success bar rises from 28% to 63%, and the member lights come on outward from the phone.
+ * are fixed, and the member lights come on outward from the phone.
  *
  * The home page shows the finished world. A click on an endpoint replays a pair against it, a click on the lit
  * phone steps through the flow's screens, and the pointer wakes the member lights it passes over. Motion follows the
@@ -42,9 +42,6 @@ const GRID = { cols: 21, rows: 11, w: 1.24, h: 0.66, y: 0.74 }
 /** The endpoint the scrolled pair replays against, and the share of endpoints the audit flags. */
 const PAIR_CELL = 115
 const FLAGGED = 0.16
-/** The task-success bars: before and after the rebuilt flows, as fractions, and the bars' full height. */
-const SUCCESS = { before: 0.28, after: 0.63, height: 1.6 }
-const BARS = { x: -1.5, z: 0.62, yaw: 0.5 }
 /** Crash and data-integrity risks fixed, one marker each. */
 const RISKS = 12
 /** Requests the work act streams at the wall before the pair. */
@@ -317,26 +314,6 @@ function drawScreens() {
   return canvas
 }
 
-/** The bars' printed labels in three rows of a transparent 512 by 384 canvas: 28%, 63%, and "task success". */
-function drawFigures() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 384
-  const g = canvas.getContext('2d')
-  if (!g) return canvas
-  g.textAlign = 'center'
-  g.textBaseline = 'middle'
-  g.font = '600 92px "JetBrains Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace'
-  g.fillStyle = '#9fb2d2'
-  g.fillText('28%', 256, 64)
-  g.fillStyle = '#ffffff'
-  g.fillText('63%', 256, 192)
-  g.font = '500 58px "JetBrains Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace'
-  g.fillStyle = '#7fb0ff'
-  g.fillText('task success', 256, 320)
-  return canvas
-}
-
 const createScene: IslandFactory = (ctx) => {
   const scene = new THREE.Scene()
   scene.environment = ctx.environment
@@ -414,14 +391,13 @@ const createScene: IslandFactory = (ctx) => {
   const deck = placed(new THREE.Group(), DECK)
   const wall = placed(new THREE.Group(), WALL)
   const vault = placed(new THREE.Group(), VAULT)
-  const bars = placed(new THREE.Group(), BARS)
 
   // The member lights: a sunflower spiral clear of everything standing on the table.
   const memberX: number[] = []
   const memberZ: number[] = []
   {
     const golden = Math.PI * (3 - Math.sqrt(5))
-    const clear = [[PHONE, 0.68], [DECK, 0.52], [WALL, 0.5], [VAULT, 0.42], [BARS, 0.42]] as const
+    const clear = [[PHONE, 0.68], [DECK, 0.52], [WALL, 0.5], [VAULT, 0.42]] as const
     for (let i = 0; i < MEMBERS; i++) {
       const r = (TABLE_R - 0.1) * Math.sqrt((i + 0.5) / MEMBERS)
       const x = Math.cos(i * golden) * r
@@ -644,40 +620,6 @@ const createScene: IslandFactory = (ctx) => {
     const row = Math.floor(index / GRID.cols)
     out.set(((col + 0.5) / GRID.cols - 0.5) * GRID.w, GRID.y + (0.5 - (row + 0.5) / GRID.rows) * GRID.h, 0.05)
     return out.applyMatrix4(wall.matrix)
-  }
-
-  // The task-success bars: 28% before the rebuilt flows and 63% after, with their figures printed above.
-  const afterBar = new THREE.Group()
-  const figures = own(new THREE.CanvasTexture(drawFigures()))
-  figures.colorSpace = THREE.SRGBColorSpace
-  const figureMaterial = own(new THREE.MeshBasicMaterial({ map: figures, transparent: true, depthWrite: false }))
-  const afterMaterial = own(new THREE.MeshBasicMaterial({ map: figures, transparent: true, depthWrite: false }))
-  /** A label plane `w` wide showing row `row` of the figures canvas, turned to the camera each frame. */
-  const label = (row: number, w: number, material: THREE.Material) => {
-    const geometry = keep(new THREE.PlaneGeometry(w, w / 4))
-    const uv = geometry.getAttribute('uv') as THREE.BufferAttribute
-    for (let i = 0; i < uv.count; i++) uv.setY(i, (2 - row + uv.getY(i)) / 3)
-    const m = new THREE.Mesh(geometry, material)
-    m.renderOrder = 3
-    return m
-  }
-  const beforeLabel = label(0, 0.54, figureMaterial)
-  const afterLabel = label(1, 0.54, afterMaterial)
-  const captionLabel = label(2, 1.0, figureMaterial)
-  {
-    const plinth = mesh(keep(new RoundedBoxGeometry(0.78, 0.05, 0.36, 3, 0.02)), graphite)
-    plinth.position.y = 0.025
-    const barGeometry = keep(new RoundedBoxGeometry(0.24, 1, 0.24, 3, 0.03))
-    barGeometry.translate(0, 0.5, 0)
-    const beforeBar = mesh(barGeometry, gloss('#3b4a66', 0.35, { metalness: 0.2 }))
-    beforeBar.scale.y = SUCCESS.before * SUCCESS.height
-    beforeBar.position.set(-0.18, 0.05, 0)
-    const after = mesh(barGeometry, gloss('#2d7ff9', 0.2, { emissive: '#1f64e0', emissiveIntensity: 0.9 }))
-    afterBar.add(after)
-    afterBar.position.set(0.18, 0.05, 0)
-    beforeLabel.position.set(-0.18, 0.05 + SUCCESS.before * SUCCESS.height + 0.14, 0)
-    captionLabel.position.set(0, 0.05 + SUCCESS.after * SUCCESS.height + 0.42, 0)
-    bars.add(plinth, beforeBar, afterBar, beforeLabel, afterLabel, captionLabel)
   }
 
   // Replayed requests: glowing pills, one aura each, and the gold JWT rings the paired ones carry.
@@ -904,7 +846,7 @@ const createScene: IslandFactory = (ctx) => {
       const locked = home ? 1 : smoother(ramp(w, 0.88, 0.95))
       lockMaterial.color.setRGB(1.6 - 1.3 * locked, 0.7 + 0.9 * locked, 0.1 + 0.4 * locked)
 
-      // The close: the blank screen boots, the risks are fixed, the bar rises, and the members light.
+      // The close: the blank screen boots, the risks are fixed, and the members light.
       const boot = home ? 1 : smoother(ramp(c, 0.06, 0.2))
       const stepped = home ? 1 : c < 0.3 ? 1 : c < 0.44 ? 2 : c < 0.58 ? 3 : 4
       const cell = boot < 0.5 ? BLANK : 1 + ((stepped - 1 + steps) % (CELLS - 1))
@@ -931,16 +873,6 @@ const createScene: IslandFactory = (ctx) => {
       riskAuras.instanceMatrix.needsUpdate = true
       if (risks.instanceColor) risks.instanceColor.needsUpdate = true
       if (riskAuras.instanceColor) riskAuras.instanceColor.needsUpdate = true
-      const rise = home ? 1 : smoother(ramp(c, 0.3, 0.7))
-      afterBar.scale.y = (SUCCESS.before + (SUCCESS.after - SUCCESS.before) * rise) * SUCCESS.height
-      afterLabel.position.set(0.18, 0.05 + afterBar.scale.y + 0.14, 0)
-      afterMaterial.opacity = home ? 1 : smoother(ramp(c, 0.3, 0.4))
-      figureMaterial.opacity = home ? 1 : smoother(ramp(c, 0.22, 0.34))
-      const facing = Math.atan2(camera.position.x - BARS.x, camera.position.z - BARS.z) - BARS.yaw
-      beforeLabel.rotation.y = facing
-      afterLabel.rotation.y = facing
-      captionLabel.rotation.y = facing
-
       const front = home ? 99 : 5 * smoother(ramp(c, 0.18, 0.9))
       ring.visible = !home && front > 0.02 && c < 0.95
       ring.scale.setScalar(Math.max(0.01, front))
