@@ -22,6 +22,8 @@ const RIDE_FLOOR = 0.08
 const LINE_START = 0.4
 const LINE_END = 0.24
 const LINE_STEP = 0.025
+/** Milliseconds per character of the title's print, as the chapters'. */
+const PRINT_SPEED = 14
 
 export interface RoleJourneyHandle {
   onFrame(frame: StageFrame): void
@@ -38,6 +40,8 @@ export interface RoleJourneyProps {
   stageRef: MutableRefObject<HTMLDivElement | null>
   handle: Ref<RoleJourneyHandle>
   returnRef: Ref<HTMLParagraphElement | null>
+  /** The next role's company, where scrolling on past the end leads, or null for the last role, which leads home. */
+  next: string | null
   onBack(): void
   onSwitch(id: string): void
   onChoose(command: string, value: string): void
@@ -49,7 +53,7 @@ export interface RoleJourneyProps {
  * drawn by the section's shared stage, which calls `handle.onFrame` every frame. Under reduced motion the acts stack
  * in normal flow with the role's poster.
  */
-function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle, returnRef, onBack, onSwitch, onChoose }: RoleJourneyProps) {
+function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle, returnRef, next, onBack, onSwitch, onChoose }: RoleJourneyProps) {
   const [track, setTrack] = useState<HTMLElement | null>(null)
   const localStage = useRef<HTMLDivElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
@@ -237,6 +241,7 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
   const tipId = `role-${story.id}-tip`
   const actKey = story.acts[act]?.key ?? story.acts[0].key
   const [title, lede, ...rest] = story.acts[0].lines
+  const titleWords = title.split(' ').map((word, i, all) => ({ word, before: all.slice(0, i).join(' ').length + (i > 0 ? 1 : 0) }))
 
   return (
     <section
@@ -268,13 +273,22 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
               {ai === 0 ? (
                 <>
                   <p className="teardown__eyebrow role-journey__meta">{facts.period} · {facts.location}{facts.status ? ` · ${facts.status}` : ''}</p>
+                  {/* Each word prints in its own unbreakable box, left to right, so the scramble's wider glyphs
+                      can never wrap a word across two lines while it prints. */}
                   <h3 id={titleId} className="teardown__title">
-                    {isStatic ? title : printed ? <Printed text={title} delay={0} speed={14} /> : (
-                      <>
-                        <span className="sr-only">{title}</span>
-                        <span className="teardown__unprinted" aria-hidden="true">{title}</span>
-                      </>
-                    )}
+                    {isStatic ? title : titleWords.map(({ word, before }, i) => (
+                      <span key={`${word}-${i}`}>
+                        {i > 0 && ' '}
+                        <span className="role-journey__word">
+                          {printed ? <Printed text={word} delay={before * PRINT_SPEED} speed={PRINT_SPEED} /> : (
+                            <>
+                              <span className="sr-only">{word}</span>
+                              <span className="teardown__unprinted" aria-hidden="true">{word}</span>
+                            </>
+                          )}
+                        </span>
+                      </span>
+                    ))}
                   </h3>
                   {lede && <p className="teardown__line teardown__lede">{lede}</p>}
                   {rest.map((line) => <p key={line} className="teardown__line">{line}</p>)}
@@ -322,7 +336,7 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
                   {story.credit && <p className="role-journey__credit">{story.credit}</p>}
                   {!isStatic && (
                     <p ref={returnRef} className="teardown__return" aria-hidden="true">
-                      <span>// keep scrolling to return home</span>
+                      <span>{next ? `// keep scrolling for ${next}` : '// keep scrolling to return home'}</span>
                       <span className="teardown__return-bar" />
                     </p>
                   )}

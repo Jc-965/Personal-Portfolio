@@ -27,6 +27,11 @@
    the heading still apply underneath a face that sets wider or narrower. */
 .story .teardown__title > span { font-size: calc(var(--ch-title-scale, 1) * 1em); }
 
+/* A chapter's title is one word. Its print scrambles through glyphs wider
+   than a condensed face's letters, so the printing word must not wrap, or it
+   breaks onto a second line until the print settles. */
+.story .teardown__title .hero__printed { white-space: nowrap; }
+
 .story .teardown__eyebrow,
 .story .teardown__return { letter-spacing: var(--ch-label-tracking, .14em); }
 

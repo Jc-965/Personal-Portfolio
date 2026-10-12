@@ -60,6 +60,15 @@ test('the stops rail moves between roles without adding history entries', async 
   await expect(page.locator('html')).not.toHaveClass(/roles-open/)
 })
 
+test('scrolling on past a role leads to the next role, and past the last role leads home', async ({ page }) => {
+  for (let i = 0; i < roles.length; i++) {
+    await page.goto(`/${roles[i].id}`)
+    const hint = page.locator(`.role-journey--${roles[i].id} .teardown__return`)
+    if (i < roles.length - 1) await expect(hint).toContainText(roles[i + 1].company)
+    else await expect(hint).toContainText('return home')
+  }
+})
+
 test('Escape closes a role journey', async ({ page }) => {
   const { id } = roles[3]
   await page.goto('/')

@@ -5,6 +5,7 @@ import { prefersReduced } from '../chapter/dom'
 import type { RoleEntry, RolesStage, StageFrame } from './RolesStage'
 import RoleJourney, { type RoleJourneyHandle } from './RoleJourney'
 import type { RoleFacts } from './types'
+import { LEAVE_MS } from './timing'
 import { useRolesView } from './useRolesView'
 import '../../styles/roles.css'
 
@@ -70,7 +71,12 @@ function RolesSection() {
     fromRef.current = null
   }, [attach])
 
-  const { openId, open, switchTo, back, returnRef } = useRolesView({ ids: IDS, titleOf, trackRef, onSettled })
+  const onLeave = useCallback((kind: 'switch' | 'close') => {
+    stageRef.current?.leaveJourney(kind)
+    return LEAVE_MS
+  }, [])
+
+  const { openId, nextId, open, switchTo, back, returnRef } = useRolesView({ ids: IDS, titleOf, trackRef, onLeave, onSettled })
   const openIdRef = useRef(openId)
   useEffect(() => { openIdRef.current = openId }, [openId])
 
@@ -214,6 +220,7 @@ function RolesSection() {
           stageRef={journeyStageRef}
           handle={journeyRef}
           returnRef={returnRef}
+          next={nextId ? BY_ID.get(nextId)?.facts.company ?? null : null}
           onBack={back}
           onSwitch={switchTo}
           onChoose={choose}

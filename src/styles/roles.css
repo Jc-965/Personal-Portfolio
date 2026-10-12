@@ -225,6 +225,51 @@ html.roles-open #journey { max-width: none; padding: 0; }
 .role-journey .teardown__act > :not(.teardown__callouts),
 .role-journey .teardown__callout { opacity: 1; }
 
+/* Role titles are company names of up to 28 characters, so they set smaller
+   than a chapter's one-word title and wrap between words. Each word is an
+   unbreakable box, sized so the longest word ("California", 10 characters)
+   fits the panel at every width. */
+.role-journey .teardown__title {
+  margin-bottom: 14px;
+  font-size: clamp(1.9rem, 2.7vw, 2.7rem);
+  line-height: 1.05;
+  letter-spacing: -.02em;
+}
+
+.role-journey__word { display: inline-block; white-space: nowrap; }
+
+.role-journey__meta {
+  font-size: .7rem;
+  letter-spacing: .08em;
+}
+
+/* A switch or a close fades the copy, the stops, and the back control while
+   the world dissolves (useRolesView's leave phase), and a journey's copy
+   fades in as its world forms. */
+.role-journey .teardown__rail,
+.role-journey .role-journey__stops,
+.role-journey .teardown__back {
+  transition: opacity .35s ease;
+  animation: role-copy-in .6s ease .2s backwards;
+}
+
+html.roles-leaving .role-journey .teardown__rail,
+html.roles-leaving .role-journey .role-journey__stops,
+html.roles-leaving .role-journey .teardown__back,
+html.roles-leaving .role-journey .teardown__leaders,
+html.roles-leaving .role-journey .teardown__cards { opacity: 0; }
+
+@keyframes role-copy-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-journey .teardown__rail,
+  .role-journey .role-journey__stops,
+  .role-journey .teardown__back { animation: none; transition: none; }
+}
+
 .role-journey__tip { fill: var(--role-accent); }
 
 .role-journey__choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0; }
@@ -297,5 +342,6 @@ html.roles-open #journey { max-width: none; padding: 0; }
 @media (max-width: 767px) {
   .role-journey .teardown__rail { right: 0; }
   .role-journey .teardown__act { padding: 14px 16px; }
+  .role-journey .teardown__title { font-size: clamp(1.6rem, 7vw, 2.1rem); }
   .role-journey__stops { top: 64px; bottom: auto; }
 }

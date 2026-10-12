@@ -5,10 +5,14 @@
  *
  * On the home page it draws each visible row's island into that row's slot with the viewport and scissor, clear
  * around it, so the page background shows between islands. Slot offsets are measured on resize and the drawn
- * rectangles derive from the scroll, so no frame reads layout. On a journey page it draws the open role's island
- * through the chapters' composite (teardown/composite.ts), so the role's room prints as coloured glyphs on the
- * site's near-black base like a project's room. The view grows out of the row's slot over EXPAND_MS while the room
- * prints in, and shrinks back into the slot while it dissolves when the journey closes.
+ * rectangles derive from the scroll, so no frame reads layout. Every world draws through the chapters' composite
+ * (teardown/composite.ts), so it can form from glyphs and dissolve into them like a project's centrepiece, and on a
+ * journey page the role's room prints around it as coloured glyphs on the site's near-black base.
+ *
+ * Moves between views pass through glyphs, so a world never cuts or pops between poses. Opening grows the world out
+ * of its row's slot. A switch to another role dissolves the open world (leaveJourney) and forms the next one in place.
+ * A close half-dissolves the world, then flies it back into its slot while it gathers and resolves into its row
+ * pose, as the other rows' worlds form around it.
  *
  * It draws only while something moves: the scroll, the pointer, a press, an easing, or a scene that reports busy.
  * Scenes load when their slot nears the viewport and stay loaded until the section unmounts the stage.
@@ -23,10 +27,11 @@ import { BITMAP_OPTIONS, bitmapsFlip, createEnvironment, createProductTarget, li
 import { createComposite } from '../teardown/composite'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { CHAPTER_RAMP } from '../teardown/materials'
+import { EXPAND_MS, FORM_MS, LEAVE_MS } from './timing'
 import type { IslandFrame, IslandOutput, IslandScene, RoleFacts, RoleStory } from './types'
 
-/** Milliseconds a journey takes to grow out of its slot, and to shrink back. */
-export const EXPAND_MS = 900
+/** How gathered a closing world stays at its most scattered, 0 to 1, so it still reads as itself in flight. */
+const LEAVE_GATHER = 0.7
 /** Time constants of the pointer easing, seconds. */
 const EASE = { tilt: 0.3, hover: 0.2, drag: 0.2 }
 /** Viewport-heights beyond the viewport at which a slot's scene starts loading. */
@@ -49,6 +54,7 @@ const HIDDEN_SHOT: CardShot = { anchor: null, rect: null, depth: Infinity, devel
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
 
+const ramp = (t: number, a: number, b: number) => Math.min(1, Math.max(0, (t - a) / Math.max(1e-9, b - a)))
 const smoother = (t: number) => {
   const x = Math.min(1, Math.max(0, t))
   return x * x * x * (x * (x * 6 - 15) + 10)
@@ -85,6 +91,11 @@ export interface RolesStage {
   /** Remeasures every slot and the journey track, for a layout change the stage cannot observe. */
   measure(): void
   openJourney(id: string, options: JourneyOptions): void
+  /**
+   * Dissolves the open journey into glyphs over LEAVE_MS, fully before a switch to another role and halfway before
+   * a close, and holds it there until openJourney or closeJourney replaces it.
+   */
+  leaveJourney(kind: 'switch' | 'close'): void
   /** Shrinks the journey into `to` (the slot's viewport rectangle), or ends it at once with null. */
   closeJourney(to: { left: number; top: number; width: number; height: number } | null): void
   command(name: string, value: string): void
@@ -109,6 +120,9 @@ interface Island {
   stirred: boolean
   /** True once the island's shadow map has been drawn for its current scene. */
   shadowed: boolean
+  /** The frame time its world started forming from glyphs, or -1, and whether it has formed. */
+  formStart: number
+  formed: boolean
   /** Listeners on the slot, removed when the slot changes. */
   detach: (() => void) | null
 }
@@ -220,7 +234,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       entry, status: 'idle', scene: null, slot: null,
       page: { left: 0, top: 0, width: 0, height: 0 },
       pointer: { x: 0, y: 0, inside: false },
-      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, stirred: false, shadowed: false, detach: null,
+      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, stirred: false, shadowed: false, formStart: -1, formed: false, detach: null,
     })
   }
 
@@ -318,6 +332,8 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   let lastPaint = 0
   let compiled = false
   let pushStart = -1
+  /** The journey's glyph transition: dissolving out before a switch or a close, or forming in after a switch. */
+  let glyph: { kind: 'leave-switch' | 'leave-close' | 'form'; start: number } | null = null
   let expand: { start: number; from: { left: number; top: number; width: number; height: number }; closing: boolean; to: { left: number; top: number; width: number; height: number } | null } | null = null
   const start = () => { if (!raf && compiled && !disposed && !failed && !lost && !document.hidden) raf = requestAnimationFrame(draw) }
   const project = new THREE.Vector3()
@@ -407,6 +423,58 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   let dragGoal = 0
   let drag: { id: number; x: number; start: number } | null = null
 
+  /**
+   * Draws `island`'s world into `rect` through the glyph composite: the scene into the rectangle's place in the
+   * full-size product target (the composite reads it pixel for pixel), then the composite into the same rectangle
+   * on the canvas. `decode` and `gather` form the world from glyphs (1 and 1 resolved), `reveal` prints the role's
+   * room around it, and `base` is the opacity of the black base under the room.
+   */
+  const drawWorld = (island: Island, rect: { left: number; top: number; width: number; height: number }, o: { decode: number; gather: number; reveal: number; base: number; room: boolean }) => {
+    const scene = island.scene
+    if (!scene) return
+    const story = island.entry.story
+    const room = o.room ? load(story.room.src) : null
+    const levels = story.room.levels ?? ROOM_LEVELS
+    cu.uBackA.value = room?.ready ? room.texture : null
+    cu.uBackB.value = cu.uBackA.value
+    cu.uBackAspect.value.set(room?.aspect ?? 16 / 9, room?.aspect ?? 16 / 9)
+    cu.uFocus.value.set(story.room.focusX, 0.5, story.room.focusX, 0.5)
+    cu.uLevels.value.set(levels[0], levels[1], levels[0], levels[1])
+    cu.uMirror.value.set(0, 0)
+    cu.uBackGain.value = room?.ready ? ROOM_GAIN : 0
+    cu.uGlyphOnly.value = 0
+    cu.uTint.value.set(...(story.look?.tint ?? linearOf(island.entry.facts.accent)))
+    cu.uGrade.value.set(...(story.look?.grade ?? [1, 1, 1]))
+    cu.uPointer.value.set(island.tiltX, -island.tiltY)
+    cu.uReveal.value = o.reveal
+    cu.uDecode.value = o.decode
+    cu.uGather.value = o.gather
+    cu.uEdge.value.set(0, 0, o.base)
+    const px = renderer.getPixelRatio()
+    const centre = toView(scene.camera, origin, rect)
+    cu.uRevealAt.value.set(centre ? centre.x * px : buffer.x / 2, centre ? (height - centre.y) * px : buffer.y / 2)
+    const x = Math.round(rect.left * px)
+    const y = Math.round((height - rect.top - rect.height) * px)
+    const w = Math.max(1, Math.round(rect.width * px))
+    const h = Math.max(1, Math.round(rect.height * px))
+    target.viewport.set(x, y, w, h)
+    target.scissor.set(x, y, w, h)
+    target.scissorTest = true
+    renderer.setRenderTarget(target)
+    renderer.setClearColor(0x000000, 0)
+    renderer.clear(true, true, false)
+    current = island
+    renderer.render(scene.scene, scene.camera)
+    current = null
+    target.viewport.set(0, 0, buffer.x, buffer.y)
+    target.scissorTest = false
+    renderer.setRenderTarget(null)
+    setRect(rect)
+    renderer.setScissorTest(true)
+    renderer.render(composite.scene, composite.camera)
+    renderer.setScissorTest(false)
+  }
+
   const draw = (now: number) => {
     raf = 0
     if (disposed || failed || lost || document.hidden || !compiled) return
@@ -440,12 +508,47 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     if (nextDrag !== dragYaw) moving = true
     dragYaw = nextDrag
 
-    // A close that has finished shrinking hands the island back to its row in this same frame.
+    // A close that has finished shrinking hands the island back to its row in this same frame, resolved.
     if (expand?.closing && now - expand.start >= EXPAND_MS) {
+      const landed = journey ? islands.get(journey.id) : null
+      if (landed) landed.formed = true
       journey = null
       expand = null
       moving = true
     }
+    const closingId = journey && expand?.closing ? journey.id : null
+
+    // The rows: every visible slot's world in its own rectangle, forming from glyphs the first time it shows. They
+    // draw whenever no journey covers the screen, and under a journey that is shrinking back into its row.
+    if (!journey || closingId) {
+      for (const island of islands.values()) {
+        if (!island.slot || island.status === 'failed' || island.entry.story.id === closingId) continue
+        const rect = viewRect(island)
+        if (!onScreen(rect, LOAD_MARGIN)) continue
+        if (island.status === 'idle') loadScene(island)
+        if (island.status !== 'ready' || !island.scene || !onScreen(rect)) continue
+        if (!island.formed && island.formStart < 0) island.formStart = now
+        const out = island.scene.update(frameFor(island, 'home', rect.width / Math.max(1, rect.height), () => 0, dt, now, 0, 0))
+        if (out.busy) moving = true
+        let decode = 1
+        let gather = 1
+        if (island.formStart >= 0) {
+          const f = (now - island.formStart) / FORM_MS
+          gather = smoother(ramp(f, 0, 0.6))
+          decode = smoother(ramp(f, 0.2, 0.95))
+          if (f >= 1) {
+            island.formStart = -1
+            island.formed = true
+          } else moving = true
+        }
+        if (!drew) renderer.clear(true, true, true)
+        drew = true
+        renderer.shadowMap.needsUpdate = !island.shadowed || island.stirred || out.busy
+        island.shadowed = true
+        drawWorld(island, rect, { decode, gather, reveal: 0, base: 0, room: false })
+      }
+    }
+
     const open = journey ? islands.get(journey.id) ?? null : null
     if (journey && open) {
       // The journey: progress from the track's scroll, glided.
@@ -458,103 +561,84 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       const p = journey.glide.value
       const windows = actWindows(open.entry.story.acts)
       const local = (key: string) => localOf(windows, key, p)
-      // The rectangle grows from the slot to the viewport, or shrinks back into the slot.
+      // The rectangle grows out of the row's slot or shrinks back into it, and the world passes through glyphs on
+      // the way, so the change between its row pose and its journey pose happens while it is scattered.
       const full = { left: 0, top: 0, width, height }
       let rect = full
+      let homePose = false
+      let decode = 1
+      let gather = 1
       let reveal = 1
+      let base = 1
       if (expand) {
-        const t = smoother((now - expand.start) / EXPAND_MS)
+        const t = Math.min(1, (now - expand.start) / EXPAND_MS)
+        const e = smoother(t)
         const from = expand.closing ? full : expand.from
         const to = expand.closing ? expand.to ?? full : full
         rect = {
-          left: from.left + (to.left - from.left) * t,
-          top: from.top + (to.top - from.top) * t,
-          width: from.width + (to.width - from.width) * t,
-          height: from.height + (to.height - from.height) * t,
+          left: from.left + (to.left - from.left) * e,
+          top: from.top + (to.top - from.top) * e,
+          width: from.width + (to.width - from.width) * e,
+          height: from.height + (to.height - from.height) * e,
         }
-        reveal = expand.closing ? 1 - t : t
+        if (expand.closing) {
+          // After the leave phase the world is half scattered glyphs. It gathers as it flies to the slot and
+          // resolves into its row pose as it lands.
+          homePose = true
+          gather = LEAVE_GATHER + (1 - LEAVE_GATHER) * smoother(ramp(t, 0, 0.6))
+          decode = smoother(ramp(t, 0.45, 1))
+          reveal = 0
+          base = 0
+        } else {
+          const g = Math.sin(Math.PI * t)
+          homePose = t < 0.5
+          decode = 1 - g
+          gather = 1 - (1 - LEAVE_GATHER) * g
+          reveal = smoother(ramp(t, 0.25, 1))
+          base = reveal
+          if (t >= 1) expand = null
+        }
         moving = true
-        if (t >= 1 && !expand.closing) expand = null
+      }
+      if (glyph) {
+        const g = (now - glyph.start) / (glyph.kind === 'form' ? FORM_MS : LEAVE_MS)
+        if (glyph.kind === 'form') {
+          gather = Math.min(gather, smoother(ramp(g, 0, 0.6)))
+          decode = Math.min(decode, smoother(ramp(g, 0.2, 0.95)))
+          reveal = Math.min(reveal, smoother(ramp(g, 0, 0.97)))
+        } else if (glyph.kind === 'leave-switch') {
+          decode = Math.min(decode, 1 - smoother(ramp(g, 0, 0.5)))
+          gather = Math.min(gather, 1 - smoother(ramp(g, 0.35, 1)))
+          reveal = Math.min(reveal, 1 - smoother(g))
+        } else {
+          decode = Math.min(decode, 1 - smoother(ramp(g, 0, 0.8)))
+          gather = Math.min(gather, 1 - (1 - LEAVE_GATHER) * smoother(ramp(g, 0.2, 1)))
+          reveal = Math.min(reveal, 1 - smoother(g))
+          base = reveal
+        }
+        // A leave holds its last state until the swap replaces it. A formation ends.
+        if (g < 1) moving = true
+        else if (glyph.kind === 'form') glyph = null
       }
       if (open.status === 'idle') loadScene(open)
       const scene = open.scene
       if (scene && open.status === 'ready') {
         const aspect = rect.width / rect.height
-        const out = scene.update(frameFor(open, 'journey', aspect, local, dt, now, push, dragYaw))
+        const out = homePose
+          ? scene.update(frameFor(open, 'home', aspect, () => 0, dt, now, 0, 0))
+          : scene.update(frameFor(open, 'journey', aspect, local, dt, now, push, dragYaw))
         if (out.busy) moving = true
-        const story = open.entry.story
-        const room = load(story.room.src)
-        const levels = story.room.levels ?? ROOM_LEVELS
-        cu.uBackA.value = room.ready ? room.texture : null
-        cu.uBackB.value = cu.uBackA.value
-        cu.uBackAspect.value.set(room.aspect, room.aspect)
-        cu.uFocus.value.set(story.room.focusX, 0.5, story.room.focusX, 0.5)
-        cu.uLevels.value.set(levels[0], levels[1], levels[0], levels[1])
-        cu.uMirror.value.set(0, 0)
-        cu.uBackGain.value = room.ready ? ROOM_GAIN : 0
-        cu.uGlyphOnly.value = 0
-        cu.uTint.value.set(...(story.look?.tint ?? linearOf(open.entry.facts.accent)))
-        cu.uGrade.value.set(...(story.look?.grade ?? [1, 1, 1]))
-        cu.uPointer.value.set(open.tiltX, -open.tiltY)
-        // The room prints in out of the island as the view grows, and dissolves back into it as the view shrinks.
-        cu.uReveal.value = reveal
-        const centre = toView(scene.camera, origin, rect)
-        const px = renderer.getPixelRatio()
-        cu.uRevealAt.value.set(centre ? centre.x * px : buffer.x / 2, centre ? (height - centre.y) * px : buffer.y / 2)
-        // The island renders into the rectangle's place in the full-size target, since the composite reads the
-        // target pixel for pixel.
-        renderer.setRenderTarget(target)
-        renderer.setScissorTest(false)
-        renderer.setClearColor(0x000000, 0)
-        renderer.clear(true, true, false)
-        const x = Math.round(rect.left * px)
-        const y = Math.round((height - rect.top - rect.height) * px)
-        const w = Math.max(1, Math.round(rect.width * px))
-        const h = Math.max(1, Math.round(rect.height * px))
-        target.viewport.set(x, y, w, h)
-        target.scissor.set(x, y, w, h)
-        target.scissorTest = true
-        renderer.setRenderTarget(target)
-        current = open
+        const room = load(open.entry.story.room.src)
+        drew = true
         renderer.shadowMap.needsUpdate = true
         open.shadowed = false
-        renderer.render(scene.scene, scene.camera)
-        current = null
-        target.viewport.set(0, 0, buffer.x, buffer.y)
-        target.scissorTest = false
-        renderer.setRenderTarget(null)
-        setRect(rect)
-        renderer.setScissorTest(true)
-        renderer.render(composite.scene, composite.camera)
-        renderer.setScissorTest(false)
-        reportFrame(open, out, rect, p)
+        drawWorld(open, rect, { decode, gather, reveal, base, room: true })
+        if (!homePose) reportFrame(open, out, rect, p)
         if (!journey.ready && out.ready && room.ready) {
           journey.ready = true
           journey.onReady()
         }
       } else moving = true
-    } else {
-      // The home page: every visible slot's island in its own rectangle.
-      for (const island of islands.values()) {
-        if (!island.slot || island.status === 'failed') continue
-        const rect = viewRect(island)
-        if (!onScreen(rect, LOAD_MARGIN)) continue
-        if (island.status === 'idle') loadScene(island)
-        if (island.status !== 'ready' || !island.scene || !onScreen(rect)) continue
-        const out = island.scene.update(frameFor(island, 'home', rect.width / Math.max(1, rect.height), () => 0, dt, now, 0, 0))
-        if (out.busy) moving = true
-        if (!drew) renderer.clear(true, true, true)
-        drew = true
-        setRect(rect)
-        renderer.setScissorTest(true)
-        renderer.clear(false, true, false)
-        current = island
-        renderer.shadowMap.needsUpdate = !island.shadowed || island.stirred || out.busy
-        island.shadowed = true
-        renderer.render(island.scene.scene, island.scene.camera)
-        current = null
-        renderer.setScissorTest(false)
-      }
     }
     drewLast = drew
     if (moving) raf = requestAnimationFrame(draw)
@@ -686,17 +770,36 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       const island = islands.get(id)
       if (!island) return
       journey = { ...options, id, trackTop: 0, trackHeight: 1, glide: { value: 0, velocity: 0 }, progress: 0, ready: false }
+      // From a row the world grows out of its slot. Otherwise (a switch, or a direct load) it forms in place.
       expand = options.from ? { start: performance.now(), from: options.from, closing: false, to: null } : null
+      glyph = options.from ? null : { kind: 'form', start: performance.now() }
       island.pointer.inside = false
       island.goalX = 0
       island.goalY = 0
       attachJourney(island, options.stage)
       measure()
     },
+    leaveJourney(kind) {
+      if (!journey) return
+      glyph = { kind: kind === 'switch' ? 'leave-switch' : 'leave-close', start: performance.now() }
+      start()
+    },
     closeJourney(to) {
       detachJourney?.()
       if (!journey) return
+      glyph = null
+      // The other rows' worlds form as the page returns around them.
+      for (const island of islands.values()) {
+        if (island.entry.story.id === journey.id) continue
+        island.formed = false
+        island.formStart = -1
+      }
       if (!to) {
+        const landed = islands.get(journey.id)
+        if (landed) {
+          landed.formed = false
+          landed.formStart = -1
+        }
         journey = null
         expand = null
         measure()
@@ -704,6 +807,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       }
       expand = { start: performance.now(), from: { left: 0, top: 0, width, height }, closing: true, to }
       for (const island of islands.values()) measureSlot(island)
+      lastPaint = 0
       start()
     },
     command(name, value) {
