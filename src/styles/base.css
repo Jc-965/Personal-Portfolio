@@ -342,54 +342,55 @@ img {
   padding: var(--section-pad) 32px;
 }
 
-/* Projects expands into the ParkiWell preview track (100svh plus 170.5svh of
-   pinned travel: the arrival up to previewEnd plus PREVIEW_HOLD, from
-   src/components/teardown/timeline.ts) and the gallery scenes after its lazy
-   chunk resolves. Reserve that height up front so the page never grows under
-   the reader. Measured 2026-10-11 at 1440, 1200, 1024, 900, 768, 640, 480, and
-   390 px wide at 900 tall (844 at 390), plus 700 and 1100 tall at 1440. The
-   track is exact, and the gallery below it is 273vh + 176px on wide screens,
-   51vh + 2740px between 641 and 900 px (within 1.1%), and about 2700px at
-   640 px and narrower (within 1.9%). Re-measure whenever the scenes or the
-   preview's travel change. Under reduced motion the preview stacks the arrival
-   in normal flow instead of pinning, so its values are measured separately
-   with reduced motion emulated. */
+/* Projects expands into four preview tracks after its lazy chunk resolves:
+   ParkiWell's (100svh plus 170.5svh of pinned travel) and one per generic
+   chapter (100svh plus 164svh, since each arrival spans 1.6), the arrival up
+   to previewEnd plus PREVIEW_HOLD from src/components/teardown/timeline.ts.
+   Reserve that height up front so the page never grows under the reader. The
+   tracks are exact. Three gaps of clamp(48px, 9vh, 128px) separate them, 36px
+   at 640px and narrower, and the section header adds 66 to 174px. Measured
+   2026-10-12 at 1440, 1200, 1024, 900, 768, 640, 480, and 390px wide at 900
+   tall (844 at 390), plus 700 and 1100 tall at 1440, each within 0.4%.
+   Re-measure whenever a chapter's arrival span or the preview's travel
+   changes. Under reduced motion the previews stack their arrivals in normal
+   flow instead of pinning, so those values are measured separately with
+   reduced motion emulated. */
 #projects > .section__placeholder {
-  min-height: calc(270.5svh + 273vh + 176px);
+  min-height: calc(1062.5svh + 27vh + 128px);
   padding: 0;
 }
 
 @media (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(270.5svh + 51vh + 2740px);
+    min-height: calc(1062.5svh + 27vh + 90px);
   }
 }
 
 @media (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: calc(270.5svh + 2700px);
+    min-height: calc(1062.5svh + 273px);
   }
 }
 
-/* Reduced motion. The stacked arrival is 920 to 990 px tall at every measured
-   size and none of it depends on the viewport height, so each rule folds it
-   into the gallery's constant and keeps the gallery's vh term. Within 3% at
-   every measured size. */
+/* Reduced motion. The four stacked arrivals total 3420 to 3720px at every
+   measured size and none of it depends on the viewport height, so each rule
+   folds them and the header into one constant and keeps the gaps' vh term.
+   Within 3% at every measured size. */
 @media (prefers-reduced-motion: reduce) {
   #projects > .section__placeholder {
-    min-height: calc(273vh + 1140px);
+    min-height: calc(27vh + 3780px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 900px) {
   #projects > .section__placeholder {
-    min-height: calc(51vh + 3690px);
+    min-height: calc(27vh + 3700px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 640px) {
   #projects > .section__placeholder {
-    min-height: 3630px;
+    min-height: 3720px;
   }
 }
 

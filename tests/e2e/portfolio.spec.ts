@@ -55,21 +55,16 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
 
   // The hero's tree-shaken renderer is expected; the full Three.js engine and
   // below-the-fold feature chunks must remain gated behind user intent.
-  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|\/ParkiWell\/hd\//.test(url))).toBe(false)
+  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|ChapterCanvas|\/ParkiWell\/hd\/|\/(Agoriai|Tarocchi|MyCommunity)\/chapter\//.test(url))).toBe(false)
 })
 
-test('projects retain their gallery presentation without case-study links', async ({ page }) => {
+test('every project is told as a chapter without case-study links', async ({ page }) => {
   await page.goto('/')
   const chapter = await showTeardownStart(page)
   const projects = page.locator('#projects')
   await expect(chapter.getByRole('heading', { name: 'ParkiWell', exact: true })).toBeVisible()
   await expect(projects.locator('a[href^="/projects/"]')).toHaveCount(0)
-  const gallery = projects.locator('.gallery').first()
-  await gallery.scrollIntoViewIfNeeded()
-  await gallery.getByRole('button', { name: 'Next screenshot' }).click()
-  await expect(gallery.locator('.gallery__count')).toContainText('02 /')
-  await gallery.getByRole('button', { name: 'Previous screenshot' }).click()
-  await expect(gallery.locator('.gallery__count')).toContainText('01 /')
+  for (const id of ['parkiwell', 'agoriai', 'tarocchi', 'mycommunity']) await expect(projects.locator(`#project-${id}`)).toHaveClass(/teardown/)
 })
 
 test('the toolkit terminal keeps its height while the opening command types', async ({ page }) => {
