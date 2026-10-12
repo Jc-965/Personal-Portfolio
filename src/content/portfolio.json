@@ -21,7 +21,7 @@
       "period": "Apr 2026 – Present",
       "location": "Pittsburgh, PA",
       "status": "Active",
-      "summary": "Lead 25 engineers in the 70-person org as architect and principal author of Bark, CMU's campus AI assistant. Its LangGraph agent must call live MCP tools for campus maps, courses, dining, and transit, behind a red-teamed, model-free injection guard that runs in 300 ms. Query-matched tool binding and context compression cut prompt costs 44%, and pgvector memory recalls across chats with per-user isolation, which fixed a cross-tenant data leak.",
+      "summary": "Architect and principal author of Bark, Carnegie Mellon’s campus AI assistant, leading 25 engineers in the 70-person org. Bark grounds every answer in live university data.",
       "stack": [
         "LangGraph",
         "FastAPI",
@@ -42,7 +42,7 @@
       "period": "Jun 2026 – Aug 2026",
       "location": "Long Beach, CA",
       "status": "Complete",
-      "summary": "Shipped rebuilt billing and payment flows and fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen. Built a replay engine for 220+ API endpoints that uncovered auth flaws in the 500K+ user Android app, proved with paired replays that the APIs ignored service JWTs, and moved bundled credentials and authentication server-side.",
+      "summary": "Rebuilt billing and payment flows in an Android app with 500K+ members, and built a replay engine that found authentication flaws across 220+ API endpoints.",
       "stack": [
         "Android",
         "Kotlin",
@@ -61,7 +61,7 @@
       "period": "Jan 2026 – May 2026",
       "location": "Remote",
       "status": "Shipped",
-      "summary": "Rebuilt home, product, search, and onboarding for a 10K+ user Flutter app, from founder spec through release, and cut homepage load time about 75% with parallel API calls, feed prefetching, token pagination, and TTL caching. Built shade matching on a from-scratch perceptual color engine (CIELAB and Delta-E) and the interactive gauge that shows the closest matches, skin-tone fit, and confidence bands.",
+      "summary": "Rebuilt the main screens of a 10K+ user Flutter app, cut its homepage load time about 75%, and built shade matching on a color engine written from scratch.",
       "stack": [
         "Flutter",
         "Dart",
@@ -109,7 +109,7 @@
       "period": "Sep 2025 – Apr 2026",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built the Python geospatial ETL pipeline powering CMUMaps for 12K+ users, parsing 15K+ OpenStreetMap nodes and ArcGIS facility records into footprints, floor counts, and entrances for 74 campus buildings.",
+      "summary": "Built the Python pipeline that turns OpenStreetMap and ArcGIS records into the building data behind CMUMaps, Carnegie Mellon’s campus map for 12K+ users.",
       "stack": [
         "Python",
         "OpenStreetMap",
@@ -146,7 +146,7 @@
       "period": "Sep 2025 – Dec 2025",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built Unreal Engine 5 Blueprint gameplay systems for grappling, tethering, and local multiplayer combat, synchronizing physics-driven interactions, collision feedback, and elimination state in real time.",
+      "summary": "Built Unreal Engine 5 gameplay systems for grappling, tethering, and local multiplayer combat.",
       "stack": [
         "Unreal Engine 5",
         "Blueprints",
@@ -164,7 +164,7 @@
       "period": "Jun 2025 – Feb 2026",
       "location": "Remote",
       "status": "Complete",
-      "summary": "Designed and taught project-based Python, C++, and JavaScript curriculum centered on algorithms and competitive problem solving through structured implementation labs.",
+      "summary": "Designed and taught project-based Python, C++, and JavaScript lessons on algorithms and competitive problem solving.",
       "stack": [
         "Python",
         "C++",
@@ -182,7 +182,7 @@
       "period": "Jun 2023 – Aug 2024",
       "location": "Pomona, CA",
       "status": "Published",
-      "summary": "First-authored a peer-reviewed paper (CS & IT-CSCP 2024) on a mobile platform for Parkinson's care, and reached 95.4% mean accuracy in controlled video trials with a computer-vision exercise assessment model.",
+      "summary": "First-authored a peer-reviewed paper on a mobile platform for Parkinson’s care, with a computer-vision model that assessed exercise form at 95.4% mean accuracy.",
       "stack": [
         "Python",
         "ML/CV",

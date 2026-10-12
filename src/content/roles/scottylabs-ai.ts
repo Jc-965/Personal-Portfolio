@@ -1,6 +1,6 @@
 /**
- * The ScottyLabs AI role's journey. Its copy restates the role's resume entry, the source of truth for this role,
- * and adds nothing the entry does not say.
+ * The ScottyLabs AI role's journey, written in the project chapters' voice. Every claim about the work comes from
+ * the role's resume entry. The other sentences say what the organization is or define a term in everyday words.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,15 +10,22 @@ export const SCOTTYLABS_AI: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['ScottyLabs AI', 'Head of Agent'],
+      lines: [
+        'ScottyLabs AI',
+        'Head of Agent',
+        'Bark is Carnegie Mellon’s campus AI assistant, built inside ScottyLabs, a 70-person student org. Leads the 25 engineers who build it, as Bark’s architect and principal author.',
+      ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'bark',
-      readout: ['leads 25 engineers', 'live MCP lookups: maps, courses, dining, transit', '300 ms injection guard', '16 live attack tests'],
-      lines: ['Architect and principal author of Bark, CMU\'s campus AI assistant.'],
+      eyebrow: 'grounded answers',
+      lines: [
+        'Bark grounds every answer in live university data.',
+        'Campus maps, courses, dining, and transit each reach the model through an MCP tool, a connector it can query mid-answer. Binding only the tools a question needs, and compressing the context, cut prompt costs 44%.',
+      ],
+      readout: ['streams through LangGraph, FastAPI, Express, React'],
       callouts: [
         { text: 'Click a tool to ask Bark', anchor: 'tool' },
       ],
@@ -26,8 +33,13 @@ export const SCOTTYLABS_AI: RoleStory = {
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'memory and cost',
-      lines: ['Per-user pgvector memory, and prompt costs cut 44%.'],
+      eyebrow: 'safety and memory',
+      lines: [
+        'A model-free guard blocks prompt injection in 300 ms.',
+        'The guard was red-teamed, and it also stops prompt leaks mid-stream.',
+        'Memory carries across each person’s chats in pgvector, isolated per user, which fixed a cross-tenant data leak.',
+      ],
+      readout: ['16 live tests for grounding and attacks'],
       callouts: [],
     },
   ],

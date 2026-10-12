@@ -1,6 +1,7 @@
 /**
- * The Blue Shield of California role's journey. Its copy restates the role's resume entry and adds nothing the
- * entry does not say. A separate copy pass revises it.
+ * The Blue Shield of California role's journey, written in the project chapters' voice. Every claim about the work
+ * comes from the role's resume entry. The other sentences say what the organization is or define a term in everyday
+ * words.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,15 +11,22 @@ export const BLUE_SHIELD: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['Blue Shield of California', 'Software Engineer Intern, Android'],
+      lines: [
+        'Blue Shield of California',
+        'Software Engineer Intern, Android',
+        'Blue Shield of California’s Android app serves more than 500K members. The internship covered its billing and payment screens and the security of the APIs behind them.',
+      ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'auth audit',
-      lines: ['A replay engine that found auth flaws in a 500K+ user Android app.'],
-      readout: ['220+ API endpoints replayed', 'paired replays: service JWTs ignored', 'credentials moved server-side'],
+      eyebrow: 'testing the APIs',
+      lines: [
+        'A replay engine tested authentication across 220+ API endpoints.',
+        'Paired replays kept the live cookies and session headers and changed only the service JWT, the token that proves which app is calling. The answers never changed, which proved the APIs ignored those tokens.',
+      ],
+      readout: ['bundled credentials and auth moved server-side'],
       callouts: [
         { text: 'Click an endpoint to replay a pair', anchor: 'wall' },
       ],
@@ -27,8 +35,10 @@ export const BLUE_SHIELD: RoleStory = {
       key: 'impact',
       span: 1.6,
       eyebrow: 'billing and payments',
-      lines: ['Rebuilt billing and payment flows, and fixed the defects members hit.'],
-      readout: ['12 crash and data risks fixed', 'blank-screen defect fixed'],
+      lines: [
+        'Rebuilt the billing and payment flows members use.',
+        'Fixed 12 crash and data-integrity risks along the way, including a production defect that left members on a blank screen.',
+      ],
       callouts: [
         { text: 'Click the phone to step through the flow', anchor: 'phone' },
       ],

@@ -1,6 +1,7 @@
 /**
- * The Coding Minds Academy role's journey. Its copy restates the role's entry in portfolio.json and adds nothing the
- * entry does not say.
+ * The Coding Minds Academy role's journey, written in the project chapters' voice. Every claim about the work comes
+ * from the role's entry in portfolio.json. The other sentences say what the organization is or define a term in
+ * everyday words.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,15 +11,21 @@ export const CODING_MINDS: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['Coding Minds Academy', 'Instructor'],
+      lines: [
+        'Coding Minds Academy',
+        'Instructor',
+        'At Coding Minds Academy, the role meant writing the curriculum and then teaching it.',
+      ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
       eyebrow: 'curriculum',
-      readout: ['Python, C++, JavaScript', 'algorithms and competitive problem solving', 'structured implementation labs'],
-      lines: ['Designed and taught project-based lessons.'],
+      lines: [
+        'Lessons center on algorithms and competitive problem solving.',
+        'Each one is a structured lab in Python, C++, or JavaScript, where students implement the algorithm themselves.',
+      ],
       choices: [
         { label: 'bubble sort', command: 'algorithm', value: 'sort' },
         { label: 'BFS', command: 'algorithm', value: 'bfs' },
@@ -33,7 +40,7 @@ export const CODING_MINDS: RoleStory = {
       key: 'impact',
       span: 1.6,
       eyebrow: 'the classroom',
-      lines: ['Designed the labs and taught them.'],
+      lines: ['Designed the labs, then taught them in the classroom.'],
       callouts: [],
     },
   ],

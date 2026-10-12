@@ -1,6 +1,6 @@
 /**
- * The SoftCom Lab role's journey. Its copy restates the role's resume entry and adds nothing the entry does not
- * say. A separate copy pass revises it.
+ * The SoftCom Lab role's journey, written in the project chapters' voice. Every claim about the work comes from the
+ * role's resume entry. The other sentences say what the organization is or define a term in everyday words.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,15 +10,22 @@ export const SOFTCOM: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['SoftCom Lab, Cal Poly Pomona', 'Machine Learning Research Intern'],
+      lines: [
+        'SoftCom Lab, Cal Poly Pomona',
+        'Machine Learning Research Intern',
+        'The research built a computer-vision model that assesses exercise form for people with Parkinson’s, as part of a mobile platform for Parkinson’s care.',
+      ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
       eyebrow: 'computer vision',
-      lines: ['A computer-vision model that assesses Parkinson\'s exercises.'],
-      readout: ['95.4% mean accuracy', 'controlled video trials'],
+      lines: [
+        'A model that checks exercise form from video.',
+        'It follows the body’s keypoints, such as the shoulders, elbows, and knees, through each video and assesses the form of the exercise.',
+      ],
+      readout: ['95.4% mean accuracy in controlled video trials'],
       callouts: [
         { text: 'Hover a keypoint to name it', anchor: 'joint' },
         { text: 'Click the figure for a rep', anchor: 'figure' },
@@ -28,7 +35,10 @@ export const SOFTCOM: RoleStory = {
       key: 'impact',
       span: 1.6,
       eyebrow: 'published',
-      lines: ['First author of a peer-reviewed paper (CS & IT-CSCP 2024) on a mobile platform for Parkinson\'s care.'],
+      lines: [
+        'First author of a peer-reviewed paper at CS & IT-CSCP 2024.',
+        'The paper presents the mobile platform for Parkinson’s care.',
+      ],
       callouts: [],
     },
   ],

@@ -1,6 +1,7 @@
 /**
- * The Game Creation Society role's journey. Its copy restates the role's entry in portfolio.json and adds nothing
- * the entry does not say.
+ * The Game Creation Society role's journey, written in the project chapters' voice. Every claim about the work
+ * comes from the role's entry in portfolio.json. The other sentences say what the organization is or define a term
+ * in everyday words.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -10,15 +11,21 @@ export const GCS: RoleStory = {
     {
       key: 'arrival',
       span: 1.4,
-      lines: ['Game Creation Society', 'Core Developer'],
+      lines: [
+        'Game Creation Society',
+        'Core Developer',
+        'Game Creation Society is a Carnegie Mellon student organization where teams make games together. Built the gameplay systems for a local multiplayer game as a core developer.',
+      ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
       eyebrow: 'game systems',
-      lines: ['Built Unreal Engine 5 Blueprint systems for grappling, tethering, and local multiplayer combat.'],
-      readout: ['grappling + tethering', 'collision feedback', 'elimination state', 'local multiplayer'],
+      lines: [
+        'Players grapple, tether, and fight on one screen.',
+        'The systems are built in Unreal Engine 5 Blueprints, the engine’s visual scripting.',
+      ],
       // The first value is the player the scene arms by default.
       choices: [
         { label: 'P1', command: 'player', value: 'p1' },
@@ -33,7 +40,10 @@ export const GCS: RoleStory = {
       key: 'impact',
       span: 1.6,
       eyebrow: 'in sync',
-      lines: ['Physics, hits, and eliminations stay in sync in real time.'],
+      lines: [
+        'Physics, hits, and eliminations stay in sync in real time.',
+        'Physics-driven interactions, collision feedback, and elimination state all update together as a match plays out.',
+      ],
       callouts: [],
     },
   ],
