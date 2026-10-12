@@ -55,7 +55,7 @@ test('first load does not fetch constellation or sketchbook feature chunks', asy
 
   // The hero's tree-shaken renderer is expected; the full Three.js engine and
   // below-the-fold feature chunks must remain gated behind user intent.
-  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|ChapterCanvas|\/ParkiWell\/hd\/|\/(Agoriai|Tarocchi|MyCommunity)\/chapter\//.test(url))).toBe(false)
+  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|ChapterCanvas|RolesStage|\/ParkiWell\/hd\/|\/(Agoriai|Tarocchi|MyCommunity)\/chapter\/|\/roles\//.test(url))).toBe(false)
 })
 
 test('every project is told as a chapter without case-study links', async ({ page }) => {
