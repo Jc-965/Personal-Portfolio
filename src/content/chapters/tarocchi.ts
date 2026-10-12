@@ -112,15 +112,16 @@ export const TAROCCHI: ChapterStory = {
   credit: 'Card art by Sarah Seekins (cheepixel.art)',
   poster: { src: '/Tarocchi/chapter/poster.webp', alt: 'The Magician card from Tarocchi, its pixels lifted into a relief above the card' },
   theme: {
-    fontsHref: 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Space+Mono:wght@400;700&display=swap',
+    fontsHref: 'https://fonts.googleapis.com/css2?family=Jacquard+24&family=Alegreya:ital,wght@0,500;0,600;1,500&family=Pixelify+Sans:wght@500;600&display=swap',
     vars: {
-      '--ch-title': '"Press Start 2P", monospace',
-      // Press Start 2P sets about 1.6 times wider than the default title face.
-      '--ch-title-scale': '0.62',
+      // A pixel blackletter title, a sturdy old-book serif for the copy, and a pixel sans for labels and buttons.
+      '--ch-title': '"Jacquard 24", serif',
+      '--ch-title-scale': '1.2',
       '--ch-title-weight': '400',
-      '--ch-title-tracking': '0.02em',
-      '--ch-body': '"Cormorant Garamond", Georgia, serif',
-      '--ch-label': '"Space Mono", monospace',
+      '--ch-title-tracking': '0.01em',
+      '--ch-body': '"Alegreya", Georgia, serif',
+      '--ch-label': '"Pixelify Sans", monospace',
+      '--ch-label-tracking': '0.06em',
       '--ch-accent': '#e8c26a',
       '--ch-ink': '#f1e9ff',
       '--ch-panel': 'rgba(20, 10, 34, 0.72)',

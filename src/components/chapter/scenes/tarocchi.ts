@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three'
 import type { ChapterScene, SceneFactory, SceneFrame, SceneOutput, ScenePanel } from '../types'
-import { WIZARD_SIZE, createWizard } from './wizard'
+import { HEIGHT_VOXELS, VOXEL, createWizard } from './wizard'
 
 /** Atlas layout of cards.webp: 316 by 556 px cells on a 2 px gutter, each the 79 by 139 art at 4x. */
 const ATLAS = { w: 2228, h: 1118, cellW: 316, cellH: 556 }
@@ -381,6 +381,13 @@ const createScene: SceneFactory = (ctx) => {
   root.add(wizard.group)
   const guideAt = new THREE.Vector3()
   const closeAt = new THREE.Vector3()
+  const dealFrom = new THREE.Vector3()
+  const wireFrom = new THREE.Vector3()
+  /** Each dealt card's progress out of the hand, 0 to 1, from the scroll or a spread choice. */
+  const dealIn = DEAL.map(() => 0)
+  /** A spread choice deals every card at once, whatever the scroll: its eased progress and its goal. */
+  let dealt = 0
+  let dealtGoal = 0
 
   /** The room the pointer has picked, and the fade from the room shown before it. -1 is the act's own room. */
   let roomPick = -1
@@ -423,6 +430,15 @@ const createScene: SceneFactory = (ctx) => {
     clock = f.time
     let busy = false
 
+    // A spread choice plays the spread act forward to its finished state, whatever the scroll: `sp` is the spread
+    // act's local as the scene shows it. Scrolling back above the spread resets the choice.
+    if (s <= 0.001) dealtGoal = 0
+    const nextDealt = ease(dealt, dealtGoal, f.dt, 0.7)
+    if (nextDealt !== dealt) busy = true
+    dealt = nextDealt
+    // The choice's hold fades over the act's first 8%, so scrolling back above the spread undeals it with the scroll.
+    const sp = Math.max(s, 0.92 * dealt * smoother(ramp(s, 0, 0.08)))
+
     const yaw = -f.interaction.tiltX * TILT.yaw + f.interaction.dragYaw
     const pitch = -f.interaction.tiltY * TILT.pitch
 
@@ -433,7 +449,7 @@ const createScene: SceneFactory = (ctx) => {
     // The close brings it home with the wizard beside it.
     const turnOver = smoother(ramp(a, 0.3, 0.6))
     const sideways = 0.45 * smoother(ramp(m, 0.12, 0.3)) * (1 - smoother(ramp(m, 0.42, 0.56)))
-    const aside = smoother(ramp(s, 0, 0.3)) * (1 - smoother(ramp(c, 0, 0.45)))
+    const aside = smoother(ramp(sp, 0, 0.3)) * (1 - smoother(ramp(c, 0, 0.45)))
     const wider = smoother(ramp(b, 0, 0.3)) * (1 - smoother(ramp(c, 0, 0.45)))
     const rise = smoother(ramp(a, 0, 0.6))
     const summon = smoother(ramp(c, 0.08, 0.4))
@@ -445,23 +461,32 @@ const createScene: SceneFactory = (ctx) => {
     deck.updateMatrixWorld(true)
     deck.getWorldPosition(deckAt)
 
-    // The wizard. On wide stages he assembles under the raised card as the spread begins, his fingertip just below
-    // its bottom edge, and holds it up through the scenes. Phones bring him in beside the small deck over the scenes.
-    // At the close he drifts across in front of the card to its right, dipping as he passes, and leaves with the
-    // dissolve. His stream of sparks always runs to the card.
-    const appear = narrow ? smoother(ramp(b, 0.05, 0.3)) : smoother(ramp(s, 0.08, 0.32))
-    const cardBottom = deckAt.y - (CARD_H / 2) * deck.scale.y
+    // The deal. Each card leaves the conjuring hand on its own stretch of the spread act.
+    let flick = 0
+    for (let i = 0; i < DEAL.length; i++) {
+      const byScroll = ramp(sp, 0.08 + i * 0.07, 0.3 + i * 0.07)
+      dealIn[i] = smoother(byScroll)
+      flick = Math.max(flick, Math.sin(Math.PI * clamp01(byScroll * 2.2)))
+    }
+
+    // The wizard (wizard.ts). On wide stages he assembles below the raised card as the spread begins, conjures it
+    // with his near hand, and flicks each card out of that hand. Over the scenes he raises his staff and the wires
+    // spring from its crystal. At the close he drifts across in front of the card to its right, dipping as he
+    // passes, opens his arms to present the reading, and leaves with the dissolve. Phones bring him in small beside
+    // the deck over the scenes. His head follows the pointer throughout.
+    const appear = narrow ? smoother(ramp(b, 0.05, 0.3)) : smoother(ramp(sp, 0.08, 0.32))
+    const wizardScale = narrow ? 0.36 + 0.14 * summon : 0.76 - 0.12 * summon
     if (narrow) {
-      guideAt.set(deckAt.x - 0.72, deckAt.y - 0.14, 0.15)
-      closeAt.set(0.5, -0.6, 0.25)
+      guideAt.set(deckAt.x - 0.68, deckAt.y - 0.58, 0.15)
+      closeAt.set(0.28, -1.1, 0.45)
     } else {
-      guideAt.set(deckAt.x + 0.32, cardBottom - 0.56, 0.15)
-      closeAt.set(deckAt.x + 0.95, -0.2, 0.1)
+      guideAt.set(deckAt.x + 0.62, -1.48, 0.2)
+      closeAt.set(deckAt.x + 0.92, -1.22, 0.3)
     }
     const travel = Math.sin(Math.PI * summon)
-    wizard.group.position.lerpVectors(guideAt, closeAt, summon).add(slot.set(0, -0.2 * travel, 0.5 * travel))
-    wizard.group.scale.setScalar(narrow ? 0.42 + 0.13 * summon : 1 - 0.15 * summon)
-    wizard.group.rotation.set(pitch * 0.3, yaw * 0.5 - 0.12 - 0.18 * summon, 0)
+    wizard.group.position.lerpVectors(guideAt, closeAt, summon).add(slot.set(0, -0.15 * travel, 0.5 * travel))
+    wizard.group.scale.setScalar(wizardScale)
+    wizard.group.rotation.set(pitch * 0.15, yaw * 0.4 - 0.35 * (1 - wider) * (1 - summon) + 0.25 * wider * (1 - summon) - 0.4 * summon, 0)
 
     // The relief, the loop, and the burst.
     lift = smoother(ramp(m, 0.08, 0.34)) * (1 - smoother(ramp(m, 0.8, 0.96)))
@@ -483,7 +508,25 @@ const createScene: SceneFactory = (ctx) => {
     const flare = 1 + 0.25 * f.push
     for (const { light, base } of lights) light.intensity = base * flare
     voxelUniforms.uLight.value = flare
-    if (wizard.update({ appear, stream: 1 - 0.4 * summon, target: deckAt, time: f.time, light: flare }, camera)) busy = true
+    const conjure = narrow ? 0 : appear * (1 - wider) * (1 - summon)
+    if (wizard.update({
+      appear,
+      conjure,
+      channel: wider * (1 - summon),
+      present: summon,
+      flick: narrow ? 0 : flick * (1 - wider),
+      stream: 0.5 + 0.5 * conjure,
+      target: deckAt,
+      lookX: f.interaction.tiltX,
+      lookY: f.interaction.tiltY,
+      time: f.time,
+      light: flare,
+    }, camera)) busy = true
+    // Cards leave from the conjuring hand while he is there, and the scenes' wires from the crystal.
+    const guiding = narrow ? 0 : appear
+    dealFrom.copy(deckAt)
+    if (guiding > 0.002) dealFrom.lerp(wizard.hand(slot), guiding)
+    if (guiding > 0.002) wizard.crystal(wireFrom)
     key.position.set(-2.4 + f.interaction.tiltX * 3.2, 2.6 - f.interaction.tiltY * 2.2, 3.2)
 
     // The camera: closer over the arrival, closer still for the relief, wide for the spread, wider for the scenes.
@@ -542,9 +585,9 @@ const createScene: SceneFactory = (ctx) => {
       // A card the layout has no slot for returns to the deck as its weight fades.
       if (weight > 0) slot.multiplyScalar(1 / weight)
       slot.set(centreX + slot.x * reach, centreY + slot.y * reach, 0.25)
-      const out = smoother(ramp(s, 0.08 + i * 0.07, 0.3 + i * 0.07)) * (1 - smoother(ramp(b, 0, 0.25))) * clamp01(weight)
-      curve.v0.copy(deckAt)
-      curve.v1.set(deckAt.x + 0.2, deckAt.y + 0.9, deckAt.z + 0.6)
+      const out = dealIn[i] * (1 - smoother(ramp(b, 0, 0.25))) * clamp01(weight)
+      curve.v0.copy(dealFrom)
+      curve.v1.set(dealFrom.x + 0.2, dealFrom.y + 0.9, dealFrom.z + 0.6)
       curve.v2.set(slot.x, slot.y + 0.7, slot.z + 0.4)
       curve.v3.copy(slot)
       curve.getPoint(out, card.mesh.position)
@@ -553,7 +596,7 @@ const createScene: SceneFactory = (ctx) => {
       card.lift = lifted
       card.mesh.position.y += 0.05 * lifted
       card.mesh.position.z += 0.22 * lifted
-      const scrolled = smoother(ramp(s, 0.34 + i * 0.08, 0.46 + i * 0.08))
+      const scrolled = smoother(ramp(sp, 0.34 + i * 0.08, 0.46 + i * 0.08))
       if (card.flipGoal >= 0) {
         const flipped = ease(card.flip, card.flipGoal, f.dt, FLIP_EASE)
         if (flipped !== card.flip) busy = true
@@ -587,6 +630,7 @@ const createScene: SceneFactory = (ctx) => {
       // The wire runs from the card's edge nearest the scenes to the scene's edge nearest the card.
       const deckHalf = (narrow ? CARD_H : CARD_W) * 0.5 * deck.scale.x
       if (narrow) curve.v0.set(deckAt.x, deckAt.y - deckHalf, deckAt.z)
+      else if (guiding > 0.5) curve.v0.copy(wireFrom)
       else curve.v0.set(deckAt.x + deckHalf, deckAt.y, deckAt.z + 0.05)
       const p = branch.group.position
       if (narrow) curve.v3.set(p.x, p.y + SCENE_H * 0.5 * scale, p.z)
@@ -661,8 +705,11 @@ const createScene: SceneFactory = (ctx) => {
     const bounds = [...corners]
     for (const card of spread) if (card.mesh.visible) bounds.push(...cornersOf(card.mesh, CARD_W, CARD_H))
     for (const branch of branches) if (branch.group.visible) bounds.push(...cornersOf(branch.plate, SCENE_W, SCENE_H))
-    if (wizard.group.visible) bounds.push(...cornersOf(wizard.group, WIZARD_SIZE, WIZARD_SIZE))
-    anchors.set('wizard', wizard.group.visible ? wizard.fingertip(new THREE.Vector3()) : null)
+    if (wizard.group.visible) {
+      const tall = HEIGHT_VOXELS * VOXEL * wizard.group.scale.y
+      bounds.push(wizard.group.position.clone(), wizard.group.position.clone().add(new THREE.Vector3(0, tall, 0)))
+    }
+    anchors.set('wizard', wizard.group.visible ? wizard.hand(new THREE.Vector3()) : null)
 
     return {
       decode: f.base.decode,
@@ -702,7 +749,8 @@ const createScene: SceneFactory = (ctx) => {
   const command = (name: string, value: string) => {
     if (name !== 'spread' || !(value in LAYOUTS)) return
     layout = value as Layout
-    // A fresh layout deals fresh: every card follows the scroll's face-up order again.
+    // A choice deals the spread now and turns every card face up, whatever the scroll.
+    dealtGoal = 1
     for (const card of spread) card.flipGoal = -1
   }
 

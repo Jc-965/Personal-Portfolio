@@ -121,6 +121,8 @@ const ISLANDS = ['tech · 4 companies, 5 students', 'finance and consulting · 4
 const TILT = { yaw: 0.3, pitch: 0.17 }
 /** Time constants of the motions a hover, a click, or a choice starts, seconds. */
 const HOVER_EASE = 0.14
+/** Seconds a hovered node stays active after the pointer leaves it, so crossing a gap between nodes never blinks. */
+const HOVER_HOLD = 0.35
 const LIT_EASE = 0.2
 const SHELL_EASE = 0.3
 const DIAL_EASE = 0.35
@@ -894,6 +896,9 @@ const createScene: SceneFactory = (ctx) => {
   let clock = 0
   let selected = -1
   let pickable = false
+  /** The last hovered node and the frame time it stays active until. */
+  let held = -1
+  let heldUntil = 0
   let paneLive = false
   let lastAspect = 1
   const raycaster = new THREE.Raycaster()
@@ -1066,7 +1071,12 @@ const createScene: SceneFactory = (ctx) => {
     // The node under the pointer, while the graph is whole and pickable. A hover outranks a clicked selection.
     pickable = nodes.length > 0 && focusId < 0.05 && dive < 0.05 + 0.9 * gather && (a > 0.45 || nx > 0) && (st === 0 || c > 0.5)
     const hovered = pickable && f.pointer.inside ? pickAt(f.pointer.x, f.pointer.y, f.aspect) : -1
-    const active = pickable ? (hovered >= 0 ? hovered : selected) : -1
+    if (hovered >= 0) {
+      held = hovered
+      heldUntil = clock + HOVER_HOLD
+    } else if (held >= 0 && clock >= heldUntil) held = -1
+    if (held >= 0 && hovered < 0) busy = true
+    const active = pickable ? (held >= 0 ? held : selected) : -1
     if (plucking) {
       plucking = stepPluck(dt)
       busy = busy || plucking
@@ -1331,12 +1341,13 @@ const createScene: SceneFactory = (ctx) => {
 
     scene.updateMatrixWorld()
 
-    // Node labels name the active node and its neighbours, as the app's tooltip names the hovered node.
+    // A label names the active node alone, as the app's tooltip names the hovered node. Its neighbours light up
+    // without labels, since five labels at once covered the graph they name.
     camera.getWorldDirection(forward)
     behind.copy(camera.position).sub(forward)
     for (let k = 0; k < panels.length; k++) label(k, behind, 0, 0, 0)
     nodes.forEach((node, i) => {
-      const named = active >= 0 && (i === active || node.neighbours.has(active)) && node.lit > 0.98
+      const named = active >= 0 && i === active && node.lit > 0.98
       label(node.panel, node.world, node.size * 1.25 + 0.03, named ? 1 : 0, node.mesh.visible ? 1 : 0)
     })
     // The islands are named under their lowest node once the split rests and no node is active. Phones set the
