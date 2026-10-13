@@ -85,7 +85,15 @@ const facing = (x: number, z: number) => Math.atan2(Math.sin(FACE_YAW) * 9 - x, 
 
 /** The rebuilt screens, two per riser, left riser first. Labels in content/roles/sorcea.ts follow this order. */
 const SCREENS = ['/sorcea/search.webp', '/sorcea/tutorial.webp', '/sorcea/home.webp', '/sorcea/score.webp']
-const PHONE_SPOTS = [[-1.95, -0.98], [-1.4, -0.98], [1.4, -0.98], [1.95, -0.98]]
+/**
+ * The phones stand 1.45 times their modelled size, so their screens read from the journey's camera. Each riser holds
+ * two, 0.7 apart, and ends inside the vanity top's rounded back corner (x 2.24 at the riser's back edge).
+ */
+const PHONE_SCALE = 1.45
+const RISER = { x: 1.57, z: -0.95, w: 1.36 }
+const PHONE_SPOTS = [[-1.92, RISER.z], [-1.22, RISER.z], [1.22, RISER.z], [1.92, RISER.z]]
+/** The screens' brightness over their textures, so they read as lit displays under the room's dim light. */
+const SCREEN_GAIN = 1.25
 const HOME_PHONE = 2
 /** The four parallel requests: the jewellery box they leave from, and the impact-act span of their flight. */
 const BOX = new THREE.Vector3(1.8, 0, 0.62)
@@ -562,7 +570,7 @@ totalEmissiveRadiance += vColor.rgb * 0.3;`)
   }
 
   // The rebuilt screens on two display risers, two phones each, turned to the work act's camera.
-  const riserGeometry = geo(new RoundedBoxGeometry(1.2, 0.34, 0.56, 3, 0.06))
+  const riserGeometry = geo(new RoundedBoxGeometry(RISER.w, 0.34, 0.56, 3, 0.06))
   const phoneGeometry = geo(new RoundedBoxGeometry(0.42, 0.84, 0.04, 3, 0.04))
   const screenGeometry = geo(new THREE.PlaneGeometry(0.385, 0.79))
   const lipGeometry = geo(new RoundedBoxGeometry(0.34, 0.035, 0.06, 1, 0.012))
@@ -574,21 +582,22 @@ totalEmissiveRadiance += vColor.rgb * 0.3;`)
   const phones: THREE.Group[] = []
   for (const side of [-1, 1]) {
     const riser = mesh(riserGeometry, plum)
-    riser.position.set(side * 1.68, 0.17, -0.98)
+    riser.position.set(side * RISER.x, 0.17, RISER.z)
     world.add(riser)
-    const strip = mesh(geo(new RoundedBoxGeometry(1.16, 0.025, 0.025, 1, 0.01)), neon, false)
-    strip.position.set(side * 1.68, 0.3, -0.69)
+    const strip = mesh(geo(new RoundedBoxGeometry(RISER.w - 0.04, 0.025, 0.025, 1, 0.01)), neon, false)
+    strip.position.set(side * RISER.x, 0.3, RISER.z + 0.29)
     world.add(strip)
   }
   PHONE_SPOTS.forEach(([x, z], i) => {
     const phone = new THREE.Group()
     phone.position.set(x, 0.34, z)
     phone.rotation.set(-0.16, facing(x, z), 0, 'YXZ')
+    phone.scale.setScalar(PHONE_SCALE)
     const body = mesh(phoneGeometry, phoneBody)
     body.position.y = 0.43
     const blank = mesh(screenGeometry, screenBlank, false)
     blank.position.set(0, 0.43, 0.0205)
-    const screenMaterial = mat(new THREE.MeshBasicMaterial({ map: loads[i].texture, color: new THREE.Color(1.1, 1.1, 1.1) }))
+    const screenMaterial = mat(new THREE.MeshBasicMaterial({ map: loads[i].texture, color: new THREE.Color(SCREEN_GAIN, SCREEN_GAIN, SCREEN_GAIN) }))
     const screen = new THREE.Mesh(screenGeometry, screenMaterial)
     screen.position.set(0, 0.43, 0.021)
     screen.visible = false
@@ -886,7 +895,7 @@ totalEmissiveRadiance += vColor.rgb * 0.3;`)
       }
       laneMaterial.color.setRGB(0.27, 0.71, 0.86).multiplyScalar(0.4 + 0.6 * flight * (1 - smoother(ramp(c, LAUNCH[1], 0.85))))
       const arrived = smoother(ramp(c, LAUNCH[1] - 0.04, LAUNCH[1] + 0.02)) * (1 - smoother(ramp(c, 0.8, 0.95)))
-      screenMaterials[HOME_PHONE].color.setScalar(1.1 + 0.6 * arrived)
+      screenMaterials[HOME_PHONE].color.setScalar(SCREEN_GAIN + 0.6 * arrived)
       haloPosition.needsUpdate = true
       haloOnAttribute.needsUpdate = true
 
