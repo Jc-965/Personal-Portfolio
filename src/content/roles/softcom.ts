@@ -1,7 +1,6 @@
 /**
- * The SoftCom Lab role's journey. The arrival says plainly what the work was and does not sell the company or
- * describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice.
- * Every claim comes from the role's resume entry.
+ * Exercise-assessment research and publication, grounded in the supplied resumes. Accuracy is limited to the
+ * controlled video trials; the copy makes no clinical-outcome claim.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,30 +13,30 @@ export const SOFTCOM: RoleStory = {
       lines: [
         'SoftCom Lab, Cal Poly Pomona',
         'Machine Learning Research Intern',
-        'Research on a mobile platform for Parkinson’s care, centered on a computer-vision model that checks exercise form from video.',
+        'Research into using computer vision to give people living with Parkinson’s feedback on exercise form, as part of a mobile care platform.',
       ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'computer vision',
+      eyebrow: 'understanding the movement',
       lines: [
-        'Developed and evaluated the computer-vision model.',
-        'Tracked the body’s keypoints, such as the shoulders, elbows, and knees, through each video to assess the exercise form.',
+        'Developed and evaluated a model that follows body keypoints through exercise videos to assess form.',
+        'Tracking the shoulders, elbows, and knees lets the model follow how a movement unfolds over time.',
       ],
       readout: ['95.4% mean accuracy in controlled video trials'],
       callouts: [
-        { text: 'Hover a keypoint to name it', anchor: 'joint' },
-        { text: 'Click the figure for a rep', anchor: 'figure' },
+        { text: 'Hover a joint to see what is tracked', anchor: 'joint' },
+        { text: 'Tap the figure to watch a repetition', anchor: 'figure' },
       ],
     },
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'published',
+      eyebrow: 'sharing the research',
       lines: [
-        'First-authored a peer-reviewed paper on the platform at CS & IT-CSCP 2024.',
+        'Published a peer-reviewed paper as first author at CS & IT-CSCP 2024, describing the mobile platform and its approach to exercise assessment for Parkinson’s care.',
       ],
       callouts: [],
     },

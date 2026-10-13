@@ -1,7 +1,6 @@
 /**
- * The Blue Shield of California role's journey. The arrival says plainly what the work was and does not sell the
- * company or describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in
- * resume voice. Every claim comes from the role's resume entry.
+ * Android security and billing work, grounded in the supplied resumes. Task-success figures are intentionally
+ * omitted at Jesse's request.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +13,7 @@ export const BLUE_SHIELD: RoleStory = {
       lines: [
         'Blue Shield of California',
         'Software Engineer Intern, Android',
-        'The work covered securing the Android app’s APIs and restructuring its billing and payment flows, for more than 500K members.',
+        'Blue Shield’s Android app serves more than 500,000 members. The work focused on the billing and payment experience, along with the security of the APIs behind it.',
       ],
       callouts: [],
     },
@@ -23,12 +22,11 @@ export const BLUE_SHIELD: RoleStory = {
       span: 2.6,
       eyebrow: 'securing the APIs',
       lines: [
-        'Built a replay engine to test whether the app’s 220+ service API calls actually needed a JWT.',
-        'It sent each call twice, once with the JWT and once without. The calls still worked without it, which proved the APIs were ignoring the token.',
-        'Moved the bundled credentials and authentication server-side.',
+        'A custom replay engine tested more than 220 API endpoints using the same app session, first with the service JWT and then without it.',
+        'Matching responses showed that the endpoints were ignoring the token. Moving service credentials and authentication to the server removed bundled credentials from the Android app.',
       ],
       callouts: [
-        { text: 'Click an endpoint to replay it with and without the JWT', anchor: 'wall' },
+        { text: 'Select an endpoint to compare both requests', anchor: 'wall' },
       ],
     },
     {
@@ -36,18 +34,18 @@ export const BLUE_SHIELD: RoleStory = {
       span: 1.6,
       eyebrow: 'billing and payments',
       lines: [
-        'Restructured the information architecture of the billing and payment flows.',
-        'Fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen.',
+        'Reorganized the billing and payment flows to make the steps easier to follow, from reviewing a bill to making a payment.',
+        'Fixed 12 crash and data-integrity risks, along with a production bug that left members on a blank screen.',
       ],
       callouts: [
-        { text: 'Click the phone to step through the flow', anchor: 'phone' },
+        { text: 'Tap the phone to follow the payment flow', anchor: 'phone' },
       ],
     },
   ],
   restLocal: [0.6, 0.6, 0.75],
   room: { src: '/roles/rooms/blue-shield.webp', focusX: 0.35 },
   // In the scene's panel order: the two lanes of a paired replay in flight, then the response both lanes got.
-  panels: ['with service JWT', 'without service JWT', 'same response'],
+  panels: ['With service token', 'Without service token', 'Matching responses'],
   // A clear electric-blue decode, and the room's ink graded toward blue.
   look: { tint: [0.16, 0.42, 1.0], grade: [0.8, 0.95, 1.2] },
   links: [],

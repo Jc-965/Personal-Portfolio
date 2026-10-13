@@ -1,7 +1,5 @@
 /**
- * The Coding Minds Academy role's journey. The arrival says plainly what the work was and does not sell the company
- * or describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume
- * voice. Every claim comes from the role's entry in portfolio.json.
+ * Curriculum design and teaching, grounded in portfolio.json. No student outcome metrics are claimed.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,33 +12,33 @@ export const CODING_MINDS: RoleStory = {
       lines: [
         'Coding Minds Academy',
         'Instructor',
-        'The work was a curriculum on algorithms and competitive problem solving, written and then taught in Python, C++, and JavaScript.',
+        'Students learn algorithms and competitive problem solving by building projects in Python, C++, and JavaScript.',
       ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'curriculum',
+      eyebrow: 'learning by building',
       lines: [
-        'Designed a project-based curriculum on algorithms and competitive problem solving.',
-        'Built each lesson as a structured lab where students implement the algorithm themselves.',
+        'Designed the curriculum around structured coding labs, turning algorithm concepts into programs students could write and run themselves.',
+        'Each lesson connects the idea behind an algorithm to the code that makes it work.',
       ],
       choices: [
-        { label: 'bubble sort', command: 'algorithm', value: 'sort' },
-        { label: 'BFS', command: 'algorithm', value: 'bfs' },
-        { label: 'binary search', command: 'algorithm', value: 'search' },
+        { label: 'Bubble sort', command: 'algorithm', value: 'sort' },
+        { label: 'Breadth-first search', command: 'algorithm', value: 'bfs' },
+        { label: 'Binary search', command: 'algorithm', value: 'search' },
       ],
       callouts: [
-        { text: 'Click a book to switch the language', anchor: 'books' },
-        { text: 'Click the chalk for a new input', anchor: 'chalk' },
+        { text: 'Choose a book to change the language', anchor: 'books' },
+        { text: 'Tap the chalk to try another input', anchor: 'chalk' },
       ],
     },
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'the classroom',
-      lines: ['Taught the labs in the classroom.'],
+      eyebrow: 'putting ideas into practice',
+      lines: ['Taught the labs with a focus on problem solving: choosing an approach, writing the code, and understanding why it works.'],
       callouts: [],
     },
   ],

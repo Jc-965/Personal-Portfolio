@@ -16,12 +16,12 @@
       "id": "scottylabs-ai",
       "icon": "brain",
       "company": "ScottyLabs AI",
-      "role": "Head of Agent",
+      "role": "Head of Agent Engineering",
       "track": "AI Agents",
       "period": "Apr 2026 – Present",
       "location": "Pittsburgh, PA",
       "status": "Active",
-      "summary": "Lead 25 engineers as architect and principal author of Bark, Carnegie Mellon’s campus AI assistant. Built its grounded agent, a 300 ms injection guard, and per-user memory, and cut prompt costs 44%.",
+      "summary": "Leading a 25-engineer team building Bark, CMU’s campus AI assistant. The work spans its agent architecture, conversation memory, and safeguards, with prompt costs reduced by 44%.",
       "stack": [
         "LangGraph",
         "FastAPI",
@@ -42,7 +42,7 @@
       "period": "Jun 2026 – Aug 2026",
       "location": "Long Beach, CA",
       "status": "Complete",
-      "summary": "Restructured the billing and payment flows of an Android app with 500K+ members, and built a replay engine that exposed authentication flaws across 220+ API endpoints.",
+      "summary": "Rebuilt billing and payment flows for an Android app serving 500K+ members, fixed crash and data-integrity risks, and uncovered authentication flaws with a replay engine for 220+ API endpoints.",
       "stack": [
         "Android",
         "Kotlin",
@@ -61,7 +61,7 @@
       "period": "Jan 2026 – May 2026",
       "location": "Remote",
       "status": "Shipped",
-      "summary": "Rebuilt the main screens of a 10K+ user Flutter app, cut its homepage load time about 75%, and built shade matching on a color engine written from scratch.",
+      "summary": "Rebuilt the core screens of a Flutter app used by 10K+ users, added personalized shade matching, and cut homepage load time by ~75%.",
       "stack": [
         "Flutter",
         "Dart",
@@ -109,7 +109,7 @@
       "period": "Sep 2025 – Apr 2026",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built the Python pipeline that turns OpenStreetMap and ArcGIS records into the building data behind CMUMaps, Carnegie Mellon’s campus map for 12K+ users.",
+      "summary": "Turned OpenStreetMap and ArcGIS records into building data for CMUMaps. The Python pipeline covers 74 campus buildings and supports a map used by 12K+ people.",
       "stack": [
         "Python",
         "OpenStreetMap",
@@ -146,7 +146,7 @@
       "period": "Sep 2025 – Dec 2025",
       "location": "Pittsburgh, PA",
       "status": "Shipped",
-      "summary": "Built Unreal Engine 5 gameplay systems for grappling, tethering, and local multiplayer combat.",
+      "summary": "Built grappling, tethering, and combat for a local multiplayer game in Unreal Engine 5, keeping physics, collision feedback, and eliminations in sync.",
       "stack": [
         "Unreal Engine 5",
         "Blueprints",
@@ -164,7 +164,7 @@
       "period": "Jun 2025 – Feb 2026",
       "location": "Remote",
       "status": "Complete",
-      "summary": "Designed and taught project-based Python, C++, and JavaScript lessons on algorithms and competitive problem solving.",
+      "summary": "Designed and taught programming labs that help students put algorithms into practice, using Python, C++, and JavaScript to work through competitive problems.",
       "stack": [
         "Python",
         "C++",
@@ -182,7 +182,7 @@
       "period": "Jun 2023 – Aug 2024",
       "location": "Pomona, CA",
       "status": "Published",
-      "summary": "First-authored a peer-reviewed paper on a mobile platform for Parkinson’s care, with a computer-vision model that assessed exercise form at 95.4% mean accuracy.",
+      "summary": "Developed a vision model for exercise assessment in Parkinson’s care, reaching 95.4% mean accuracy in controlled video trials. The research led to a first-authored, peer-reviewed paper.",
       "stack": [
         "Python",
         "ML/CV",

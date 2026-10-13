@@ -1,64 +1,65 @@
 /**
- * The Sorcea role's journey. The arrival says plainly what the work was and does not sell the company or describe
- * it. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice. Every
- * claim comes from the role's resume entry.
+ * Sorcea's app experience, perceptual shade matching, and loading improvements, grounded in the supplied resumes.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
 export const SORCEA: RoleStory = {
-  id: 'sorcea',
+  id: "sorcea",
   acts: [
     {
-      key: 'arrival',
+      key: "arrival",
       span: 1.4,
       lines: [
-        'Sorcea',
-        'Software Engineer Intern, Mobile',
-        'Sorcea is a skincare app. The work covered its main screens, its shade matching, and its homepage load time.',
+        "Sorcea",
+        "Software Engineer Intern, Mobile",
+        "Sorcea helps people explore skincare and find products that suit them. The Flutter app serves more than 10,000 users. The work covered its core screens, shade matching, and loading speed.",
       ],
       callouts: [
-        { text: 'Home, product, search, and onboarding', anchor: 'screens' },
-        { text: 'A 22-step tutorial across 7 screens', anchor: 'tutorial' },
+        { text: "Home, search, and product screens", anchor: "screens" },
+        { text: "Guided onboarding across seven screens", anchor: "tutorial" },
       ],
     },
     {
-      key: 'work',
+      key: "work",
       span: 2.6,
-      eyebrow: 'shade matching',
+      eyebrow: "shade matching",
       lines: [
-        'Built shade matching on a color engine written from scratch.',
-        'Wrote it to compare colors in CIELAB, a color space modeled on human vision, and to rank shades by Delta-E, a measure of how different two colors look. Drew the match gauge with CustomPainter.',
+        "A custom color engine compares shades in CIELAB and ranks them by Delta-E, which measures how different two colors look.",
+        "A Flutter CustomPainter gauge makes the results easier to read, showing the closest matches, skin-tone fit, and confidence bands.",
       ],
       // The first value is the scene's DEFAULT_TONE in components/roles/scenes/sorcea.ts.
       choices: [
-        { label: '#D2A07C', command: 'tone', value: '#D2A07C' },
-        { label: '#EDC9AE', command: 'tone', value: '#EDC9AE' },
-        { label: '#A97350', command: 'tone', value: '#A97350' },
-        { label: '#6B4430', command: 'tone', value: '#6B4430' },
+        { label: "Warm beige", command: "tone", value: "#D2A07C" },
+        { label: "Light beige", command: "tone", value: "#EDC9AE" },
+        { label: "Warm tan", command: "tone", value: "#A97350" },
+        { label: "Deep brown", command: "tone", value: "#6B4430" },
       ],
       callouts: [
-        { text: 'Hover or tap the solid to move the tone', anchor: 'solid' },
-        { text: 'The gauge shows the fit and its confidence band', anchor: 'gauge' },
+        { text: "Hover or tap to try a skin tone", anchor: "solid" },
+        { text: "See the match and its confidence", anchor: "gauge" },
       ],
     },
     {
-      key: 'impact',
+      key: "impact",
       span: 1.6,
-      eyebrow: 'the app',
+      eyebrow: "a faster app",
       lines: [
-        'Rebuilt home, product, search, and onboarding from the founder’s spec through release, with a 22-step tutorial that saves each person’s progress.',
-        'Cut homepage load time about 75% by running API calls in parallel, prefetching the feed, paging by token, and caching revisits.',
+        "Rebuilt home, product, search, and onboarding from specification through release, including a 22-step tutorial.",
+        "Also cut homepage load time by about 75% with parallel requests, feed prefetching, pagination, and caching.",
       ],
       callouts: [],
     },
   ],
   restLocal: [0.6, 0.6, 0.85],
-  room: { src: '/roles/rooms/sorcea.webp', focusX: 0.35 },
+  room: { src: "/roles/rooms/sorcea.webp", focusX: 0.35 },
   // Rose glyphs for the vanity room, and the room's ink warmed toward rose.
   look: { tint: [1, 0.3, 0.48], grade: [1.12, 0.94, 1] },
   // Shown only while the pointer is on a phone, in the scene's SCREENS order.
-  panels: ['Search', 'Tutorial', 'Home', 'Product'],
+  panels: ["Search", "Tutorial", "Home", "Product"],
   links: [],
-  poster: { src: '/roles/sorcea/poster.webp', alt: 'A vanity table with a glass cloche over a CIELAB color solid, a fan of foundation compacts, a shade gauge, four Sorcea app screens, and a jewellery box sending requests to the home screen' },
-  scene: () => import('../../components/roles/scenes/sorcea.ts'),
-}
+  poster: {
+    src: "/roles/sorcea/poster.webp",
+    alt: "A vanity table with a glass cloche over a CIELAB color solid, a fan of foundation compacts, a shade gauge, four Sorcea app screens, and a jewellery box sending requests to the home screen",
+  },
+  scene: () => import("../../components/roles/scenes/sorcea.ts"),
+};

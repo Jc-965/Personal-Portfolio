@@ -1,7 +1,5 @@
 /**
- * The Game Creation Society role's journey. The arrival says plainly what the work was and does not sell the
- * company or describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in
- * resume voice. Every claim comes from the role's entry in portfolio.json, and the game's rules from Jesse.
+ * Gameplay systems grounded in portfolio.json, with the game's rules supplied by Jesse.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,34 +12,34 @@ export const GCS: RoleStory = {
       lines: [
         'Game Creation Society',
         'Core Developer',
-        'Gameplay work on a local multiplayer game. Every player leaves a trail as they move, and hitting an opponent’s trail knocks you out.',
+        'A local multiplayer game where players leave trails as they move. Touching an opponent’s trail knocks a player out, making movement part of the fight.',
       ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'game systems',
+      eyebrow: 'movement and combat',
       lines: [
-        'Built the grappling, tethering, and combat systems.',
-        'Wrote them in Unreal Engine 5 Blueprints, the engine’s visual scripting.',
+        'Built grappling, tethering, and combat in Unreal Engine 5 Blueprints, the engine’s visual scripting system.',
+        'These mechanics connect player movement with physics, collisions, and the state of the match.',
       ],
       // The first value is the player the scene arms by default.
       choices: [
-        { label: 'P1', command: 'player', value: 'p1' },
-        { label: 'P2', command: 'player', value: 'p2' },
+        { label: 'Player 1', command: 'player', value: 'p1' },
+        { label: 'Player 2', command: 'player', value: 'p2' },
       ],
       callouts: [
-        { text: 'Click a platform or ring to grapple', anchor: 'arena' },
-        { text: 'Click the other player to tether', anchor: 'rival' },
+        { text: 'Select a platform or ring to grapple', anchor: 'arena' },
+        { text: 'Select the other player to tether', anchor: 'rival' },
       ],
     },
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'in sync',
+      eyebrow: 'keeping the match in sync',
       lines: [
-        'Synchronized physics-driven interactions, collision feedback, and elimination state in real time.',
+        'Physics, collision feedback, and eliminations update together in real time. A hit changes both what players see and whether a player is still in the round.',
       ],
       callouts: [],
     },
