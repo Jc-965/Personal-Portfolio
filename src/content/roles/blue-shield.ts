@@ -23,12 +23,12 @@ export const BLUE_SHIELD: RoleStory = {
       span: 2.6,
       eyebrow: 'securing the APIs',
       lines: [
-        'Found that the app shipped its own credentials, and that its APIs ignored the service JWTs meant to protect them.',
-        'Built a replay engine that re-sent the app’s requests to 220+ endpoints in pairs, identical except for the token. Matching answers showed where the token was never checked.',
-        'Moved the credentials and authentication to the server, so the app no longer ships secrets.',
+        'Built a replay engine to test whether the app’s 220+ service API calls actually needed a JWT.',
+        'It sent each call twice, once with the JWT and once without. The calls still worked without it, which proved the APIs were ignoring the token.',
+        'Moved the bundled credentials and authentication server-side.',
       ],
       callouts: [
-        { text: 'Click an endpoint to replay a pair', anchor: 'wall' },
+        { text: 'Click an endpoint to replay it with and without the JWT', anchor: 'wall' },
       ],
     },
     {
