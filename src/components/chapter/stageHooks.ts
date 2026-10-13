@@ -237,9 +237,10 @@ const RETURN_EASE = 0.12
 
 /**
  * At a journey's end, input that keeps pushing down fills the return hint's bar (--return, eased) and then calls
- * `back`, once. `blocked` holds every push while a close is already under way.
+ * `back`, once. With `edge` 'start', the same holds at the page's top for input that keeps pushing up. `blocked`
+ * holds every push while a close or a move is already under way.
  */
-export function useReturnAtEnd(active: boolean, back: () => void, returnRef: RefObject<HTMLElement | null>, blocked: () => boolean) {
+export function useReturnAtEnd(active: boolean, back: () => void, returnRef: RefObject<HTMLElement | null>, blocked: () => boolean, edge: 'start' | 'end' = 'end') {
   useEffect(() => {
     if (!active) return
     let target = 0
@@ -250,7 +251,10 @@ export function useReturnAtEnd(active: boolean, back: () => void, returnRef: Ref
     let last = 0
     let touchY = 0
     const hint = returnRef.current
-    const atBottom = () => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+    const atEdge = edge === 'end'
+      ? () => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+      : () => window.scrollY <= 2
+    const toward = edge === 'end' ? 1 : -1
     const tick = (now: number) => {
       raf = 0
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
@@ -266,7 +270,7 @@ export function useReturnAtEnd(active: boolean, back: () => void, returnRef: Ref
     let fired = false
     const add = (delta: number) => {
       if (fired || blocked()) return
-      if (!atBottom()) {
+      if (!atEdge()) {
         armedAt = 0
         target = 0
         wake()
@@ -284,15 +288,21 @@ export function useReturnAtEnd(active: boolean, back: () => void, returnRef: Ref
         back()
       }
     }
-    const onWheel = (event: WheelEvent) => { if (event.deltaY > 0) add(event.deltaY * (event.deltaMode === 1 ? 16 : 1)) }
+    const keys = edge === 'end' ? ['ArrowDown', 'PageDown', ' ', 'End'] : ['ArrowUp', 'PageUp', 'Home']
+    const onWheel = (event: WheelEvent) => {
+      const delta = event.deltaY * toward
+      if (delta > 0) add(delta * (event.deltaMode === 1 ? 16 : 1))
+    }
     const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0 }
     const onTouchMove = (event: TouchEvent) => {
       const y = event.touches[0]?.clientY ?? touchY
-      if (touchY > y) add(touchY - y)
+      // A finger moving up scrolls down the page.
+      const delta = (touchY - y) * toward
+      if (delta > 0) add(delta)
       touchY = y
     }
     const onKey = (event: KeyboardEvent) => {
-      if (['ArrowDown', 'PageDown', ' ', 'End'].includes(event.key)) add(window.innerHeight * 0.3)
+      if (keys.includes(event.key)) add(window.innerHeight * 0.3)
     }
     window.addEventListener('wheel', onWheel, { passive: true })
     window.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -307,5 +317,5 @@ export function useReturnAtEnd(active: boolean, back: () => void, returnRef: Ref
       window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('keydown', onKey)
     }
-  }, [active, back, returnRef, blocked])
+  }, [active, back, returnRef, blocked, edge])
 }

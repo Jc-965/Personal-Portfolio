@@ -1,9 +1,10 @@
 /**
  * Which role's journey is open, and the moves between the home page's rows and a journey. Opening pushes `/<id>`,
  * adds roles-open to the root (which hides every other section), and scrolls to the journey's start. Moving to
- * another role (the stops rail, or scrolling on past a journey's end) replaces the entry, so Back always returns
- * home. Closing (the back control, Escape, the browser's Back, or scrolling on past the last role's end) lands on
- * the current role's row.
+ * another role (the stops rail, scrolling on past a journey's end, or scrolling back up past its start) replaces the
+ * entry, so Back always returns home. A move back up lands at the previous journey's end, and every other move at
+ * the journey's start. Closing (the back control, Escape, the browser's Back, or scrolling on past the last role's
+ * end) lands on the current role's row.
  *
  * A switch or a close first runs a leave phase of `onLeave`'s milliseconds, with the root's roles-leaving class
  * fading the journey's copy and the page held still, and only then changes the page. One move runs at a time.
@@ -40,14 +41,16 @@ export function useRolesView({ ids, titleOf, trackRef, onLeave, onSettled }: Rol
   const movingRef = useRef(false)
   const backPendingRef = useRef(false)
   const returnRef = useRef<HTMLParagraphElement>(null)
-  const pendingRef = useRef<{ kind: 'open' | 'switch' | 'close'; id: string } | null>(null)
+  const startRef = useRef<HTMLParagraphElement>(null)
+  /** The change waiting for its layout to commit, and whether its scroll lands at the journey's start or end. */
+  const pendingRef = useRef<{ kind: 'open' | 'switch' | 'close'; id: string; at?: 'start' | 'end' } | null>(null)
 
-  const enter = useCallback((id: string, kind: 'open' | 'switch') => {
+  const enter = useCallback((id: string, kind: 'open' | 'switch', at: 'start' | 'end' = 'start') => {
     if (!titleRef.current) titleRef.current = document.title
     document.title = titleOf(id)
     document.documentElement.classList.add(ROLES_OPEN)
     openRef.current = id
-    pendingRef.current = { kind, id }
+    pendingRef.current = { kind, id, at }
     setOpenId(id)
   }, [titleOf])
 
@@ -93,11 +96,11 @@ export function useRolesView({ ids, titleOf, trackRef, onLeave, onSettled }: Rol
     enter(id, 'open')
   }, [enter])
 
-  const switchTo = useCallback((id: string) => {
+  const switchTo = useCallback((id: string, at: 'start' | 'end' = 'start') => {
     if (!openRef.current || openRef.current === id || movingRef.current) return
     afterLeave('switch', FORM_MS * 0.6, () => {
       window.history.replaceState({ role: id }, '', journeyPath(id))
-      enter(id, 'switch')
+      enter(id, 'switch', at)
     })
   }, [afterLeave, enter])
 
@@ -132,14 +135,18 @@ export function useRolesView({ ids, titleOf, trackRef, onLeave, onSettled }: Rol
     }
   }, [ids, enter, leave, back])
 
-  // Scrolling on past a journey's end moves to the next role, and past the last role's end returns home.
+  // Scrolling on past a journey's end moves to the next role, and past the last role's end returns home. Scrolling
+  // back up past a journey's start moves to the previous role, and the first role has none.
   const nextId = openId ? ids[ids.indexOf(openId) + 1] ?? null : null
+  const prevId = openId ? ids[ids.indexOf(openId) - 1] ?? null : null
   const advance = useCallback(() => {
     if (nextId) switchTo(nextId)
     else back()
   }, [nextId, switchTo, back])
+  const retreat = useCallback(() => { if (prevId) switchTo(prevId, 'end') }, [prevId, switchTo])
   const blocked = useCallback(() => movingRef.current || backPendingRef.current, [])
   useReturnAtEnd(openId !== null, advance, returnRef, blocked)
+  useReturnAtEnd(prevId !== null, retreat, startRef, blocked, 'start')
 
   // A direct load of a role's path opens its journey before the first paint.
   useLayoutEffect(() => {
@@ -163,7 +170,10 @@ export function useRolesView({ ids, titleOf, trackRef, onLeave, onSettled }: Rol
       if (row) y = row.getBoundingClientRect().top + window.scrollY + row.offsetHeight / 2 - window.innerHeight / 2
     } else {
       const track = trackRef.current
-      if (track) y = track.getBoundingClientRect().top + window.scrollY
+      if (track) {
+        y = track.getBoundingClientRect().top + window.scrollY
+        if (pending.at === 'end') y += Math.max(0, track.offsetHeight - window.innerHeight)
+      }
     }
     const lenis = lenisRef.current
     if (lenis) {
@@ -178,5 +188,5 @@ export function useRolesView({ ids, titleOf, trackRef, onLeave, onSettled }: Rol
     return () => cancelAnimationFrame(resync)
   }, [openId, trackRef, onSettled])
 
-  return { openId, nextId, open, switchTo, back, returnRef }
+  return { openId, nextId, prevId, open, switchTo, back, returnRef, startRef }
 }

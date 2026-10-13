@@ -243,6 +243,10 @@ html.roles-open #journey { max-width: none; padding: 0; }
   letter-spacing: .08em;
 }
 
+/* The start's hint sits above the arrival's copy, the mirror of the return
+   hint at the end, with its bar under the words. */
+.role-journey__previous { margin: 0 0 16px; }
+
 /* A switch or a close fades the copy, the stops, and the back control while
    the world dissolves (useRolesView's leave phase), and a journey's copy
    fades in as its world forms. */

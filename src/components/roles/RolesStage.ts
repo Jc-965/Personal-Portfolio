@@ -818,6 +818,10 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       island.goalY = 0
       attachJourney(island, options.stage)
       measure()
+      // The glide starts where the page is, so a journey entered at its end does not sweep through every act.
+      const fraction = sceneProgress(window.scrollY - journey.trackTop, journey.trackHeight, height)
+      journey.glide = { value: fraction, velocity: 0 }
+      journey.progress = fraction
     },
     leaveJourney(kind) {
       if (!journey) return

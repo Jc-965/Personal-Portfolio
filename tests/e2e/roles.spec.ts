@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 /**
  * Every role in the Journey section is a row with an island that opens the role's journey at /<id>. Back returns
  * to the row, a direct load opens the journey alone, the stops rail moves between roles without growing the
- * history, reduced motion stacks the acts with the poster, and a missing WebGL2 context leaves posters in the rows.
+ * history, scrolling back up past a journey's start opens the previous role at its end, reduced motion stacks the
+ * acts with the poster, and a missing WebGL2 context leaves posters in the rows.
  */
 const portfolio = JSON.parse(readFileSync(new URL('../../src/content/portfolio.json', import.meta.url), 'utf8')) as {
   experiences: { id: string; company: string }[]
@@ -70,13 +71,34 @@ test('the stops rail moves between roles without adding history entries', async 
   await expect(page.locator('html')).not.toHaveClass(/roles-open/)
 })
 
-test('scrolling on past a role leads to the next role, and past the last role leads home', async ({ page }) => {
+test('scrolling on past a role leads to the next role, past the last leads home, and back up leads to the previous', async ({ page }) => {
   for (let i = 0; i < roles.length; i++) {
     await page.goto(`/${roles[i].id}`)
-    const hint = page.locator(`.role-journey--${roles[i].id} .teardown__return`)
-    if (i < roles.length - 1) await expect(hint).toContainText(roles[i + 1].company)
-    else await expect(hint).toContainText('return home')
+    const journey = page.locator(`.role-journey--${roles[i].id}`)
+    const next = journey.locator('.teardown__act--close .teardown__return')
+    if (i < roles.length - 1) await expect(next).toContainText(roles[i + 1].company)
+    else await expect(next).toContainText('return home')
+    const previous = journey.locator('.role-journey__previous')
+    if (i > 0) await expect(previous).toContainText(roles[i - 1].company)
+    else await expect(previous).toHaveCount(0)
   }
+})
+
+test('scrolling back up past a journey\'s start opens the previous role at its end', async ({ page }) => {
+  const [first, second] = roles
+  await page.goto(`/${second.id}`)
+  await drawn(page, second.id)
+  await page.mouse.move(400, 400)
+  // A steady push, since the hint's bar drains after half a second without input. It stops once the move starts
+  // (roles-leaving), since phones scroll natively and a push that goes on scrolls back up the previous journey.
+  const moving = () => page.evaluate((id) => document.documentElement.classList.contains('roles-leaving') || location.pathname !== `/${id}`, second.id)
+  for (let i = 0; i < 30 && !(await moving()); i++) {
+    await page.mouse.wheel(0, -150)
+    await page.waitForTimeout(60)
+  }
+  await expect(page).toHaveURL(new RegExp(`/${first.id}$`), { timeout: 15_000 })
+  await expect(page.locator(`.role-journey--${first.id}`)).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4)).toBe(true)
 })
 
 test('Escape closes a role journey', async ({ page }) => {

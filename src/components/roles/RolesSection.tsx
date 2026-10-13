@@ -76,7 +76,7 @@ function RolesSection() {
     return LEAVE_MS
   }, [])
 
-  const { openId, nextId, open, switchTo, back, returnRef } = useRolesView({ ids: IDS, titleOf, trackRef, onLeave, onSettled })
+  const { openId, nextId, prevId, open, switchTo, back, returnRef, startRef } = useRolesView({ ids: IDS, titleOf, trackRef, onLeave, onSettled })
   const openIdRef = useRef(openId)
   useEffect(() => { openIdRef.current = openId }, [openId])
 
@@ -231,7 +231,9 @@ function RolesSection() {
           stageRef={journeyStageRef}
           handle={journeyRef}
           returnRef={returnRef}
+          startRef={startRef}
           next={nextId ? BY_ID.get(nextId)?.facts.company ?? null : null}
+          previous={prevId ? BY_ID.get(prevId)?.facts.company ?? null : null}
           onBack={back}
           onSwitch={switchTo}
           onChoose={choose}

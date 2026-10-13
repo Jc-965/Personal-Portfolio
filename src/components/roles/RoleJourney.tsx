@@ -40,8 +40,12 @@ export interface RoleJourneyProps {
   stageRef: MutableRefObject<HTMLDivElement | null>
   handle: Ref<RoleJourneyHandle>
   returnRef: Ref<HTMLParagraphElement | null>
+  /** The start's hint, whose bar fills as input keeps pushing up at the journey's start. */
+  startRef: Ref<HTMLParagraphElement | null>
   /** The next role's company, where scrolling on past the end leads, or null for the last role, which leads home. */
   next: string | null
+  /** The previous role's company, where scrolling back up past the start leads, or null for the first role. */
+  previous: string | null
   onBack(): void
   onSwitch(id: string): void
   onChoose(command: string, value: string): void
@@ -53,7 +57,7 @@ export interface RoleJourneyProps {
  * drawn by the section's shared stage, which calls `handle.onFrame` every frame. Under reduced motion the acts stack
  * in normal flow with the role's poster.
  */
-function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle, returnRef, next, onBack, onSwitch, onChoose }: RoleJourneyProps) {
+function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle, returnRef, startRef, next, previous, onBack, onSwitch, onChoose }: RoleJourneyProps) {
   const [track, setTrack] = useState<HTMLElement | null>(null)
   const localStage = useRef<HTMLDivElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
@@ -273,6 +277,12 @@ function RoleJourney({ story, facts, roles, isStatic, trackRef, stageRef, handle
               {isStatic && ai === 0 && <img className="role-journey__poster" src={story.poster.src} alt={story.poster.alt} loading="lazy" decoding="async" />}
               {ai === 0 ? (
                 <>
+                  {!isStatic && previous && (
+                    <p ref={startRef} className="teardown__return role-journey__previous" aria-hidden="true">
+                      <span>{`// scroll up for ${previous}`}</span>
+                      <span className="teardown__return-bar" />
+                    </p>
+                  )}
                   <p className="teardown__eyebrow role-journey__meta">{facts.period} · {facts.location}{facts.status ? ` · ${facts.status}` : ''}</p>
                   {/* Each word prints in its own unbreakable box, left to right, so the scramble's wider glyphs
                       can never wrap a word across two lines while it prints. */}
