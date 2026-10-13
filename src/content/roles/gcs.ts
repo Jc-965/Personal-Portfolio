@@ -1,7 +1,7 @@
 /**
- * The Game Creation Society role's journey, written in the project chapters' voice. Every claim about the work
- * comes from the role's entry in portfolio.json. The other sentences say what the organization is or define a term
- * in everyday words.
+ * The Game Creation Society role's journey. The arrival describes the product or organization alone, in the project
+ * chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening
+ * on its verb in resume voice. Every claim about the work comes from the role's entry in portfolio.json.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +14,7 @@ export const GCS: RoleStory = {
       lines: [
         'Game Creation Society',
         'Core Developer',
-        'Game Creation Society is a Carnegie Mellon student organization where teams make games together. Built the gameplay systems for a local multiplayer game as a core developer.',
+        'Game Creation Society is a Carnegie Mellon student organization where teams make games together. This game is local multiplayer combat built around grappling and tethering.',
       ],
       callouts: [],
     },
@@ -23,8 +23,8 @@ export const GCS: RoleStory = {
       span: 2.6,
       eyebrow: 'game systems',
       lines: [
-        'Players grapple, tether, and fight on one screen.',
-        'The systems are built in Unreal Engine 5 Blueprints, the engine’s visual scripting.',
+        'Built the grappling, tethering, and combat systems.',
+        'Wrote them in Unreal Engine 5 Blueprints, the engine’s visual scripting.',
       ],
       // The first value is the player the scene arms by default.
       choices: [
@@ -41,8 +41,7 @@ export const GCS: RoleStory = {
       span: 1.6,
       eyebrow: 'in sync',
       lines: [
-        'Physics, hits, and eliminations stay in sync in real time.',
-        'Physics-driven interactions, collision feedback, and elimination state all update together as a match plays out.',
+        'Synchronized physics-driven interactions, collision feedback, and elimination state in real time.',
       ],
       callouts: [],
     },

@@ -1,6 +1,7 @@
 /**
- * The ScottyLabs AI role's journey, written in the project chapters' voice. Every claim about the work comes from
- * the role's resume entry. The other sentences say what the organization is or define a term in everyday words.
+ * The ScottyLabs AI role's journey. The arrival describes the product or organization alone, in the project
+ * chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening
+ * on its verb in resume voice. Every claim about the work comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -13,19 +14,20 @@ export const SCOTTYLABS_AI: RoleStory = {
       lines: [
         'ScottyLabs AI',
         'Head of Agent',
-        'Bark is Carnegie Mellon’s campus AI assistant, built by the ScottyLabs AI team. Leads 25 engineers as Bark’s architect and principal author.',
+        'Bark is Carnegie Mellon’s campus AI assistant. It answers questions about campus maps, courses, dining, and transit from live university data, and it remembers each person across chats.',
       ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'grounded answers',
+      eyebrow: 'the agent',
       lines: [
-        'Bark grounds every answer in live university data.',
-        'Campus maps, courses, dining, and transit each reach the model through an MCP tool, a connector it can query mid-answer. Binding only the tools a question needs, and compressing the context, cut prompt costs 44%.',
+        'Lead 25 engineers as Bark’s architect and principal author.',
+        'Built the LangGraph agent that grounds every answer in live university data, through MCP tools (connectors the model can query) for maps, courses, dining, and transit.',
+        'Cut prompt costs 44% by giving each question only the tools it needs and compressing the model’s context.',
       ],
-      readout: ['streams through LangGraph, FastAPI, Express, React'],
+      readout: ['typed SSE streaming, LangGraph to React'],
       callouts: [
         { text: 'Click a tool to ask Bark', anchor: 'tool' },
       ],
@@ -35,9 +37,8 @@ export const SCOTTYLABS_AI: RoleStory = {
       span: 1.6,
       eyebrow: 'safety and memory',
       lines: [
-        'A model-free guard blocks prompt injection in 300 ms.',
-        'The guard was red-teamed, and it also stops prompt leaks mid-stream.',
-        'Memory carries across each person’s chats in pgvector, isolated per user, which fixed a cross-tenant data leak.',
+        'Built a model-free guard that blocks prompt injection and mid-stream prompt leaks in 300 ms, then red-teamed it.',
+        'Fixed a cross-tenant data leak with pgvector memory that recalls by meaning and stays isolated per user.',
       ],
       readout: ['16 live tests for grounding and attacks'],
       callouts: [],

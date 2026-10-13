@@ -1,7 +1,7 @@
 /**
- * The Blue Shield of California role's journey, written in the project chapters' voice. Every claim about the work
- * comes from the role's resume entry. The other sentences say what the organization is or define a term in everyday
- * words.
+ * The Blue Shield of California role's journey. The arrival describes the product or organization alone, in the
+ * project chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line
+ * opening on its verb in resume voice. Every claim about the work comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +14,7 @@ export const BLUE_SHIELD: RoleStory = {
       lines: [
         'Blue Shield of California',
         'Software Engineer Intern, Android',
-        'Blue Shield of California’s Android app serves more than 500K members. The internship covered its billing and payment screens and the security of the APIs behind them.',
+        'Blue Shield of California is a health plan, and more than 500K members use its Android app.',
       ],
       callouts: [],
     },
@@ -23,10 +23,11 @@ export const BLUE_SHIELD: RoleStory = {
       span: 2.6,
       eyebrow: 'testing the APIs',
       lines: [
-        'A replay engine tested authentication across 220+ API endpoints.',
-        'Paired replays kept the live cookies and session headers and changed only the service JWT, the token that proves which app is calling. The answers never changed, which proved the APIs ignored those tokens.',
+        'Built a replay engine that tested authentication across 220+ API endpoints.',
+        'Proved with paired replays that the APIs ignored service JWTs, the tokens that identify the calling app. Each pair kept the live cookies and session headers and changed only the token, and the answers never changed.',
+        'Moved the app’s bundled credentials and authentication server-side.',
       ],
-      readout: ['bundled credentials and auth moved server-side'],
+      readout: ['220+ endpoints replayed'],
       callouts: [
         { text: 'Click an endpoint to replay a pair', anchor: 'wall' },
       ],
@@ -36,8 +37,8 @@ export const BLUE_SHIELD: RoleStory = {
       span: 1.6,
       eyebrow: 'billing and payments',
       lines: [
-        'Rebuilt the billing and payment flows members use.',
-        'Fixed 12 crash and data-integrity risks along the way, including a production defect that left members on a blank screen.',
+        'Rebuilt the billing and payment flows.',
+        'Fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen.',
       ],
       callouts: [
         { text: 'Click the phone to step through the flow', anchor: 'phone' },

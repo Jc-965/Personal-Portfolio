@@ -1,6 +1,7 @@
 /**
- * The SoftCom Lab role's journey, written in the project chapters' voice. Every claim about the work comes from the
- * role's resume entry. The other sentences say what the organization is or define a term in everyday words.
+ * The SoftCom Lab role's journey. The arrival describes the product or organization alone, in the project chapters'
+ * voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening on its
+ * verb in resume voice. Every claim about the work comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -13,7 +14,7 @@ export const SOFTCOM: RoleStory = {
       lines: [
         'SoftCom Lab, Cal Poly Pomona',
         'Machine Learning Research Intern',
-        'The research built a computer-vision model that assesses exercise form for people with Parkinson’s, as part of a mobile platform for Parkinson’s care.',
+        'SoftCom Lab at Cal Poly Pomona built a mobile platform for Parkinson’s care, with a computer-vision model that checks exercise form from video.',
       ],
       callouts: [],
     },
@@ -22,8 +23,8 @@ export const SOFTCOM: RoleStory = {
       span: 2.6,
       eyebrow: 'computer vision',
       lines: [
-        'A model that checks exercise form from video.',
-        'It follows the body’s keypoints, such as the shoulders, elbows, and knees, through each video and assesses the form of the exercise.',
+        'Developed and evaluated the computer-vision model.',
+        'Tracked the body’s keypoints, such as the shoulders, elbows, and knees, through each video to assess the exercise form.',
       ],
       readout: ['95.4% mean accuracy in controlled video trials'],
       callouts: [
@@ -36,8 +37,7 @@ export const SOFTCOM: RoleStory = {
       span: 1.6,
       eyebrow: 'published',
       lines: [
-        'First author of a peer-reviewed paper at CS & IT-CSCP 2024.',
-        'The paper presents the mobile platform for Parkinson’s care.',
+        'First-authored a peer-reviewed paper on the platform at CS & IT-CSCP 2024.',
       ],
       callouts: [],
     },

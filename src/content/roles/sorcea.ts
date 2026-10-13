@@ -1,6 +1,7 @@
 /**
- * The Sorcea role's journey, written in the project chapters' voice. Every claim about the work comes from the
- * role's resume entry. The other sentences say what the organization is or define a term in everyday words.
+ * The Sorcea role's journey. The arrival describes the product or organization alone, in the project chapters'
+ * voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening on its
+ * verb in resume voice. Every claim about the work comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -13,11 +14,11 @@ export const SORCEA: RoleStory = {
       lines: [
         'Sorcea',
         'Software Engineer Intern, Mobile',
-        'Sorcea’s Flutter app has more than 10K users. The internship rebuilt its main screens from the founder’s spec through release, with a tutorial that remembers where each person left off.',
+        'Sorcea is a mobile app with more than 10K users. People browse and search products in it, and it matches shades to their skin tone.',
       ],
       callouts: [
-        { text: 'Rebuilt home, product, search, and onboarding', anchor: 'screens' },
-        { text: '22-step tutorial across 7 screens', anchor: 'tutorial' },
+        { text: 'Home, product, search, and onboarding', anchor: 'screens' },
+        { text: 'A 22-step tutorial across 7 screens', anchor: 'tutorial' },
       ],
     },
     {
@@ -25,8 +26,8 @@ export const SORCEA: RoleStory = {
       span: 2.6,
       eyebrow: 'shade matching',
       lines: [
-        'Shade matching finds the shades closest to a person’s skin tone.',
-        'A color engine written from scratch compares colors in CIELAB, a color space modeled on human vision, and ranks them by Delta-E, a measure of how different two colors look.',
+        'Built shade matching on a color engine written from scratch.',
+        'Wrote it to compare colors in CIELAB, a color space modeled on human vision, and to rank shades by Delta-E, a measure of how different two colors look. Drew the match gauge with CustomPainter.',
       ],
       // The first value is the scene's DEFAULT_TONE in components/roles/scenes/sorcea.ts.
       choices: [
@@ -43,10 +44,10 @@ export const SORCEA: RoleStory = {
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'load time',
+      eyebrow: 'the app',
       lines: [
-        'The homepage loads about 75% faster.',
-        'API calls run in parallel, the feed loads ahead of the scroll, results arrive a page at a time, and revisits come from a short-lived cache. Swatch colors are cached and repeat requests are merged, so no image downloads twice.',
+        'Rebuilt home, product, search, and onboarding from the founder’s spec through release, with a 22-step tutorial that saves each person’s progress.',
+        'Cut homepage load time about 75% by running API calls in parallel, prefetching the feed, paging by token, and caching revisits.',
       ],
       callouts: [],
     },
