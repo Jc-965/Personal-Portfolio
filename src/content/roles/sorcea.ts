@@ -1,7 +1,7 @@
 /**
- * The Sorcea role's journey. The arrival describes the product or organization alone, in the project chapters'
- * voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening on its
- * verb in resume voice. Every claim about the work comes from the role's resume entry.
+ * The Sorcea role's journey. The arrival says plainly what the work was and does not sell the company or describe
+ * it. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice. Every
+ * claim comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +14,7 @@ export const SORCEA: RoleStory = {
       lines: [
         'Sorcea',
         'Software Engineer Intern, Mobile',
-        'Sorcea is a mobile app with more than 10K users. People browse and search products in it, and it matches shades to their skin tone.',
+        'Sorcea is a skincare app. The work covered its main screens, its shade matching, and its homepage load time.',
       ],
       callouts: [
         { text: 'Home, product, search, and onboarding', anchor: 'screens' },

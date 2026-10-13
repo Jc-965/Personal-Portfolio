@@ -1,7 +1,7 @@
 /**
- * The Blue Shield of California role's journey. The arrival describes the product or organization alone, in the
- * project chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line
- * opening on its verb in resume voice. Every claim about the work comes from the role's resume entry.
+ * The Blue Shield of California role's journey. The arrival says plainly what the work was and does not sell the
+ * company or describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in
+ * resume voice. Every claim comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,20 +14,19 @@ export const BLUE_SHIELD: RoleStory = {
       lines: [
         'Blue Shield of California',
         'Software Engineer Intern, Android',
-        'Blue Shield of California is a health plan, and more than 500K members use its Android app.',
+        'The work covered securing the Android app’s APIs and restructuring its billing and payment flows, for more than 500K members.',
       ],
       callouts: [],
     },
     {
       key: 'work',
       span: 2.6,
-      eyebrow: 'testing the APIs',
+      eyebrow: 'securing the APIs',
       lines: [
-        'Built a replay engine that tested authentication across 220+ API endpoints.',
-        'Proved with paired replays that the APIs ignored service JWTs, the tokens that identify the calling app. Each pair kept the live cookies and session headers and changed only the token, and the answers never changed.',
-        'Moved the app’s bundled credentials and authentication server-side.',
+        'Found that the app shipped its own credentials, and that its APIs ignored the service JWTs meant to protect them.',
+        'Built a replay engine that re-sent the app’s requests to 220+ endpoints in pairs, identical except for the token. Matching answers showed where the token was never checked.',
+        'Moved the credentials and authentication to the server, so the app no longer ships secrets.',
       ],
-      readout: ['220+ endpoints replayed'],
       callouts: [
         { text: 'Click an endpoint to replay a pair', anchor: 'wall' },
       ],
@@ -37,7 +36,7 @@ export const BLUE_SHIELD: RoleStory = {
       span: 1.6,
       eyebrow: 'billing and payments',
       lines: [
-        'Rebuilt the billing and payment flows.',
+        'Restructured the information architecture of the billing and payment flows.',
         'Fixed 12 crash and data-integrity risks, including a production defect that left members on a blank screen.',
       ],
       callouts: [

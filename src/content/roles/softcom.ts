@@ -1,7 +1,7 @@
 /**
- * The SoftCom Lab role's journey. The arrival describes the product or organization alone, in the project chapters'
- * voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening on its
- * verb in resume voice. Every claim about the work comes from the role's resume entry.
+ * The SoftCom Lab role's journey. The arrival says plainly what the work was and does not sell the company or
+ * describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice.
+ * Every claim comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +14,7 @@ export const SOFTCOM: RoleStory = {
       lines: [
         'SoftCom Lab, Cal Poly Pomona',
         'Machine Learning Research Intern',
-        'SoftCom Lab at Cal Poly Pomona built a mobile platform for Parkinson’s care, with a computer-vision model that checks exercise form from video.',
+        'Research on a mobile platform for Parkinson’s care, centered on a computer-vision model that checks exercise form from video.',
       ],
       callouts: [],
     },
@@ -48,7 +48,7 @@ export const SOFTCOM: RoleStory = {
   panels: ['nose', 'left shoulder', 'right shoulder', 'left elbow', 'right elbow', 'left wrist', 'right wrist', 'left hip', 'right hip', 'left knee', 'right knee', 'left ankle', 'right ankle'],
   // A mint decode, and the room's ink graded toward mint.
   look: { tint: [0.22, 0.95, 0.72], grade: [0.82, 1.06, 1.0] },
-  links: [{ label: 'read the paper', href: 'https://aircconline.com/csit/abstract/v14n17/csit141723.html' }],
+  links: [],
   poster: { src: '/roles/softcom/poster.webp', alt: 'A wooden mannequin raising both arms under a pose skeleton on a mint-gridded stage, filmed by a phone on a tripod, beside a gauge at 95.4% mean accuracy and the published paper' },
   scene: () => import('../../components/roles/scenes/softcom.ts'),
 }

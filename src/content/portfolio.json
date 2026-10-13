@@ -42,7 +42,7 @@
       "period": "Jun 2026 – Aug 2026",
       "location": "Long Beach, CA",
       "status": "Complete",
-      "summary": "Rebuilt billing and payment flows in an Android app with 500K+ members, and built a replay engine that found authentication flaws across 220+ API endpoints.",
+      "summary": "Restructured the billing and payment flows of an Android app with 500K+ members, and built a replay engine that exposed authentication flaws across 220+ API endpoints.",
       "stack": [
         "Android",
         "Kotlin",

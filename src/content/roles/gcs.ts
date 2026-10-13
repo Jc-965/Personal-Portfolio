@@ -1,7 +1,7 @@
 /**
- * The Game Creation Society role's journey. The arrival describes the product or organization alone, in the project
- * chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening
- * on its verb in resume voice. Every claim about the work comes from the role's entry in portfolio.json.
+ * The Game Creation Society role's journey. The arrival says plainly what the work was and does not sell the
+ * company or describe it. The work and impact acts hold only Jesse's own work, each line opening on its verb in
+ * resume voice. Every claim comes from the role's entry in portfolio.json, and the game's rules from Jesse.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -14,7 +14,7 @@ export const GCS: RoleStory = {
       lines: [
         'Game Creation Society',
         'Core Developer',
-        'Game Creation Society is a Carnegie Mellon student organization where teams make games together. This game is local multiplayer combat built around grappling and tethering.',
+        'Gameplay work on a local multiplayer game. Every player leaves a trail as they move, and hitting an opponent’s trail knocks you out.',
       ],
       callouts: [],
     },

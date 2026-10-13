@@ -65,7 +65,7 @@ A secret Three.js scene with procedurally generated terrain you can sculpt and e
   <tr>
     <td valign="middle"><strong>Blue Shield of California</strong><br/><sub>Software Engineer Intern, Android · Summer 2026</sub></td>
     <td align="center" valign="middle"><img title="Android · Kotlin · Security" alt="Android, Kotlin, Security" height="28" src="https://skillicons.dev/icons?i=androidstudio,kotlin" /></td>
-    <td valign="middle">Shipped rebuilt billing and payment flows, and built a replay engine for 220+ endpoints that uncovered auth flaws in a 500K+ user Android app.</td>
+    <td valign="middle">Restructured the billing and payment flows, and built a replay engine for 220+ endpoints that uncovered auth flaws in a 500K+ user Android app.</td>
   </tr>
   <tr>
     <td valign="middle"><strong>Sorcea</strong><br/><sub>Software Engineer Intern, Mobile · Jan 2026 to May 2026</sub></td>

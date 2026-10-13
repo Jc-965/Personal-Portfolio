@@ -4,7 +4,7 @@
  * wall of 231 endpoint sockets, the 220+ API endpoints it replayed. A paired replay sends the same request with and
  * without the service JWT, and both come back with the same response, the flaw it proved. The app's bundled
  * credential, a gold key in front of the phone, then moves server-side into a vault. In the close the phone's blank
- * screen (the production defect) boots into the rebuilt billing and payment flow, twelve red risk markers around it
+ * screen (the production defect) boots into the restructured billing and payment flow, twelve red risk markers around it
  * are fixed, and the member lights come on outward from the phone.
  *
  * The home page shows the finished world. A click on an endpoint replays a pair against it, a click on the lit
@@ -211,7 +211,7 @@ function painter(g: CanvasRenderingContext2D) {
 
 /**
  * The phone's screens side by side, 256 by 512 px each: the blank screen members were left on, the member home, and
- * the rebuilt billing, payments, and paid screens. The screens carry shapes, not words.
+ * the restructured billing, payments, and paid screens. The screens carry shapes, not words.
  */
 function drawScreens() {
   const canvas = document.createElement('canvas')

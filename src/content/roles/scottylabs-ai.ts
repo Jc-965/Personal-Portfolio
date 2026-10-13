@@ -1,7 +1,7 @@
 /**
- * The ScottyLabs AI role's journey. The arrival describes the product or organization alone, in the project
- * chapters' voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening
- * on its verb in resume voice. Every claim about the work comes from the role's resume entry.
+ * The ScottyLabs AI role's journey. The arrival describes the product in a line or two, in the project chapters'
+ * voice. The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice. Every
+ * claim comes from the role's resume entry.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
@@ -35,10 +35,9 @@ export const SCOTTYLABS_AI: RoleStory = {
     {
       key: 'impact',
       span: 1.6,
-      eyebrow: 'safety and memory',
+      eyebrow: 'safety',
       lines: [
         'Built a model-free guard that blocks prompt injection and mid-stream prompt leaks in 300 ms, then red-teamed it.',
-        'Fixed a cross-tenant data leak with pgvector memory that recalls by meaning and stays isolated per user.',
       ],
       readout: ['16 live tests for grounding and attacks'],
       callouts: [],

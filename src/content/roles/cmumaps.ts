@@ -1,7 +1,7 @@
 /**
- * The CMUMaps role's journey. The arrival describes the product or organization alone, in the project chapters'
- * voice, and never Jesse's part in it. The work and impact acts hold only his own work, each line opening on its
- * verb in resume voice. Every claim about the work comes from the role's resume entry and portfolio.json.
+ * The CMUMaps role's journey. The arrival describes the product in a line or two, in the project chapters' voice.
+ * The work and impact acts hold only Jesse's own work, each line opening on its verb in resume voice. Every claim
+ * comes from the role's resume entry and portfolio.json.
  */
 import type { RoleStory } from '../../components/roles/types.ts'
 
