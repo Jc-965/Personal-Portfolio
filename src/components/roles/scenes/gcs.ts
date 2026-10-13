@@ -5,10 +5,11 @@
  *
  * The arena runs a small physics simulation only while something started it. Players fall under gravity and land
  * on platform tops. A grappling rope is a verlet chain whose reel draws the firing player along it to the hook,
- * and the player then arcs onto the platform under the hook. A tether reels the other player in. Players who
- * collide throw sparks and knock the faster one back, and a player who falls into the pit is eliminated, scores the
- * other player a point, and respawns over its pad. The simulation steps at 120 Hz and stops once every player
- * stands still, every rope is stowed, and every spark is out.
+ * and the player then arcs onto the platform under the hook. A tether reels the other player in. Every moving
+ * player leaves a glowing trail that fades after TRAIL_S seconds, as in the game. Players who collide throw sparks
+ * and knock the faster one back. A player who touches the opponent's trail or falls into the pit is eliminated,
+ * scores the other player a point, and respawns over its pad. The simulation steps at 120 Hz and stops once every
+ * player stands still, every rope is stowed, and every spark and trail is out.
  *
  * On the home page the players stand on their pads. On the journey page the work act plays a bout as it scrolls (a
  * grapple to the centre, then a tether that ends in a knockout), the close sends both players swinging at once, and
@@ -59,6 +60,17 @@ const RESPAWN_S = 1.3
 /** Knockback in world units per second for the knocked player, horizontally away and upward. */
 const KNOCK_OUT = 3.4
 const KNOCK_UP = 2.6
+/**
+ * Trails: a sample every TRAIL_GAP world units a player travels, each fading over TRAIL_S seconds, as a wall TRAIL_H
+ * tall. TRAIL_N samples hold more than a trail's lifetime at reel speed. A body within TRAIL_HIT of the opponent's
+ * trail is eliminated, except on its newest TRAIL_GRACE seconds, so two players who touch knock each other back.
+ */
+const TRAIL_N = 128
+const TRAIL_GAP = 0.05
+const TRAIL_S = 3.2
+const TRAIL_H = 0.26
+const TRAIL_HIT = 0.14
+const TRAIL_GRACE = 0.25
 /** Simulated seconds after the last event at which a running simulation is put to rest regardless. */
 const SETTLE_LIMIT = 12
 const ROPE_N = 16
@@ -104,6 +116,28 @@ void main() {
   float r = length(vP);
   float a = uAlpha * smoothstep(0.7, 0.9, r) * (1.0 - smoothstep(0.9, 1.0, r));
   gl_FragColor = vec4(uColor * a * 1.6, a);
+}`
+
+const TRAIL_VERTEX = /* glsl */ `
+attribute float aAge;
+attribute float aTop;
+varying float vAge;
+varying float vTop;
+void main() {
+  vAge = aAge;
+  vTop = aTop;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`
+
+// A light wall: brightest along its top edge, fading with the sample's age.
+const TRAIL_FRAGMENT = /* glsl */ `
+uniform vec3 uColor;
+varying float vAge;
+varying float vTop;
+void main() {
+  float fade = pow(1.0 - clamp(vAge, 0.0, 1.0), 1.5);
+  float wall = mix(0.9, 0.45, vTop) + 1.6 * smoothstep(0.78, 1.0, vTop);
+  gl_FragColor = vec4(uColor * fade * wall * 2.2, fade * wall);
 }`
 
 type RopeState = 'idle' | 'flying' | 'attached' | 'retracting'
@@ -330,6 +364,78 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
     return { ring, uniforms, at: new THREE.Vector3() }
   })
 
+  // A trail per player: samples oldest first, drawn as a wall from each sample up TRAIL_H, two vertices a sample.
+  const trailIndex: number[] = []
+  for (let i = 0; i < TRAIL_N - 1; i++) {
+    const a = i * 2
+    trailIndex.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+  const trails = players.map((player) => {
+    const geometry = geo(new THREE.BufferGeometry())
+    const positions = new Float32Array(TRAIL_N * 2 * 3)
+    const ages = new Float32Array(TRAIL_N * 2)
+    const tops = new Float32Array(TRAIL_N * 2)
+    for (let i = 0; i < TRAIL_N; i++) tops[i * 2 + 1] = 1
+    const position = new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage)
+    const age = new THREE.BufferAttribute(ages, 1).setUsage(THREE.DynamicDrawUsage)
+    geometry.setAttribute('position', position)
+    geometry.setAttribute('aAge', age)
+    geometry.setAttribute('aTop', new THREE.BufferAttribute(tops, 1))
+    geometry.setIndex(trailIndex)
+    geometry.setDrawRange(0, 0)
+    const wall = new THREE.Mesh(geometry, own(new THREE.ShaderMaterial({ uniforms: { uColor: { value: player.colour.clone() } }, vertexShader: TRAIL_VERTEX, fragmentShader: TRAIL_FRAGMENT, ...GLOW, side: THREE.DoubleSide })))
+    wall.frustumCulled = false
+    wall.renderOrder = 3
+    world.add(wall)
+    return { wall, geometry, position, age, x: new Float32Array(TRAIL_N), y: new Float32Array(TRAIL_N), z: new Float32Array(TRAIL_N), t: new Float32Array(TRAIL_N), count: 0, drawn: -1 }
+  })
+  type Trail = (typeof trails)[number]
+  const clearTrail = (trail: Trail) => { trail.count = 0 }
+  /** Adds the player's feet to its trail once it has moved TRAIL_GAP from the last sample, dropping the oldest. */
+  const extendTrail = (trail: Trail, at: THREE.Vector3, time: number) => {
+    const last = trail.count - 1
+    if (last >= 0 && (at.x - trail.x[last]) ** 2 + (at.y - trail.y[last]) ** 2 + (at.z - trail.z[last]) ** 2 < TRAIL_GAP * TRAIL_GAP) return
+    if (trail.count === TRAIL_N) {
+      trail.x.copyWithin(0, 1)
+      trail.y.copyWithin(0, 1)
+      trail.z.copyWithin(0, 1)
+      trail.t.copyWithin(0, 1)
+      trail.count--
+    }
+    trail.x[trail.count] = at.x
+    trail.y[trail.count] = at.y + 0.01
+    trail.z[trail.count] = at.z
+    trail.t[trail.count] = time
+    trail.count++
+  }
+  /** Drops the samples older than TRAIL_S. */
+  const ageTrail = (trail: Trail, time: number) => {
+    let drop = 0
+    while (drop < trail.count && time - trail.t[drop] > TRAIL_S) drop++
+    if (!drop) return
+    trail.x.copyWithin(0, drop)
+    trail.y.copyWithin(0, drop)
+    trail.z.copyWithin(0, drop)
+    trail.t.copyWithin(0, drop)
+    trail.count -= drop
+  }
+  /** True when the player's body crosses a segment of `trail` older than TRAIL_GRACE. */
+  const crossesTrail = (player: Player, trail: Trail, time: number) => {
+    for (let i = 0; i + 1 < trail.count; i++) {
+      if (time - trail.t[i + 1] < TRAIL_GRACE) break
+      const ax = trail.x[i], az = trail.z[i]
+      const dx = trail.x[i + 1] - ax, dz = trail.z[i + 1] - az
+      const span = dx * dx + dz * dz
+      const k = span > 1e-9 ? Math.min(1, Math.max(0, ((player.p.x - ax) * dx + (player.p.z - az) * dz) / span)) : 0
+      const ex = ax + dx * k - player.p.x, ez = az + dz * k - player.p.z
+      if (ex * ex + ez * ez > TRAIL_HIT * TRAIL_HIT) continue
+      // The wall stands from the segment's height up TRAIL_H, and the body from the feet up twice BODY_Y.
+      const floor = trail.y[i] + (trail.y[i + 1] - trail.y[i]) * k
+      if (player.p.y < floor + TRAIL_H && player.p.y + BODY_Y * 2 > floor) return true
+    }
+    return false
+  }
+
   // The scoreboard: P1, VS, P2 painted once on a canvas, and three pips a side that light with each knockout.
   const board = new THREE.Group()
   board.position.set(-1.35, 1.55, -1.85)
@@ -515,6 +621,7 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
 
   const eliminate = (player: Player) => {
     player.alive = false
+    clearTrail(trails[player.index])
     player.respawnAt = simTime + RESPAWN_S
     player.group.visible = false
     stow(player)
@@ -533,6 +640,7 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
   }
 
   const respawn = (player: Player) => {
+    clearTrail(trails[player.index])
     player.alive = true
     player.group.visible = true
     player.p.copy(player.spawn).setY(player.spawn.y + 1.6)
@@ -557,6 +665,7 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
     }
     sparkLife.fill(0)
     sparksAlive = 0
+    for (const trail of trails) clearTrail(trail)
     score[0] = score[1] = 0
     scheduled.at = Infinity
     for (const death of deaths) death.time = -Infinity
@@ -703,6 +812,15 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
       }
       if (player.p.y < KO_Y) eliminate(player)
     }
+    // Trails grow behind every moving player and fade, and a player who touches the opponent's trail is out.
+    for (const player of players) {
+      const trail = trails[player.index]
+      ageTrail(trail, simTime)
+      if (player.alive && !(player.grounded && player.v.lengthSq() === 0)) extendTrail(trail, player.p, simTime)
+    }
+    for (const player of players) {
+      if (player.alive && crossesTrail(player, trails[1 - player.index], simTime)) eliminate(player)
+    }
     // Two players who touch separate, throw sparks, and the faster one is knocked away.
     if (p1.alive && p2.alive) {
       const a = centreOf(p1, scratch)
@@ -753,6 +871,7 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
   const settled = () => {
     for (const player of players) if (!player.alive || !player.grounded || player.v.lengthSq() !== 0 || player.rope.state !== 'idle') return false
     for (const death of deaths) if (simTime - death.time < 0.8) return false
+    for (const trail of trails) if (trail.count > 0) return false
     return sparksAlive === 0 && scheduled.at === Infinity
   }
 
@@ -901,6 +1020,7 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
             }
             sparkLife.fill(0)
             sparksAlive = 0
+            for (const trail of trails) clearTrail(trail)
             scheduled.at = Infinity
           }
           active = false
@@ -949,6 +1069,25 @@ diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - min(min(fine.x, fine.y), 1.0)) - 0.3 * (
         }
       }
       ropeSegments.instanceMatrix.needsUpdate = true
+
+      // Trails: each sample's wall vertices and age, rewritten only while the trail changes.
+      for (const trail of trails) {
+        if (trail.count === 0 && trail.drawn === 0) continue
+        const positions = trail.position.array as Float32Array
+        const ages = trail.age.array as Float32Array
+        for (let i = 0; i < trail.count; i++) {
+          const a = i * 6
+          positions[a] = positions[a + 3] = trail.x[i]
+          positions[a + 1] = trail.y[i]
+          positions[a + 4] = trail.y[i] + TRAIL_H
+          positions[a + 2] = positions[a + 5] = trail.z[i]
+          ages[i * 2] = ages[i * 2 + 1] = (simTime - trail.t[i]) / TRAIL_S
+        }
+        trail.position.needsUpdate = true
+        trail.age.needsUpdate = true
+        trail.geometry.setDrawRange(0, Math.max(0, trail.count - 1) * 6)
+        trail.drawn = trail.count
+      }
 
       sparkPosition.needsUpdate = true
       sparkLifeAttribute.needsUpdate = true
