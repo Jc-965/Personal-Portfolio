@@ -1,0 +1,513 @@
+{
+  "date": "2026-10-16",
+  "baselineCommit": "3a9f7f5",
+  "browser": "149.0.7827.55",
+  "renderer": "SwiftShader (software rendering)",
+  "runsPerDevice": 3,
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "mobile": {
+      "width": 393,
+      "height": 851,
+      "dpr": 2
+    }
+  },
+  "medians": [
+    {
+      "device": "desktop",
+      "stage": "landing",
+      "before": {
+        "resourceBytes": 219661,
+        "heapMiB": 2.953716278076172,
+        "taskMsPerSecond": 968.8269996445121,
+        "layoutMsPerSecond": 2.7371260421775356,
+        "rafPerSecond": 110.61403077398494,
+        "drawsPerSecond": 73.74268718265662,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": null,
+        "longTasks": 2,
+        "longTaskMs": 315
+      },
+      "after": {
+        "resourceBytes": 220001,
+        "heapMiB": 2.922679901123047,
+        "taskMsPerSecond": 950.3374882764369,
+        "layoutMsPerSecond": 3.0575467941785095,
+        "rafPerSecond": 45.81957924708831,
+        "drawsPerSecond": 78.65392274181129,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": null,
+        "longTasks": 3,
+        "longTaskMs": 511
+      }
+    },
+    {
+      "device": "desktop",
+      "stage": "project-preview",
+      "before": {
+        "resourceBytes": 3402478,
+        "heapMiB": 10.2060546875,
+        "taskMsPerSecond": 995.3296638211144,
+        "layoutMsPerSecond": 0.25462321308840374,
+        "rafPerSecond": 14.11764705882353,
+        "drawsPerSecond": 116.47058823529413,
+        "cursorClearPixelsPerSecond": 18296470.588235296,
+        "readyMs": 6869.035749999999,
+        "longTasks": 36,
+        "longTaskMs": 15636
+      },
+      "after": {
+        "resourceBytes": 1087260,
+        "heapMiB": 10.148303985595703,
+        "taskMsPerSecond": 1005.7929883549167,
+        "layoutMsPerSecond": 0.24014875771256164,
+        "rafPerSecond": 9.475304986468439,
+        "drawsPerSecond": 104.22835485115282,
+        "cursorClearPixelsPerSecond": 116432.54767372417,
+        "readyMs": 6285.990708,
+        "longTasks": 29,
+        "longTaskMs": 14005
+      }
+    },
+    {
+      "device": "desktop",
+      "stage": "pointer-away",
+      "before": {
+        "resourceBytes": 3402478,
+        "heapMiB": 10.25197982788086,
+        "taskMsPerSecond": 124.39472632988723,
+        "layoutMsPerSecond": 5.455453455917926,
+        "rafPerSecond": 257.69077107777855,
+        "drawsPerSecond": 0,
+        "cursorClearPixelsPerSecond": 445289652.4224013,
+        "readyMs": null,
+        "longTasks": 38,
+        "longTaskMs": 16200
+      },
+      "after": {
+        "resourceBytes": 1087260,
+        "heapMiB": 10.215961456298828,
+        "taskMsPerSecond": 58.47675173689625,
+        "layoutMsPerSecond": 7.393996903736982,
+        "rafPerSecond": 0,
+        "drawsPerSecond": 0,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": null,
+        "longTasks": 33,
+        "longTaskMs": 15472
+      }
+    },
+    {
+      "device": "mobile",
+      "stage": "landing",
+      "before": {
+        "resourceBytes": 189984,
+        "heapMiB": 2.7201881408691406,
+        "taskMsPerSecond": 273.53750998256356,
+        "layoutMsPerSecond": 5.648851148851152,
+        "rafPerSecond": 120.21149242105554,
+        "drawsPerSecond": 51.875498804106954,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": null,
+        "longTasks": 1,
+        "longTaskMs": 260
+      },
+      "after": {
+        "resourceBytes": 190286,
+        "heapMiB": 2.7213821411132812,
+        "taskMsPerSecond": 248.49138576779023,
+        "layoutMsPerSecond": 5.2299625468164805,
+        "rafPerSecond": 120.34956304619226,
+        "drawsPerSecond": 50.96432497312636,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": null,
+        "longTasks": 1,
+        "longTaskMs": 266
+      }
+    },
+    {
+      "device": "mobile",
+      "stage": "project-preview",
+      "before": {
+        "resourceBytes": 3372801,
+        "heapMiB": 9.810161590576172,
+        "taskMsPerSecond": 82.04931123879193,
+        "layoutMsPerSecond": 13.681872629104507,
+        "rafPerSecond": 0,
+        "drawsPerSecond": 0,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": 5837.556124999988,
+        "longTasks": 18,
+        "longTaskMs": 8230
+      },
+      "after": {
+        "resourceBytes": 1057545,
+        "heapMiB": 9.59616470336914,
+        "taskMsPerSecond": 59.00524082854983,
+        "layoutMsPerSecond": 9.550286997753924,
+        "rafPerSecond": 0,
+        "drawsPerSecond": 0,
+        "cursorClearPixelsPerSecond": 0,
+        "readyMs": 5586.3715419999935,
+        "longTasks": 9,
+        "longTaskMs": 6340
+      }
+    }
+  ],
+  "graphicsStorage": [
+    {
+      "version": "before",
+      "stage": "preview",
+      "textureBytes": 677954224,
+      "renderbufferBytes": 818141184,
+      "cursorBackingBytes": 20736000
+    },
+    {
+      "version": "before",
+      "stage": "after-leaving",
+      "textureBytes": 465828096,
+      "renderbufferBytes": 275859456,
+      "cursorBackingBytes": 20736000
+    },
+    {
+      "version": "after",
+      "stage": "preview",
+      "textureBytes": 267075524,
+      "renderbufferBytes": 818141184,
+      "cursorBackingBytes": 147456
+    },
+    {
+      "version": "after",
+      "stage": "after-leaving",
+      "textureBytes": 51388668,
+      "renderbufferBytes": 3145728,
+      "cursorBackingBytes": 147456
+    }
+  ],
+  "visualComparisons": [
+    {
+      "device": "desktop",
+      "scenario": "parkiwell-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 8060,
+          "height": 2164,
+          "classes": "teardown teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 8060,
+          "height": 2164,
+          "classes": "teardown teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "parkiwell-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 8272,
+          "height": 15840,
+          "classes": "teardown teardown--journey is-journey is-gl",
+          "act": "glass"
+        },
+        {
+          "y": 8272,
+          "height": 15840,
+          "classes": "teardown teardown--journey is-journey is-gl",
+          "act": "glass"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "agoriai-journey",
+      "meanAbsoluteChannelDifference": 0.436453125,
+      "channelsDifferingByMoreThan16Percent": 0.5453776041666667,
+      "states": [
+        {
+          "y": 5060,
+          "height": 10000,
+          "classes": "teardown story story--agoriai teardown--journey is-journey is-gl",
+          "act": "nexus"
+        },
+        {
+          "y": 5060,
+          "height": 10000,
+          "classes": "teardown story story--agoriai teardown--journey is-journey is-gl",
+          "act": "nexus"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "tarocchi-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 12299,
+          "height": 2112,
+          "classes": "teardown story story--tarocchi teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 12299,
+          "height": 2112,
+          "classes": "teardown story story--tarocchi teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "tarocchi-journey",
+      "meanAbsoluteChannelDifference": 1.4050553385416666,
+      "channelsDifferingByMoreThan16Percent": 1.8537434895833333,
+      "states": [
+        {
+          "y": 4972,
+          "height": 9840,
+          "classes": "teardown story story--tarocchi teardown--journey is-journey is-gl",
+          "act": "spread"
+        },
+        {
+          "y": 4972,
+          "height": 9840,
+          "classes": "teardown story story--tarocchi teardown--journey is-journey is-gl",
+          "act": "spread"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "mycommunity-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 14411,
+          "height": 2112,
+          "classes": "teardown story story--mycommunity teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 14411,
+          "height": 2112,
+          "classes": "teardown story story--mycommunity teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "mycommunity-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 5060,
+          "height": 10000,
+          "classes": "teardown story story--mycommunity teardown--journey is-journey is-gl",
+          "act": "troops"
+        },
+        {
+          "y": 5060,
+          "height": 10000,
+          "classes": "teardown story story--mycommunity teardown--journey is-journey is-gl",
+          "act": "troops"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "scenario": "role-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 1344,
+          "height": 5280,
+          "classes": "teardown role-journey role-journey--blue-shield teardown--journey is-journey is-gl",
+          "act": "work"
+        },
+        {
+          "y": 1344,
+          "height": 5280,
+          "classes": "teardown role-journey role-journey--blue-shield teardown--journey is-journey is-gl",
+          "act": "work"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "parkiwell-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 8476,
+          "height": 2302,
+          "classes": "teardown teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 8476,
+          "height": 2302,
+          "classes": "teardown teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "parkiwell-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 8799,
+          "height": 16850,
+          "classes": "teardown teardown--journey is-journey is-gl",
+          "act": "glass"
+        },
+        {
+          "y": 8799,
+          "height": 16850,
+          "classes": "teardown teardown--journey is-journey is-gl",
+          "act": "glass"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "agoriai-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 5383,
+          "height": 10638,
+          "classes": "teardown story story--agoriai teardown--journey is-journey is-gl",
+          "act": "nexus"
+        },
+        {
+          "y": 5383,
+          "height": 10638,
+          "classes": "teardown story story--agoriai teardown--journey is-journey is-gl",
+          "act": "nexus"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "tarocchi-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 12986,
+          "height": 2247,
+          "classes": "teardown story story--tarocchi teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 12986,
+          "height": 2247,
+          "classes": "teardown story story--tarocchi teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "tarocchi-journey",
+      "meanAbsoluteChannelDifference": 2.32247074489026,
+      "channelsDifferingByMoreThan16Percent": 4.229744181619389,
+      "states": [
+        {
+          "y": 5289,
+          "height": 10467,
+          "classes": "teardown story story--tarocchi teardown--journey is-journey is-gl",
+          "act": "spread"
+        },
+        {
+          "y": 5289,
+          "height": 10467,
+          "classes": "teardown story story--tarocchi teardown--journey is-journey is-gl",
+          "act": "spread"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "mycommunity-preview",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 15233,
+          "height": 2247,
+          "classes": "teardown story story--mycommunity teardown--preview is-gl",
+          "act": "arrival"
+        },
+        {
+          "y": 15233,
+          "height": 2247,
+          "classes": "teardown story story--mycommunity teardown--preview is-gl",
+          "act": "arrival"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "mycommunity-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 5383,
+          "height": 10638,
+          "classes": "teardown story story--mycommunity teardown--journey is-journey is-gl",
+          "act": "troops"
+        },
+        {
+          "y": 5383,
+          "height": 10638,
+          "classes": "teardown story story--mycommunity teardown--journey is-journey is-gl",
+          "act": "troops"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "scenario": "role-journey",
+      "meanAbsoluteChannelDifference": 0,
+      "channelsDifferingByMoreThan16Percent": 0,
+      "states": [
+        {
+          "y": 1430,
+          "height": 5617,
+          "classes": "teardown role-journey role-journey--blue-shield teardown--journey is-journey is-gl",
+          "act": "work"
+        },
+        {
+          "y": 1430,
+          "height": 5617,
+          "classes": "teardown role-journey role-journey--blue-shield teardown--journey is-journey is-gl",
+          "act": "work"
+        }
+      ]
+    }
+  ]
+}

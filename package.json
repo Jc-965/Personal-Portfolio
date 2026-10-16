@@ -16,7 +16,10 @@
     "test": "npm run test:unit",
     "test:unit": "node --test tests/unit/*.test.js",
     "test:e2e": "playwright test",
-    "bundle:check": "node scripts/check-bundle-budget.mjs"
+    "bundle:check": "node scripts/check-bundle-budget.mjs",
+    "perf:benchmark": "node scripts/benchmark-performance.mjs",
+    "perf:storage": "node scripts/measure-gpu-storage.mjs",
+    "perf:visual": "node scripts/compare-performance-visuals.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",

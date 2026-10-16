@@ -1006,7 +1006,7 @@ const createScene: SceneFactory = (ctx) => {
   const woodMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 })
   const screenGeometry = new THREE.PlaneGeometry(SCREEN_W, SCREEN_H)
   const signs = SCREENS.map((name, i) => {
-    const art = ctx.load(`/MyCommunity/chapter/screens/${name}.webp`)
+    const art = ctx.load(`/MyCommunity/chapter/screens/${name}.webp`, { journeyOnly: true })
     const material = new THREE.MeshBasicMaterial({ map: art.texture, toneMapped: false })
     const screen = new THREE.Mesh(screenGeometry, material)
     screen.position.set(0, POST_H + SCREEN_H / 2, 0)

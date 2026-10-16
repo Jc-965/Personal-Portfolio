@@ -247,7 +247,7 @@ function Teardown({ story }: { story: TeardownStory }) {
   }, [windows, story, viewRef])
   useWheelDetent(track, stageRef, mode !== 'static', detentRests)
 
-  const near = useNearBoot(track, mode !== 'static' && !failed, viewRef)
+  const near = useNearBoot(track, mode !== 'static' && !failed, viewRef, true)
 
   // Places the card labels and the leader lines for one frame. Runs after rideCopy, so the callout rects it
   // reads include this frame's ride. Reads every rect first, then writes, so one call forces layout once.

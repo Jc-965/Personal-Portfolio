@@ -164,6 +164,12 @@ function mount(
    * frame, so no frame carries two uploads and none waits behind the links in the GPU process.
    */
   const uploads: (() => void)[] = []
+  const pendingBitmaps = new Set<ImageBitmap>()
+  const requests = new AbortController()
+  const journeyLoads: (() => void)[] = []
+  const requestJourney = () => {
+    if (view.current === 'journey') journeyLoads.splice(0).forEach((load) => load())
+  }
   let uploadFrame = 0
   const pumpUploads = () => {
     uploadFrame = 0
@@ -185,7 +191,7 @@ function mount(
    * load of the same source and filtering returns the first entry, so a scene's plate and a room share one texture.
    */
   const loaded = new Map<string, Loaded>()
-  const load = (src: string, options: { urgent?: boolean; pixelated?: boolean } = {}): Loaded => {
+  const load = (src: string, options: { urgent?: boolean; pixelated?: boolean; journeyOnly?: boolean } = {}): Loaded => {
     const cacheKey = `${src}|${options.pixelated ? 'nearest' : 'mip'}`
     const cached = loaded.get(cacheKey)
     if (cached) return cached
@@ -200,24 +206,28 @@ function mount(
     owned.push(texture)
     const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
     loaded.set(cacheKey, entry)
-    const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => queueUpload(() => {
-      entry.width = width
-      entry.height = height
-      entry.aspect = width / Math.max(1, height)
-      texture.image = image
-      texture.needsUpdate = true
-      renderer.initTexture(texture)
-      if ('close' in image) image.close()
-      entry.ready = true
-      start()
-    }, options.urgent ?? false)
-    bitmapsFlip().then((flips) => {
+    const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => {
+      if (disposed || failed) { if ('close' in image) image.close(); return }
+      if ('close' in image) pendingBitmaps.add(image)
+      queueUpload(() => {
+        entry.width = width
+        entry.height = height
+        entry.aspect = width / Math.max(1, height)
+        texture.image = image
+        texture.needsUpdate = true
+        renderer.initTexture(texture)
+        if ('close' in image) { image.close(); pendingBitmaps.delete(image) }
+        entry.ready = true
+        start()
+      }, options.urgent ?? false)
+    }
+    const begin = () => bitmapsFlip().then((flips) => {
       if (disposed || failed) return
       if (!flips) {
         images.load(src, (image) => upload(image, image.naturalWidth, image.naturalHeight), undefined, () => undefined)
         return
       }
-      fetch(src)
+      fetch(src, { signal: requests.signal })
         .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(`${response.status} ${src}`))))
         .then((blob) => createImageBitmap(blob, BITMAP_OPTIONS))
         .then((bitmap) => {
@@ -227,6 +237,8 @@ function mount(
         })
         .catch(() => undefined)
     })
+    if (options.journeyOnly && view.current === 'preview') journeyLoads.push(begin)
+    else begin()
     return entry
   }
 
@@ -274,7 +286,7 @@ function mount(
   const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
   const requestRoom = (index: number | null) => {
     if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
-    rooms[index] = load(story.backdrops[index].src, { urgent: index === actBackdrops[0] })
+    rooms[index] = load(story.backdrops[index].src, { urgent: index === actBackdrops[0], journeyOnly: index !== actBackdrops[0] })
   }
   // The acts' rooms queue first, in act order, then any room only the scene shows (a hovered scene's).
   actBackdrops.forEach(requestRoom)
@@ -496,7 +508,11 @@ function mount(
         return
       }
     }
+    // Resolved frames sample only mip level zero. Keep storage allocated, but
+    // regenerate the chain only while the glyph formation samples it.
+    target.texture.generateMipmaps = cu.uDecode.value < 1
     renderer.render(chapter.scene, camera)
+    target.texture.generateMipmaps = true
     renderer.setRenderTarget(null)
     renderer.render(composite.scene, composite.camera)
     if (failed) return
@@ -644,6 +660,7 @@ function mount(
   control.current = {
     pulse: () => { pulseStart = performance.now(); start() },
     sync: () => {
+      requestJourney()
       measure()
       glide = { value: progress, velocity: 0 }
       start()
@@ -656,7 +673,11 @@ function mount(
 
   // The loop starts once every program link reports complete, and each program's first use (its info logs and
   // uniform table) runs one per frame before the chapter is on screen, as in TeardownCanvas.
+  // Compile the same output configuration the scene actually renders into.
+  // Compiling against the canvas creates a second set of programs on first draw.
+  renderer.setRenderTarget(target)
   renderer.compile(chapter.scene, camera)
+  renderer.setRenderTarget(null)
   renderer.compile(composite.scene, composite.camera)
   let polls = 0
   let warming = 0
@@ -718,6 +739,11 @@ function mount(
 
   return () => {
     disposed = true
+    requests.abort()
+    pendingBitmaps.forEach((bitmap) => bitmap.close())
+    pendingBitmaps.clear()
+    uploads.length = 0
+    journeyLoads.length = 0
     control.current = null
     stop()
     cancelAnimationFrame(warming)

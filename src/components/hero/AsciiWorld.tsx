@@ -41,7 +41,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     const canvas = canvasRef.current
     const track = wrap?.closest<HTMLElement>('.hero')
     if (!wrap || !canvas || !track) return
-    const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: 'low-power' })
+    const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, powerPreference: 'low-power' })
     const fallback = () => { track.classList.remove('hero--ready', 'hero--world'); track.classList.add('hero--fallback') }
     if (!gl) { fallback(); return }
 

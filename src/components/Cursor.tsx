@@ -29,33 +29,54 @@ export default function Cursor() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    let w = window.innerWidth
-    let h = window.innerHeight
-
-    const resize = () => {
-      w = window.innerWidth
-      h = window.innerHeight
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-      canvas.style.width = `${w}px`
-      canvas.style.height = `${h}px`
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
-      ctx.scale(dpr, dpr)
+    let dpr = Math.min(window.devicePixelRatio || 1, 2)
+    // A full-screen backing store used tens of MiB to draw a 70px reticle.
+    // Include the lagging ring and every live trail point; snap the origin to
+    // device pixels so moving the small canvas does not change rasterization.
+    let w = 0
+    let h = 0
+    canvas.width = canvas.height = 1
+    const fitInk = () => {
+      let left = Math.min(pos.current.x, ringPos.current.x) - 36
+      let top = Math.min(pos.current.y, ringPos.current.y) - 36
+      let right = Math.max(pos.current.x, ringPos.current.x) + 36
+      let bottom = Math.max(pos.current.y, ringPos.current.y) + 36
+      for (const point of trailPool.current) {
+        if (point.alpha < 0.02) continue
+        left = Math.min(left, point.x - 3)
+        top = Math.min(top, point.y - 3)
+        right = Math.max(right, point.x + 3)
+        bottom = Math.max(bottom, point.y + 3)
+      }
+      left = Math.floor(left * dpr) / dpr
+      top = Math.floor(top * dpr) / dpr
+      // Bucket the backing dimensions to avoid reallocating for subpixel easing.
+      const nextW = Math.ceil((right - left) * dpr / 64) * 64
+      const nextH = Math.ceil((bottom - top) * dpr / 64) * 64
+      if (nextW !== w || nextH !== h) {
+        w = nextW
+        h = nextH
+        canvas.width = w
+        canvas.height = h
+        canvas.style.width = `${w / dpr}px`
+        canvas.style.height = `${h / dpr}px`
+      }
+      canvas.style.transform = `translate3d(${left}px, ${top}px, 0)`
+      ctx.setTransform(dpr, 0, 0, dpr, -left * dpr, -top * dpr)
     }
-    resize()
+    const resize = () => { dpr = Math.min(window.devicePixelRatio || 1, 2) }
 
     let frame = 0
     let lastTime = 0
 
     const hasActiveEffects = () =>
       visible.current ||
-      trailCount.current > 0 ||
+      trailPool.current.some(point => point.alpha >= 0.02) ||
       clickProgress.current > 0.01 ||
       clickImpulse.current > 0.01
 
     const requestTick = () => {
-      if (!frame) {
+      if (!frame && !document.hidden) {
         frame = requestAnimationFrame(tick)
       }
     }
@@ -66,9 +87,11 @@ export default function Cursor() {
       const dt = Math.min(elapsed / 16.67, 3)
       lastTime = now
 
-      ctx.clearRect(0, 0, w, h)
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       if (!hasActiveEffects()) {
+        lastTime = 0
         return
       }
 
@@ -90,15 +113,19 @@ export default function Cursor() {
       rotation.current += ((isHover ? 0.04 : 0.02) + clickVisual * 0.025) * dt
 
       const pool = trailPool.current
-      const entry = pool[trailHead.current]
-      entry.x = px; entry.y = py; entry.alpha = 0.5
-      trailHead.current = (trailHead.current + 1) % 12
-      if (trailCount.current < 12) trailCount.current++
+      if (visible.current) {
+        const entry = pool[trailHead.current]
+        entry.x = px; entry.y = py; entry.alpha = 0.5
+        trailHead.current = (trailHead.current + 1) % 12
+        if (trailCount.current < 12) trailCount.current++
+      }
       for (let i = 0; i < trailCount.current; i++) {
         // Decay must be time-based, not frame-based: on throttled displays
         // (low power mode) per-frame decay makes effects linger for seconds.
         pool[i].alpha *= Math.pow(0.85, dt)
       }
+
+      fitInk()
 
       for (let i = 0; i < trailCount.current; i++) {
         const t = pool[i]
@@ -107,6 +134,12 @@ export default function Cursor() {
         ctx.beginPath()
         ctx.arc(t.x, t.y, 2, 0, Math.PI * 2)
         ctx.fill()
+      }
+
+      if (!visible.current) {
+        // Finish fading the existing trail, then clear its last frame and stop.
+        requestTick()
+        return
       }
 
       const crossLen = (isHover ? 16 : 14) + clickVisual * 5
@@ -245,6 +278,8 @@ export default function Cursor() {
 
     const onLeave = () => {
       visible.current = false
+      hovering.current = false
+      clicking.current = false
       requestTick()
     }
 
@@ -296,6 +331,7 @@ export default function Cursor() {
     window.addEventListener('focus', reinforceCursorSuppression, { passive: true })
     window.addEventListener('mouseenter', reinforceCursorSuppression, { passive: true })
     window.addEventListener('pageshow', reinforceCursorSuppression, { passive: true })
+    window.addEventListener('blur', onLeave)
     // Pointer events cover ordinary mouse movement and pointer-captured drags;
     // dragover remains as a native-drag fallback.
     window.addEventListener('pointermove', onMove as EventListener, { passive: true })
@@ -315,6 +351,7 @@ export default function Cursor() {
       window.removeEventListener('focus', reinforceCursorSuppression)
       window.removeEventListener('mouseenter', reinforceCursorSuppression)
       window.removeEventListener('pageshow', reinforceCursorSuppression)
+      window.removeEventListener('blur', onLeave)
       window.removeEventListener('pointermove', onMove as EventListener)
       window.removeEventListener('dragover', onMove as EventListener)
       document.removeEventListener('mouseleave', onLeave)
