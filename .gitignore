@@ -76,3 +76,6 @@ scrollcraft/
 /PRODUCT.md
 /DESIGN.md
 /docs/superpowers/
+
+# Performance audits and measurement results, kept for local reference only
+/docs/performance*

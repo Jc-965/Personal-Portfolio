@@ -358,7 +358,7 @@ const createScene: SceneFactory = (ctx) => {
   const plateGeometry = new THREE.PlaneGeometry(SCENE_W, SCENE_H)
   const frameGeometry = new THREE.BoxGeometry(SCENE_W + 0.05, SCENE_H + 0.05, 0.02)
   const branches = SCENES.map((name) => {
-    const art = ctx.load(`/Tarocchi/chapter/scenes/${name}.webp`)
+    const art = ctx.load(`/Tarocchi/chapter/scenes/${name}.webp`, { journeyOnly: true })
     const material = new THREE.MeshBasicMaterial({ map: art.texture, toneMapped: false })
     const plate = new THREE.Mesh(plateGeometry, material)
     const frame = new THREE.Mesh(frameGeometry, gold)

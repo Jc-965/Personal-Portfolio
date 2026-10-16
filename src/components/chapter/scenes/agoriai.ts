@@ -615,9 +615,9 @@ const createScene: SceneFactory = (ctx) => {
   }
   const panelAt = new Map(ctx.story.panels.map((label, i) => [label, i]))
   const screens = {
-    feed: ctx.load(SCREEN_SRC.feed),
-    nexus: ctx.load(SCREEN_SRC.nexus),
-    messages: ctx.load(SCREEN_SRC.messages),
+    feed: ctx.load(SCREEN_SRC.feed, { journeyOnly: true }),
+    nexus: ctx.load(SCREEN_SRC.nexus, { journeyOnly: true }),
+    messages: ctx.load(SCREEN_SRC.messages, { journeyOnly: true }),
   }
 
   const glass = (colour: THREE.ColorRepresentation, core = 0) => own(new THREE.ShaderMaterial({

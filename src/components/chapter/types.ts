@@ -136,8 +136,8 @@ export interface SceneContext {
   environment: THREE.Texture
   narrow: boolean
   anisotropy: number
-  /** Loads an sRGB mipmapped texture through the chapter's upload queue. Urgent ones upload first. */
-  load(src: string, options?: { urgent?: boolean; pixelated?: boolean }): LoadedTexture
+  /** Journey-only art starts loading on entry; urgent textures upload first. */
+  load(src: string, options?: { urgent?: boolean; pixelated?: boolean; journeyOnly?: boolean }): LoadedTexture
   /** Asks for another frame, for a scene whose state changed outside update (a click). */
   invalidate(): void
   /**

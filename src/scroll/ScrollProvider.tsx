@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import Lenis from 'lenis'
-import { refreshScrollBounds, updateScrollSignal } from './scrollSignal'
+import { getScrollVelocity, refreshScrollBounds, updateScrollSignal } from './scrollSignal'
 import { lenisRef } from './lenisRef'
 
 /**
@@ -10,8 +10,8 @@ import { lenisRef } from './lenisRef'
  *   devices. Touch + reduced-motion keep native scrolling (already smooth /
  *   respectful of user preference). Lenis scrolls the real window, so native
  *   `position: sticky` scenes and anchor links keep working.
- * - A single rAF loop drives Lenis and refreshes the imperative scrollSignal,
- *   which the WebGL background reads per-frame.
+ * - One loop drives Lenis while scrolling and sleeps once velocity reaches
+ *   zero. Input, native scrolling and programmatic scrollTo calls wake it.
  *
  * Renders no DOM. Idempotent under StrictMode double-invoke.
  */
@@ -27,8 +27,7 @@ export default function ScrollProvider() {
       boundsFrame = requestAnimationFrame((time) => {
         boundsFrame = 0
         refreshScrollBounds()
-        // Lenis's continuous loop updates the signal in this same frame.
-        if (!useLenis) updateScrollSignal(time)
+        updateScrollSignal(time)
       })
     }
 
@@ -55,19 +54,39 @@ export default function ScrollProvider() {
     }
 
     let rafId = 0
-    if (useLenis) {
+    if (lenis) {
+      const engine = lenis
+      const schedule = () => { if (!rafId) rafId = requestAnimationFrame(raf) }
       const raf = (time: number) => {
-        lenis?.raf(time)
+        rafId = 0
+        engine.raf(time)
         updateScrollSignal(time)
-        rafId = requestAnimationFrame(raf)
+        // Publish the final zero-velocity frame before sleeping.
+        if (engine.isScrolling === 'smooth' || getScrollVelocity() !== 0) schedule()
       }
-      rafId = requestAnimationFrame(raf)
+      const scrollTo = engine.scrollTo.bind(engine)
+      engine.scrollTo = (...args: Parameters<Lenis['scrollTo']>) => {
+        // Advance the idle clock before starting an ease, or the time spent
+        // asleep would be applied to its first frame and jump to the target.
+        if (!rafId) engine.raf(performance.now())
+        scrollTo(...args)
+        schedule()
+      }
+      const wake = () => {
+        if (!rafId) engine.raf(performance.now())
+        schedule()
+      }
+      window.addEventListener('scroll', wake, { passive: true })
+      window.addEventListener('pageshow', wake, { passive: true })
+      schedule()
 
       return () => {
         cancelAnimationFrame(rafId)
         if (boundsFrame) cancelAnimationFrame(boundsFrame)
         boundsObserver?.disconnect()
         window.removeEventListener('resize', refreshBounds)
+        window.removeEventListener('scroll', wake)
+        window.removeEventListener('pageshow', wake)
         lenisRef.current = null
         lenis?.destroy()
         document.documentElement.classList.remove('lenis-active')

@@ -179,6 +179,7 @@ export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef
       if (entry.isIntersecting || !booted || viewRef.current === 'journey') return
       booted = false
       setNear(false)
+      window.addEventListener('scroll', boot, { passive: true })
     }, { rootMargin: RELEASE_MARGIN }) : null
     far?.observe(track)
     return () => {

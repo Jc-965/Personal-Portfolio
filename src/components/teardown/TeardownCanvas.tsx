@@ -288,6 +288,8 @@ function mount(
   const owned: THREE.Texture[] = []
   const drawingBuffer = new THREE.Vector2(1, 1)
   let atlas: THREE.CanvasTexture | null = null
+  let atlasKey = ''
+  const glyphContext = document.createElement('canvas').getContext('2d')
   let code: THREE.CanvasTexture | null = null
   let narrow = stage.clientWidth < 768
   let width = 1
@@ -314,6 +316,8 @@ function mount(
   let pulseStart = -1
   /** performance.now() the canvas first appeared mid-formation, -1 once the load-in has finished or never ran. */
   let formStart = -1
+  // Releasing an offscreen renderer must not replay the first-visit formation.
+  const resuming = track.classList.contains('is-gl')
   let ready = false
   let raf = 0
   let lastPaint = 0
@@ -336,6 +340,8 @@ function mount(
    * blocks the main thread for about 20 to 25 ms in the live page.
    */
   const uploads: (() => void)[] = []
+  const pendingBitmaps = new Set<ImageBitmap>()
+  const requests = new AbortController()
   let uploadFrame = 0
   const pumpUploads = () => {
     uploadFrame = 0
@@ -364,24 +370,28 @@ function mount(
     texture.anisotropy = anisotropy
     owned.push(texture)
     const entry: Loaded = { texture, ready: false, width: 1, height: 1, aspect: 16 / 9 }
-    const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => queueUpload(() => {
-      entry.width = width
-      entry.height = height
-      entry.aspect = width / Math.max(1, height)
-      texture.image = image
-      texture.needsUpdate = true
-      renderer.initTexture(texture)
-      if ('close' in image) image.close()
-      entry.ready = true
-      start()
-    }, urgent)
+    const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => {
+      if (disposed || failed) { if ('close' in image) image.close(); return }
+      if ('close' in image) pendingBitmaps.add(image)
+      queueUpload(() => {
+        entry.width = width
+        entry.height = height
+        entry.aspect = width / Math.max(1, height)
+        texture.image = image
+        texture.needsUpdate = true
+        renderer.initTexture(texture)
+        if ('close' in image) { image.close(); pendingBitmaps.delete(image) }
+        entry.ready = true
+        start()
+      }, urgent)
+    }
     bitmapsFlip().then((flips) => {
       if (disposed || failed) return
       if (!flips) {
         images.load(src, (image) => upload(image, image.naturalWidth, image.naturalHeight), undefined, () => undefined)
         return
       }
-      fetch(src)
+      fetch(src, { signal: requests.signal })
         .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(`${response.status} ${src}`))))
         .then((blob) => createImageBitmap(blob, BITMAP_OPTIONS))
         .then((bitmap) => {
@@ -393,15 +403,19 @@ function mount(
     return entry
   }
   // The arrival's screen and room upload first, since the canvas appears as soon as the pose it shows is ready.
-  const screens = new Map<ScreenKey, Loaded>(story.screens.map((screen) => [screen.key, load(screen.src, screen.key === ACT_SCREEN.arrival)]))
+  const screens = new Map<ScreenKey, Loaded>()
+  const requestScreen = (key: ScreenKey) => {
+    if (screens.has(key)) return
+    const screen = story.screens.find((screen) => screen.key === key)
+    if (screen) screens.set(key, load(screen.src, key === ACT_SCREEN.arrival))
+  }
+  requestScreen(ACT_SCREEN.arrival)
   const rooms: (Loaded | null)[] = story.backdrops.map(() => null)
   const requestRoom = (index: number | null) => {
     if (index === null || index < 0 || index >= rooms.length || rooms[index]) return
     rooms[index] = load(story.backdrops[index].src, index === actBackdrops[0])
   }
-  // Every room is queued at mount, in the order the acts reach them, so their uploads run before the chapter is on
-  // screen. Requested on first use, the arrival's rooms uploaded in the frames the chapter scrolled in.
-  actBackdrops.forEach(requestRoom)
+  requestRoom(actBackdrops[0])
   const uploadCode = () => {
     if (code || disposed || failed) return
     const source = buildCodeTexture(story.code, story.codeSource)
@@ -412,6 +426,16 @@ function mount(
     renderer.initTexture(code)
     product.code.material.uniforms.uMap.value = code
     start()
+  }
+  let journeyRequested = false
+  const requestJourney = () => {
+    if (view.current !== 'journey' || journeyRequested) return
+    journeyRequested = true
+    // The home preview never displays these full-resolution textures. Prefetch
+    // them together on entry, ahead of their acts, preserving the same images.
+    story.screens.forEach((screen) => requestScreen(screen.key))
+    actBackdrops.forEach(requestRoom)
+    fontsReady.then(() => whenIdle(uploadCode), () => whenIdle(uploadCode))
   }
 
   /** Eases each interaction toward its goal with its own time constant. Returns true while anything is still moving. */
@@ -574,7 +598,7 @@ function mount(
     requestRoom(pose.backdrop.a)
     requestRoom(pose.backdrop.b)
     const nextAct = windows.findIndex((w) => glide.value < w.start)
-    if (nextAct >= 0) requestRoom(actBackdrops[nextAct])
+    if (view.current === 'journey' && nextAct >= 0) requestRoom(actBackdrops[nextAct])
     const act = actAt(windows, glide.value).index
     if (act !== lastAct) { lastAct = act; copyDirty = true }
 
@@ -614,7 +638,9 @@ function mount(
         return
       }
     }
+    target.texture.generateMipmaps = cu.uDecode.value < 1
     renderer.render(scene, camera)
+    target.texture.generateMipmaps = true
     renderer.setRenderTarget(null)
     renderer.render(composite.scene, composite.camera)
     if (failed) return
@@ -638,7 +664,7 @@ function mount(
     if (!ready && screenShown && roomShown(pose.backdrop.a) && roomShown(pose.backdrop.b)) {
       ready = true
       // This frame drew under the canvas's zero opacity, so the load-in starts from nothing on the next one.
-      const forming = pose.decode > 0.01
+      const forming = !resuming && pose.decode > 0.01
       if (forming) formStart = now
       callbacks.current.onReady(forming ? FORM_MS : 0)
     }
@@ -692,22 +718,25 @@ function mount(
 
     // Cells are whole device pixels, so every glyph lands on the same pixel phase and stays crisp.
     const cell = narrow ? CELL.narrow : CELL.wide
-    const ctx = document.createElement('canvas').getContext('2d')
-    if (ctx) ctx.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
-    const advance = ctx?.measureText('M').width || cell.fontPx * 0.6
+    if (glyphContext) glyphContext.font = `500 ${cell.fontPx}px ${FONT_FAMILY}`
+    const advance = glyphContext?.measureText('M').width || cell.fontPx * 0.6
     const cellW = Math.max(2, Math.round(advance * pixelRatio))
     const cellH = Math.max(3, Math.round(cell.height * pixelRatio))
     cu.uCell.value.set(cellW, cellH)
     planes.forEach((plane) => plane.material.uniforms.uCell.value.set(cellW, cellH))
-    const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
-    if (glyphs) {
-      atlas?.dispose()
-      atlas = new THREE.CanvasTexture(glyphs)
-      atlas.flipY = false
-      atlas.generateMipmaps = false
-      atlas.minFilter = THREE.LinearFilter
-      cu.uAtlas.value = atlas
-      planes.forEach((plane) => { plane.material.uniforms.uAtlas.value = atlas })
+    const nextAtlasKey = `${cellW}:${cellH}:${pixelRatio}:${cell.fontPx}`
+    if (nextAtlasKey !== atlasKey) {
+      const glyphs = buildGlyphAtlas(cellW / pixelRatio, cellH / pixelRatio, cell.fontPx, Math.ceil(pixelRatio * 2), CHAPTER_RAMP)
+      if (glyphs) {
+        atlas?.dispose()
+        atlas = new THREE.CanvasTexture(glyphs)
+        atlas.flipY = false
+        atlas.generateMipmaps = false
+        atlas.minFilter = THREE.LinearFilter
+        cu.uAtlas.value = atlas
+        planes.forEach((plane) => { plane.material.uniforms.uAtlas.value = atlas })
+        atlasKey = nextAtlasKey
+      }
     }
 
     trackTop = track.getBoundingClientRect().top + window.scrollY
@@ -750,6 +779,7 @@ function mount(
   control.current = {
     pulse: () => { pulseStart = performance.now(); start() },
     sync: () => {
+      requestJourney()
       measure()
       glide = { value: progress, velocity: 0 }
       start()
@@ -765,7 +795,9 @@ function mount(
   // first use reads its info logs and its uniform table, about 100 ms across the chapter's programs, so each
   // program is then put through that first use (getUniforms) one per frame, before the chapter is on screen,
   // and not all in the frame of the first draw.
+  renderer.setRenderTarget(target)
   renderer.compile(scene, camera)
+  renderer.setRenderTarget(null)
   renderer.compile(composite.scene, composite.camera)
   let polls = 0
   let warming = 0
@@ -804,7 +836,8 @@ function mount(
   const sizing = requestAnimationFrame(() => {
     resizeObserver.observe(stage)
     resizeObserver.observe(track)
-    fontsReady.then(() => { measure(); whenIdle(uploadCode) }, () => whenIdle(uploadCode))
+    // A fallback font can have identical cell metrics but different glyph ink.
+    fontsReady.then(() => { atlasKey = ''; measure(); requestJourney() }, requestJourney)
   })
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
@@ -818,6 +851,10 @@ function mount(
 
   return () => {
     disposed = true
+    requests.abort()
+    pendingBitmaps.forEach((bitmap) => bitmap.close())
+    pendingBitmaps.clear()
+    uploads.length = 0
     control.current = null
     stop()
     cancelAnimationFrame(warming)
@@ -846,5 +883,6 @@ function mount(
     }
     disposeStage()
     renderer.dispose()
+    if (!lost) renderer.forceContextLoss()
   }
 }

@@ -94,6 +94,7 @@ export default function TargetCursor({
 
     let activeTarget: Element | null = null
     let resumeTimeout: ReturnType<typeof setTimeout> | null = null
+    let stopSpinTimeout: ReturnType<typeof setTimeout> | null = null
 
     if (hideDefaultCursor) {
       document.body.style.cursor = 'none'
@@ -115,7 +116,7 @@ export default function TargetCursor({
         spinTl.current = null
         return
       }
-      spinTl.current = gsap.timeline({ repeat: -1 }).to(cursor, {
+      spinTl.current = gsap.timeline({ repeat: -1, paused: true }).to(cursor, {
         rotation: '+=360',
         duration: spinDuration,
         ease: 'none',
@@ -158,6 +159,14 @@ export default function TargetCursor({
       if (resumeTimeout) {
         clearTimeout(resumeTimeout)
       }
+      if (stopSpinTimeout) clearTimeout(stopSpinTimeout)
+      // Preserve the rotating fade-out, then sleep once all four corners are
+      // transparent. The next hover resets rotation to zero anyway.
+      stopSpinTimeout = setTimeout(() => {
+        spinTl.current?.pause()
+        gsap.killTweensOf(cursor, 'rotation')
+        stopSpinTimeout = null
+      }, 200)
 
       resumeTimeout = setTimeout(() => {
         if (!activeTarget && cursorRef.current && spinTl.current) {
@@ -245,6 +254,11 @@ export default function TargetCursor({
 
     const activateTarget = (target: Element) => {
       if (!cursorRef.current || !cornersRef.current) return
+      if (activeTarget === target) return
+      if (stopSpinTimeout) {
+        clearTimeout(stopSpinTimeout)
+        stopSpinTimeout = null
+      }
 
       if (resumeTimeout) {
         clearTimeout(resumeTimeout)
@@ -390,6 +404,7 @@ export default function TargetCursor({
       if (resumeTimeout) {
         clearTimeout(resumeTimeout)
       }
+      if (stopSpinTimeout) clearTimeout(stopSpinTimeout)
       if (activeTarget) {
         deactivateTarget(true)
       }

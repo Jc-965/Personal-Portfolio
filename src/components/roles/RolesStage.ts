@@ -134,7 +134,9 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   host.appendChild(canvas)
   let renderer: THREE.WebGLRenderer
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' })
+    // Only the pixel-aligned composite draws to the canvas. The product target
+    // retains its 4x MSAA and depth; duplicating those buffers here adds no detail.
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, depth: false, stencil: false, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' })
   } catch (error) {
     console.warn('[roles] the Journey falls back to posters: no WebGL context', error)
     canvas.remove()
@@ -190,6 +192,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
 
   // Textures, memoized by source, decoded off the main thread where bitmaps flip at decode.
   const textures = new Map<string, { texture: THREE.Texture; ready: boolean; aspect: number }>()
+  const requests = new AbortController()
   const images = new THREE.ImageLoader()
   const load = (src: string) => {
     const cached = textures.get(src)
@@ -200,7 +203,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     const entry = { texture, ready: false, aspect: 16 / 9 }
     textures.set(src, entry)
     const upload = (image: ImageBitmap | HTMLImageElement, width: number, height: number) => {
-      if (disposed) { if ('close' in image) image.close(); return }
+      if (disposed || failed) { if ('close' in image) image.close(); return }
       entry.aspect = width / Math.max(1, height)
       texture.image = image
       texture.needsUpdate = true
@@ -215,7 +218,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
         images.load(src, (image) => upload(image, image.naturalWidth, image.naturalHeight), undefined, () => undefined)
         return
       }
-      fetch(src)
+      fetch(src, { signal: requests.signal })
         .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(`${response.status} ${src}`))))
         .then((blob) => createImageBitmap(blob, BITMAP_OPTIONS))
         .then((bitmap) => {
@@ -312,6 +315,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   let height = 1
   let narrow = false
   let frameInterval = 1000 / 60
+  let sized = ''
   const buffer = new THREE.Vector2()
   const measureSlot = (island: Island) => {
     if (!island.slot) return
@@ -326,10 +330,14 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     narrow = width < 768
     frameInterval = 1000 / (narrow ? 45 : 60)
     const pixelRatio = Math.min(width > 1800 ? 1.75 : 2, window.devicePixelRatio || 1)
-    renderer.setPixelRatio(pixelRatio)
-    renderer.setSize(width, height, false)
-    renderer.getDrawingBufferSize(buffer)
-    target.setSize(buffer.x, buffer.y)
+    const size = `${width}x${height}@${pixelRatio}`
+    if (size !== sized) {
+      sized = size
+      renderer.setPixelRatio(pixelRatio)
+      renderer.setSize(width, height, false)
+      renderer.getDrawingBufferSize(buffer)
+      target.setSize(buffer.x, buffer.y)
+    }
     cu.uRes.value.copy(buffer)
     cu.uPixelRatio.value = pixelRatio
     cu.uCopyNarrow.value = narrow ? 1 : 0
@@ -865,6 +873,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     },
     dispose() {
       disposed = true
+      requests.abort()
       cancelAnimationFrame(raf)
       cancelAnimationFrame(warming)
       window.removeEventListener('scroll', onScroll)
