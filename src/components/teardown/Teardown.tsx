@@ -5,6 +5,7 @@ import { sceneProgress } from '../hero/world'
 import { prefersReduced, setStyle } from '../chapter/dom'
 import { useFocusAct, useNearBoot, usePinnedStage, usePrintGate, useWheelDetent, type StageControl } from '../chapter/stageHooks'
 import { useJourneyView } from '../chapter/useJourneyView'
+import { savesData, whenIdle } from '../../utils/whenIdle'
 import type { ActKey, ScreenKey, TeardownStory } from '../../content/teardown/types'
 import type { TeardownFrame } from './TeardownCanvas'
 import { layoutCardLabels } from './labels'
@@ -132,6 +133,13 @@ function Teardown({ story }: { story: TeardownStory }) {
 
   useEffect(() => { modeRef.current = mode }, [mode])
   useEffect(() => { actRef.current = act }, [act])
+
+  // The canvas chunk loads in an idle period once the chapter has mounted, so the boot at the near margin starts
+  // from a module the browser already holds. Reduced motion never boots the canvas, so it never loads it.
+  useEffect(() => {
+    if (isStatic || savesData()) return
+    return whenIdle(() => { import('./TeardownCanvas').catch(() => undefined) }, 2000)
+  }, [isStatic])
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)')

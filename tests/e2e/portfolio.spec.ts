@@ -47,15 +47,17 @@ test('case-study pages render canonical project content and pass accessibility c
   await expectNoSeriousAxeViolations(page)
 })
 
-test('first load does not fetch constellation or sketchbook feature chunks', async ({ page }) => {
+test('first load does not fetch constellation, sketchbook, or project feature chunks', async ({ page }) => {
   const requested: string[] = []
   page.on('request', (request) => requested.push(request.url()))
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
 
-  // The hero's tree-shaken renderer is expected; the full Three.js engine and
-  // below-the-fold feature chunks must remain gated behind user intent.
-  expect(requested.some((url) => /Sketchbook|three-sketchbook|firebase|Constellation|TeardownCanvas|ChapterCanvas|RolesStage|\/ParkiWell\/hd\/|\/(Agoriai|Tarocchi|MyCommunity)\/chapter\/|\/roles\//.test(url))).toBe(false)
+  // The roles stage chunk and the three.js engine it imports load in an idle
+  // period after the load event (RolesSection), so the first scroll does not
+  // wait for them. Every other feature chunk below the fold, and every stage
+  // asset, stays behind a scroll.
+  expect(requested.some((url) => /Sketchbook|firebase|Constellation|TeardownCanvas|ChapterCanvas|\/ParkiWell\/hd\/|\/(Agoriai|Tarocchi|MyCommunity)\/chapter\/|\/roles\//.test(url))).toBe(false)
 })
 
 test('every project is told as a chapter without case-study links', async ({ page }) => {

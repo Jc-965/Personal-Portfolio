@@ -893,7 +893,10 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
 
     // Edges stay one stroke each (their round caps overlap at shared nodes,
     // and stacking those is part of the look), but the colour is only
-    // re-parsed when it actually changes: every idle edge shares one string.
+    // re-parsed when it actually changes. An edge between two unlit nodes has
+    // highlight 0, where the per-edge formula below gives exactly this string,
+    // so it is built once per frame. The two must stay the same formula.
+    const idleEdgeStyle = `hsla(${180 + hueShift}, 100%, ${profile.isCompact ? 62 : 50}%, ${profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 : 0.14})`
     let lastStroke = ''
     let lastWidth = -1
     for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex += 1) {
@@ -904,7 +907,9 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
       const highlight = Math.max(from.halo, to.halo) * (profile.isLowPower ? 0.6 : profile.isCompact ? 0.56 : 0.82)
       const hue = 180 + hueShift + highlight * 60
       const alpha = profile.isLowPower ? 0.18 : profile.isCompact ? 0.1 + highlight * 0.22 : 0.14 + highlight * 0.35
-      const style = `hsla(${hue}, 100%, ${profile.isCompact ? 62 + highlight * 8 : 50 + highlight * 15}%, ${alpha})`
+      const style = highlight === 0
+        ? idleEdgeStyle
+        : `hsla(${hue}, 100%, ${profile.isCompact ? 62 + highlight * 8 : 50 + highlight * 15}%, ${alpha})`
       const width = profile.isLowPower ? 0.7 : profile.isCompact ? 0.46 + highlight * 0.58 : 0.5 + highlight * 1.2
       if (style !== lastStroke) {
         ctx.strokeStyle = style

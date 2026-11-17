@@ -59,6 +59,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
     animation-delay: calc(var(--i, 0) * -.22s);
   }
 
+  /* ScrollRail sets is-idle once a hidden rail has finished its fade. The ripple animates colour and text-shadow,
+     which the main thread must restyle and repaint every frame, so it is paused while nobody can see it. */
+  .scroll-rail.is-idle .scroll-rail__cells span[data-s="hot"] { animation-play-state: paused; }
+
   /* A slow phosphor ripple travelling down the lit segment. */
   @keyframes rail-ripple {
     0%, 100% { color: #eab76a; text-shadow: 0 0 6px rgba(234, 183, 106, .5); }

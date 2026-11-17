@@ -153,8 +153,14 @@ const RELEASE_MARGIN = '350% 0px'
  * The renderer boots once the track is within 1.5 viewports and the page has been scrolled, or at once on the
  * journey page. The first load of the home page never fetches the three.js chunk or the screens, even when a short
  * initial layout puts the chapter that close. With `release`, the home page drops the renderer again once the track
- * is more than 3.5 viewports away and boots it on the next approach, so the stacked chapters never all hold a WebGL
- * context and their textures at once. The journey page never releases.
+ * is more than 3.5 viewports away and boots it on the next approach. A track is about 2.7 viewports tall, so
+ * neighbouring chapters do hold their contexts and textures at the same time. The largest allocation, the product
+ * target, has its own tighter rule in the canvas (TARGET_BAND in gpu.ts). The journey page never releases.
+ *
+ * Another chapter's or role's journey hides this chapter, which leaves it without a box, and the far observer then
+ * reports it as far. The renderer is kept through that journey, because dropping it there costs a teardown on open
+ * and a full boot on close. The canvas sleeps while it has no box. The distance is taken again when the journey
+ * closes.
  */
 export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef: RefObject<ChapterView>, release = false): boolean {
   const [near, setNear] = useState(false)
@@ -175,8 +181,23 @@ export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef
     }, { rootMargin: '150% 0px' })
     observer.observe(track)
     window.addEventListener('scroll', boot, { passive: true })
+    const root = document.documentElement
+    const journeyElsewhere = () => root.classList.contains('journey-open') || root.classList.contains('roles-open')
+    let rootWatch: MutationObserver | null = null
     const far = release ? new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting || !booted || viewRef.current === 'journey') return
+      if (journeyElsewhere()) {
+        // Observing again delivers the track's real distance once the journey has closed.
+        rootWatch ??= new MutationObserver(() => {
+          if (journeyElsewhere()) return
+          rootWatch?.disconnect()
+          rootWatch = null
+          far?.unobserve(track)
+          far?.observe(track)
+        })
+        rootWatch.observe(root, { attributes: true, attributeFilter: ['class'] })
+        return
+      }
       booted = false
       setNear(false)
       window.addEventListener('scroll', boot, { passive: true })
@@ -185,6 +206,7 @@ export function useNearBoot(track: HTMLElement | null, enabled: boolean, viewRef
     return () => {
       observer.disconnect()
       far?.disconnect()
+      rootWatch?.disconnect()
       window.removeEventListener('scroll', boot)
     }
   }, [track, enabled, viewRef, release])

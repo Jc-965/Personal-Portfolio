@@ -11,7 +11,8 @@
 .roles { position: relative; }
 
 /* The shared canvas covers the viewport behind the rows and the journey. It
-   takes no input: each row's slot and the journey's stage do. */
+   takes no input: each row's slot and the journey's stage do. RolesStage sets
+   its visibility inline and hides it while it holds no picture. */
 .roles__canvas {
   position: fixed;
   inset: 0;

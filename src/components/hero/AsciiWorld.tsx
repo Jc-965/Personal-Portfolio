@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createFollowGate, refreshInterval } from '../../utils/pacing'
 import { createProgram, createTexture, uniformsOf } from './gl'
 import { buildGlyphAtlas } from './glyphAtlas'
 import { NAME_SPREAD, NAME_TEXTURE, inkAnchor, nameSlab } from './nameField'
@@ -17,6 +18,10 @@ const CELL = { wide: { fontPx: 8, height: 10 }, narrow: { fontPx: 5.5, height: 6
 /** Clearance between the lettering and the introduction, in CSS pixels. */
 const NAME_GAP = 55
 const FONT_FAMILY = '"JetBrains Mono", "IBM Plex Mono", monospace'
+/** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
+const FRAME_SLACK = 3
+/** A look this close to the pointer's target has landed, and the scene paints at its ambient rate again. */
+const LOOK_REST = 1e-4
 /** The name carves in from the left after the world has faded up. */
 const REVEAL_DELAY = 0.35
 const REVEAL_DURATION = 1.4
@@ -97,10 +102,17 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     let scrollY = window.scrollY
     let progress = 0
     let visible = true
-    let frameInterval = 1000 / 45
+    let frameInterval = 1000 / 60
+    /** The progress the last painted frame showed. */
+    let paintedProgress = -1
+    let lastFrame = 0
+    /** The animation frame before this one painted. */
+    let paintedLast = false
+    const keepsUp = createFollowGate()
     let narrow = false
     let slab: ReturnType<typeof nameSlab> | null = null
     let nameKey = ''
+    let atlasKey = ''
     let nameInk: { left: number; bottom: number } | null = null
     let anchorWorld: [number, number, number] | null = null
     let travel = 0
@@ -108,6 +120,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     // on short or reduced-motion layouts) and whether it currently hides the page.
     let fixedTerminal = false
     let covering = false
+    let ready = false
     const look = { x: 0, y: 0, targetX: 0, targetY: 0 }
     const placed = { x: 0, y: 0 }
     const fx = createPointerFx()
@@ -115,6 +128,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     if (import.meta.env.DEV) (window as Window & { __heroFx?: unknown }).__heroFx = fx
     const copy = track.querySelector<HTMLElement>('.hero__copy')
     const titleLines = title.split('\n').filter(Boolean)
+    const fonts: FontFaceSet | undefined = document.fonts
 
     const stop = () => { cancelAnimationFrame(raf); raf = 0 }
     /** The custom properties last written to the track. Every scroll updates the presentation, and below the hero nothing changes. */
@@ -148,19 +162,19 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       // Pass through the gate as the next scene arrives, keeping a visible
       // landmark throughout the handoff instead of finishing the flight early.
       progress = travel * .58 + arrival * .42
-      setVar('--hero-scene-opacity', String(1 - arrival * arrival * (3 - 2 * arrival)))
-      placeCopy()
-      visible = y < trackHeight && scrollY + viewportHeight > trackTop
       // Until the next scene arrives the terminal is an opaque sheet over the
       // whole viewport, so the page background beneath it can stop painting.
       // Only claim that when it truly spans the screen: short or reduced-motion
       // layouts pin the sheet to the section instead, and a collapsed phone
       // toolbar leaves a strip of page showing below it. The visual viewport
       // keeps fractional heights under browser zoom, where innerHeight rounds.
-      // Reading it forces a style and layout pass, so it is read last, only
-      // while the sheet is otherwise covering.
+      // Reading it flushes pending style and layout, so it is read before the
+      // writes below dirty them, and only while the sheet is otherwise covering.
       const covers = trackHeight > 0 && fixedTerminal && !lost && !reduced && arrival === 0
         && viewportHeight + 0.01 >= (window.visualViewport?.height ?? window.innerHeight)
+      setVar('--hero-scene-opacity', String(1 - arrival * arrival * (3 - 2 * arrival)))
+      placeCopy()
+      visible = y < trackHeight && scrollY + viewportHeight > trackTop
       if (covers !== covering) {
         covering = covers
         setHeroCovering(covering)
@@ -171,7 +185,16 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       raf = 0
       if (disposed || lost || !visible || document.hidden || !grid) return
       if (!reduced) raf = requestAnimationFrame(draw)
-      if (!reduced && now - lastPaint < frameInterval) return
+      // A frame that follows the scroll or the pointer paints at once, at the display's rate, so the flight never
+      // trails the page. A frame that carries only the scene's own motion waits for the ambient interval.
+      const steered = progress !== paintedProgress || Math.abs(look.targetX - look.x) > LOOK_REST || Math.abs(look.targetY - look.y) > LOOK_REST
+      // A GPU that cannot hold a paint on every display frame drops to every second one (createFollowGate).
+      const holds = keepsUp(now, now - lastFrame, paintedLast)
+      lastFrame = now
+      const gap = holds ? (steered ? 0 : frameInterval) : Math.max(frameInterval, refreshInterval() * 2)
+      paintedLast = reduced || now - lastPaint >= gap - FRAME_SLACK
+      if (!paintedLast) return
+      paintedProgress = progress
       const dt = lastPaint ? Math.min(.1, (now - lastPaint) / 1000) : 0
       lastPaint = now
       if (!reduced) sceneTime += dt
@@ -228,7 +251,11 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       gl.uniform4f(glyphU.uPress, press.x * dpr, press.y * dpr, press.radius * dpr, press.strength)
       gl.uniform1f(glyphU.uPressPush, PRESS_PUSH * dpr)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
-      track.classList.add('hero--ready')
+      // Adding a class the track already has still rewrites the attribute, so the first painted frame adds it once.
+      if (!ready) {
+        ready = true
+        track.classList.add('hero--ready')
+      }
     }
     const start = () => {
       if (!raf && visible && !document.hidden && !lost && !disposed) raf = requestAnimationFrame(draw)
@@ -263,7 +290,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       const cell = narrow ? CELL.narrow : CELL.wide
       trackHeight = track.offsetHeight
       trackTop = track.getBoundingClientRect().top + window.scrollY
-      frameInterval = 1000 / (narrow ? 30 : 45)
+      frameInterval = 1000 / (narrow ? 30 : 60)
       // Phones render their tiny glyphs at native density; desktops cap at 2x.
       dpr = Math.min(narrow ? 3 : 2, window.devicePixelRatio || 1)
       canvas.width = Math.round(width * dpr)
@@ -289,12 +316,21 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, sceneTexture!)
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, grid.cols, grid.rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
-      const atlas = buildGlyphAtlas(cellW, cell.height, cell.fontPx, Math.ceil(dpr * 2))
-      if (atlas) {
-        gl.activeTexture(gl.TEXTURE1)
-        gl.bindTexture(gl.TEXTURE_2D, atlasTexture!)
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas)
+      // The atlas is a function of the cell, its scale, and the faces the ramp is drawn in. A face that loads later
+      // can change the glyphs without changing the cell, so the key holds each family's loaded state, and
+      // onFontsLoaded clears it for every other face. Without the font set the atlas is rebuilt every time.
+      const atlasScale = Math.ceil(dpr * 2)
+      const faces = fonts ? `${fonts.check('500 12px "JetBrains Mono"', GLYPH_RAMP)}:${fonts.check('500 12px "IBM Plex Mono"', GLYPH_RAMP)}` : ''
+      const nextAtlasKey = `${cellW}:${cell.height}:${cell.fontPx}:${atlasScale}:${faces}`
+      if (!fonts || nextAtlasKey !== atlasKey) {
+        const atlas = buildGlyphAtlas(cellW, cell.height, cell.fontPx, atlasScale)
+        if (atlas) {
+          gl.activeTexture(gl.TEXTURE1)
+          gl.bindTexture(gl.TEXTURE_2D, atlasTexture!)
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas)
+          atlasKey = nextAtlasKey
+        }
       }
       scrollY = window.scrollY
       updatePresentation()
@@ -330,11 +366,12 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
     }
     const onVisibility = () => { lastPaint = 0; if (document.hidden) stop(); else start() }
     const onMotion = () => { reduced = motionQuery.matches; stop(); measure() }
+    const onFontsLoaded = () => { atlasKey = '' }
     const resizeObserver = new ResizeObserver(measure)
     resizeObserver.observe(wrap)
     resizeObserver.observe(track)
-    const fonts = document.fonts
     if (fonts) {
+      fonts.addEventListener('loadingdone', onFontsLoaded)
       Promise.all([fonts.load('500 12px "JetBrains Mono"'), fonts.load('700 12px "JetBrains Mono"')]).then(measure, () => undefined)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -354,6 +391,7 @@ export default function AsciiWorld({ title }: AsciiWorldProps) {
       disposed = true
       stop()
       resizeObserver.disconnect()
+      fonts?.removeEventListener('loadingdone', onFontsLoaded)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
       window.removeEventListener('pointermove', onPointer)

@@ -19,7 +19,8 @@
     "bundle:check": "node scripts/check-bundle-budget.mjs",
     "perf:benchmark": "node scripts/benchmark-performance.mjs",
     "perf:storage": "node scripts/measure-gpu-storage.mjs",
-    "perf:visual": "node scripts/compare-performance-visuals.mjs"
+    "perf:visual": "node scripts/compare-performance-visuals.mjs",
+    "perf:scroll": "node scripts/measure-scroll-frames.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",

@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { lenisRef } from '../../scroll/lenisRef'
 import { pageScrollY } from '../../scroll/scrollSignal'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { sceneProgress } from '../hero/world'
@@ -17,7 +18,8 @@ import type { CardShot } from '../teardown/labels'
 import { CHAPTER_RAMP } from '../teardown/materials'
 import { LAUNCH_MS, MAX_DRAG, backdropAt, type Interaction } from '../teardown/rig'
 import { EDGE_HOLD, actAt, actCopyRide, actWindows, localOf, previewProgress, ramp, totalSpan } from '../teardown/timeline'
-import { BITMAP_OPTIONS, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks } from './gpu'
+import { whenIdle, whenScrollRests } from '../../utils/whenIdle'
+import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks, timed, warmEnvironment, type Environment } from './gpu'
 import type { ChapterView, StageControl } from './stageHooks'
 import type { ChapterScene, ChapterStory, LoadedTexture, SceneFactory, SceneOutput } from './types'
 
@@ -67,6 +69,10 @@ const LINK_POLLS = 120
 const FORM_MS = 1400
 /** Viewport-heights a room change eases over, from the start of the act that makes it. */
 const ROOM_SWAP_VH = 0.62
+/** Milliseconds a track that has come near waits for an idle period before its product target is allocated anyway. */
+const RESERVE_TIMEOUT = 200
+/** The longest the stage's build waits for the scroll to rest on the home page, ms. */
+const BUILD_WAIT = 500
 /** A label hangs this many half heights below its panel's centre, as LABEL_DROP in labels.ts. */
 const LABEL_DROP = 1.08
 
@@ -87,20 +93,26 @@ export default function ChapterCanvas({ story, track, onFrame, onReady, onFallba
     const canvas = canvasRef.current
     const stage = canvas?.parentElement
     if (!canvas || !stage) return
-    // The scene module loads first, and the renderer boots on the next frame after it, which also keeps React's
-    // development double mount from building a renderer only to delete it.
+    // The scene module and the shared environment map load first, and the renderer boots on the next frame after
+    // them, which also keeps React's development double mount from building a renderer only to delete it.
     let cancelled = false
     let unmount: (() => void) | null = null
     let boot = 0
-    story.scene().then(({ default: factory }) => {
+    let cancelWait: (() => void) | null = null
+    Promise.all([story.scene(), warmEnvironment()]).then(([{ default: factory }]) => {
       if (cancelled) return
-      boot = requestAnimationFrame(() => { unmount = mount(canvas, stage, track, story, factory, callbacks, view, control) })
+      const build = () => { boot = requestAnimationFrame(() => { unmount = mount(canvas, stage, track, story, factory, callbacks, view, control) }) }
+      // The build takes tens of milliseconds, which a smooth scroll in progress would freeze for, so on the home
+      // page it waits for the scroll to rest. The journey page shows the stage at once.
+      if (view.current === 'journey') build()
+      else cancelWait = whenScrollRests(build, BUILD_WAIT)
     }, (error) => {
       console.warn('[chapter] the scene module failed to load', error)
       callbacks.current.onFallback()
     })
     return () => {
       cancelled = true
+      cancelWait?.()
       cancelAnimationFrame(boot)
       unmount?.()
     }
@@ -121,6 +133,7 @@ function mount(
   view: ChapterCanvasProps['view'],
   control: ChapterCanvasProps['control'],
 ): () => void {
+  const mountStart = performance.now()
   let failed = false
   let stop = () => {}
   const fail = (reason: unknown) => {
@@ -171,10 +184,16 @@ function mount(
     if (view.current === 'journey') journeyLoads.splice(0).forEach((load) => load())
   }
   let uploadFrame = 0
+  /**
+   * True while the launch pulse plays on a stage that has already appeared. Lenis holds the scroll for the pulse
+   * (useJourneyView.open), so no texture still queued can come on screen before it ends, and an upload during it
+   * costs the pulse a frame.
+   */
+  const launchHolds = () => ready && !!lenisRef.current && pulseStart >= 0 && performance.now() - pulseStart < LAUNCH_MS
   const pumpUploads = () => {
     uploadFrame = 0
     if (disposed || failed || !compiled) return
-    uploads.shift()?.()
+    if (!launchHolds()) uploads.shift()?.()
     if (uploads.length) uploadFrame = requestAnimationFrame(pumpUploads)
   }
   const queueUpload = (job: () => void, urgent: boolean) => {
@@ -242,13 +261,14 @@ function mount(
     return entry
   }
 
-  let environment: THREE.WebGLRenderTarget
+  let environment: Environment
   let target: THREE.WebGLRenderTarget
   let composite: ReturnType<typeof createComposite>
   let chapter: ChapterScene
   let narrow = stage.clientWidth < 768
   try {
     environment = createEnvironment(renderer)
+    timed(`chapter:${story.id}:environment`, mountStart)
     disposers.push(() => environment.dispose())
     target = createProductTarget(renderer)
     disposers.push(() => target.dispose())
@@ -264,6 +284,7 @@ function mount(
       now: () => (born ? (performance.now() - born) / 1000 : 0),
       story,
     })
+    timed(`chapter:${story.id}:scene`, mountStart)
     disposers.push(() => chapter.dispose())
   } catch (error) {
     disposers.splice(0).reverse().forEach((d) => d())
@@ -308,6 +329,15 @@ function mount(
   let glide: Glide = { value: 0, velocity: 0 }
   let sized = ''
   let verifyTarget = false
+  /** The product target holds its full-size storage. A resize and releaseTarget free it. */
+  let targetLive = false
+  /** The track is within TARGET_BAND of the viewport. */
+  let targetNear = false
+  /** Another journey is open and the stage has no box. It draws nothing and holds no target until it has one again. */
+  let hidden = false
+  let cancelReserve: (() => void) | null = null
+  /** The scene pass has drawn once, so its buffers, vertex arrays, and shadow maps exist. */
+  let sceneDrawn = false
   let pulseStart = -1
   let formStart = -1
   let ready = false
@@ -452,6 +482,45 @@ function mount(
     cu.uGather.value = Math.min(out.gather, form)
   }
 
+  /**
+   * Binds the product target, which allocates its storage when it has none, and checks it once after a resize.
+   * Returns false after failing the stage on an incomplete target.
+   */
+  const bindTarget = () => {
+    renderer.setRenderTarget(target)
+    targetLive = true
+    if (!verifyTarget) return true
+    // three raises no error for an incomplete target, and drawing into one leaves the centrepiece invisible. The
+    // check blocks until the GPU process has run every queued command, so it runs once per resize.
+    verifyTarget = false
+    const gl = renderer.getContext()
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) return true
+    renderer.setRenderTarget(null)
+    fail('the product render target is incomplete')
+    return false
+  }
+  /**
+   * Allocates the product target in an idle period once the track is near, so the allocation and its check are
+   * over before the first frame that draws the scene. A draw that comes first allocates it in bindTarget.
+   */
+  const reserveTarget = () => {
+    if (targetLive || cancelReserve || !compiled || !sized) return
+    cancelReserve = whenIdle(() => {
+      cancelReserve = null
+      if (disposed || failed || lost || targetLive || !targetNear) return
+      if (bindTarget()) renderer.setRenderTarget(null)
+    }, RESERVE_TIMEOUT)
+  }
+  /**
+   * Frees the product target's storage once the track is beyond the band and its last frame has drawn. No pass
+   * samples the target before the next scene pass draws into it, and three allocates it again on that bind.
+   */
+  const releaseTarget = () => {
+    if (!targetLive || targetNear || visible || flush) return
+    target.dispose()
+    targetLive = false
+  }
+
   const draw = (now: number) => {
     raf = 0
     if (disposed || failed || lost || (!visible && !flush) || document.hidden || !compiled) return
@@ -496,24 +565,24 @@ function mount(
     applyComposite(out, formed)
     applyCopyMask(p)
 
-    renderer.setRenderTarget(target)
-    if (verifyTarget) {
-      // three raises no error for an incomplete target, and drawing into one leaves the centrepiece invisible. The
-      // check blocks until the GPU process has run every queued command, so it runs here, once per resize.
-      verifyTarget = false
-      const gl = renderer.getContext()
-      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-        renderer.setRenderTarget(null)
-        fail('the product render target is incomplete')
-        return
+    if (sceneDrawn && cu.uGather.value === 0 && cu.uDecode.value === 0) {
+      // The composite scales the product's glyphs by uGather and takes none of its resolved texels at uDecode 0,
+      // so no pixel reads the target and the scene pass is skipped. The world matrices still update, as the
+      // pass would have left them for the next frame's projections.
+      chapter.scene.updateMatrixWorld()
+    } else {
+      if (!bindTarget()) return
+      // Resolved frames sample only mip level zero. Keep storage allocated, but
+      // regenerate the chain only while the glyph formation samples it.
+      target.texture.generateMipmaps = cu.uDecode.value < 1
+      renderer.render(chapter.scene, camera)
+      target.texture.generateMipmaps = true
+      renderer.setRenderTarget(null)
+      if (!sceneDrawn) {
+        sceneDrawn = true
+        timed(`chapter:${story.id}:first-scene-pass`, mountStart)
       }
     }
-    // Resolved frames sample only mip level zero. Keep storage allocated, but
-    // regenerate the chain only while the glyph formation samples it.
-    target.texture.generateMipmaps = cu.uDecode.value < 1
-    renderer.render(chapter.scene, camera)
-    target.texture.generateMipmaps = true
-    renderer.setRenderTarget(null)
     renderer.render(composite.scene, composite.camera)
     if (failed) return
 
@@ -553,10 +622,11 @@ function mount(
     flush = false
     if (visible && (easing || glide.value !== progress || copyDirty || push > 0 || formStart >= 0 || out.busy)) raf = requestAnimationFrame(draw)
     else lastPaint = 0
+    if (!visible) releaseTarget()
   }
 
   const onScroll = () => {
-    if (!sized) return
+    if (!sized || hidden) return
     const y = pageScrollY()
     scrollY = y
     const fraction = sceneProgress(y - trackTop, trackHeight, height)
@@ -565,13 +635,25 @@ function mount(
     visible = y + window.innerHeight > trackTop && y < trackTop + trackHeight
     if (visible && !wasVisible) glide = { value: progress, velocity: 0 }
     if (wasVisible && !visible) { glide = { value: progress, velocity: 0 }; flush = true }
+    const band = window.innerHeight * TARGET_BAND
+    targetNear = y + window.innerHeight + band > trackTop && y - band < trackTop + trackHeight
+    if (targetNear) reserveTarget()
     if (visible || flush) start()
-    else stop()
+    else { stop(); releaseTarget() }
   }
   const measure = () => {
     if (disposed || lost || failed) return
     const rect = stage.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
+    if (!rect.width || !rect.height) {
+      hidden = true
+      visible = false
+      flush = false
+      targetNear = false
+      stop()
+      releaseTarget()
+      return
+    }
+    hidden = false
     width = rect.width
     height = rect.height
     const nextNarrow = width < 768
@@ -586,6 +668,7 @@ function mount(
       renderer.setSize(width, height, false)
       renderer.getDrawingBufferSize(drawingBuffer)
       target.setSize(drawingBuffer.x, drawingBuffer.y)
+      targetLive = false
       cu.uRes.value.copy(drawingBuffer)
       verifyTarget = true
     }
@@ -675,10 +758,6 @@ function mount(
   // uniform table) runs one per frame before the chapter is on screen, as in TeardownCanvas.
   // Compile the same output configuration the scene actually renders into.
   // Compiling against the canvas creates a second set of programs on first draw.
-  renderer.setRenderTarget(target)
-  renderer.compile(chapter.scene, camera)
-  renderer.setRenderTarget(null)
-  renderer.compile(composite.scene, composite.camera)
   let polls = 0
   let warming = 0
   const warmed = new Set<unknown>()
@@ -698,10 +777,21 @@ function mount(
       return
     }
     compiled = true
+    timed(`chapter:${story.id}:programs`, mountStart)
     if (uploads.length && !uploadFrame) uploadFrame = requestAnimationFrame(pumpUploads)
+    if (targetNear) reserveTarget()
     start()
   }
-  warming = requestAnimationFrame(awaitLinks)
+  // The programs are submitted on the frame after the scene is built, so the two never share one task.
+  warming = requestAnimationFrame(() => {
+    warming = 0
+    if (disposed || failed) return
+    renderer.setRenderTarget(target)
+    renderer.compile(chapter.scene, camera)
+    renderer.setRenderTarget(null)
+    renderer.compile(composite.scene, composite.camera)
+    warming = requestAnimationFrame(awaitLinks)
+  })
 
   const resizeObserver = new ResizeObserver(measure)
   // Copy moves vertically every frame, but its ink width only changes with content or layout.
@@ -749,6 +839,7 @@ function mount(
     cancelAnimationFrame(warming)
     cancelAnimationFrame(sizing)
     cancelAnimationFrame(uploadFrame)
+    cancelReserve?.()
     resizeObserver.disconnect()
     copyResizeObserver.disconnect()
     copyObserver.disconnect()

@@ -11,6 +11,7 @@
  */
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { whenIdle } from '../../../utils/whenIdle'
 import type { ChapterScene, SceneFactory, SceneFrame, SceneOutput, ScenePanel } from '../types'
 
 /** The sheet in world units: W wide and D tall, PANELS accordion panels across, one half fold along y = 0. */
@@ -211,6 +212,14 @@ function bakeTerrain(): Terrain {
 }
 
 /** H at map uv, bilinear between cell centres with the edge clamped, as the GPU samples the height texture. */
+let baked: Terrain | null = null
+/**
+ * bakeTerrain's result, which nothing writes to after the bake. Every mount reads the same land, so the bake runs
+ * once, in an idle period after this module loads, and not inside the scene's build.
+ */
+const bakedTerrain = () => (baked ??= bakeTerrain())
+whenIdle(() => { bakedTerrain() }, 3000)
+
 function heightAt(terrain: Terrain, u: number, v: number) {
   const x = Math.min(GRID_W - 1, Math.max(0, u * GRID_W - 0.5))
   const y = Math.min(GRID_H - 1, Math.max(0, v * GRID_H - 0.5))
@@ -882,7 +891,7 @@ const createScene: SceneFactory = (ctx) => {
   scene.add(key, fill, lamp)
   const lights = [key, fill].map((light) => ({ light, base: light.intensity }))
 
-  const terrain = bakeTerrain()
+  const terrain = bakedTerrain()
   const halfs = new Uint16Array(GRID_W * GRID_H)
   for (let k = 0; k < halfs.length; k++) halfs[k] = THREE.DataUtils.toHalfFloat(terrain.heights[k])
   const heightTexture = new THREE.DataTexture(halfs, GRID_W, GRID_H, THREE.RedFormat, THREE.HalfFloatType)

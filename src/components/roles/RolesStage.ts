@@ -16,6 +16,9 @@
  *
  * It draws only while something moves: the scroll, the pointer, a press, an easing, or a scene that reports busy.
  * Scenes load when their slot nears the viewport and stay loaded until the section unmounts the stage.
+ *
+ * The product target's storage and the scenes' shadow maps exist only while a journey is up or a slot is within
+ * TARGET_BAND of the viewport (releaseStorage). The canvas is hidden while it holds no picture.
  */
 import * as THREE from 'three'
 import { sceneProgress } from '../hero/world'
@@ -23,8 +26,13 @@ import { GLIDE_TIME, glideStep, type Glide } from '../teardown/glide'
 import type { CardShot } from '../teardown/labels'
 import { MAX_DRAG } from '../teardown/rig'
 import { actWindows, localOf } from '../teardown/timeline'
-import { BITMAP_OPTIONS, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks } from '../chapter/gpu'
+import { createFollowGate } from '../../utils/pacing'
+import { savesData, whenIdle } from '../../utils/whenIdle'
+import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks, timed } from '../chapter/gpu'
 import { createComposite } from '../teardown/composite'
+
+// RolesSection reaches the shared environment build through this chunk, so its own chunk never imports three.js.
+export { warmEnvironment } from '../chapter/gpu'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { CHAPTER_RAMP } from '../teardown/materials'
 import { EXPAND_MS, FORM_MS, LEAVE_MS } from './timing'
@@ -53,6 +61,10 @@ const linearOf = (hex: string): [number, number, number] => {
 const HIDDEN_SHOT: CardShot = { anchor: null, rect: null, depth: Infinity, develop: 0, opacity: 0 }
 /** rAF timestamps jitter by a millisecond or two, so a frame counts as due this much before its interval ends. */
 const FRAME_SLACK = 3
+/** The longest the product target's allocation waits for an idle period, ms. */
+const RESERVE_TIMEOUT = 200
+/** The longest a neighbouring role's module and room requests wait for an idle period, ms. */
+const WARM_TIMEOUT = 2000
 
 const ramp = (t: number, a: number, b: number) => Math.min(1, Math.max(0, (t - a) / Math.max(1e-9, b - a)))
 const smoother = (t: number) => {
@@ -120,6 +132,8 @@ interface Island {
   stirred: boolean
   /** True once the island's shadow map has been drawn for its current scene. */
   shadowed: boolean
+  /** True once a frame has drawn the island's scene, so its lights may hold shadow maps. */
+  mapped: boolean
   /** The frame time its world started forming from glyphs, or -1, and whether it has formed. */
   formStart: number
   formed: boolean
@@ -128,9 +142,12 @@ interface Island {
 }
 
 export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFallback: () => void, onIslandFailed: (id: string) => void = () => undefined): RolesStage | null {
+  const bootStart = performance.now()
   const canvas = document.createElement('canvas')
   canvas.className = 'roles__canvas'
   canvas.setAttribute('aria-hidden', 'true')
+  // The canvas holds no picture until a frame draws a world on it (`shown`, in draw).
+  canvas.style.visibility = 'hidden'
   host.appendChild(canvas)
   let renderer: THREE.WebGLRenderer
   try {
@@ -174,8 +191,16 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     } else fail('a shared shader failed to compile')
   }
 
+  const environmentStart = performance.now()
   const environment = createEnvironment(renderer)
+  timed('roles:environment', environmentStart)
   const target = createProductTarget(renderer)
+  /**
+   * The target bound while programs compile. three keys a program on whether an offscreen target is bound and not
+   * on which one, so this unsized twin yields the programs the product target's draws use, and a compile leaves the
+   * product target's storage unallocated.
+   */
+  const compileTarget = createProductTarget(renderer)
   const composite = createComposite()
   const cu = composite.material.uniforms
   cu.uProduct.value = target.texture
@@ -237,7 +262,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       entry, status: 'idle', scene: null, slot: null,
       page: { left: 0, top: 0, width: 0, height: 0 },
       pointer: { x: 0, y: 0, inside: false },
-      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, stirred: false, shadowed: false, formStart: -1, formed: false, detach: null,
+      tiltX: 0, tiltY: 0, hover: 0, goalX: 0, goalY: 0, stirred: false, shadowed: false, mapped: false, formStart: -1, formed: false, detach: null,
     })
   }
 
@@ -245,8 +270,8 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   const warmed = new WeakSet<object>()
   /**
    * Compiles `object`'s programs for `island`'s scene without blocking, and resolves once each new program has linked
-   * and had its first use, one per frame. Programs key on the target they draw into, so the compile runs with the
-   * product target bound (no tone mapping, linear output). Programs compiled with the canvas bound do not match the
+   * and had its first use, one per frame. Programs key on the kind of target they draw into, so the compile runs with
+   * compileTarget bound (no tone mapping, linear output). Programs compiled with the canvas bound do not match the
    * draw's and compile again, synchronously, at the world's first draw. A program that fails marks `island` failed and
    * the promise never resolves.
    */
@@ -256,7 +281,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     // compile() creates every program synchronously, including the second program of a material shared by a mesh
     // and an instanced mesh, so the programs new since this call are exactly the ones to warm.
     const before = new Set(renderer.info.programs ?? [])
-    renderer.setRenderTarget(target)
+    renderer.setRenderTarget(compileTarget)
     const compiling = renderer.compileAsync(object, scene.camera, scene.scene)
     renderer.setRenderTarget(null)
     const cold = (renderer.info.programs ?? []).filter((program) => !before.has(program) && !warmed.has(program))
@@ -278,9 +303,13 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   const loadScene = (island: Island) => {
     if (island.status !== 'idle') return
     island.status = 'loading'
+    const id = island.entry.story.id
+    const importStart = performance.now()
     island.entry.story.scene().then(({ default: factory }) => {
+      timed(`roles:${id}:import`, importStart)
       if (disposed || failed) return
       try {
+        const buildStart = performance.now()
         island.scene = factory({
           renderer,
           environment: environment.texture,
@@ -292,8 +321,11 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
           story: island.entry.story,
           facts: island.entry.facts,
         })
+        timed(`roles:${id}:build`, buildStart)
         // The world draws once its programs are ready, so its first frame never waits on a compile.
+        const compileStart = performance.now()
         compileFor(island, island.scene.scene).then(() => {
+          timed(`roles:${id}:compile`, compileStart)
           if (island.status !== 'loading') return
           island.status = 'ready'
           start()
@@ -316,6 +348,8 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   let narrow = false
   let frameInterval = 1000 / 60
   let sized = ''
+  /** The product target holds its full-size storage. A resize and releaseStorage free it. */
+  let targetLive = false
   const buffer = new THREE.Vector2()
   const measureSlot = (island: Island) => {
     if (!island.slot) return
@@ -337,6 +371,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       renderer.setSize(width, height, false)
       renderer.getDrawingBufferSize(buffer)
       target.setSize(buffer.x, buffer.y)
+      targetLive = false
     }
     cu.uRes.value.copy(buffer)
     cu.uPixelRatio.value = pixelRatio
@@ -374,18 +409,110 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   // The loop.
   let raf = 0
   let lastPaint = 0
+  /** A scroll event arrived since the last drawn frame. */
+  let scrolled = false
+  let lastFrame = 0
+  /** The animation frame before this one drew as a scroll-following frame. */
+  let followedLast = false
+  const keepsUp = createFollowGate()
+  /** A project's journey is open and the canvas has no box. The stage draws nothing and holds no storage. */
+  let hidden = false
   let compiled = false
   let pushStart = -1
   /** The journey's glyph transition: dissolving out before a switch or a close, or forming in after a switch. */
   let glyph: { kind: 'leave-switch' | 'leave-close' | 'form'; start: number } | null = null
   let expand: { start: number; from: { left: number; top: number; width: number; height: number }; closing: boolean; to: { left: number; top: number; width: number; height: number } | null } | null = null
-  const start = () => { if (!raf && compiled && !disposed && !failed && !lost && !document.hidden) raf = requestAnimationFrame(draw) }
+  const start = () => { if (!raf && compiled && !disposed && !failed && !lost && !hidden && !document.hidden) raf = requestAnimationFrame(draw) }
   const project = new THREE.Vector3()
   const labelAt = new THREE.Vector3()
   const origin = new THREE.Vector3()
 
   const viewRect = (island: Island) => ({ left: island.page.left, top: island.page.top - window.scrollY, width: island.page.width, height: island.page.height })
   const onScreen = (rect: { top: number; height: number }, margin = 0) => rect.top < height * (1 + margin) && rect.top + rect.height > -height * margin
+
+  /** True while a journey is up or a row's slot is within TARGET_BAND of the viewport, as onScreen measures it. */
+  const storageWanted = () => {
+    if (journey) return true
+    const scroll = window.scrollY
+    for (const island of islands.values()) {
+      if (!island.slot || island.status === 'failed') continue
+      const top = island.page.top - scroll
+      if (top < height * (1 + TARGET_BAND) && top + island.page.height > -height * TARGET_BAND) return true
+    }
+    return false
+  }
+  let cancelReserve: (() => void) | null = null
+  /**
+   * Allocates the product target in an idle period, so the allocation is over before the first frame that draws a
+   * world. A draw that comes first allocates it when drawWorld binds the target.
+   */
+  const reserveTarget = () => {
+    if (targetLive || cancelReserve) return
+    cancelReserve = whenIdle(() => {
+      cancelReserve = null
+      if (disposed || failed || lost || targetLive || !storageWanted()) return
+      renderer.initRenderTarget(target)
+      targetLive = true
+    }, RESERVE_TIMEOUT)
+  }
+  /**
+   * Frees `island`'s shadow maps, the way three frees them itself when the shadow type changes. Clearing `shadowed`
+   * makes the island's next frame draw them again before its scene, as its first frame did. A home scene moves only
+   * in a frame that is stirred or busy, so the redrawn maps equal the freed ones.
+   */
+  const dropShadowMaps = (island: Island) => {
+    if (!island.mapped || !island.scene) return
+    island.mapped = false
+    island.shadowed = false
+    island.scene.scene.traverse((object) => {
+      const shadow = (object as THREE.Object3D & { shadow?: THREE.LightShadow }).shadow
+      if (!shadow?.map) return
+      shadow.map.depthTexture?.dispose()
+      shadow.map.depthTexture = null
+      shadow.map.dispose()
+      shadow.map = null
+    })
+  }
+  /**
+   * Frees the product target's storage (about 63 bytes per device pixel) and the loaded scenes' shadow maps. It runs
+   * once the loop is idle with no journey up and no slot within TARGET_BAND. No pass samples the target before the
+   * next scene pass draws into it, and three allocates it again when drawWorld binds it.
+   */
+  const releaseStorage = () => {
+    cancelReserve?.()
+    cancelReserve = null
+    if (targetLive) {
+      target.dispose()
+      targetLive = false
+    }
+    for (const island of islands.values()) dropShadowMaps(island)
+  }
+
+  /** The journey whose neighbours' modules and rooms were last requested. */
+  let warmedFor = ''
+  let cancelWarm: (() => void) | null = null
+  /**
+   * Requests the next and previous roles' scene modules and room images in an idle period, so a switch finds them in
+   * the module map and the HTTP cache. It builds no scene and uploads no texture. loadScene and load still do both
+   * when the role opens.
+   */
+  const warmNeighbours = (id: string) => {
+    if (warmedFor === id || savesData()) return
+    warmedFor = id
+    cancelWarm?.()
+    cancelWarm = whenIdle(() => {
+      cancelWarm = null
+      if (disposed || failed) return
+      const at = entries.findIndex((entry) => entry.story.id === id)
+      if (at < 0) return
+      for (const entry of [entries[at - 1], entries[at + 1]]) {
+        if (!entry) continue
+        if (islands.get(entry.story.id)?.status === 'idle') entry.story.scene().catch(() => undefined)
+        const src = entry.story.room.src
+        if (!textures.has(src)) fetch(src, { signal: requests.signal }).then((response) => response.blob()).catch(() => undefined)
+      }
+    }, WARM_TIMEOUT)
+  }
 
   const frameFor = (island: Island, mode: 'home' | 'journey', aspect: number, local: (key: string) => number, dt: number, now: number, push: number, dragYaw: number): IslandFrame => ({
     mode,
@@ -463,6 +590,9 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
 
   /** Whether the last frame drew anything, so a frame with nothing to draw knows the canvas is already clear. */
   let drewLast = true
+  /** The canvas is visible. It is hidden only while its last presented frame is the clear. */
+  let shown = false
+  let worldDrawn = false
   let dragYaw = 0
   let dragGoal = 0
   let drag: { id: number; x: number; start: number } | null = null
@@ -504,7 +634,10 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     target.viewport.set(x, y, w, h)
     target.scissor.set(x, y, w, h)
     target.scissorTest = true
+    const passStart = island.mapped ? 0 : performance.now()
     renderer.setRenderTarget(target)
+    targetLive = true
+    island.mapped = true
     renderer.setClearColor(0x000000, 0)
     renderer.clear(true, true, false)
     // The composite samples the product's mipmaps only while decoding, so a resolved world skips generating them.
@@ -521,12 +654,26 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     renderer.setScissorTest(true)
     renderer.render(composite.scene, composite.camera)
     renderer.setScissorTest(false)
+    if (passStart) timed(`roles:${story.id}:cold-pass`, passStart)
+    if (!worldDrawn) {
+      worldDrawn = true
+      timed('roles:first-draw', bootStart)
+    }
   }
 
   const draw = (now: number) => {
     raf = 0
-    if (disposed || failed || lost || document.hidden || !compiled) return
-    if (lastPaint && now - lastPaint < frameInterval - FRAME_SLACK) { raf = requestAnimationFrame(draw); return }
+    if (disposed || failed || lost || hidden || document.hidden || !compiled) return
+    // The rows scroll with the page at the display's rate and the canvas does not, so a home frame that follows the
+    // scroll draws at once. A world drawn one display frame late sits a frame of scroll away from its row.
+    // A GPU that cannot hold a draw on every display frame goes back to the capped rate (createFollowGate).
+    const holds = keepsUp(now, now - lastFrame, followedLast)
+    lastFrame = now
+    const follows = scrolled && !journey && holds
+    followedLast = false
+    if (lastPaint && !follows && now - lastPaint < frameInterval - FRAME_SLACK) { raf = requestAnimationFrame(draw); return }
+    followedLast = follows
+    scrolled = false
     const dt = lastPaint ? Math.min(0.1, (now - lastPaint) / 1000) : 1 / 60
     lastPaint = now
     if (!born) born = now
@@ -688,7 +835,19 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
         }
       } else moving = true
     }
+    // The canvas shows in the frame that draws on it. It hides one frame after the frame that cleared it, so the
+    // clear is presented first and the canvas is never hidden with a picture. While hidden it is one full-viewport
+    // layer fewer for the compositor to blend over the page.
+    if (drew !== shown) {
+      if (drew || !drewLast) {
+        shown = drew
+        canvas.style.visibility = drew ? 'visible' : 'hidden'
+      } else moving = true
+    }
     drewLast = drew
+    if (storageWanted()) reserveTarget()
+    else if (!moving) releaseStorage()
+    if (journey?.ready && !moving) warmNeighbours(journey.id)
     if (moving) raf = requestAnimationFrame(draw)
     else lastPaint = 0
   }
@@ -706,6 +865,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       return
     }
     compiled = true
+    timed('roles:programs', bootStart)
     start()
   }
   warming = requestAnimationFrame(awaitLinks)
@@ -789,7 +949,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     }
   }
 
-  const onScroll = () => start()
+  const onScroll = () => { scrolled = true; start() }
   const onResize = () => measure()
   const onVisibility = () => { lastPaint = 0; if (!document.hidden) start() }
   const onLost = (event: Event) => {
@@ -802,7 +962,25 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
   window.addEventListener('resize', onResize, { passive: true })
   document.addEventListener('visibilitychange', onVisibility)
   canvas.addEventListener('webglcontextlost', onLost)
+  // A project's journey hides the Journey section, and the fixed canvas then has no box. The observer reports both
+  // that change and the return.
+  const boxObserver = new ResizeObserver(() => {
+    const next = canvas.clientWidth === 0
+    if (next === hidden) return
+    hidden = next
+    if (hidden) {
+      cancelAnimationFrame(raf)
+      raf = 0
+      lastPaint = 0
+      releaseStorage()
+    } else {
+      measure()
+      start()
+    }
+  })
+  boxObserver.observe(canvas)
   measure()
+  timed('roles:stage', bootStart)
 
   return {
     setSlot(id, el) {
@@ -876,10 +1054,13 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       requests.abort()
       cancelAnimationFrame(raf)
       cancelAnimationFrame(warming)
+      cancelReserve?.()
+      cancelWarm?.()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
       document.removeEventListener('visibilitychange', onVisibility)
       canvas.removeEventListener('webglcontextlost', onLost)
+      boxObserver.disconnect()
       detachJourney?.()
       for (const island of islands.values()) {
         island.detach?.()
@@ -890,6 +1071,7 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
       composite.dispose()
       atlas?.dispose()
       target.dispose()
+      compileTarget.dispose()
       environment.dispose()
       renderer.dispose()
       if (!lost) renderer.forceContextLoss()

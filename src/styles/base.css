@@ -104,16 +104,31 @@ html {
   border-radius: var(--radius-sm);
 }
 
-/* CRT screen treatment — old-TV / Balatro: dark scanlines + a barely-there
-   flicker. No vignette/border/bloom — those don't read on a dark background. */
+/* CRT screen treatment (old-TV / Balatro): dark scanlines and a barely-there
+   flicker. No vignette, border, or bloom, which do not read on a dark background.
+
+   The scanlines and their flicker are on ::before, and the element's own
+   opacity sets the strength (--scanline-rest times the pinned dimming). A
+   running animation overrides a plain opacity rule on the same element, so
+   the two are on separate boxes. A filter on this full-viewport layer would
+   need an offscreen surface every frame. Two opacities over one drawing box
+   need none, because the compositor multiplies them. */
 .vintage-overlay {
   position: fixed;
   inset: 0;
   z-index: 50000;
   pointer-events: none;
+  opacity: var(--scanline-rest, 1);
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+
+.vintage-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background:
-    /* soft scanlines — a smooth sine-like darkening instead of hard black bars
-       (hard 1px bars striped the text and moiréd against the background grid) */
+    /* Soft scanlines: a smooth sine-like darkening. Hard 1px black bars
+       stripe the text and moiré against the background grid. */
     repeating-linear-gradient(
       0deg,
       rgba(0, 0, 0, var(--crt-scanline)) 0px,
@@ -122,16 +137,18 @@ html {
     );
   will-change: opacity;
   backface-visibility: hidden;
-  transition: opacity 0.5s ease, filter 0.5s ease;
   animation: crt-flicker 7s steps(60) infinite;
 }
 
 /* Teardown sets teardown-pinned on the root while its stage is pinned over the
    viewport, and the scanlines dim so they do not beat against the chapter's
-   glyph rooms, whose cells are about twice the scanline period. The running
-   crt-flicker animation overrides any plain opacity rule (and Chrome starts no
-   transition on a property an animation holds), so the dimming uses filter. */
-.teardown-pinned .vintage-overlay { filter: opacity(0.22); }
+   glyph rooms, whose cells are about twice the scanline period. */
+.teardown-pinned .vintage-overlay { opacity: calc(var(--scanline-rest, 1) * 0.22); }
+
+/* Sketchbook mode hides the overlay at once (sketchbook.css sets opacity 0),
+   and its return animation on the element replaces the flicker until it ends. */
+.sketchbook-mode .vintage-overlay { transition: none; }
+.sketchbook-returning .vintage-overlay::before { animation: none; }
 
 @keyframes crt-flicker {
   0%, 100% { opacity: 1; }
@@ -141,7 +158,7 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vintage-overlay { animation: none; }
+  .vintage-overlay::before { animation: none; }
 
   /* Site-wide baseline: collapse CSS animations/transitions to a near-instant
      jump to their end state and disable smooth scrolling for visitors who ask

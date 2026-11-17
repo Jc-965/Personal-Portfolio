@@ -35,9 +35,10 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks(id) {
-          // The hero imports only the Three.js source modules it needs. Keep
-          // the full package entry used by the hidden Sketchbook isolated so
-          // it never gets folded back into the hero's critical 3D chunk.
+          // The roles stage, the project stages, and the hidden Sketchbook
+          // import the full three.js package entry. One named chunk holds it,
+          // so each of them shares a single copy and the entry chunk, whose
+          // hero uses raw WebGL2, never includes it.
           if (id.includes('/node_modules/three/build/three.module.js')) {
             return 'three-sketchbook'
           }

@@ -7,6 +7,11 @@ import { pageScrollY } from '../scroll/scrollSignal'
 const ROW = 11
 /** Cells of phosphor tail on each side of the viewport segment. */
 const TAIL = 4
+/**
+ * How long the ripple keeps running after the rail hides, in milliseconds. It must cover the .45s opacity fade in
+ * scroll-rail.css, so the ripple never freezes while the rail is still visible.
+ */
+const FADE_MS = 500
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
@@ -31,6 +36,8 @@ export default function ScrollRail() {
     let maxScroll = 1
     let gate = 0
     let paintFrame = 0
+    let shown = rail.classList.contains('is-shown')
+    let idleTimer = 0
     let dragging = false
     /** Where inside the segment the pointer grabbed it, in pixels from its top. */
     let grip = 0
@@ -81,8 +88,16 @@ export default function ScrollRail() {
         // The ripple runs down the segment: each lit cell lags the one above.
         cells[i].style.setProperty('--i', state === 'hot' ? String(Math.round(i - start)) : '0')
       }
-      // The opening keeps its own instrument; the rail appears as Journey arrives.
-      rail.classList.toggle('is-shown', y + window.innerHeight >= gate + 120)
+      // The opening keeps its own instrument, and the rail appears as Journey arrives.
+      const show = y + window.innerHeight >= gate + 120
+      if (show === shown) return
+      shown = show
+      rail.classList.toggle('is-shown', show)
+      // is-idle pauses the ripple (scroll-rail.css). It is set only after the fade has ended and cleared in the
+      // frame that shows the rail, so the ripple runs whenever the rail is visible.
+      window.clearTimeout(idleTimer)
+      if (show) rail.classList.remove('is-idle')
+      else idleTimer = window.setTimeout(() => rail.classList.add('is-idle'), FADE_MS)
     }
     const requestPaint = () => { if (!paintFrame) paintFrame = requestAnimationFrame(paint) }
 
@@ -138,10 +153,12 @@ export default function ScrollRail() {
     rail.addEventListener('pointermove', onMove)
     rail.addEventListener('pointerup', onUp)
     rail.addEventListener('pointercancel', onUp)
+    rail.classList.toggle('is-idle', !shown)
     measure()
 
     return () => {
       if (paintFrame) cancelAnimationFrame(paintFrame)
+      window.clearTimeout(idleTimer)
       bodyObserver?.disconnect()
       window.removeEventListener('scroll', requestPaint)
       window.removeEventListener('resize', measure)

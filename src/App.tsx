@@ -20,8 +20,7 @@ import { storageGet, storageSet } from './utils/safeStorage'
 import { JOURNEYS, ROLE_JOURNEYS, journeyAt } from './components/teardown/route'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
-// Only shown after the loading screen completes — lazy so its gsap dependency
-// (vendor-gsap, ~28KB gz) isn't parsed on the critical path before first paint.
+// The chunk carries GSAP (about 30 KB gzip). DeferredTargetCursor decides when it is requested.
 const TargetCursor = lazy(() => import('./components/TargetCursor'))
 // Site-wide scroll engine (Lenis inertial smooth scroll + scroll signal).
 // Lazy so lenis stays off the critical path; it activates a beat after first
@@ -50,6 +49,48 @@ const SectionFallback = ({ id, className }: { id: string; className: string }) =
     <p className="section-fallback">This section failed to load — refresh to try again.</p>
   </section>
 )
+
+/**
+ * Mounts the target cursor at the first pointer movement or the first idle period after the load event, whichever
+ * comes first. The target cursor draws nothing until the pointer has moved onto a link or a button, and the native
+ * cursor is hidden by Cursor and main.tsx, so the page looks the same while the chunk is absent.
+ */
+function DeferredTargetCursor() {
+  const [armed, setArmed] = useState(false)
+
+  useEffect(() => {
+    let idleId = 0
+    let timerId = 0
+    const arm = () => setArmed(true)
+    // Safari has no requestIdleCallback, so a short timer after the load event stands in for it.
+    const armWhenIdle = () => {
+      if (typeof window.requestIdleCallback === 'function') idleId = window.requestIdleCallback(arm, { timeout: 2000 })
+      else timerId = window.setTimeout(arm, 200)
+    }
+    window.addEventListener('pointermove', arm, { once: true, passive: true })
+    if (document.readyState === 'complete') armWhenIdle()
+    else window.addEventListener('load', armWhenIdle, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', arm)
+      window.removeEventListener('load', armWhenIdle)
+      if (idleId) window.cancelIdleCallback(idleId)
+      if (timerId) window.clearTimeout(timerId)
+    }
+  }, [])
+
+  if (!armed) return null
+  return (
+    <Suspense fallback={null}>
+      <TargetCursor
+        targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
+        spinDuration={2}
+        hideDefaultCursor
+        parallaxOn
+        hoverDuration={0.2}
+      />
+    </Suspense>
+  )
+}
 
 // A direct load of a chapter's journey page hides every other section before the first paint. Teardown owns the
 // class from then on.
@@ -185,17 +226,7 @@ function App() {
     <LazyMotion features={domAnimation} strict>
       <GyroscopeProvider>
       {useCustomCursor && <Cursor />}
-      {useCustomCursor && (
-        <Suspense fallback={null}>
-          <TargetCursor
-            targetSelector='a:not([data-target-cursor="off"]), button, input, textarea, [data-cursor]'
-            spinDuration={2}
-            hideDefaultCursor
-            parallaxOn
-            hoverDuration={0.2}
-          />
-        </Suspense>
-      )}
+      {useCustomCursor && <DeferredTargetCursor />}
       <div className="vintage-overlay" />
       <m.div
         key="main"

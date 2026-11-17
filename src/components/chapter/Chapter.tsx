@@ -4,6 +4,7 @@ import { sceneProgress } from '../hero/world'
 import { layoutLabelRows } from '../teardown/labels'
 import { routeLeaders, type Box, type Point } from '../teardown/leaders'
 import { RIDE_FADE, actAt, actCopyRide, actWindows, previewEnd, previewProgress, previewTravel, ramp, totalSpan } from '../teardown/timeline'
+import { savesData, whenIdle } from '../../utils/whenIdle'
 import type { ChapterFrame } from './ChapterCanvas'
 import { prefersReduced, setStyle } from './dom'
 import { useFocusAct, useNearBoot, usePinnedStage, usePrintGate, useWheelDetent, type StageControl } from './stageHooks'
@@ -92,6 +93,17 @@ function Chapter({ story }: { story: ChapterStory }) {
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
   }, [])
+
+  // The canvas chunk and the scene module load in an idle period once the chapter has mounted, so the boot at the
+  // near margin starts from modules the browser already holds. Reduced motion never boots a canvas, so it loads
+  // neither. A failed load is left to the boot, which falls back to the still.
+  useEffect(() => {
+    if (isStatic || savesData()) return
+    return whenIdle(() => {
+      import('./ChapterCanvas').catch(() => undefined)
+      story.scene().catch(() => undefined)
+    }, 2000)
+  }, [isStatic, story])
 
   // The theme's fonts load as the chapter nears, or at once on its journey page or under reduced motion.
   useEffect(() => {

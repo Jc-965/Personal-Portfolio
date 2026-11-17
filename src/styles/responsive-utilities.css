@@ -193,11 +193,15 @@
   }
 }
 
-@media (max-width: 640px) {
+/* The scanlines rest at 45% only on a phone that asks for reduced motion.
+   Every other layout keeps them at full strength under the flicker. */
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
   .vintage-overlay {
-    opacity: 0.45;
+    --scanline-rest: 0.45;
   }
+}
 
+@media (max-width: 640px) {
   .section {
     padding: 48px 14px;
   }

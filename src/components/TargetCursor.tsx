@@ -298,11 +298,12 @@ export default function TargetCursor({
     }
 
     // A region marked data-target-cursor="off" opts every element inside it out of the target box.
-    const resolveTargetAtPoint = (x: number, y: number) => {
-      const element = document.elementFromPoint(x, y)
+    const resolveTarget = (element: Element | null) => {
       if (!element || element.closest('[data-target-cursor="off"]')) return null
       return element.closest(targetSelector) ?? null
     }
+
+    const resolveTargetAtPoint = (x: number, y: number) => resolveTarget(document.elementFromPoint(x, y))
 
     const isSketchbookActive = () => root.classList.contains('sketchbook-mode')
 
@@ -333,7 +334,14 @@ export default function TargetCursor({
 
       lastPointerRef.current = { x: e.clientX, y: e.clientY }
       moveCursor(e.clientX, e.clientY)
-      syncTarget(resolveTargetAtPoint(e.clientX, e.clientY))
+      // The browser has already hit-tested a real move with no button down, and its target is the element under
+      // the pointer. elementFromPoint returns the same element but forces a style and layout pass on every move.
+      // A pressed button can capture the pointer and retarget the event, and a scripted event carries whatever
+      // target it was dispatched on, so both take the hit test.
+      const underPointer = e.isTrusted && e.buttons === 0 && e.target instanceof Element
+        ? e.target
+        : document.elementFromPoint(e.clientX, e.clientY)
+      syncTarget(resolveTarget(underPointer))
     }
 
     const scrollHandler = () => {

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import portfolio from '../../content/portfolio.json'
 import { ROLE_STORIES } from '../../content/roles'
+import { savesData, whenIdle } from '../../utils/whenIdle'
 import { prefersReduced } from '../chapter/dom'
 import type { RoleEntry, RolesStage, StageFrame } from './RolesStage'
 import RoleJourney, { type RoleJourneyHandle } from './RoleJourney'
@@ -21,6 +22,20 @@ const IDS = ROLES.map((r) => r.story.id)
 const BY_ID = new Map(ROLES.map((r) => [r.story.id, r]))
 const STOPS = ROLES.map((r) => ({ id: r.story.id, company: r.facts.company, accent: r.facts.accent }))
 const titleOf = (id: string) => `${BY_ID.get(id)?.facts.company ?? 'Journey'} · Jesse Chen`
+/** The longest the stage chunk's request waits for an idle period after the load event, ms. */
+const CHUNK_WARM_TIMEOUT = 2000
+
+/**
+ * Records a User Timing measure from `start` (a performance.now() value) to now. It is local because gpu.ts's
+ * `timed` would pull three.js into this section's chunk.
+ */
+const timed = (name: string, start: number) => {
+  try {
+    performance.measure(name, { start, end: performance.now() })
+  } catch {
+    // The measure is diagnostic only.
+  }
+}
 
 type Mode = 'gl' | 'static'
 
@@ -87,11 +102,32 @@ function RolesSection() {
     return () => query.removeEventListener('change', onChange)
   }, [])
 
+  // The stage's chunk carries three.js. It is requested in an idle period after the load event, and the shared
+  // environment map is built then, so the boot below starts from a module and a map the browser already holds.
+  // The request creates no stage. The boot keeps its own conditions.
+  useEffect(() => {
+    if (mode !== 'gl' || savesData()) return
+    let cancel: (() => void) | null = null
+    const warm = () => {
+      cancel = whenIdle(() => { import('./RolesStage').then(({ warmEnvironment }) => warmEnvironment()).catch(() => undefined) }, CHUNK_WARM_TIMEOUT)
+    }
+    if (document.readyState === 'complete') warm()
+    else window.addEventListener('load', warm, { once: true })
+    return () => {
+      window.removeEventListener('load', warm)
+      cancel?.()
+    }
+  }, [mode])
+
   // The stage boots once the section is within BOOT_MARGIN and the page has been scrolled, or at once on a journey
-  // page, and is released when the section is beyond RELEASE_MARGIN with no journey open.
+  // page, and is released when the section is beyond RELEASE_MARGIN with no journey open. A project's journey hides
+  // the section, which leaves it without a box and reads as far. The stage is kept through that journey, since
+  // dropping it costs a teardown on open and a full boot on close, and the distance is taken again when it closes.
   useEffect(() => {
     const root = rootRef.current
     if (!root || mode !== 'gl') return
+    const page = document.documentElement
+    let pageWatch: MutationObserver | null = null
     let intersecting = false
     // Once near, a scroll event skips the scrollY read, which forces a layout after a frame's style writes.
     let isNear = false
@@ -106,10 +142,20 @@ function RolesSection() {
       check()
     }, { rootMargin: BOOT_MARGIN })
     const far = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting && !openIdRef.current) {
-        isNear = false
-        setNear(false)
+      if (entry.isIntersecting || openIdRef.current) return
+      if (page.classList.contains('journey-open')) {
+        pageWatch ??= new MutationObserver(() => {
+          if (page.classList.contains('journey-open')) return
+          pageWatch?.disconnect()
+          pageWatch = null
+          far.unobserve(root)
+          far.observe(root)
+        })
+        pageWatch.observe(page, { attributes: true, attributeFilter: ['class'] })
+        return
       }
+      isNear = false
+      setNear(false)
     }, { rootMargin: RELEASE_MARGIN })
     boot.observe(root)
     far.observe(root)
@@ -121,6 +167,7 @@ function RolesSection() {
     return () => {
       boot.disconnect()
       far.disconnect()
+      pageWatch?.disconnect()
       window.removeEventListener('scroll', check)
     }
   }, [mode])
@@ -129,7 +176,12 @@ function RolesSection() {
     if (!near || mode !== 'gl') return
     let cancelled = false
     let stage: RolesStage | null = null
-    import('./RolesStage').then(({ createRolesStage }) => {
+    const importStart = performance.now()
+    import('./RolesStage').then(async ({ createRolesStage, warmEnvironment }) => {
+      timed('roles:chunk', importStart)
+      // The stage takes the shared environment map. A boot that arrives before the map waits for it without
+      // blocking, where building the map inside the stage holds the main thread for about 300 ms.
+      await warmEnvironment()
       const host = hostRef.current
       if (cancelled || !host) return
       stage = createRolesStage(host, ROLES, () => setMode('static'), (id) => setBroken((current) => new Set(current).add(id)))

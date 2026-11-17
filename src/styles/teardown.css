@@ -360,7 +360,14 @@
    separate translate property. Below 1280px the row's cards are less than
    230px apart, so every label wraps at 160px and the four read alike. From
    1280px each label fits on one line beside its neighbours (see the wide
-   block below), and labels.ts measures the box either way. */
+   block below), and labels.ts measures the box either way.
+
+   Only a shown label carries the frosted backing. The compositor draws a
+   backdrop filter even at opacity 0, and a stage mounts up to 73 labels. The
+   backing's 0s transition waits out the .3s fade, so a label that hides keeps
+   its blur until it is fully transparent. The delay must equal the fade. An
+   unshown label keeps opacity 0 and stays in the accessibility tree, which
+   visibility: hidden would remove it from. */
 .teardown__card-label {
   position: absolute;
   left: 0;
@@ -369,22 +376,26 @@
   padding: 5px 11px;
   border: 1px solid rgba(234, 183, 106, .28);
   background: rgba(10, 8, 6, .72);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
   font: 500 .8rem/1.35 var(--font-mono);
   color: var(--td-ink);
   text-align: center;
   text-wrap: balance;
   opacity: 0;
   translate: 0 6px;
-  transition: opacity .3s var(--td-ease), translate .3s var(--td-ease);
-  will-change: transform;
+  transition:
+    opacity .3s var(--td-ease),
+    translate .3s var(--td-ease),
+    -webkit-backdrop-filter 0s linear .3s,
+    backdrop-filter 0s linear .3s;
 }
 
 .teardown__cards.is-active .teardown__card-label.is-on {
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
   opacity: 1;
   translate: none;
   transition: opacity var(--td-fade) var(--td-ease), translate var(--td-fade) var(--td-ease);
+  will-change: transform;
 }
 
 .teardown__card-label::before { content: '// '; color: var(--td-amber); }
@@ -567,7 +578,10 @@ html.journey-open .projects__scenes > .teardown:not(.teardown--static) { margin-
 }
 
 /* The act sets each copy child's opacity from the scroll (--copy-o), so the
-   open button leaves the journey through filter instead of opacity. */
+   open button leaves the journey through filter instead of opacity. The
+   button is inert on the journey page, and visibility: hidden follows the .5s
+   filter fade, so the compositor stops drawing its filter and frosted backing.
+   The base rule sets no visibility, so the button inherits its act's. */
 .teardown__open {
   display: inline-block;
   margin: 22px 0 0;
@@ -579,12 +593,17 @@ html.journey-open .projects__scenes > .teardown:not(.teardown--static) { margin-
   backdrop-filter: var(--td-frost);
   border: 1px solid var(--td-hairline);
   cursor: pointer;
-  transition: color .25s ease, border-color .25s ease, filter .5s var(--td-ease);
+  transition: color .25s ease, border-color .25s ease, filter .5s var(--td-ease), visibility 0s;
 }
 
 .teardown__open:hover,
 .teardown__open:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
-.teardown--journey .teardown__open { filter: opacity(0); pointer-events: none; }
+.teardown--journey .teardown__open {
+  filter: opacity(0);
+  pointer-events: none;
+  visibility: hidden;
+  transition-delay: 0s, 0s, 0s, .5s;
+}
 
 .teardown__back {
   position: fixed;
@@ -602,10 +621,21 @@ html.journey-open .projects__scenes > .teardown:not(.teardown--static) { margin-
   opacity: 0;
   translate: 0 -8px;
   pointer-events: none;
-  transition: opacity .6s var(--td-ease), translate .6s var(--td-ease), color .25s ease, border-color .25s ease;
+  visibility: hidden;
+  transition:
+    opacity .6s var(--td-ease),
+    translate .6s var(--td-ease),
+    color .25s ease,
+    border-color .25s ease,
+    visibility 0s linear .6s;
 }
 
-.teardown__back.is-shown { opacity: 1; translate: none; pointer-events: auto; }
+/* Every chapter mounts a fixed back button, and an unshown one is inert. It
+   turns visibility: hidden once its .6s fade has ended, so the compositor does
+   not draw its frosted backing over every section. transition-delay clears the
+   wait on show. roles.css sets its own transition on this button, so this
+   rule must not set the shorthand. */
+.teardown__back.is-shown { opacity: 1; translate: none; pointer-events: auto; visibility: visible; transition-delay: 0s; }
 .teardown__back:hover,
 .teardown__back:focus-visible { color: var(--td-amber); border-color: var(--td-amber); }
 
