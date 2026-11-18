@@ -81,7 +81,7 @@ export const TAROCCHI: ChapterStory = {
       lines: [
         'The final reading connects the cards with the player’s question and choices.',
         'An Express backend passes that context to Claude, which writes the reading in Maestro Tarocchi’s voice. The cards are drawn at random; the choices shape how they’re interpreted.',
-        'Built by a team of four in two days at HackCMU 2025.',
+        'Built by a team of three in two days at HackCMU 2025.',
       ],
       callouts: [],
     },

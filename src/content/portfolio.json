@@ -366,7 +366,7 @@
       "bullets": [
         "Players choose a spread, enter a question, and move through a shuffled selection of five illustrated settings. Each scene offers three choices that become part of the final reading.",
         "A React reducer keeps track of the spread, scene order, and answers. An Express backend sends that context and the randomly drawn cards to Claude, which writes the reading in the guide’s voice.",
-        "CSS animations add drifting backgrounds, particles, and tilting cards, with optional background music. Built by a team of four in two days at HackCMU 2025."
+        "CSS animations add drifting backgrounds, particles, and tilting cards, with optional background music. Built by a team of three in two days at HackCMU 2025."
       ],
       "tech": [
         "React & Vite",
