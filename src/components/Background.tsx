@@ -4,7 +4,6 @@ import { getScrollProgress, onScroll } from '../scroll/scrollSignal'
 import { isHeroCovering, onHeroCover } from './hero/heroCover'
 import { acquireLink, releaseLink } from './background/link'
 import { getPerformanceProfile } from './background/profile'
-import { rasterizeNoiseTile } from './background/noiseTile'
 import type { BackgroundMessage } from './background/protocol'
 
 /**
@@ -15,7 +14,7 @@ import type { BackgroundMessage } from './background/protocol'
  */
 
 const spawnWorker = () =>
-  typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap === 'function'
+  typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
     ? new Worker(new URL('./background/background.worker.ts', import.meta.url), { type: 'module' })
     : null
 
@@ -49,38 +48,13 @@ export default function Background() {
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const link = acquireLink(canvas, { reducedMotion: prefersReduced, spawnWorker, loadRenderer })
-    const post = (message: BackgroundMessage, transfer?: Transferable[]) => link.post(message, transfer)
+    const post = (message: BackgroundMessage) => link.post(message)
     postRef.current = post
-    let disposed = false
 
     let w = window.innerWidth
     let h = window.innerHeight
     let stableCompactHeight = h
     let profile = getPerformanceProfile()
-    let tileScale = 0
-    let tileRequest = 0
-
-    // The film grain is rasterised at the canvas's own pixel density so it
-    // lands on the same pixel grid it used to as a CSS layer.
-    const sendNoise = () => {
-      const scale = profile.dpr
-      if (scale === tileScale) return
-      tileScale = scale
-      const request = ++tileRequest
-      rasterizeNoiseTile(scale).then(async (tile) => {
-        if (!tile || request !== tileRequest || disposed) return
-        if (!link.worker) {
-          post({ type: 'noise', tile, scale })
-          return
-        }
-        const bitmap = await createImageBitmap(tile)
-        if (request !== tileRequest || disposed) {
-          bitmap.close()
-          return
-        }
-        post({ type: 'noise', tile: bitmap, scale }, [bitmap])
-      })
-    }
 
     const resize = () => {
       const nextW = window.innerWidth
@@ -104,7 +78,6 @@ export default function Background() {
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       post({ type: 'resize', width: w, height: h, profile })
-      sendNoise()
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
@@ -121,7 +94,6 @@ export default function Background() {
         if (resizeTimer) clearTimeout(resizeTimer)
         window.removeEventListener('resize', debouncedResize)
         postRef.current = null
-        disposed = true
         releaseLink(canvas)
       }
     }
@@ -201,7 +173,6 @@ export default function Background() {
       stopScroll()
       classObserver.disconnect()
       postRef.current = null
-      disposed = true
       releaseLink(canvas)
     }
   }, [])

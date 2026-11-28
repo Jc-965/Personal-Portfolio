@@ -16,8 +16,6 @@ export interface PerformanceProfile {
   useSimpleGrid: boolean
   dpr: number
   targetFps: number
-  /** Strength of the film-grain overlay, matching the old CSS layer's opacity. */
-  noiseAlpha: number
 }
 
 export function getPerformanceProfile(): PerformanceProfile {
@@ -39,7 +37,6 @@ export function getPerformanceProfile(): PerformanceProfile {
     useSimpleGrid,
     dpr: Math.min(window.devicePixelRatio || 1, isLowPower ? 1.15 : isActualMobile ? 1.28 : 2),
     targetFps: isLowPower ? (isCompact ? 42 : 36) : isActualMobile ? 56 : 60,
-    noiseAlpha: window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches ? 0.18 : 0.4,
   }
 }
 

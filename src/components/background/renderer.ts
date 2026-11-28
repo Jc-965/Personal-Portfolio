@@ -61,8 +61,6 @@ export interface BackgroundRenderer {
   /** While true the simulation keeps running but nothing is painted. */
   setCovered(covered: boolean): void
   setHidden(hidden: boolean): void
-  /** Film-grain tile rasterised at `scale` device pixels per CSS pixel. */
-  setNoise(tile: CanvasImageSource | null, scale: number): void
   /** Test hook: the live graph. */
   inspect(): { nodes: readonly Node[]; edges: readonly [number, number][] }
   dispose(): void
@@ -97,7 +95,6 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
   let profile: PerformanceProfile | null = null
   let dpr = 1
   let bgGradient: CanvasGradient | string = '#000000'
-  let noisePattern: CanvasPattern | null = null
   const nodes: Node[] = []
   const edges: [number, number][] = []
 
@@ -118,34 +115,14 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
     buildBgGradient()
   }
 
-  const installNoise = (tile: CanvasImageSource | null, scale: number) => {
-    noisePattern = tile ? ctx.createPattern(tile, 'repeat') : null
-    // The tile holds `scale` device pixels per CSS pixel; undo that so it
-    // repeats every 256 CSS pixels, exactly like the CSS layer it replaces.
-    noisePattern?.setTransform({ a: 1 / scale, b: 0, c: 0, d: 1 / scale, e: 0, f: 0 })
-  }
-
-  // The old CSS layer blended the grain over the canvas with `overlay` at the
-  // profile's opacity. Same blend, same alpha, now as the frame's last stroke.
-  const paintNoise = () => {
-    if (!noisePattern || !profile) return
-    ctx.save()
-    ctx.globalCompositeOperation = 'overlay'
-    ctx.globalAlpha = profile.noiseAlpha
-    ctx.fillStyle = noisePattern
-    ctx.fillRect(0, 0, w, h)
-    ctx.restore()
-  }
-
   const inspect = () => ({ nodes, edges })
 
   if (options.reducedMotion) {
-    // Reduced motion never animated: an opaque black canvas under the grain.
+    // Reduced motion never animated: an opaque black canvas.
     const paintStatic = () => {
       if (!profile) return
       ctx.fillStyle = '#000000'
       ctx.fillRect(0, 0, w, h)
-      paintNoise()
     }
     const noop = () => {}
     return {
@@ -155,10 +132,6 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
         profile = next
         dpr = next.dpr
         resizeCanvas()
-        paintStatic()
-      },
-      setNoise(tile, scale) {
-        installNoise(tile, scale)
         paintStatic()
       },
       setPointer: noop,
@@ -1096,8 +1069,6 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
         ctx.stroke()
       }
     }
-
-    paintNoise()
   }
 
   const animate = (now: number) => {
@@ -1206,9 +1177,6 @@ export function createBackgroundRenderer(canvas: RendererCanvas, options: Render
         start()
       }
     },
-    setNoise(tile, scale) {
-      installNoise(tile, scale)
-    },
     inspect,
     dispose() {
       disposed = true
@@ -1246,9 +1214,6 @@ export function applyMessage(renderer: BackgroundRenderer, message: BackgroundMe
       break
     case 'hidden':
       renderer.setHidden(message.hidden)
-      break
-    case 'noise':
-      renderer.setNoise(message.tile, message.scale)
       break
   }
 }

@@ -16,10 +16,6 @@ function fakeContext(log) {
   }
   ctx.createLinearGradient = (...args) => { log.push(['createLinearGradient', ...args]); return { addColorStop() {} } }
   ctx.createRadialGradient = (...args) => { log.push(['createRadialGradient', ...args]); return { addColorStop() {} } }
-  ctx.createPattern = (image, repetition) => {
-    log.push(['createPattern', image, repetition])
-    return { kind: 'pattern', setTransform(matrix) { log.push(['pattern.setTransform', matrix]) } }
-  }
   return ctx
 }
 
@@ -41,8 +37,8 @@ function fakeClock() {
   }
 }
 
-const DESKTOP = { isTouch: false, isMobile: false, isCompact: false, isActualMobile: false, isLowPower: false, useSimpleGrid: false, dpr: 2, targetFps: 60, noiseAlpha: 0.4 }
-const PHONE = { isTouch: true, isMobile: true, isCompact: true, isActualMobile: true, isLowPower: false, useSimpleGrid: true, dpr: 1.28, targetFps: 56, noiseAlpha: 0.18 }
+const DESKTOP = { isTouch: false, isMobile: false, isCompact: false, isActualMobile: false, isLowPower: false, useSimpleGrid: false, dpr: 2, targetFps: 60 }
+const PHONE = { isTouch: true, isMobile: true, isCompact: true, isActualMobile: true, isLowPower: false, useSimpleGrid: true, dpr: 1.28, targetFps: 56 }
 
 function setup(profile = DESKTOP, { reducedMotion = false, width = 1440, height = 900 } = {}) {
   const log = []
@@ -116,28 +112,16 @@ test('edge colour is assigned once per frame while every edge is idle', () => {
   assert.equal(count(edges, 'set:lineWidth'), 1)
 })
 
-test('the noise tile is blended last with overlay at the profile alpha', () => {
-  const { frame, renderer, log } = setup()
-  const tile = { kind: 'tile' }
-  renderer.setNoise(tile, 2)
-  assert.deepEqual(log.find((op) => op[0] === 'pattern.setTransform')?.[1], { a: 0.5, b: 0, c: 0, d: 0.5, e: 0, f: 0 })
-  const ops = frame()
-  const tail = ops.slice(-6)
-  assert.deepEqual(tail.map((op) => op[0]), ['save', 'set:globalCompositeOperation', 'set:globalAlpha', 'set:fillStyle', 'fillRect', 'restore'])
-  assert.equal(tail[1][1], 'overlay')
-  assert.equal(tail[2][1], 0.4)
-  assert.deepEqual(tail[4].slice(1), [0, 0, 1440, 900])
+test('a frame sets no composite operation, which Firefox would rasterize in software', () => {
+  const { frame } = setup()
+  assert.equal(count(frame(), 'set:globalCompositeOperation'), 0)
 })
 
-test('reduced motion paints one black frame with noise and schedules nothing', () => {
-  const { log, clock, renderer } = setup(DESKTOP, { reducedMotion: true })
+test('reduced motion paints one black frame and schedules nothing', () => {
+  const { log, clock } = setup(DESKTOP, { reducedMotion: true })
   assert.equal(clock.pendingCount(), 0)
   assert.ok(log.some((op) => op[0] === 'set:fillStyle' && op[1] === '#000000'))
   assert.equal(count(log, 'fillRect'), 1)
-  log.length = 0
-  renderer.setNoise({ kind: 'tile' }, 2)
-  assert.equal(count(log, 'fillRect'), 2, 'repaints black plus noise')
-  assert.equal(clock.pendingCount(), 0)
 })
 
 test('phones draw the simple grid as one stroke with flat node fills', () => {

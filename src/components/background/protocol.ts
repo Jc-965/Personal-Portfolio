@@ -15,7 +15,6 @@ export type BackgroundMessage =
   | { type: 'scroll'; progress: number }
   | { type: 'covered'; covered: boolean }
   | { type: 'hidden'; hidden: boolean }
-  | { type: 'noise'; tile: CanvasImageSource | null; scale: number }
 
 /** First and only message the worker receives before the stream above. */
 export interface WorkerInit {

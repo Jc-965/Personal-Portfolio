@@ -281,9 +281,6 @@ img {
   .background { transition: none; }
 }
 
-/* The film grain that used to sit here as a blended layer is now drawn by
-   the canvas itself (see components/background/noiseTile.ts), so the
-   compositor no longer re-blends a full-screen texture every frame. */
 .background__canvas {
   position: absolute;
   inset: 0;

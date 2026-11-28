@@ -36,9 +36,9 @@ test('the canvas is handed to the worker only after it reports ready, with earli
   assert.deepEqual(worker.sent.map((entry) => entry.message.type), ['init', 'resize', 'covered'])
   assert.equal(worker.sent[0].message.canvas, offscreen)
   assert.deepEqual(worker.sent[0].transfer, [offscreen])
-  const bitmap = { kind: 'bitmap' }
-  link.post({ type: 'noise', tile: bitmap, scale: 2 }, [bitmap])
-  assert.deepEqual(worker.sent.at(-1).transfer, [bitmap])
+  const buffer = { kind: 'buffer' }
+  link.post({ type: 'scroll', progress: 0.2 }, [buffer])
+  assert.deepEqual(worker.sent.at(-1).transfer, [buffer])
   link.dispose()
   assert.equal(worker.terminated, true)
 })
