@@ -4,7 +4,7 @@ import type { ScreenKey, TeardownStory } from '../../content/teardown/types'
 import { lenisRef } from '../../scroll/lenisRef'
 import { pageScrollY } from '../../scroll/scrollSignal'
 import { whenIdle, whenScrollRests } from '../../utils/whenIdle'
-import { TARGET_BAND, createEnvironment, timed, warmEnvironment } from '../chapter/gpu'
+import { TARGET_BAND, createEnvironment, createProductTarget, linkGate, primePipelines, timed, warmEnvironment } from '../chapter/gpu'
 import type { ChapterView, StageControl } from '../chapter/stageHooks'
 import { buildGlyphAtlas } from '../hero/glyphAtlas'
 import { sceneProgress } from '../hero/world'
@@ -128,9 +128,6 @@ function bitmapsFlip(): Promise<boolean> {
   })()
   return flipProbe
 }
-
-/** True once a program's parallel link has finished. three's WebGLProgram.isReady is missing from its typings. */
-const linked = (program: unknown) => (program as { isReady?: () => boolean }).isReady?.() ?? true
 
 /**
  * Waits for every pending program link. Chrome tracks each parallel link
@@ -885,15 +882,19 @@ function mount(
   // LINK_POLLS frames it starts anyway, and a link that is still pending blocks that one draw. A program's
   // first use reads its info logs and its uniform table, about 100 ms across the chapter's programs, so each
   // program is then put through that first use (getUniforms) one per frame, before the chapter is on screen,
-  // and not all in the frame of the first draw.
+  // and not all in the frame of the first draw. Each material then draws once into the product target's unsized
+  // twin (primePipelines), so the first scene pass builds no pipeline state.
   let polls = 0
   let warming = 0
+  let linksReady = () => true
+  let primed = false
+  const primeTarget = createProductTarget(renderer)
   const warmed = new Set<unknown>()
   const awaitLinks = () => {
     warming = 0
     if (disposed || failed) return
     const programs = renderer.info.programs ?? []
-    if (++polls < LINK_POLLS && !programs.every(linked)) {
+    if (++polls < LINK_POLLS && !linksReady()) {
       warming = requestAnimationFrame(awaitLinks)
       return
     }
@@ -902,6 +903,13 @@ function mount(
       warmed.add(cold)
       cold.getUniforms()
       warming = requestAnimationFrame(awaitLinks)
+      return
+    }
+    if (!primed) {
+      primed = true
+      primePipelines(renderer, scene, camera, primeTarget, () => !disposed && !failed && !lost).then(() => {
+        if (!disposed && !failed) warming = requestAnimationFrame(awaitLinks)
+      })
       return
     }
     compiled = true
@@ -918,6 +926,7 @@ function mount(
     renderer.compile(scene, camera)
     renderer.setRenderTarget(null)
     renderer.compile(composite.scene, composite.camera)
+    linksReady = linkGate(renderer)
     warming = requestAnimationFrame(awaitLinks)
   })
 
@@ -967,6 +976,7 @@ function mount(
     owned.forEach((texture) => texture.dispose())
     atlas?.dispose()
     code?.dispose()
+    primeTarget.dispose()
     if (!lost) {
       settleLinks(renderer)
       // A hot reload remounts on the same canvas, whose context keeps the unpack flags the last texture upload

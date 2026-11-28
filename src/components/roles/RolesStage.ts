@@ -28,7 +28,7 @@ import { MAX_DRAG } from '../teardown/rig'
 import { actWindows, localOf } from '../teardown/timeline'
 import { createFollowGate } from '../../utils/pacing'
 import { savesData, whenIdle } from '../../utils/whenIdle'
-import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks, timed } from '../chapter/gpu'
+import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linkGate, primePipelines, settleLinks, timed, untilLinked } from '../chapter/gpu'
 import { createComposite } from '../teardown/composite'
 
 // RolesSection reaches the shared environment build through this chunk, so its own chunk never imports three.js.
@@ -284,9 +284,11 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
     renderer.setRenderTarget(compileTarget)
     const compiling = renderer.compileAsync(object, scene.camera, scene.scene)
     renderer.setRenderTarget(null)
+    // compileAsync resolves before the links are done where the parallel compile extension is missing.
+    const settled = untilLinked(renderer)
     const cold = (renderer.info.programs ?? []).filter((program) => !before.has(program) && !warmed.has(program))
     cold.forEach((program) => warmed.add(program))
-    return compiling.then(() => new Promise<void>((resolve) => {
+    return Promise.all([compiling, settled]).then(() => new Promise<void>((resolve) => {
       const warm = () => {
         if (disposed || failed || island.status === 'failed') return
         const program = cold.shift()
@@ -322,14 +324,21 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
           facts: island.entry.facts,
         })
         timed(`roles:${id}:build`, buildStart)
-        // The world draws once its programs are ready, so its first frame never waits on a compile.
+        // The world draws once its programs are ready and each material has drawn once offscreen, so its first
+        // frame waits on neither a compile nor a pipeline state.
         const compileStart = performance.now()
-        compileFor(island, island.scene.scene).then(() => {
-          timed(`roles:${id}:compile`, compileStart)
-          if (island.status !== 'loading') return
-          island.status = 'ready'
-          start()
-        })
+        const built = island.scene
+        compileFor(island, built.scene)
+          .then(() => primePipelines(renderer, built.scene, built.camera, compileTarget, () => !disposed && !failed && !lost && island.status === 'loading'))
+          .then(() => {
+            timed(`roles:${id}:compile`, compileStart)
+            // The primed draws left shadow maps that hold one object each. The world's first frame draws its own.
+            island.mapped = true
+            dropShadowMaps(island)
+            if (island.status !== 'loading') return
+            island.status = 'ready'
+            start()
+          })
       } catch (error) {
         console.warn(`[roles] ${island.entry.story.id} failed to build`, error)
         island.status = 'failed'
@@ -854,13 +863,13 @@ export function createRolesStage(host: HTMLElement, entries: RoleEntry[], onFall
 
   // Programs link in parallel before the first frame, as the chapters do.
   renderer.compile(composite.scene, composite.camera)
+  const linksReady = linkGate(renderer)
   let polls = 0
   let warming = 0
   const awaitLinks = () => {
     warming = 0
     if (disposed || failed) return
-    const programs = renderer.info.programs ?? []
-    if (++polls < 120 && !programs.every(linked)) {
+    if (++polls < 120 && !linksReady()) {
       warming = requestAnimationFrame(awaitLinks)
       return
     }

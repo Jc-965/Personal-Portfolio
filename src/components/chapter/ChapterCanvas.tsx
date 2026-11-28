@@ -19,7 +19,7 @@ import { CHAPTER_RAMP } from '../teardown/materials'
 import { LAUNCH_MS, MAX_DRAG, backdropAt, type Interaction } from '../teardown/rig'
 import { EDGE_HOLD, actAt, actCopyRide, actWindows, localOf, previewProgress, ramp, totalSpan } from '../teardown/timeline'
 import { whenIdle, whenScrollRests } from '../../utils/whenIdle'
-import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linked, settleLinks, timed, warmEnvironment, type Environment } from './gpu'
+import { BITMAP_OPTIONS, TARGET_BAND, bitmapsFlip, createEnvironment, createProductTarget, linkGate, primePipelines, settleLinks, timed, warmEnvironment, type Environment } from './gpu'
 import type { ChapterView, StageControl } from './stageHooks'
 import type { ChapterScene, ChapterStory, LoadedTexture, SceneFactory, SceneOutput } from './types'
 
@@ -263,6 +263,8 @@ function mount(
 
   let environment: Environment
   let target: THREE.WebGLRenderTarget
+  /** The product target's unsized twin, which primePipelines draws into. */
+  let primeTarget: THREE.WebGLRenderTarget
   let composite: ReturnType<typeof createComposite>
   let chapter: ChapterScene
   let narrow = stage.clientWidth < 768
@@ -272,6 +274,8 @@ function mount(
     disposers.push(() => environment.dispose())
     target = createProductTarget(renderer)
     disposers.push(() => target.dispose())
+    primeTarget = createProductTarget(renderer)
+    disposers.push(() => primeTarget.dispose())
     composite = createComposite()
     disposers.push(() => composite.dispose())
     chapter = factory({
@@ -755,17 +759,20 @@ function mount(
   }
 
   // The loop starts once every program link reports complete, and each program's first use (its info logs and
-  // uniform table) runs one per frame before the chapter is on screen, as in TeardownCanvas.
+  // uniform table) runs one per frame before the chapter is on screen, as in TeardownCanvas. Each material then
+  // draws once offscreen (primePipelines), so the first scene pass builds no pipeline state.
   // Compile the same output configuration the scene actually renders into.
   // Compiling against the canvas creates a second set of programs on first draw.
   let polls = 0
   let warming = 0
+  let linksReady = () => true
+  let primed = false
   const warmed = new Set<unknown>()
   const awaitLinks = () => {
     warming = 0
     if (disposed || failed) return
     const programs = renderer.info.programs ?? []
-    if (++polls < LINK_POLLS && !programs.every(linked)) {
+    if (++polls < LINK_POLLS && !linksReady()) {
       warming = requestAnimationFrame(awaitLinks)
       return
     }
@@ -774,6 +781,13 @@ function mount(
       warmed.add(cold)
       cold.getUniforms()
       warming = requestAnimationFrame(awaitLinks)
+      return
+    }
+    if (!primed) {
+      primed = true
+      primePipelines(renderer, chapter.scene, camera, primeTarget, () => !disposed && !failed && !lost).then(() => {
+        if (!disposed && !failed) warming = requestAnimationFrame(awaitLinks)
+      })
       return
     }
     compiled = true
@@ -790,6 +804,7 @@ function mount(
     renderer.compile(chapter.scene, camera)
     renderer.setRenderTarget(null)
     renderer.compile(composite.scene, composite.camera)
+    linksReady = linkGate(renderer)
     warming = requestAnimationFrame(awaitLinks)
   })
 

@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { refreshInterval } from '../../utils/pacing'
 
 /**
  * Decode options that make an ImageBitmap upload the same bytes as an image element under three's defaults for an
@@ -59,6 +60,144 @@ export function timed(name: string, start: number) {
 /** True once a program's parallel link has finished. three's WebGLProgram.isReady is missing from its typings. */
 export const linked = (program: unknown) => (program as { isReady?: () => boolean }).isReady?.() ?? true
 
+/** Animation frames untilLinked waits before it resolves regardless. */
+const LINK_POLLS = 120
+
+/**
+ * Returns a poll that is true once every program submitted to `renderer` before this call can be used without a
+ * wait. The caller creates it right after the last compile() of a batch. With KHR_parallel_shader_compile the poll
+ * reads each program's completion status. Firefox on macOS lacks the extension, and there a program's first use
+ * waits for every link queued ahead of it (220 ms for 24 materials, measured). The poll then reads a fence placed
+ * after the links in the command stream, which answers without a wait. The fence is used only without the
+ * extension, because fenceSync itself waits for the queue in WebKit.
+ */
+export function linkGate(renderer: THREE.WebGLRenderer): () => boolean {
+  const gl = renderer.getContext() as WebGL2RenderingContext
+  if (renderer.extensions.has('KHR_parallel_shader_compile') || typeof gl.fenceSync !== 'function') {
+    return () => (renderer.info.programs ?? []).every(linked)
+  }
+  let fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+  // A fence is not submitted until a flush, and would never signal.
+  gl.flush()
+  return () => {
+    if (!fence) return true
+    if (gl.clientWaitSync(fence, 0, 0) === gl.TIMEOUT_EXPIRED) return false
+    gl.deleteSync(fence)
+    fence = null
+    return true
+  }
+}
+
+/**
+ * Resolves once linkGate reports the programs submitted so far ready, polled once per animation frame, or after
+ * LINK_POLLS frames. Where the extension exists and the links are complete it resolves without waiting a frame.
+ */
+export function untilLinked(renderer: THREE.WebGLRenderer): Promise<void> {
+  const ready = linkGate(renderer)
+  return new Promise((resolve) => {
+    let polls = 0
+    const poll = () => {
+      if (ready() || ++polls >= LINK_POLLS) resolve()
+      else requestAnimationFrame(poll)
+    }
+    poll()
+  })
+}
+
+/** The layer primePipelines draws on. No scene uses it. */
+const PRIME_LAYER = 31
+/** The most objects primePipelines draws in one frame, and the frame gap in display intervals that counts as late. */
+const PRIME_BATCH = 8
+const PRIME_LATE = 1.6
+/** Milliseconds after which primePipelines stops, so a slow renderer delays a scene by no more than this. */
+const PRIME_BUDGET = 700
+
+/**
+ * Draws one visible object for each distinct material of `scene` into `target` over several animation frames, and
+ * resolves after the last. A driver builds a program's pipeline state at its first draw. With a cold shader cache
+ * (a first visit) that takes about 30 ms per material, and Safari and Firefox hold the page for it when a canvas
+ * presents, which measured 95 to 285 ms for a role world drawn whole in Safari. Drawn offscreen and a few per
+ * frame, the same work no longer falls on one visible frame. The batch starts at one object, doubles after a frame that
+ * arrived on time, and returns to one after a late frame, so a warm cache finishes in a few frames. The run stops
+ * after PRIME_BUDGET ms, and the objects it did not reach draw cold. A software renderer never holds the display's
+ * rate, so without the budget it would draw one object per frame to the end.
+ *
+ * `target` must have the format and sample count of the target the scene draws into, because the pipeline state
+ * depends on both. A hidden object is skipped, and its first show draws cold as before. After the run the scene's
+ * shadow maps hold only the last object drawn, so the caller must redraw them. `alive` returning false ends the
+ * run early. A draw that throws ends it too, because priming changes no result.
+ */
+export function primePipelines(renderer: THREE.WebGLRenderer, scene: THREE.Object3D, camera: THREE.Camera, target: THREE.WebGLRenderTarget, alive: () => boolean): Promise<void> {
+  const shown = (object: THREE.Object3D) => {
+    for (let at: THREE.Object3D | null = object; at; at = at.parent) if (!at.visible) return false
+    return true
+  }
+  const lights: THREE.Object3D[] = []
+  const queue: THREE.Object3D[] = []
+  const seen = new Set<string>()
+  scene.traverse((object) => {
+    if (!shown(object)) return
+    if ((object as THREE.Light).isLight) {
+      lights.push(object)
+      return
+    }
+    const drawable = object as THREE.Mesh
+    if (!drawable.isMesh && !(object as THREE.Points).isPoints && !(object as THREE.Line).isLine && !(object as THREE.Sprite).isSprite) return
+    // The object type sets the topology and the instancing, and a shadow caster also draws with a depth material.
+    let fresh = false
+    for (const material of Array.isArray(drawable.material) ? drawable.material : [drawable.material]) {
+      const key = `${material.uuid}:${object.type}:${object.castShadow}`
+      if (!seen.has(key)) fresh = true
+      seen.add(key)
+    }
+    if (fresh) queue.push(object)
+  })
+
+  /** Draws `object` alone, lit by every light, on a layer no other object is on. */
+  const drawOne = (object: THREE.Object3D) => {
+    const culled = object.frustumCulled
+    const mask = camera.layers.mask
+    const bound = renderer.getRenderTarget()
+    object.frustumCulled = false
+    object.layers.enable(PRIME_LAYER)
+    for (const light of lights) light.layers.enable(PRIME_LAYER)
+    camera.layers.set(PRIME_LAYER)
+    // Every draw renders the shadow maps, with this object as the only caster. A lit program samples them, and a
+    // light whose map was never drawn has no depth texture to bind to its shadow sampler.
+    if (renderer.shadowMap.enabled) renderer.shadowMap.needsUpdate = true
+    try {
+      renderer.setRenderTarget(target)
+      renderer.render(scene, camera)
+    } finally {
+      renderer.setRenderTarget(bound)
+      camera.layers.mask = mask
+      for (const light of lights) light.layers.disable(PRIME_LAYER)
+      object.layers.disable(PRIME_LAYER)
+      object.frustumCulled = culled
+    }
+  }
+
+  return new Promise((resolve) => {
+    let batch = 1
+    let first = 0
+    let last = 0
+    const step = (now: number) => {
+      first ||= now
+      if (!queue.length || !alive() || now - first > PRIME_BUDGET) { resolve(); return }
+      if (last) batch = now - last > refreshInterval() * PRIME_LATE ? 1 : Math.min(PRIME_BATCH, batch * 2)
+      last = now
+      try {
+        for (let drawn = 0; drawn < batch && queue.length; drawn++) drawOne(queue.shift()!)
+      } catch {
+        resolve()
+        return
+      }
+      requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  })
+}
+
 /**
  * Waits for every pending program link. Chrome tracks each parallel link with a completion query, and a program
  * deleted while that query is still pending logs "GL_INVALID_VALUE: glGetProgramiv: Program object expected" once
@@ -110,8 +249,10 @@ export function warmEnvironment(): Promise<void> {
       // A program's key depends on whether an offscreen target is bound, so the compile binds one, as the build does.
       const offscreen = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false })
       renderer.setRenderTarget(offscreen)
-      await renderer.compileAsync(room, new THREE.PerspectiveCamera(90, 1, 0.1, 100))
+      const compiling = renderer.compileAsync(room, new THREE.PerspectiveCamera(90, 1, 0.1, 100))
       renderer.setRenderTarget(null)
+      // compileAsync resolves before the links are done where the parallel compile extension is missing.
+      await Promise.all([compiling, untilLinked(renderer)])
       const environment = pmrem.fromScene(room, ENVIRONMENT_SIGMA)
       const { width, height } = environment
       const data = new Uint16Array(width * height * 4)
