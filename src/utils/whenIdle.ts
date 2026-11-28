@@ -3,14 +3,30 @@
  * a renderer into its chunk.
  */
 
-/** Runs `run` in an idle period, or after `timeout` ms at the latest. Returns a function that cancels the run. */
+/**
+ * Runs `run` in an idle period, or after `timeout` ms at the latest. Returns a function that cancels the run.
+ *
+ * Safari has no requestIdleCallback. There the run waits for the scroll to rest (whenScrollRests) or for `timeout`,
+ * and then starts in a task after the next frame, which gives it a whole frame interval before the frame after. A
+ * plain short timer would start it in the middle of a scroll. A hidden page produces no frames, so the run starts
+ * at once there.
+ */
 export function whenIdle(run: () => void, timeout: number): () => void {
   if (typeof window.requestIdleCallback === 'function') {
     const id = window.requestIdleCallback(run, { timeout })
     return () => window.cancelIdleCallback(id)
   }
-  const id = window.setTimeout(run, 1)
-  return () => window.clearTimeout(id)
+  let frame = 0
+  let task = 0
+  const cancelRest = whenScrollRests(() => {
+    if (document.hidden) run()
+    else frame = requestAnimationFrame(() => { task = window.setTimeout(run, 0) })
+  }, timeout)
+  return () => {
+    cancelRest()
+    cancelAnimationFrame(frame)
+    window.clearTimeout(task)
+  }
 }
 
 /** True when the visitor asked for reduced data use or is on a 2g connection, where nothing loads ahead of need. */

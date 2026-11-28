@@ -17,6 +17,7 @@ import { GyroscopeProvider } from './context/GyroscopeContext'
 import GyroPrompt from './components/GyroPrompt'
 import { shouldUseCustomCursor } from './utils/nativeCursor'
 import { storageGet, storageSet } from './utils/safeStorage'
+import { whenIdle } from './utils/whenIdle'
 import { JOURNEYS, ROLE_JOURNEYS, journeyAt } from './components/teardown/route'
 
 const SketchbookOverlay = lazy(() => import('./components/SketchbookTerrain/SketchbookOverlay'))
@@ -59,22 +60,16 @@ function DeferredTargetCursor() {
   const [armed, setArmed] = useState(false)
 
   useEffect(() => {
-    let idleId = 0
-    let timerId = 0
+    let cancel: (() => void) | null = null
     const arm = () => setArmed(true)
-    // Safari has no requestIdleCallback, so a short timer after the load event stands in for it.
-    const armWhenIdle = () => {
-      if (typeof window.requestIdleCallback === 'function') idleId = window.requestIdleCallback(arm, { timeout: 2000 })
-      else timerId = window.setTimeout(arm, 200)
-    }
+    const armWhenIdle = () => { cancel = whenIdle(arm, 2000) }
     window.addEventListener('pointermove', arm, { once: true, passive: true })
     if (document.readyState === 'complete') armWhenIdle()
     else window.addEventListener('load', armWhenIdle, { once: true })
     return () => {
       window.removeEventListener('pointermove', arm)
       window.removeEventListener('load', armWhenIdle)
-      if (idleId) window.cancelIdleCallback(idleId)
-      if (timerId) window.clearTimeout(timerId)
+      cancel?.()
     }
   }, [])
 
