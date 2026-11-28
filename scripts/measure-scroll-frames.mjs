@@ -1,32 +1,46 @@
-import { chromium } from '@playwright/test'
+import { chromium, firefox, webkit } from '@playwright/test'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-// Drives a production preview through real interactions in headed Chrome on the hardware GPU and records frame
+// Drives a production preview through real interactions in a headed browser on the hardware GPU and records frame
 // pacing for each one: wheel scrolling through the hero, the Journey list, and the Projects section, opening and
 // scrolling a project journey, and opening and switching a role journey. The window must stay visible and
 // uncovered while it runs. Usage: node scripts/measure-scroll-frames.mjs <output-directory> <url>
+// PERF_BROWSER=firefox or PERF_BROWSER=webkit measures that engine in place of Chrome. Install the two builds once
+// with `npx playwright install firefox webkit`. PERF_HEADLESS=1 opens no window. Headless Chrome and headless
+// Firefox draw the page in software, so their frame rates are not a real window's, and headless WebKit keeps the
+// GPU.
 // PERF_CPU=4 slows the main thread by that factor, to stand in for a slower processor. PERF_DEVICE=phone uses a
 // phone viewport with touch input, where the page scrolls natively. Neither changes the GPU, which Chrome cannot
-// slow down.
+// slow down. Both need Chrome's debugging protocol.
 const output = process.argv[2] || 'output/playwright/performance/scroll'
 const baseURL = process.argv[3] || process.env.PERF_URL || 'http://127.0.0.1:4397'
 const runs = Number(process.env.PERF_RUNS || 1)
 const only = new Set((process.env.PERF_SCENARIOS || '').split(',').filter(Boolean))
 const cpuRate = Number(process.env.PERF_CPU || 1)
 const phone = process.env.PERF_DEVICE === 'phone'
+const engine = process.env.PERF_BROWSER || 'chromium'
+const headless = process.env.PERF_HEADLESS === '1'
+if (!['chromium', 'firefox', 'webkit'].includes(engine)) throw new Error(`PERF_BROWSER must be chromium, firefox, or webkit. Received: ${engine}`)
+if (engine !== 'chromium' && (cpuRate > 1 || phone)) throw new Error('PERF_CPU and PERF_DEVICE=phone need PERF_BROWSER=chromium.')
 await mkdir(output, { recursive: true })
 
-const browser = await chromium.launch({
-  headless: false,
-  channel: process.env.PERF_CHANNEL || 'chrome',
-  // An occluded or unfocused window stops producing frames, which the probe would record as dropped frames.
-  args: ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'],
-})
+const browser = engine === 'chromium'
+  ? await chromium.launch({
+    headless,
+    channel: process.env.PERF_CHANNEL || 'chrome',
+    // An occluded or unfocused window stops producing frames, which the probe would record as dropped frames.
+    args: ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'],
+  })
+  : await { firefox, webkit }[engine].launch({ headless })
 
-/** Runs in the page before any script. Records every frame's time, which canvases drew in it, and long frames. */
+/**
+ * Runs in the page before any script. Records every frame's time, which canvases drew in it, long frames, and each
+ * WebGL call that holds the main thread for 4 ms or longer. Firefox and Safari report no long tasks, and there a
+ * blocking WebGL call is the usual cause of a long frame.
+ */
 function probe() {
   const raf = window.requestAnimationFrame.bind(window)
-  const state = { frames: [], paints: {}, loaf: [], long: [] }
+  const state = { frames: [], paints: {}, loaf: [], long: [], calls: [] }
   window.__scrollProbe = state
   const labels = new WeakMap()
   const painted = new Set()
@@ -44,6 +58,17 @@ function probe() {
     WebGL2RenderingContext.prototype[method] = function (...args) {
       if (this.canvas instanceof HTMLCanvasElement) painted.add(labelOf(this.canvas))
       return Reflect.apply(original, this, args)
+    }
+  }
+  // The calls that wait for the GPU process: status and log reads, uploads, allocation checks, and fences.
+  for (const method of ['getProgramInfoLog', 'getShaderInfoLog', 'getProgramParameter', 'getShaderParameter', 'getParameter', 'getError', 'checkFramebufferStatus', 'readPixels', 'texImage2D', 'texSubImage2D', 'generateMipmap', 'fenceSync', 'clientWaitSync', 'finish']) {
+    const original = WebGL2RenderingContext.prototype[method]
+    WebGL2RenderingContext.prototype[method] = function (...args) {
+      const start = performance.now()
+      const result = Reflect.apply(original, this, args)
+      const duration = performance.now() - start
+      if (duration >= 4) state.calls.push({ name: method, start, duration })
+      return result
     }
   }
   // The probe registers first, so it runs before the page's own callbacks, and the canvases it sees drew in the
@@ -70,9 +95,13 @@ function probe() {
   } catch {
     // The long-animation-frame entry type is optional.
   }
-  new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) state.long.push({ start: entry.startTime, duration: entry.duration })
-  }).observe({ type: 'longtask', buffered: true })
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) state.long.push({ start: entry.startTime, duration: entry.duration })
+    }).observe({ type: 'longtask', buffered: true })
+  } catch {
+    // Only Chromium reports long tasks.
+  }
 }
 
 const median = (values) => {
@@ -95,6 +124,13 @@ function summarise(state, refreshMs, from, to) {
     .filter(([, perSecond]) => perSecond > 0))
   const loaf = state.loaf.filter((entry) => entry.start >= from && entry.start <= to)
   const long = state.long.filter((entry) => entry.start >= from && entry.start <= to)
+  const calls = {}
+  for (const call of state.calls.filter((entry) => entry.start >= from && entry.start <= to)) {
+    const total = (calls[call.name] ??= { count: 0, ms: 0, maxMs: 0 })
+    total.count += 1
+    total.ms = round(total.ms + call.duration)
+    total.maxMs = round(Math.max(total.maxMs, call.duration))
+  }
   return {
     seconds: round(seconds, 2),
     framesPerSecond: round(frames.length / seconds),
@@ -110,6 +146,7 @@ function summarise(state, refreshMs, from, to) {
     longFrames: loaf.length,
     blockingMs: round(loaf.reduce((sum, entry) => sum + entry.blocking, 0)),
     worstFrames: [...loaf].sort((a, b) => b.duration - a.duration).slice(0, 3).map((entry) => `${Math.round(entry.duration)}ms ${entry.script}`),
+    blockingCalls: calls,
     paintsPerSecond: paints,
   }
 }
@@ -126,8 +163,8 @@ try {
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.addInitScript(probe)
-    const cdp = await context.newCDPSession(page)
-    if (cpuRate > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate })
+    const cdp = engine === 'chromium' ? await context.newCDPSession(page) : null
+    if (cdp && cpuRate > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate })
 
     const now = () => page.evaluate(() => performance.now())
     const scrollY = () => page.evaluate(() => window.scrollY)
@@ -146,7 +183,7 @@ try {
       const direction = Math.sign(target - last) || 1
       // A phone scrolls by touch, which the browser runs on its compositor thread. The gesture moves the finger up
       // to scroll down, in strokes of 600 px at about 1,200 px per second.
-      while (phone && Date.now() - started < maxMs) {
+      while (phone && cdp && Date.now() - started < maxMs) {
         await cdp.send('Input.synthesizeScrollGesture', { x: 200, y: direction > 0 ? 650 : 200, yDistance: -direction * 600, speed: 1200, gestureSourceType: 'touch' })
         const y = await scrollY()
         if ((direction > 0 && y >= target) || (direction < 0 && y <= target)) return
@@ -244,11 +281,12 @@ try {
     })
     const refreshMs = median(state.frames.slice(1).map((time, index) => time - state.frames[index]))
     const summary = Object.fromEntries(windows.map(({ name, from, to }) => [name, summarise(state, refreshMs, from, to)]))
-    results.push({ run, device: phone ? 'phone' : 'desktop', cpuRate, refreshHz: round(1000 / refreshMs), gpu, summary, measures, errors })
+    results.push({ run, engine, device: phone ? 'phone' : 'desktop', cpuRate, refreshHz: round(1000 / refreshMs), gpu, summary, measures, errors })
     for (const [name, stats] of Object.entries(summary)) {
-      console.log(`${name.padEnd(28)} ${String(stats.framesPerSecond).padStart(6)} fps  dropped ${String(stats.droppedPercent).padStart(5)}%  p99 ${String(stats.p99Ms).padStart(6)} ms  max ${String(stats.maxMs).padStart(6)} ms  long tasks ${String(stats.longTasks).padStart(2)} (${stats.longTaskMs} ms)  ${JSON.stringify(stats.paintsPerSecond)}`)
+      const blocked = Object.values(stats.blockingCalls).reduce((sum, call) => sum + call.ms, 0)
+      console.log(`${name.padEnd(28)} ${String(stats.framesPerSecond).padStart(6)} fps  dropped ${String(stats.droppedPercent).padStart(5)}%  p99 ${String(stats.p99Ms).padStart(6)} ms  max ${String(stats.maxMs).padStart(6)} ms  long tasks ${String(stats.longTasks).padStart(2)} (${stats.longTaskMs} ms)  WebGL waits ${round(blocked)} ms  ${JSON.stringify(stats.paintsPerSecond)}`)
     }
-    await writeFile(`${output}/results.json`, JSON.stringify({ baseURL, browser: browser.version(), results }, null, 2))
+    await writeFile(`${output}/results.json`, JSON.stringify({ baseURL, engine, browser: browser.version(), results }, null, 2))
     await context.close()
   }
 } finally {
